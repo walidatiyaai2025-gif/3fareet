@@ -53,25 +53,25 @@ Owner default: **Flutter/Flame Developer**
 | GAR-009 | P1 | إنشاء stat visualization | Principal Mobile Game Architect | IN REVIEW |
 | GAR-010 | P1 | إنشاء unlock state | Principal Mobile Game Architect | IN REVIEW |
 | GAR-011 | P1 | إنشاء equip flow | Principal Mobile Game Architect | IN REVIEW |
-| GAR-012 | P1 | إنشاء local persistence | Flutter/Flame Developer | TODO |
-| GAR-013 | P1 | إنشاء config validation | Flutter/Flame Developer | TODO |
-| GAR-014 | P1 | إضافة أول 4 vehicle archetypes | Flutter/Flame Developer | TODO |
+| GAR-012 | P1 | إنشاء local persistence | Principal Mobile Game Architect | IN REVIEW |
+| GAR-013 | P1 | إنشاء config validation | Principal Mobile Game Architect | IN REVIEW |
+| GAR-014 | P1 | إضافة أول 4 vehicle archetypes | Principal Mobile Game Architect | IN REVIEW |
 ## CAR — Career / Progression
 Owner default: **Gameplay/Product**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| CAR-001 | P1 | تعريف Career chapter model | Gameplay/Product | TODO |
-| CAR-002 | P1 | إنشاء career map/navigation | Gameplay/Product | TODO |
-| CAR-003 | P1 | إنشاء race node | Gameplay/Product | TODO |
-| CAR-004 | P1 | إنشاء time trial mode | Gameplay/Product | TODO |
-| CAR-005 | P1 | إنشاء elimination mode | Gameplay/Product | TODO |
-| CAR-006 | P1 | إنشاء drift challenge mode | Gameplay/Product | TODO |
-| CAR-007 | P1 | إنشاء boss race mode | Gameplay/Product | TODO |
-| CAR-008 | P1 | إنشاء star/objective system | Gameplay/Product | TODO |
-| CAR-009 | P1 | إنشاء unlock prerequisites | Gameplay/Product | TODO |
-| CAR-010 | P1 | إنشاء reward table | Gameplay/Product | TODO |
-| CAR-011 | P1 | إنشاء chapter 1 content definition | Gameplay/Product | TODO |
-| CAR-012 | P1 | إنشاء chapter completion flow | Gameplay/Product | TODO |
-| CAR-013 | P1 | إنشاء offline save | Gameplay/Product | TODO |
-| CAR-014 | P1 | إنشاء migration/versioning للـsave | Gameplay/Product | TODO |
-| CAR-015 | P1 | اختبار progression بدون backend | Gameplay/Product | TODO |
+| CAR-001 | P1 | تعريف Career chapter model | Principal Mobile Game Architect | IN REVIEW |
+| CAR-002 | P1 | إنشاء career map/navigation | Principal Mobile Game Architect | IN REVIEW |
+| CAR-003 | P1 | إنشاء race node | Principal Mobile Game Architect | IN REVIEW |
+| CAR-004 | P1 | إنشاء time trial mode | Principal Mobile Game Architect | IN REVIEW |
+| CAR-005 | P1 | إنشاء elimination mode | Principal Mobile Game Architect | IN REVIEW |
+| CAR-006 | P1 | إنشاء drift challenge mode | Principal Mobile Game Architect | IN REVIEW |
+| CAR-007 | P1 | إنشاء boss race mode | Principal Mobile Game Architect | IN REVIEW |
+| CAR-008 | P1 | إنشاء star/objective system | Principal Mobile Game Architect | IN REVIEW |
+| CAR-009 | P1 | إنشاء unlock prerequisites | Principal Mobile Game Architect | IN REVIEW |
+| CAR-010 | P1 | إنشاء reward table | Principal Mobile Game Architect | IN REVIEW |
+| CAR-011 | P1 | إنشاء chapter 1 content definition | Principal Mobile Game Architect | IN REVIEW |
+| CAR-012 | P1 | إنشاء chapter completion flow | Principal Mobile Game Architect | IN REVIEW |
+| CAR-013 | P1 | إنشاء offline save | Principal Mobile Game Architect | IN REVIEW |
+| CAR-014 | P1 | إنشاء migration/versioning للـsave | Principal Mobile Game Architect | IN REVIEW |
+| CAR-015 | P1 | اختبار progression بدون backend | Principal Mobile Game Architect | IN REVIEW |
