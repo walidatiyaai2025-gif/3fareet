@@ -2,8 +2,8 @@
 
 **Document:** AFA-STATUS-001  
 **Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 15:55 (Asia/Kuwait)  
-**Overall status:** 🟡 **GAMEPLAY CORE VERIFIED — FIRST APK RAP×SHAABI AUDIO INTEGRATING — P1 STILL OPEN**
+**Last updated:** 2026-08-12 18:26 (Asia/Kuwait)  
+**Overall status:** 🟡 **GAMEPLAY CORE VERIFIED — P1-NEXT-050 IN REVIEW — PREMIUM VISUAL / REAL-DEVICE GATES STILL OPEN**
 
 > هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
 
@@ -11,142 +11,90 @@
 
 | Area | Status | Current reality |
 |---|---|---|
-| Repository / governance | 🟡 In setup | الخطة، Art Direction، Task Register وstatus guard موجودة؛ GOV reconciliation ما زال مطلوبًا |
-| Flutter / Flame foundation | 🟢 Verified | PRO-001 → PRO-010 Verified |
-| GAMEPLAY-050 | 🟢 Verified | **50 Task بالضبط** Verified: PRO-011→016 + VEH-001→016 + DRF-001→012 + RAC-001→016 |
-| Vehicle / Driving | 🟢 Verified core | throttle/brake/reverse/steering/grip/slip/drift/collision/off-track/reset/tuning/preset Verified بالاختبارات والبناء |
-| Magic Drift / Nitro | 🟢 Verified core | Spirit charge + anti-abuse + 3 feedback levels + Nitro curve/cooldown/hooks/UI states Verified |
-| Race core | 🟢 Verified core | track/start grid/countdown/checkpoints/laps/finish/timer/state/ranking/wrong-way/OOB/respawn/result/restart Verified |
-| Touch controls / lifecycle | 🟢 Verified core | steer/throttle/brake/drift/nitro + pause/reset/restart + lifecycle + TUNE overlay موجودة وتبني بنجاح |
-| First APK music | 🟡 Integrating | `AST-061` Rap/Trap × Egyptian Shaabi/Mahraganat preview is bundled and starts from game load; CI + device listening still required |
-| Android Debug APK | 🟢 Previous CI verified | Debug APK build succeeded in GAMEPLAY-050 verification run; audio-enabled candidate requires new CI |
-| Android Release Skeleton | 🟢 Previous CI verified | Release skeleton succeeded in GAMEPLAY-050; audio-enabled candidate requires new CI |
-| Premium visual direction | 🔴 Not started | VIS tasks ما زالت TODO؛ الـHUD الحالي لا يغلق Premium Visual Gate |
-| Camera / AI | 🔴 Not started | CAM وAI الأساسية ما زالت TODO |
-| Backend architecture | 🟢 Locked | Laravel API + MySQL؛ direct Flutter→MySQL ممنوع |
-| Backend implementation / Online / Seasons | ⚪ Deferred | التنفيذ الكبير مؤجل خلف P1 |
-| Android verified release APK | 🔴 None | CI release artifact ليس Verified Release APK؛ real-device smoke test غير منفذ بعد |
+| Flutter / Flame foundation | 🟢 Verified | PRO-001 → PRO-016 Verified |
+| GAMEPLAY-050 | 🟢 Verified | VEH-001→016 + DRF-001→012 + RAC-001→016 Verified |
+| P1-NEXT-050 | 🟡 In review | **50 tasks exactly:** CAM-001→011 + AI-001→018 + UIX-001→016 + PWR-001→005 |
+| Camera | 🟡 In review | follow/look-ahead/damping/drift/nitro/crash/air/FOV/shake/accessibility/bounds implemented; CAM-012 device tuning remains TODO |
+| Offline AI | 🟡 In review | racing line + controls + behavior + 3 AI + stuck/finish rules integrated into RaceSession |
+| UI / UX | 🟡 In review | Splash → Main Menu → Mode Select → Loading → Race plus HUD/Pause/Result/Error, SafeArea, RTL and text-scale clamp |
+| Power-ups | 🟡 In review | definitions, spawn/pickup, collection, one-slot inventory and Eye Shield implemented |
+| Rap × Shaabi music | 🟡 Integrating | AST-061 audio integration from current main is preserved in this branch; device listening validation still required |
+| Premium visual direction | 🔴 Open | VIS tasks require screenshot/device review and Team Lead approval; not claimed by this code batch |
+| Android verified release APK | 🔴 None | CI artifacts are build evidence only; real-device smoke test still required |
+| Backend architecture | 🟢 Locked | `Flutter/Flame → HTTPS API → Laravel → MySQL`; direct Flutter→MySQL prohibited |
 
-## Verified engineering batch — GAMEPLAY-050
+## Current implementation batch — P1-NEXT-050
 
 **Owner:** Principal Mobile Game Architect  
-**Scope:** **50 tasks exactly**  
-**Status:** `VERIFIED`  
-**Verified code head:** `70ab63797d7161e752006b4a97d3e842ab417543`  
-**GitHub Actions run:** `31596838749`  
-**Evidence:** [`work/GAMEPLAY-050.md`](work/GAMEPLAY-050.md)
+**Status:** `IN REVIEW`  
+**Evidence:** [`work/P1-NEXT-050.md`](work/P1-NEXT-050.md)
 
-### Task count
-- PRO-011 → PRO-016 = 6
-- VEH-001 → VEH-016 = 16
-- DRF-001 → DRF-012 = 12
-- RAC-001 → RAC-016 = 16
+### Exact count
+- CAM-001 → CAM-011 = 11
+- AI-001 → AI-018 = 18
+- UIX-001 → UIX-016 = 16
+- PWR-001 → PWR-005 = 5
 - **Total = 50**
 
-### Verification evidence
-Run `31596838749` completed Green and proved dependency resolution, `flutter analyze`, complete `flutter test`, Android scaffold generation, Debug APK, Release Skeleton APK, artifact upload and Project Status Freshness Guard.
+### Architectural changes
+- Camera state is deterministic and driven from the existing fixed-step gameplay loop.
+- Flame viewfinder consumes the camera controller output; invalid values are sanitized and bounded.
+- Offline AI is independent of Flutter widgets and uses seeded deterministic behavior suitable for later replay/network debugging.
+- Three AI rivals are part of `RaceSession`, and player position is now derived from AI progress.
+- Front-end UI remains outside the gameplay kernel and keeps one persistent Game instance underneath menus to preserve audio/game lifecycle.
+- UI provides premium dark/cyan/gold tokens, Arabic RTL, SafeArea and bounded accessibility text scaling.
+- Initial power-up rules are pure Dart and isolated from rendering/network code.
 
-## AST-061 — First APK Rap × Shaabi music
+## Verification required before promotion
 
-The owner-provided source has been registered and transformed into the prototype music direction:
+The 50 tasks stay `IN REVIEW` until the PR head passes:
+- formatter check;
+- `flutter analyze` with zero issues;
+- complete tests including new camera/AI/UI-flow/power-up tests;
+- Android Debug APK;
+- Android Release Skeleton APK;
+- artifact upload;
+- Project Status Freshness Guard.
 
-**Rap / Trap × Egyptian Shaabi / Mahraganat**
-- rap/trap kick, snare and hats;
-- controlled 808 low end;
-- darbuka/shaabi percussion;
-- light original oriental lead;
-- no named-artist imitation and no third-party copyrighted vocals/lyrics added.
+## Previously verified engineering
 
-### Source evidence
-- Duration: `30.772 s`
-- Stereo / `44.1 kHz` / ~`192 kbps`
-- Estimated tempo: ~`120 BPM`
-- Source SHA-256: `7e8a5119167f4e5333e6606bbefa1bfe55d735c231b2abc92698a1004b36be50`
+### GAMEPLAY-050
+- Verified CI run: `31596838749`.
+- Vehicle/drift/nitro/race core remains the stable base for this batch.
 
-### First APK runtime implementation
-- Asset lock: `AST-061` / `INTEGRATING` in [`MISSED_ASSETS.md`](MISSED_ASSETS.md)
-- Embedded preview: `assets/audio/embedded/cairo_rap_shaabi_loop_4s.b64`
-- Metadata: `assets/audio/music/cairo_fantasy_race_theme_01.asset.json`
-- Controller: `lib/game/audio/prototype_music_controller.dart`
-- Runtime: Base64 → MP3 bytes in memory
-- Playback: `flame_audio` / `AudioPlayer`
-- Loop mode enabled; prototype BGM volume `0.52`
-- Starts during `AfareetGame.onLoad()` after race-session initialization
-- Audio errors are non-fatal and cannot block game boot
-- Full production master replaces the short preview after real-device mix validation
-- Pipeline: [`AUDIO_PIPELINE.md`](AUDIO_PIPELINE.md)
-
-### Remaining P0 audio
-1. Prototype engine idle/low/high loop.
-2. Tire skid/drift intensity loop.
-3. Nitro Spirit activation signature.
-
-## Architecture now locked
-
-- Gameplay simulation consumes fixed-step time, not variable frame delta.
-- Input remains UI-neutral so multiplayer client prediction/reconciliation can reuse the same command contract.
-- Vehicle physics, Spirit/Nitro and race rules do not depend on Flutter widgets.
-- Runtime touch UI is an adapter over the same gameplay input contract.
-- Race/checkpoint rules are deterministic and tested independently of rendering.
-- Backend path remains `Flutter/Flame → HTTPS API → Laravel → MySQL`; direct client database access is prohibited.
-
-## APK classification
-
-The CI pipeline produces both Debug and Release Skeleton APK artifacts. The audio-enabled candidate must pass CI again. These remain **developer/build evidence**, not the final verified APK.
-
-A file may enter `Last verified APK released/` only after:
-- candidate comes from `main`;
-- real Android device smoke test using [`SMOKE_TEST_CHECKLIST.md`](SMOKE_TEST_CHECKLIST.md);
-- Version, Commit SHA, Build date, Device/API, Tester, result and SHA-256 are recorded;
-- only the latest verified APK is retained there.
+### AST-061 audio baseline
+The current `main` includes Rap/Trap × Egyptian Shaabi/Mahraganat prototype BGM integration through `PrototypeMusicController`. This branch was created from that audio-enabled main head, so the new Camera/AI/UI work does not remove or replace it.
 
 ## P1 Playable Prototype Gate
 
-**Status:** 🟡 **GAMEPLAY CORE READY / FULL P1 NOT VERIFIED**
+**Status:** 🟡 **CORE IMPLEMENTED / FULL P1 NOT VERIFIED**
 
-Still required:
-- Cairo/Egyptian Fantasy track visual implementation and Premium Visual Gate;
-- racing camera and feedback integration;
-- at least 1 AI opponent;
+Still required after this batch:
+- CAM-012 camera tuning on multiple devices;
+- VIS-001→VIS-014 visual implementation/review gate;
 - VEH-017 real-device driving-feel verification;
-- RAC-017 integrated track-completion verification;
+- RAC-017 integrated track completion verification;
+- production engine/drift/nitro SFX validation;
 - real-device Android Release APK smoke test;
 - final verified APK in `Last verified APK released/`.
 
-## Highest priorities next
+## Highest priorities after P1-NEXT-050
 
-1. CI-build and listen-test the audio-enabled APK candidate.
-2. CAM-001 → CAM-005 — follow/look-ahead/damping/drift/nitro camera.
-3. AI-001 → AI-006 — racing line/path/throttle/steering/braking/drift zones.
-4. VIS-001 → VIS-006 — color/lighting/material/road/landmark silhouette implementation.
-5. P0 Engine + Drift + Nitro audio generation/integration.
-6. VEH-017 + RAC-017 — device feel and integrated race verification.
-7. First real-device verified Release APK.
-
-## Active blockers / risks
-
-| ID | Severity | Blocker / Risk | Action |
-|---|---|---|---|
-| STS-B03 | 🔴 High | Premium VIS tasks remain TODO | Start VIS in parallel with Camera/AI |
-| STS-B08 | 🔴 High | Camera and AI are missing | Next implementation batch targets CAM + AI |
-| STS-B04 | 🔴 High | No real-device Verified Release APK | P1 cannot close from CI artifacts alone |
-| STS-B09 | 🟡 Medium | AST-061 first APK music needs CI + Android listening validation | Build candidate, smoke audio, then promote asset state |
-| STS-B10 | 🟡 Medium | Engine/drift/nitro gameplay SFX still missing | Generate/acquire P0 SFX |
-
-## Last verified APK
-
-**Status:** 🔴 **NO VERIFIED RELEASE APK YET**  
-**Folder:** [`../Last verified APK released/`](../Last%20verified%20APK%20released/)  
+1. Fix any CI findings on the current 50-task PR and promote only after Green evidence.
+2. VIS implementation + screenshot review against `ART_DIRECTION.md`.
+3. CAM-012 + VEH-017 + RAC-017 real-device verification.
+4. Remaining P0 audio/SFX.
+5. First real-device Verified Release APK.
 
 ## Source of truth links
 
 - [Master Development Plan](MASTER_DEVELOPMENT_PLAN.md)
+- [Prototype Core Tasks](tasks/01-PROTOTYPE-CORE.md)
+- [Gameplay/UI/Offline Tasks](tasks/02-GAMEPLAY-UI-OFFLINE.md)
+- [P1-NEXT-050 Evidence](work/P1-NEXT-050.md)
 - [Backend Architecture](BACKEND_ARCHITECTURE.md)
-- [Audio Pipeline](AUDIO_PIPELINE.md)
-- [Full Task Register](TASK_REGISTER.md)
-- [Premium Visual Direction](ART_DIRECTION.md)
+- [Art Direction](ART_DIRECTION.md)
 - [Missed Assets](MISSED_ASSETS.md)
-- [GAMEPLAY-050 Evidence](work/GAMEPLAY-050.md)
 - [Last verified APK released](../Last%20verified%20APK%20released/)
 
 ---
