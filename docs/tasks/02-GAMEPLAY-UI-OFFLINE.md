@@ -9,15 +9,15 @@ Owner default: **Gameplay Lead**
 | PWR-003 | P1 | إنشاء pickup collection | Principal Mobile Game Architect | VERIFIED |
 | PWR-004 | P1 | إنشاء inventory slot أثناء السباق | Principal Mobile Game Architect | VERIFIED |
 | PWR-005 | P1 | تنفيذ عين الحصودة Shield | Principal Mobile Game Architect | VERIFIED |
-| PWR-006 | P1 | تنفيذ شَرَد الأسفلت Trap | Gameplay Lead | TODO |
-| PWR-007 | P1 | تنفيذ روح النيترو Power-up | Gameplay Lead | TODO |
-| PWR-008 | P1 | تنفيذ لعنة الزحمة Slow | Gameplay Lead | TODO |
-| PWR-009 | P1 | تنفيذ الجنيه المسحور Multiplier | Gameplay Lead | TODO |
-| PWR-010 | P1 | إنشاء effect duration manager | Gameplay Lead | TODO |
-| PWR-011 | P1 | إنشاء immunity/stacking rules | Gameplay Lead | TODO |
-| PWR-012 | P1 | إنشاء AI usage interface | Gameplay Lead | TODO |
-| PWR-013 | P1 | إضافة VFX/audio hooks | Gameplay Lead | TODO |
-| PWR-014 | P1 | اختبار cleanup بعد انتهاء السباق | Gameplay Lead | TODO |
+| PWR-006 | P1 | تنفيذ شَرَد الأسفلت Trap | Principal Mobile Game Architect | IN PROGRESS |
+| PWR-007 | P1 | تنفيذ روح النيترو Power-up | Principal Mobile Game Architect | IN PROGRESS |
+| PWR-008 | P1 | تنفيذ لعنة الزحمة Slow | Principal Mobile Game Architect | IN PROGRESS |
+| PWR-009 | P1 | تنفيذ الجنيه المسحور Multiplier | Principal Mobile Game Architect | IN PROGRESS |
+| PWR-010 | P1 | إنشاء effect duration manager | Principal Mobile Game Architect | IN PROGRESS |
+| PWR-011 | P1 | إنشاء immunity/stacking rules | Principal Mobile Game Architect | IN PROGRESS |
+| PWR-012 | P1 | إنشاء AI usage interface | Principal Mobile Game Architect | IN PROGRESS |
+| PWR-013 | P1 | إضافة VFX/audio hooks | Principal Mobile Game Architect | IN PROGRESS |
+| PWR-014 | P1 | اختبار cleanup بعد انتهاء السباق | Principal Mobile Game Architect | IN PROGRESS |
 ## UIX — UI/UX / HUD
 Owner default: **UI/UX Designer + Flutter Dev**
 | ID | Priority | Task | Owner | Status |
@@ -42,7 +42,7 @@ Owner default: **UI/UX Designer + Flutter Dev**
 Owner default: **Flutter/Flame Developer**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| GAR-001 | P1 | تعريف car catalog schema | Flutter/Flame Developer | TODO |
+| GAR-001 | P1 | تعريف car catalog schema | Principal Mobile Game Architect | IN PROGRESS |
 | GAR-002 | P1 | إنشاء Garage list | Flutter/Flame Developer | TODO |
 | GAR-003 | P1 | إنشاء Car detail screen | Flutter/Flame Developer | TODO |
 | GAR-004 | P1 | إنشاء car preview integration | Flutter/Flame Developer | TODO |
