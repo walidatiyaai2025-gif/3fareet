@@ -1,11 +1,8 @@
-import 'dart:ui';
-
 import 'package:afareet_asphalt/game/core/fixed_step_runner.dart';
 import 'package:afareet_asphalt/game/core/game_bootstrap.dart';
 import 'package:afareet_asphalt/game/core/game_telemetry.dart';
 import 'package:afareet_asphalt/game/scenes/prototype_scene.dart';
 import 'package:flame/game.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AfareetGame extends FlameGame with SingleGameInstance {
