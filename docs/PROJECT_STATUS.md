@@ -2,8 +2,8 @@
 
 **Document:** AFA-STATUS-001  
 **Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 15:08 (Asia/Kuwait)  
-**Overall status:** 🟡 **P1 PROTOTYPE FOUNDATION VERIFIED — PLAYABLE RACE NOT YET COMPLETE**
+**Last updated:** 2026-08-12 15:13 (Asia/Kuwait)  
+**Overall status:** 🟡 **P1 PROTOTYPE FOUNDATION VERIFIED — FIRST PREVIEW APK PIPELINE ACTIVE — PLAYABLE RACE NOT YET COMPLETE**
 
 > هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
 
@@ -13,13 +13,15 @@
 |---|---|---|
 | Repository / governance | 🟡 In setup | الخطة، Art Direction، Task Register وstatus guard موجودة؛ GOV reconciliation ما زال مطلوبًا |
 | Flutter / Flame foundation | 🟢 Verified | PRO-001 → PRO-010 اجتازت CI: analyze + tests + Android scaffold + debug APK build |
+| First preview APK | 🟡 CI active | GitHub Actions يبني Debug APK ويرفعه كـArtifact باسم `3fareet-first-preview-apk`; هذا Preview وليس Verified Release |
 | Premium visual direction | 🔴 Not started | VIS tasks ما زالت `TODO`; الـHUD shell يثبت tokens أولية فقط ولا يغلق Visual Gate |
 | P1 playable prototype | 🔴 Not playable | foundation وPrototype scene entry موجودان، لكن لا توجد سيارة/حلبة/قيادة فعلية بعد |
 | Driving / Drift / Nitro | 🔴 Not started | VEH/DRF الأساسية ما زالت `TODO` |
 | Race / Camera / AI | 🔴 Not started | RAC/CAM/AI الأساسية ما زالت `TODO` |
 | Missing assets | 🟡 Open | سجل `MISSED_ASSETS.md` مفتوح ويجب تحديثه مع كل Asset مؤثر |
 | Android verified release APK | 🔴 None | لا يوجد Release APK موثّق داخل `Last verified APK released/` حتى الآن |
-| Backend / Online / Seasons | ⚪ Deferred | مؤجلة حتى نجاح P1 Playable Prototype Gate |
+| Backend architecture | 🟢 Locked | Laravel API + MySQL; Flutter لا يتصل مباشرة بقاعدة البيانات |
+| Backend implementation / Online / Seasons | ⚪ Deferred | التنفيذ الكبير مؤجل حتى نجاح P1 Playable Prototype Gate |
 
 ## Verified engineering batch — PRO-001 → PRO-010
 
@@ -54,12 +56,25 @@ GitHub Actions على الـverified head نجحت بالكامل في:
 
 **مهم:** نجاح Debug APK هنا يثبت buildability للـfoundation فقط. لا يعني وجود `Verified Release APK` للمستخدم. APK الخاصة بإغلاق P1 يجب أن تكون Release build، تعمل على جهاز حقيقي، وتجتاز smoke test ثم توضع فقط في `Last verified APK released/` مع metadata وSHA-256.
 
+## First downloadable APK path
+
+Workflow `Flutter Prototype CI` الآن يحتوي خطوة `actions/upload-artifact@v4` بعد نجاح `flutter build apk --debug`.
+
+- Artifact name: `3fareet-first-preview-apk`
+- Source: `build/app/outputs/flutter-apk/app-debug.apk`
+- Retention: 14 days
+- Classification: **Developer Preview / Debug**
+- Must NOT be copied to `Last verified APK released/`.
+
 ## Architecture decisions now locked
 
 - Gameplay simulation الجديدة تعتمد fixed-step clock بدل ربط physics مباشرة بتذبذب frame delta.
 - Input contract منفصل عن Flutter widgets ليخدم touch controls الآن ثم multiplayer client prediction/reconciliation لاحقًا بدون إعادة تصميم gameplay API.
 - Bootstrap/config/assets لها lifecycle وحدود مستقلة لمنع coupling مبكر بين UI وgameplay/networking.
-- Backend/Online لا يسبق إثبات single-player driving loop والـP1 visual/performance gate.
+- Backend stack is locked by [`BACKEND_ARCHITECTURE.md`](BACKEND_ARCHITECTURE.md): **Laravel + MySQL**.
+- Mandatory data path: `Flutter/Flame → HTTPS API → Laravel → MySQL`.
+- ممنوع تضمين MySQL credentials داخل التطبيق أو أي direct database connection من Flutter.
+- Backend/Online implementation لا يسبق إثبات single-player driving loop والـP1 visual/performance gate.
 
 ## Current phase
 
@@ -87,6 +102,7 @@ GitHub Actions على الـverified head نجحت بالكامل في:
 3. VEH-001 → VEH-006 — VehicleDefinition + throttle/brake/steering/grip.
 4. VIS-001 → VIS-006 بالتوازي حتى لا يتحول الـPrototype إلى شكل تقني مؤقت.
 5. بعدها DRF/RAC/CAM للاقتراب من أول playable race.
+6. BCK-001 architecture decision already VERIFIED; remaining Laravel/MySQL implementation stays deferred behind P1.
 
 ## Active blockers / risks
 
@@ -119,6 +135,7 @@ GitHub Actions على الـverified head نجحت بالكامل في:
 ## Source of truth links
 
 - [Master Development Plan](MASTER_DEVELOPMENT_PLAN.md)
+- [Backend Architecture](BACKEND_ARCHITECTURE.md)
 - [Full Task Register](TASK_REGISTER.md)
 - [Premium Visual Direction](ART_DIRECTION.md)
 - [Missed Assets](MISSED_ASSETS.md)
