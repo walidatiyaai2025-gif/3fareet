@@ -4,8 +4,8 @@
 Owner default: **3D/Technical Artist**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| ART-001 | P1 | تثبيت folder structure للأصول | 3D/Technical Artist | TODO |
-| ART-002 | P1 | تثبيت naming convention | 3D/Technical Artist | TODO |
+| ART-001 | P1 | تثبيت folder structure للأصول | Principal Mobile Game Architect | IN REVIEW |
+| ART-002 | P1 | تثبيت naming convention | Principal Mobile Game Architect | IN REVIEW |
 | ART-003 | P1 | تثبيت texture budgets | 3D/Technical Artist | TODO |
 | ART-004 | P1 | تثبيت polygon/LOD budgets | 3D/Technical Artist | TODO |
 | ART-005 | P1 | تثبيت collider rules | 3D/Technical Artist | TODO |
