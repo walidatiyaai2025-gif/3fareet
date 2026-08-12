@@ -2,8 +2,8 @@
 
 **Document:** AFA-STATUS-001  
 **Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 14:38 (Asia/Kuwait)  
-**Overall status:** 🟡 **FOUNDATION / P1 PROTOTYPE NOT YET PLAYABLE**
+**Last updated:** 2026-08-12 15:13 (Asia/Kuwait)  
+**Overall status:** 🟡 **P1 PROTOTYPE FOUNDATION VERIFIED — FIRST PREVIEW APK PIPELINE ACTIVE — PLAYABLE RACE NOT YET COMPLETE**
 
 > هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
 
@@ -11,24 +11,80 @@
 
 | Area | Status | Current reality |
 |---|---|---|
-| Repository / governance | 🟡 In setup | الخطة والـArt Direction وسجل المهام موجودة، لكن سجل حالات بعض مهام التأسيس يحتاج reconciliation مع الواقع |
-| Premium visual direction | 🔴 Not started | مهام VIS ما زالت `TODO`؛ الهوية موثقة لكن لم تدخل Prototype مرئي بعد |
-| P1 playable prototype | 🔴 Not started | لا يوجد Flutter/Flame playable build في `main` حتى الآن |
-| Driving / Drift / Nitro | 🔴 Not started | مهام VEH/DRF الأساسية ما زالت `TODO` |
-| Race / Camera / AI | 🔴 Not started | مهام RAC/CAM/AI الأساسية ما زالت `TODO` |
-| Missing assets | 🟡 Open | يوجد سجل `MISSED_ASSETS.md` ويجب تحديثه باستمرار أثناء إنشاء/استلام الأصول |
-| Android verified APK | 🔴 None | لا يوجد APK موثّق داخل `Last verified APK released/` حتى الآن |
-| Backend / Online / Seasons | ⚪ Deferred | مخطط لها، لكنها ليست أولوية قبل نجاح P1 Prototype Gate |
+| Repository / governance | 🟡 In setup | الخطة، Art Direction، Task Register وstatus guard موجودة؛ GOV reconciliation ما زال مطلوبًا |
+| Flutter / Flame foundation | 🟢 Verified | PRO-001 → PRO-010 اجتازت CI: analyze + tests + Android scaffold + debug APK build |
+| First preview APK | 🟡 CI active | GitHub Actions يبني Debug APK ويرفعه كـArtifact باسم `3fareet-first-preview-apk`; هذا Preview وليس Verified Release |
+| Premium visual direction | 🔴 Not started | VIS tasks ما زالت `TODO`; الـHUD shell يثبت tokens أولية فقط ولا يغلق Visual Gate |
+| P1 playable prototype | 🔴 Not playable | foundation وPrototype scene entry موجودان، لكن لا توجد سيارة/حلبة/قيادة فعلية بعد |
+| Driving / Drift / Nitro | 🔴 Not started | VEH/DRF الأساسية ما زالت `TODO` |
+| Race / Camera / AI | 🔴 Not started | RAC/CAM/AI الأساسية ما زالت `TODO` |
+| Missing assets | 🟡 Open | سجل `MISSED_ASSETS.md` مفتوح ويجب تحديثه مع كل Asset مؤثر |
+| Android verified release APK | 🔴 None | لا يوجد Release APK موثّق داخل `Last verified APK released/` حتى الآن |
+| Backend architecture | 🟢 Locked | Laravel API + MySQL; Flutter لا يتصل مباشرة بقاعدة البيانات |
+| Backend implementation / Online / Seasons | ⚪ Deferred | التنفيذ الكبير مؤجل حتى نجاح P1 Playable Prototype Gate |
+
+## Verified engineering batch — PRO-001 → PRO-010
+
+**Owner:** Principal Mobile Game Architect  
+**Status:** `VERIFIED`  
+**Evidence document:** [`work/PRO-001-010.md`](work/PRO-001-010.md)  
+**Verified head:** `a9bef308fc47d4dea51f81539749d77939669ab0`  
+**CI run:** `Flutter Prototype CI #9` / run `31594645225`
+
+تم التحقق من:
+1. PRO-001 — Flutter project baseline قابل للـdependency resolution والتحليل والاختبار.
+2. PRO-002 — Flame `1.38.0` + root `GameWidget`.
+3. PRO-003 — `GameBootstrap` lifecycle وdependency boundaries.
+4. PRO-004 — `PrototypeScene` mounted في Flame world.
+5. PRO-005 — mobile-neutral `GameInputState` / snapshots.
+6. PRO-006 — fixed-step simulation clock مع bounded catch-up وfloating-point boundary hardening.
+7. PRO-007 — asset loader lifecycle/cache/disposal.
+8. PRO-008 — typed JSON game config loader.
+9. PRO-009 — FPS + frame-time runtime telemetry overlay.
+10. PRO-010 — prototype HUD shell: position/time/spirit/speed بالهوية dark/cyan/gold الأولية.
+
+### Verification evidence
+GitHub Actions على الـverified head نجحت بالكامل في:
+- dependency resolution
+- `flutter analyze` — **0 issues**
+- `flutter test` — **all tests passed**
+- Android scaffold generation from pinned Flutter template
+- `flutter build apk --debug` — **success**
+- Project Status Freshness Guard — **success**
+
+خلال التحقق كشف اختبار fixed-step boundary حالة حقيقية كان فيها floating-point subtraction قد يفقد simulation tick؛ تم تغيير scheduler ليحسب عدد الخطوات قبل التنفيذ مع tolerance صغير، ثم أعيد CI حتى أصبح Green بالكامل.
+
+**مهم:** نجاح Debug APK هنا يثبت buildability للـfoundation فقط. لا يعني وجود `Verified Release APK` للمستخدم. APK الخاصة بإغلاق P1 يجب أن تكون Release build، تعمل على جهاز حقيقي، وتجتاز smoke test ثم توضع فقط في `Last verified APK released/` مع metadata وSHA-256.
+
+## First downloadable APK path
+
+Workflow `Flutter Prototype CI` الآن يحتوي خطوة `actions/upload-artifact@v4` بعد نجاح `flutter build apk --debug`.
+
+- Artifact name: `3fareet-first-preview-apk`
+- Source: `build/app/outputs/flutter-apk/app-debug.apk`
+- Retention: 14 days
+- Classification: **Developer Preview / Debug**
+- Must NOT be copied to `Last verified APK released/`.
+
+## Architecture decisions now locked
+
+- Gameplay simulation الجديدة تعتمد fixed-step clock بدل ربط physics مباشرة بتذبذب frame delta.
+- Input contract منفصل عن Flutter widgets ليخدم touch controls الآن ثم multiplayer client prediction/reconciliation لاحقًا بدون إعادة تصميم gameplay API.
+- Bootstrap/config/assets لها lifecycle وحدود مستقلة لمنع coupling مبكر بين UI وgameplay/networking.
+- Backend stack is locked by [`BACKEND_ARCHITECTURE.md`](BACKEND_ARCHITECTURE.md): **Laravel + MySQL**.
+- Mandatory data path: `Flutter/Flame → HTTPS API → Laravel → MySQL`.
+- ممنوع تضمين MySQL credentials داخل التطبيق أو أي direct database connection من Flutter.
+- Backend/Online implementation لا يسبق إثبات single-player driving loop والـP1 visual/performance gate.
 
 ## Current phase
 
 ### 🟡 P0 — Foundation / Team Control
-الوثائق الأساسية موجودة في `docs/`، لكن قبل اعتبار P0 مكتملة بالكامل يجب أن يعكس `TASK_REGISTER` الحقيقة الفعلية لحالات GOV tasks، وأن يبدأ مشروع Flutter/Flame القابل للبناء.
+الـexecutable Flutter/Flame foundation الأولى أصبحت Verified. ما زال GOV task reconciliation وبعض platform/release foundation مطلوبًا قبل إعلان P0 بالكامل `VERIFIED`.
 
 ### 🔴 P1 — Playable Prototype Gate
 **الحالة: NOT VERIFIED / NOT PLAYABLE YET**
 
-الـGate المطلوب قبل الانتقال للتوسع:
+الـGate المطلوب:
 - سيارة واحدة قابلة للقيادة.
 - حلبة مصرية Fantasy واحدة.
 - لفة واحدة + checkpoints + finish.
@@ -39,73 +95,47 @@
 - Android Release APK يعمل على جهاز حقيقي.
 - آخر APK ناجح فقط يوضع في `Last verified APK released/` مع metadata وSHA-256.
 
-## Highest priorities now
+## Highest priorities next
 
-1. **Prototype first:** إنشاء Flutter + Flame project قابل للبناء والتشغيل.
-2. **Visual from day one:** تنفيذ VIS بالتوازي مع أول Prototype؛ ممنوع تأجيل الشكل للآخر.
-3. **First drivable loop:** Steering → braking → traction → drift → spirit → nitro.
-4. **First Egyptian fantasy track:** Track واحد يكفي للـGate، لكن يجب أن يظهر الهوية البصرية فعليًا.
-5. **Verified APK:** أول milestone مرئي لمالك المشروع هو APK Release قابل للتجربة على جهاز حقيقي.
+1. PRO-011 / PRO-012 — pause/resume + reset/restart lifecycle.
+2. PRO-013 / PRO-014 — تثبيت Android debug/release build surface داخل المستودع.
+3. VEH-001 → VEH-006 — VehicleDefinition + throttle/brake/steering/grip.
+4. VIS-001 → VIS-006 بالتوازي حتى لا يتحول الـPrototype إلى شكل تقني مؤقت.
+5. بعدها DRF/RAC/CAM للاقتراب من أول playable race.
+6. BCK-001 architecture decision already VERIFIED; remaining Laravel/MySQL implementation stays deferred behind P1.
 
 ## Active blockers / risks
 
 | ID | Severity | Blocker / Risk | Action |
 |---|---|---|---|
-| STS-B01 | 🔴 High | لا يوجد playable application/code في root حاليًا | بدء PRO-001 ثم PRO-002/003/004 |
-| STS-B02 | 🔴 High | كل VIS tasks الظاهرة ما زالت TODO | بدء VIS-001..VIS-006 بالتوازي مع الـPrototype |
-| STS-B03 | 🔴 High | لا يوجد Verified APK | لا يغلق P1 قبل Release device verification |
-| STS-B04 | 🟡 Medium | بعض GOV tasks ما زالت TODO رغم وجود وثائق تنفذ جزءًا منها | Team Lead يعمل status reconciliation بدون ادعاء Verification بلا Evidence |
-| STS-B05 | 🟡 Medium | Missing assets قد تمنع الوصول للشكل الفخم | تحديث `MISSED_ASSETS.md` فور اكتشاف/إنشاء/استلام أي Asset |
+| STS-B02 | 🔴 High | لا توجد سيارة أو حلبة قابلة للعب بعد | التالي Gameplay/Vehicle foundation |
+| STS-B03 | 🔴 High | VIS tasks ما زالت TODO | بدء VIS بالتوازي مع driving prototype |
+| STS-B04 | 🔴 High | لا يوجد Verified Release APK | لا يغلق P1 قبل release + real-device smoke test |
+| STS-B05 | 🟡 Medium | بعض GOV tasks TODO رغم وجود تنفيذ فعلي جزئي | Team Lead يعمل reconciliation مع Evidence |
+| STS-B06 | 🟡 Medium | Android platform scaffold يولد حاليًا من Flutter pinned template في CI | PRO-013/014 تملكان تثبيت Android build surface النهائي |
 
 ## Last verified APK
 
-**Status:** 🔴 **NO VERIFIED APK YET**  
+**Status:** 🔴 **NO VERIFIED RELEASE APK YET**  
 **Folder:** [`../Last verified APK released/`](../Last%20verified%20APK%20released/)  
 
-عند توفر أول APK موثّق يجب تسجيل:
-- Version / filename
-- Commit SHA
-- Build date/time
-- Device + Android API
-- Tester
-- Smoke-test result
-- SHA-256
+لا يوضع أي APK هنا قبل تسجيل Version, Commit SHA, Build date, Device/API, Tester, smoke result وSHA-256.
 
-## Team workload status
+## Team workload rules
 
-المصدر التفصيلي للمهام هو [`TASK_REGISTER.md`](TASK_REGISTER.md). لا تعتمد هذه الصفحة كبديل عن تفاصيل كل Task؛ هي Executive Dashboard فقط.
-
+المصدر التفصيلي هو [`TASK_REGISTER.md`](TASK_REGISTER.md).  
 **State vocabulary:** `TODO → READY → IN PROGRESS → BLOCKED/IN REVIEW → DONE → VERIFIED`
 
-### منع تداخل الفريق
 - Owner واحد لكل Task.
-- لا يبدأ العمل قبل تحديث Owner + Status في ملف task المختص.
-- Module Lock إلزامي عند لمس نفس الملفات أو interface مشتركة.
-- كل PR يذكر Task ID.
-- عند تغير الحالة، يتم تحديث ملف المهمة **و** هذه الصفحة في نفس PR.
-
-## Status update contract — إلزامي
-
-يجب تحديث `docs/PROJECT_STATUS.md` في **نفس PR** عند حدوث أي مما يلي:
-- Task تنتقل بين TODO/READY/IN PROGRESS/BLOCKED/IN REVIEW/DONE/VERIFIED.
-- بدء أو إغلاق Phase/Milestone.
-- ظهور أو إزالة Blocker/Risk مهم.
-- إنشاء أو استلام أو فقد Asset مؤثر على الـPrototype.
-- تغيير Scope أو Architecture أو Priority.
-- نجاح/فشل Build مهم يؤثر على قابلية التجربة.
-- إصدار APK جديد أو تغيير محتوى `Last verified APK released/`.
-
-### Definition of "Up to date"
-تعتبر الصفحة Up to date فقط إذا:
-1. `Last updated` يعكس آخر تغيير حقيقي في حالة المشروع.
-2. Executive snapshot لا يتعارض مع Task Register.
-3. لا يوجد APK موصوف كـVerified بدون Evidence.
-4. Blockers الحالية ظاهرة بوضوح.
-5. Next priorities تعكس أقرب أعمال قابلة للتنفيذ.
+- Module Lock عند لمس نفس interfaces/files.
+- كل PR يذكر Task IDs.
+- تغير الحالة = تحديث ملف المهمة + هذه الصفحة في نفس PR.
+- `DONE` لا تساوي `VERIFIED`; Evidence شرط أساسي.
 
 ## Source of truth links
 
 - [Master Development Plan](MASTER_DEVELOPMENT_PLAN.md)
+- [Backend Architecture](BACKEND_ARCHITECTURE.md)
 - [Full Task Register](TASK_REGISTER.md)
 - [Premium Visual Direction](ART_DIRECTION.md)
 - [Missed Assets](MISSED_ASSETS.md)
@@ -114,4 +144,4 @@
 ---
 
 **Owner:** Team Lead / Project Manager  
-**Update rule:** لا يوجد "هحدثها لاحقًا"؛ تحديث الحالة جزء من Definition of Done للـPR نفسه.
+**Update rule:** تحديث الحالة جزء من Definition of Done لنفس الـPR.

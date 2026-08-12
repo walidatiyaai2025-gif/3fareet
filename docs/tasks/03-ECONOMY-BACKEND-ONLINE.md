@@ -23,7 +23,7 @@ Owner default: **Product + Backend**
 Owner default: **Backend/Network Engineer**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| BCK-001 | P2 | اختيار backend runtime/deployment baseline | Backend/Network Engineer | TODO |
+| BCK-001 | P2 | تثبيت backend baseline: Laravel API + MySQL + منع direct client DB access | Backend/Network Engineer | VERIFIED |
 | BCK-002 | P2 | تعريف API versioning | Backend/Network Engineer | TODO |
 | BCK-003 | P2 | إنشاء authentication service | Backend/Network Engineer | TODO |
 | BCK-004 | P2 | إنشاء guest account flow | Backend/Network Engineer | TODO |
@@ -72,3 +72,9 @@ Owner default: **Backend/Network Engineer + Gameplay Lead**
 | NET-024 | P2 | اختبار 4 clients محليًا | Backend/Network Engineer + Gameplay Lead | TODO |
 | NET-025 | P2 | اختبار high latency profile | Backend/Network Engineer + Gameplay Lead | TODO |
 | NET-026 | P2 | اختبار packet loss profile | Backend/Network Engineer + Gameplay Lead | TODO |
+
+## BCK-001 Evidence
+- Architecture: [`../BACKEND_ARCHITECTURE.md`](../BACKEND_ARCHITECTURE.md)
+- Locked data path: `Flutter/Flame → HTTPS API → Laravel → MySQL`.
+- Direct client-to-MySQL access is prohibited.
+- Implementation remains deferred until the P1 playable prototype gate unless a small interface-only task is explicitly approved.

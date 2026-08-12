@@ -1,0 +1,22 @@
+name: afareet_asphalt
+description: Premium Neon Egyptian Fantasy arcade racing prototype.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flame: ^1.38.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/config/game_config.json

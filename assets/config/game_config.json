@@ -1,0 +1,8 @@
+{
+  "targetFps": 60,
+  "fixedStepSeconds": 0.0166666667,
+  "maxCatchUpSteps": 5,
+  "prototypeTrackId": "cairo_neon_test_track",
+  "initialSpirit": 0.0,
+  "debugOverlayEnabled": true
+}
