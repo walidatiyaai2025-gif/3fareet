@@ -1,0 +1,24 @@
+{
+  "asset_id": "AUD-MUS-001",
+  "runtime_path": "assets/audio/music/cairo_fantasy_race_theme_01.mp3",
+  "source_received": "2026-08-12",
+  "classification": "music_candidate",
+  "intended_usage": [
+    "race_music",
+    "main_menu_or_garage_if_mood_validation_prefers"
+  ],
+  "duration_seconds": 30.772,
+  "sample_rate_hz": 44100,
+  "channels": 2,
+  "source_bitrate_kbps": 192,
+  "estimated_tempo_bpm": 120.2,
+  "source_sha256": "7e8a5119167f4e5333e6606bbefa1bfe55d735c231b2abc92698a1004b36be50",
+  "status": "source_received_binary_import_pending",
+  "validation_required": [
+    "copyright_and_usage_rights_confirmed",
+    "loop_point_or_intro_loop_outro_decision",
+    "mobile_mix_loudness_check",
+    "in_game_ducking_against_engine_and_sfx",
+    "android_device_smoke_test"
+  ]
+}
