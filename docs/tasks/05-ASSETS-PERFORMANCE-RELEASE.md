@@ -17,20 +17,20 @@ Owner default: **3D/Technical Artist**
 | ART-011 | P1 | إنشاء audio import/compression rules | Technical Audio / Integration | IN REVIEW |
 | ART-012 | P1 | إنشاء placeholder labeling policy | Principal Mobile Game Architect | IN REVIEW |
 | ART-013 | P1 | إنشاء asset validation script/checklist | Principal Mobile Game Architect | IN REVIEW |
-| ART-014 | P1 | ربط Missed Assetes بالأولوية المرحلية | 3D/Technical Artist | TODO |
+| ART-014 | P1 | ربط Missed Assetes بالأولوية المرحلية | Principal Mobile Game Architect | IN REVIEW |
 ## PER — Performance / QA / CI / Release
 Owner default: **QA / Release Engineer**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| PER-001 | P0 | تعريف target device tiers | QA / Release Engineer | TODO |
-| PER-002 | P0 | تعريف FPS/frame-time budgets | QA / Release Engineer | TODO |
-| PER-003 | P0 | تعريف memory budget | QA / Release Engineer | TODO |
-| PER-004 | P0 | تعريف texture budget | QA / Release Engineer | TODO |
-| PER-005 | P0 | تعريف VFX particle budget | QA / Release Engineer | TODO |
-| PER-006 | P0 | إضافة performance overlay release-disabled | QA / Release Engineer | TODO |
-| PER-007 | P0 | إضافة automated lint/analyze | QA / Release Engineer | TODO |
-| PER-008 | P0 | إضافة unit tests pipeline | QA / Release Engineer | TODO |
-| PER-009 | P0 | إضافة widget/game tests pipeline | QA / Release Engineer | TODO |
+| PER-001 | P0 | تعريف target device tiers | Principal Mobile Game Architect | IN REVIEW |
+| PER-002 | P0 | تعريف FPS/frame-time budgets | Principal Mobile Game Architect | IN REVIEW |
+| PER-003 | P0 | تعريف memory budget | Principal Mobile Game Architect | IN REVIEW |
+| PER-004 | P0 | تعريف texture budget | Principal Mobile Game Architect | IN REVIEW |
+| PER-005 | P0 | تعريف VFX particle budget | Principal Mobile Game Architect | IN REVIEW |
+| PER-006 | P0 | إضافة performance overlay release-disabled | Principal Mobile Game Architect | IN REVIEW |
+| PER-007 | P0 | إضافة automated lint/analyze | Principal Mobile Game Architect | IN REVIEW |
+| PER-008 | P0 | إضافة unit tests pipeline | Principal Mobile Game Architect | IN REVIEW |
+| PER-009 | P0 | إضافة widget/game tests pipeline | Principal Mobile Game Architect | IN REVIEW |
 | PER-010 | P0 | إضافة Android build CI | QA / Release Engineer | TODO |
 | PER-011 | P0 | إضافة artifact retention | QA / Release Engineer | TODO |
 | PER-012 | P0 | إضافة version stamping من commit | QA / Release Engineer | TODO |
