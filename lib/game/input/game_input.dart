@@ -27,31 +27,36 @@ class GameInputState {
   bool _pausePressed = false;
 
   void setSteering(double value) {
-    _steering = value.clamp(-1.0, 1.0);
+    _steering = value.clamp(-1.0, 1.0).toDouble();
   }
 
   void setThrottle(double value) {
-    _throttle = value.clamp(0.0, 1.0);
+    _throttle = value.clamp(0.0, 1.0).toDouble();
   }
 
   void setBrake(double value) {
-    _brake = value.clamp(0.0, 1.0);
+    _brake = value.clamp(0.0, 1.0).toDouble();
   }
 
   void setAction(GameAction action, bool pressed) {
     switch (action) {
       case GameAction.throttle:
         setThrottle(pressed ? 1 : 0);
+        return;
       case GameAction.brake:
         setBrake(pressed ? 1 : 0);
+        return;
       case GameAction.drift:
         _drift = pressed;
+        return;
       case GameAction.nitro:
         _nitro = pressed;
+        return;
       case GameAction.pause:
         if (pressed) {
           _pausePressed = true;
         }
+        return;
     }
   }
 
