@@ -7,6 +7,8 @@ class FixedStepRunner {
   })  : assert(stepSeconds > 0),
         assert(maxCatchUpSteps > 0);
 
+  static const double _stepEpsilon = 1e-9;
+
   final double stepSeconds;
   final int maxCatchUpSteps;
 
@@ -21,18 +23,27 @@ class FixedStepRunner {
         .toDouble();
     _accumulator += clampedDelta;
 
-    var steps = 0;
-    while (_accumulator >= stepSeconds && steps < maxCatchUpSteps) {
+    final availableSteps =
+        ((_accumulator / stepSeconds) + _stepEpsilon).floor();
+    final stepsToRun = availableSteps < maxCatchUpSteps
+        ? availableSteps
+        : maxCatchUpSteps;
+
+    for (var step = 0; step < stepsToRun; step += 1) {
       onStep(stepSeconds);
-      _accumulator -= stepSeconds;
-      steps += 1;
+    }
+    _accumulator -= stepSeconds * stepsToRun;
+
+    final zeroTolerance = stepSeconds * _stepEpsilon;
+    if (_accumulator.abs() <= zeroTolerance) {
+      _accumulator = 0;
     }
 
-    if (steps == maxCatchUpSteps && _accumulator >= stepSeconds) {
+    if (availableSteps > maxCatchUpSteps) {
       _accumulator %= stepSeconds;
     }
 
-    return steps;
+    return stepsToRun;
   }
 
   void reset() {
