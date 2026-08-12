@@ -1,19 +1,33 @@
 # عفاريت الأسفلت — Master Development Plan
 
 **Document:** AFA-PLAN-001  
-**Version:** 1.0 Baseline  
+**Version:** 1.1 Baseline  
 **Date:** 2026-08-12  
 **Status:** Controlled team reference
 
-> قاعدة التحكم: أي تعديل في Scope أو Architecture أو ترتيب الأولويات يجب أن يدخل الخطة وسجل المهام قبل بدء التنفيذ.
+> قاعدة التحكم: أي تعديل في Scope أو Architecture أو ترتيب الأولويات أو Art Direction يجب أن يدخل الخطة وسجل المهام قبل بدء التنفيذ.
 
 ## Product vision
 - 3D Casual Arcade Racing بطابع مصري فانتازي.
+- **Premium Neon Egyptian Fantasy Racing** هو الاتجاه البصري الإلزامي.
 - Core loop: Drive → Drift → Spirit Charge → Nitro Spirit → Overtake/Attack → Reward.
 - Offline Career + Time Trial + Challenges + Bosses.
 - Online Real-time PvP لأربعة لاعبين.
 - Garage + customization + seasons + Asphalt Pass.
 - Target: 60 FPS على الأجهزة المستهدفة مع quality tiers.
+
+## Mandatory Art Direction
+المرجع التفصيلي موجود في [`docs/ART_DIRECTION.md`](ART_DIRECTION.md). الصور المرجعية المقدمة من مالك المشروع أصبحت Visual Constitution للمشروع.
+
+**ملخص الهوية:**
+- Cairo night/sunset cinematic fantasy.
+- Midnight Navy/Black + Cyan/Turquoise Neon + Warm Gold/Amber.
+- Stylized 3D cars بstance قوي وخامات لامعة وإضاءة rim/under-glow.
+- Dark premium glass/metal UI مع cyan outlines وgold accents.
+- Signature Drift/Nitro VFX من أول Prototype.
+- Main Menu وGarage وRace HUD يجب أن تبدو كلعبة Premium وليست Flutter template.
+
+**قاعدة:** إذا نجح الأداء والكود لكن الشكل بعيد عن `ART_DIRECTION.md`، تبقى المرحلة `DONE` وليست `VERIFIED`.
 
 ## P1 — Mandatory Playable Prototype Gate
 أعلى أولوية في المشروع. لا يبدأ التوسع الكبير في Backend/Store/Online قبل نجاح هذا الـGate.
@@ -27,30 +41,29 @@
 - Racing camera.
 - 1 AI على الأقل والهدف 3.
 - HUD: position/speed/spirit/timer.
+- Premium visual skin مطابق للمرجع البصري.
+- Cairo fantasy lighting/look-dev ظاهر داخل الـPrototype.
 - Release Android build يعمل على جهاز حقيقي.
 - آخر APK اجتاز التحقق يوضع في `Last verified APK released/`.
 
 ## Phases
 
 ### P0 — تأسيس المشروع ونظام الفريق
-تثبيت هيكل المستودع، قواعد الفروع، تعريف Done/Verified، ونظام حجز المهام.
 - هيكل Repository واضح
-- وثائق Architecture/Tasks/Assets
+- وثائق Architecture/Tasks/Assets/Art Direction
 - CI skeleton
 - مجلد Last verified APK released
 
 ### P1 — Prototype قابل للعب - أعلى أولوية
-إثبات أن القيادة ممتعة قبل أي Backend أو متجر أو Online.
 - سيارة واحدة قابلة للقيادة
 - حلبة مصرية Fantasy واحدة
 - لفة واحدة
 - Drift + Nitro Spirit
 - 1-3 AI
-- HUD أساسي
+- Premium HUD وvisual identity
 - APK Android Verified
 
 ### P2 — Driving & Racing Core
-تحويل البروتوتايب إلى نواة سباق مرنة وقابلة للتوسع.
 - Vehicle configuration
 - Checkpoints/Laps/Positions
 - Camera states
@@ -58,14 +71,12 @@
 - Race lifecycle
 
 ### P3 — Magic Gameplay & Power-ups
-تثبيت هوية Magic Drift والفوضى التكتيكية.
 - Magic Meter
 - Nitro Spirit tiers
 - أول 5 Power-ups
 - VFX/Audio hooks
 
 ### P4 — Offline AI & Career
-بناء رحلة الشوارع والتحديات بدون الاعتماد على الشبكة.
 - AI personalities
 - Career chapters
 - Time Trial
@@ -73,7 +84,7 @@
 - Boss races
 
 ### P5 — Garage & Customization
-إنشاء الكراج وتخصيص السيارات بطريقة Data-driven.
+- Premium dark showroom presentation
 - Car catalog
 - Paint/Wheels/Trails
 - Stats
@@ -81,7 +92,6 @@
 - Local persistence
 
 ### P6 — Backend Foundation
-فصل خدمات الحساب والاقتصاد والملف الشخصي عن عميل اللعبة.
 - Auth/Profile
 - Inventory
 - Economy
@@ -89,7 +99,6 @@
 - Telemetry contracts
 
 ### P7 — Real-time Multiplayer
-سباق PvP لحظي لأربعة لاعبين ببنية Authoritative.
 - Lobby/Matchmaking
 - Server state
 - Prediction/Reconciliation
@@ -97,7 +106,6 @@
 - Result validation
 
 ### P8 — League, Seasons & Asphalt Pass
-نظام تنافسي أسبوعي ومواسم ومكافآت.
 - Ranks
 - Leaderboards
 - Season reset
@@ -105,7 +113,6 @@
 - Reward claims
 
 ### P9 — Monetization
-إعلانات مكافأة ومشتريات بدون كسر اقتصاد اللعبة.
 - Rewarded Ads
 - IAP
 - Store rules
@@ -113,7 +120,6 @@
 - Fraud guards
 
 ### P10 — Admin & LiveOps
-لوحة تحكم لتعديل اللعبة بدون إصدار APK جديد قدر الإمكان.
 - Player ops
 - Economy config
 - Track rotation
@@ -122,15 +128,14 @@
 - Dashboards
 
 ### P11 — Performance, QA & Device Matrix
-تثبيت 60 FPS المستهدف مع fallback آمن للأجهزة الأضعف.
 - Performance budgets
 - LOD/VFX tiers
+- Visual quality tiers Low/Medium/High
 - Crash/ANR
 - Regression tests
 - Device tiers
 
 ### P12 — Beta & Production Release
-تحويل اللعبة من مشروع تطوير إلى منتج قابل للنشر والتحديث.
 - Closed beta
 - Store assets
 - Release signing
@@ -146,6 +151,7 @@
 - PR صغير ومحدد؛ لا تجمع Epics متعددة.
 - `VERIFIED` تحتاج Evidence ولا تساوي `DONE`.
 - أي interface مشتركة تُعدل في Task مستقلة أولًا.
+- VIS tasks إلزامية للـPrototype ولا تعتبر polish اختياريًا.
 
 ## Task states
 `TODO → READY → IN PROGRESS → BLOCKED/IN REVIEW → DONE → VERIFIED`
@@ -158,9 +164,10 @@
 - إذا لا توجد نسخة Verified، لا يتم وضع APK وهمي.
 
 ## Architecture risk gate
-المشروع يبدأ بـFlutter + Flame حسب الرؤية الحالية. P1 يجب أن يثبت عمليًا أن متطلبات القيادة/الكاميرا/عرض الأصول/الـVFX والأداء قابلة للتنفيذ بصورة مستقرة. إذا فشل الـGate، يرفع ADR قبل أي توسع.
+المشروع يبدأ بـFlutter + Flame حسب الرؤية الحالية. P1 يجب أن يثبت عمليًا أن متطلبات القيادة/الكاميرا/عرض الأصول/الـVFX والاتجاه البصري والأداء قابلة للتنفيذ بصورة مستقرة. إذا فشل الـGate، يرفع ADR قبل أي توسع.
 
 ## Source of truth
 - `docs/MASTER_DEVELOPMENT_PLAN.md`
+- `docs/ART_DIRECTION.md`
 - `docs/TASK_REGISTER.md`
 - `docs/MISSED_ASSETS.md`
