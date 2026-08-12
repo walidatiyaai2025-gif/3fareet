@@ -56,7 +56,7 @@
 | Audio | UI click/confirm/back | P1 | P1/Core | Consistent set | Platform clicks | MISSING |
 | Audio | Countdown 3-2-1-Go | P1 | P1 | Clear and punchy | Tones | MISSING |
 | Audio | Race finish sting | P1 | P1 | Short success/fail variants | Tone | MISSING |
-| Audio | Cairo fantasy race music | P2 | Core Alpha | Loopable، original، energetic | Royalty-safe temp | MISSING |
+| Audio | Cairo fantasy race music | P2 | Core Alpha | Loopable، original، energetic | Royalty-safe temp | SOURCE PROVIDED — IMPORT/LOOP VALIDATION PENDING |
 | Animation | Vehicle wheel rotation rig | P0 | P1 | Compatible with car model | Code rotation if possible | MISSING |
 | Animation | Suspension/body lean hooks | P1 | Core Alpha | Arcade exaggeration | Procedural only | MISSING |
 | Animation | Nitro spirit animation | P1 | Core Alpha | Spawn/flight/fade | VFX-only placeholder | MISSING |
