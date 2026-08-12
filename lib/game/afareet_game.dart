@@ -1,14 +1,20 @@
+import 'dart:async';
+
+import 'package:afareet_asphalt/game/audio/prototype_music_controller.dart';
 import 'package:afareet_asphalt/game/core/fixed_step_runner.dart';
 import 'package:afareet_asphalt/game/core/game_bootstrap.dart';
 import 'package:afareet_asphalt/game/core/game_telemetry.dart';
 import 'package:afareet_asphalt/game/scenes/prototype_scene.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AfareetGame extends FlameGame with SingleGameInstance {
-  AfareetGame({required this.bootstrap});
+  AfareetGame({required this.bootstrap})
+    : musicController = PrototypeMusicController(bundle: rootBundle);
 
   final GameBootstrap bootstrap;
+  final PrototypeMusicController musicController;
   final ValueNotifier<GameTelemetry> telemetry = ValueNotifier<GameTelemetry>(
     GameTelemetry.initial,
   );
@@ -28,6 +34,12 @@ class AfareetGame extends FlameGame with SingleGameInstance {
       stepSeconds: config.fixedStepSeconds,
       maxCatchUpSteps: config.maxCatchUpSteps,
     );
+
+    try {
+      await musicController.start();
+    } on Object {
+      // Audio must never block the playable prototype from booting.
+    }
 
     await world.add(PrototypeScene(trackId: config.prototypeTrackId));
   }
@@ -66,6 +78,7 @@ class AfareetGame extends FlameGame with SingleGameInstance {
 
   @override
   void onRemove() {
+    unawaited(musicController.dispose());
     bootstrap.dispose();
     telemetry.dispose();
     super.onRemove();
