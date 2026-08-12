@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   flame: ^1.38.0
+  flame_audio: ^2.12.2
 
 dev_dependencies:
   flutter_test:
@@ -21,3 +22,4 @@ flutter:
   assets:
     - assets/config/game_config.json
     - assets/audio/music/
+    - assets/audio/embedded/
