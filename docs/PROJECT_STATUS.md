@@ -2,8 +2,8 @@
 
 **Document:** AFA-STATUS-001  
 **Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 15:13 (Asia/Kuwait)  
-**Overall status:** 🟡 **P1 PROTOTYPE FOUNDATION VERIFIED — FIRST PREVIEW APK PIPELINE ACTIVE — PLAYABLE RACE NOT YET COMPLETE**
+**Last updated:** 2026-08-12 15:34 (Asia/Kuwait)  
+**Overall status:** 🟠 **P1 GAMEPLAY RACE LOOP IN REVIEW — FIRST PREVIEW APK ACTIVE — VISUAL/CAMERA/AI GATES OPEN**
 
 > هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
 
@@ -12,125 +12,122 @@
 | Area | Status | Current reality |
 |---|---|---|
 | Repository / governance | 🟡 In setup | الخطة، Art Direction، Task Register وstatus guard موجودة؛ GOV reconciliation ما زال مطلوبًا |
-| Flutter / Flame foundation | 🟢 Verified | PRO-001 → PRO-010 اجتازت CI: analyze + tests + Android scaffold + debug APK build |
-| First preview APK | 🟡 CI active | GitHub Actions يبني Debug APK ويرفعه كـArtifact باسم `3fareet-first-preview-apk`; هذا Preview وليس Verified Release |
-| Premium visual direction | 🔴 Not started | VIS tasks ما زالت `TODO`; الـHUD shell يثبت tokens أولية فقط ولا يغلق Visual Gate |
-| P1 playable prototype | 🔴 Not playable | foundation وPrototype scene entry موجودان، لكن لا توجد سيارة/حلبة/قيادة فعلية بعد |
-| Driving / Drift / Nitro | 🔴 Not started | VEH/DRF الأساسية ما زالت `TODO` |
-| Race / Camera / AI | 🔴 Not started | RAC/CAM/AI الأساسية ما زالت `TODO` |
-| Missing assets | 🟡 Open | سجل `MISSED_ASSETS.md` مفتوح ويجب تحديثه مع كل Asset مؤثر |
-| Android verified release APK | 🔴 None | لا يوجد Release APK موثّق داخل `Last verified APK released/` حتى الآن |
-| Backend architecture | 🟢 Locked | Laravel API + MySQL; Flutter لا يتصل مباشرة بقاعدة البيانات |
-| Backend implementation / Online / Seasons | ⚪ Deferred | التنفيذ الكبير مؤجل حتى نجاح P1 Playable Prototype Gate |
+| Flutter / Flame foundation | 🟢 Verified | PRO-001 → PRO-010 Verified مع analyze/tests/debug APK evidence |
+| First preview APK | 🟢 Pipeline active | CI يرفع Debug APK preview artifact؛ ليس Verified Release APK |
+| GAMEPLAY-050 | 🟠 In review | **50 Task بالضبط** منفذة على branch نظيف من `main`: PRO-011→016 + VEH-001→016 + DRF-001→012 + RAC-001→016 |
+| Vehicle / Driving | 🟠 In review | throttle/brake/reverse/steering/grip/slip/drift/collision/off-track/reset/tuning/preset موجودة |
+| Magic Drift / Nitro | 🟠 In review | Spirit charge + anti-abuse + 3 feedback levels + Nitro curve/cooldown/hooks/UI states موجودة |
+| Race core | 🟠 In review | track/start grid/countdown/checkpoints/laps/finish/timer/state/ranking/wrong-way/OOB/respawn/result/restart موجودة |
+| Touch controls / lifecycle | 🟠 In review | steer/throttle/brake/drift/nitro + pause/reset/restart + app lifecycle integration + TUNE overlay موجودة |
+| Premium visual direction | 🔴 Not started | VIS tasks ما زالت TODO؛ الـHUD الحالي لا يغلق Premium Visual Gate |
+| Camera / AI | 🔴 Not started | CAM وAI الأساسية ما زالت TODO |
+| Backend architecture | 🟢 Locked | Laravel API + MySQL؛ direct Flutter→MySQL ممنوع |
+| Backend implementation / Online / Seasons | ⚪ Deferred | التنفيذ الكبير مؤجل خلف P1 |
+| Android verified release APK | 🔴 None | CI artifacts ليست Verified APK؛ real-device smoke test غير منفذ بعد |
 
-## Verified engineering batch — PRO-001 → PRO-010
+## Verified foundation — PRO-001 → PRO-010
+
+**Status:** `VERIFIED`  
+**Evidence:** [`work/PRO-001-010.md`](work/PRO-001-010.md)
+
+Foundation CI أثبت dependency resolution و`flutter analyze` و`flutter test` وAndroid debug build. كما تم إصلاح floating-point boundary bug في fixed-step scheduler قبل التحقق النهائي.
+
+## Current engineering batch — GAMEPLAY-050
 
 **Owner:** Principal Mobile Game Architect  
-**Status:** `VERIFIED`  
-**Evidence document:** [`work/PRO-001-010.md`](work/PRO-001-010.md)  
-**Verified head:** `a9bef308fc47d4dea51f81539749d77939669ab0`  
-**CI run:** `Flutter Prototype CI #9` / run `31594645225`
+**Branch:** `agent/gameplay-050-race-loop-v2`  
+**Status:** `IN REVIEW`  
+**Evidence:** [`work/GAMEPLAY-050.md`](work/GAMEPLAY-050.md)
 
-تم التحقق من:
-1. PRO-001 — Flutter project baseline قابل للـdependency resolution والتحليل والاختبار.
-2. PRO-002 — Flame `1.38.0` + root `GameWidget`.
-3. PRO-003 — `GameBootstrap` lifecycle وdependency boundaries.
-4. PRO-004 — `PrototypeScene` mounted في Flame world.
-5. PRO-005 — mobile-neutral `GameInputState` / snapshots.
-6. PRO-006 — fixed-step simulation clock مع bounded catch-up وfloating-point boundary hardening.
-7. PRO-007 — asset loader lifecycle/cache/disposal.
-8. PRO-008 — typed JSON game config loader.
-9. PRO-009 — FPS + frame-time runtime telemetry overlay.
-10. PRO-010 — prototype HUD shell: position/time/spirit/speed بالهوية dark/cyan/gold الأولية.
+### Task count — exactly 50
 
-### Verification evidence
-GitHub Actions على الـverified head نجحت بالكامل في:
-- dependency resolution
-- `flutter analyze` — **0 issues**
-- `flutter test` — **all tests passed**
-- Android scaffold generation from pinned Flutter template
-- `flutter build apk --debug` — **success**
-- Project Status Freshness Guard — **success**
+- PRO-011 → PRO-016 = 6
+- VEH-001 → VEH-016 = 16
+- DRF-001 → DRF-012 = 12
+- RAC-001 → RAC-016 = 16
+- **Total = 50**
 
-خلال التحقق كشف اختبار fixed-step boundary حالة حقيقية كان فيها floating-point subtraction قد يفقد simulation tick؛ تم تغيير scheduler ليحسب عدد الخطوات قبل التنفيذ مع tolerance صغير، ثم أعيد CI حتى أصبح Green بالكامل.
+### Delivered architecture
 
-**مهم:** نجاح Debug APK هنا يثبت buildability للـfoundation فقط. لا يعني وجود `Verified Release APK` للمستخدم. APK الخاصة بإغلاق P1 يجب أن تكون Release build، تعمل على جهاز حقيقي، وتجتاز smoke test ثم توضع فقط في `Last verified APK released/` مع metadata وSHA-256.
+- fixed-step deterministic gameplay simulation suitable for future client prediction/reconciliation;
+- normalized input snapshots plus actual touch controls;
+- arcade acceleration/braking/reverse, speed-sensitive steering, grip and lateral slip;
+- drift entry/sustain/exit, max speed, collision response, off-track slowdown and safe reset;
+- runtime vehicle tuning surface and prototype car preset;
+- Spirit Energy charge with low-speed abuse guard and three drift feedback tiers;
+- Nitro activation/acceleration curve/drain/cooldown plus trail/camera/audio hooks and UI meter states;
+- ordered checkpoint/lap/finish race state machine, race timer/ranking/wrong-way/out-of-bounds/safe respawn/results;
+- Android app lifecycle pause/resume, restart and reset flow;
+- debug build script, release skeleton build script, smoke checklist and prototype tag policy.
 
-## First downloadable APK path
+### Verification gate before VERIFIED
 
-Workflow `Flutter Prototype CI` الآن يحتوي خطوة `actions/upload-artifact@v4` بعد نجاح `flutter build apk --debug`.
+The batch remains `IN REVIEW` until the clean PR from current `main` proves Green:
 
-- Artifact name: `3fareet-first-preview-apk`
-- Source: `build/app/outputs/flutter-apk/app-debug.apk`
-- Retention: 14 days
-- Classification: **Developer Preview / Debug**
-- Must NOT be copied to `Last verified APK released/`.
+- `flutter analyze`
+- full `flutter test` suite including vehicle/Spirit/race/session tests
+- Android debug APK build
+- Android release skeleton APK build
+- preview artifact upload
+- Project Status Freshness Guard
+
+## APK classification
+
+The CI pipeline publishes preview APK artifacts for developer testing. They must **not** be copied automatically to `Last verified APK released/`.
+
+A real `Verified Release APK` requires:
+
+- release candidate from `main`;
+- real Android device smoke test using [`SMOKE_TEST_CHECKLIST.md`](SMOKE_TEST_CHECKLIST.md);
+- recorded Version, Commit SHA, Build date, Device/API, Tester, result and SHA-256;
+- only the latest verified APK retained in `Last verified APK released/`.
 
 ## Architecture decisions now locked
 
-- Gameplay simulation الجديدة تعتمد fixed-step clock بدل ربط physics مباشرة بتذبذب frame delta.
-- Input contract منفصل عن Flutter widgets ليخدم touch controls الآن ثم multiplayer client prediction/reconciliation لاحقًا بدون إعادة تصميم gameplay API.
-- Bootstrap/config/assets لها lifecycle وحدود مستقلة لمنع coupling مبكر بين UI وgameplay/networking.
-- Backend stack is locked by [`BACKEND_ARCHITECTURE.md`](BACKEND_ARCHITECTURE.md): **Laravel + MySQL**.
-- Mandatory data path: `Flutter/Flame → HTTPS API → Laravel → MySQL`.
-- ممنوع تضمين MySQL credentials داخل التطبيق أو أي direct database connection من Flutter.
-- Backend/Online implementation لا يسبق إثبات single-player driving loop والـP1 visual/performance gate.
+- Gameplay simulation consumes fixed-step time, not variable frame delta.
+- Input remains UI-neutral so multiplayer command prediction/reconciliation can reuse the same contract.
+- Vehicle physics, Spirit/Nitro and race rules do not depend on Flutter widgets.
+- Backend path remains `Flutter/Flame → HTTPS API → Laravel → MySQL`; direct client database access is prohibited.
+- Backend/Online implementation remains behind the P1 playable/visual/performance gate.
 
 ## Current phase
 
 ### 🟡 P0 — Foundation / Team Control
-الـexecutable Flutter/Flame foundation الأولى أصبحت Verified. ما زال GOV task reconciliation وبعض platform/release foundation مطلوبًا قبل إعلان P0 بالكامل `VERIFIED`.
+Core executable foundation is Verified. PRO-011→016 are in the current 50-task review batch. GOV reconciliation remains separate.
 
-### 🔴 P1 — Playable Prototype Gate
-**الحالة: NOT VERIFIED / NOT PLAYABLE YET**
+### 🟠 P1 — Playable Prototype Gate
+The code-level driving/race loop is now implemented, but **P1 is not closed** until all of these are delivered:
 
-الـGate المطلوب:
-- سيارة واحدة قابلة للقيادة.
-- حلبة مصرية Fantasy واحدة.
-- لفة واحدة + checkpoints + finish.
-- Drift + Magic Spirit Meter + Nitro Spirit.
-- 1 AI على الأقل.
-- Racing camera + Premium HUD.
-- Cairo fantasy lighting/look-dev مطابق للـArt Direction.
-- Android Release APK يعمل على جهاز حقيقي.
-- آخر APK ناجح فقط يوضع في `Last verified APK released/` مع metadata وSHA-256.
+- Cairo/Egyptian Fantasy track visual implementation and Premium Visual Gate;
+- racing camera and feedback integration;
+- at least 1 AI opponent;
+- real-device driving feel test (VEH-017);
+- integrated track-completion verification (RAC-017);
+- real-device Android Release APK smoke test;
+- latest successful verified APK copied to `Last verified APK released/` with metadata and SHA-256.
 
-## Highest priorities next
+## Highest priorities after GAMEPLAY-050 verification
 
-1. PRO-011 / PRO-012 — pause/resume + reset/restart lifecycle.
-2. PRO-013 / PRO-014 — تثبيت Android debug/release build surface داخل المستودع.
-3. VEH-001 → VEH-006 — VehicleDefinition + throttle/brake/steering/grip.
-4. VIS-001 → VIS-006 بالتوازي حتى لا يتحول الـPrototype إلى شكل تقني مؤقت.
-5. بعدها DRF/RAC/CAM للاقتراب من أول playable race.
-6. BCK-001 architecture decision already VERIFIED; remaining Laravel/MySQL implementation stays deferred behind P1.
+1. CAM-001 → CAM-005 — follow/look-ahead/damping/drift/nitro camera.
+2. AI-001 → AI-006 — racing line/path/throttle/steering/braking/drift zones.
+3. VIS-001 → VIS-006 — Art Bible/color/lighting/material/road/landmark silhouette gates.
+4. RAC-017 + VEH-017 — integrated determinism and real-device feel verification.
+5. First real-device verified Release APK.
 
 ## Active blockers / risks
 
 | ID | Severity | Blocker / Risk | Action |
 |---|---|---|---|
-| STS-B02 | 🔴 High | لا توجد سيارة أو حلبة قابلة للعب بعد | التالي Gameplay/Vehicle foundation |
-| STS-B03 | 🔴 High | VIS tasks ما زالت TODO | بدء VIS بالتوازي مع driving prototype |
-| STS-B04 | 🔴 High | لا يوجد Verified Release APK | لا يغلق P1 قبل release + real-device smoke test |
-| STS-B05 | 🟡 Medium | بعض GOV tasks TODO رغم وجود تنفيذ فعلي جزئي | Team Lead يعمل reconciliation مع Evidence |
-| STS-B06 | 🟡 Medium | Android platform scaffold يولد حاليًا من Flutter pinned template في CI | PRO-013/014 تملكان تثبيت Android build surface النهائي |
+| STS-B07 | 🟠 Medium | GAMEPLAY-050 waits for current clean PR CI | No task becomes VERIFIED before Green checks |
+| STS-B03 | 🔴 High | Premium VIS tasks remain TODO | Start VIS in parallel after gameplay CI stabilizes |
+| STS-B08 | 🔴 High | Camera and AI are still missing | Next batch targets CAM + AI |
+| STS-B04 | 🔴 High | No real-device Verified Release APK | P1 cannot close from CI artifacts alone |
+| STS-B05 | 🟡 Medium | GOV register still understates some implemented governance | Team Lead reconciliation remains required |
 
 ## Last verified APK
 
 **Status:** 🔴 **NO VERIFIED RELEASE APK YET**  
 **Folder:** [`../Last verified APK released/`](../Last%20verified%20APK%20released/)  
-
-لا يوضع أي APK هنا قبل تسجيل Version, Commit SHA, Build date, Device/API, Tester, smoke result وSHA-256.
-
-## Team workload rules
-
-المصدر التفصيلي هو [`TASK_REGISTER.md`](TASK_REGISTER.md).  
-**State vocabulary:** `TODO → READY → IN PROGRESS → BLOCKED/IN REVIEW → DONE → VERIFIED`
-
-- Owner واحد لكل Task.
-- Module Lock عند لمس نفس interfaces/files.
-- كل PR يذكر Task IDs.
-- تغير الحالة = تحديث ملف المهمة + هذه الصفحة في نفس PR.
-- `DONE` لا تساوي `VERIFIED`; Evidence شرط أساسي.
 
 ## Source of truth links
 
@@ -139,6 +136,7 @@ Workflow `Flutter Prototype CI` الآن يحتوي خطوة `actions/upload-art
 - [Full Task Register](TASK_REGISTER.md)
 - [Premium Visual Direction](ART_DIRECTION.md)
 - [Missed Assets](MISSED_ASSETS.md)
+- [GAMEPLAY-050 Evidence](work/GAMEPLAY-050.md)
 - [Last verified APK released](../Last%20verified%20APK%20released/)
 
 ---
