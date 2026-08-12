@@ -34,6 +34,10 @@ jobs:
       - name: Dependencies
         run: flutter pub get
 
+      - name: Build version stamp
+        shell: bash
+        run: ./tool/version_stamp.sh | tee build_version.env
+
       - name: Format and static analysis
         shell: bash
         run: |
@@ -49,24 +53,28 @@ jobs:
       - name: Widget and game integration tests
         run: flutter test test/front_end_flow_test.dart test/race_session_test.dart
 
+      - name: Prototype acceptance smoke test
+        run: flutter test test/prototype_acceptance_test.dart
+
       - name: Generate Android scaffold from pinned Flutter template
         shell: bash
         run: ./tool/bootstrap_android.sh
 
       - name: Build Android debug APK
         shell: bash
-        run: flutter build apk --debug
+        run: flutter build apk --debug --build-number=${{ github.run_number }}
 
       - name: Build Android release skeleton APK
         shell: bash
-        run: flutter build apk --release --dart-define=BUILD_CHANNEL=prototype
+        run: flutter build apk --release --build-number=${{ github.run_number }} --dart-define=BUILD_CHANNEL=prototype --dart-define=BUILD_COMMIT=${{ github.sha }}
 
       - name: Publish preview APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: 3fareet-prototype-apks
+          name: 3fareet-prototype-apks-${{ github.run_number }}
           path: |
             build/app/outputs/flutter-apk/app-debug.apk
             build/app/outputs/flutter-apk/app-release.apk
+            build_version.env
           if-no-files-found: error
           retention-days: 14
