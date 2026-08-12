@@ -29,6 +29,7 @@
 | AST-ID | Asset | Owner | Status | Target path | Branch / PR | Last update | Notes |
 |---|---|---|---|---|---|---|---|
 | AST-060 | App icon family | UNASSIGNED | REFERENCE_AVAILABLE | `docs/assets/05_ui_hud/app_icons/` | — | 2026-08-12 | استلمنا لوحة المقاسات/التصميم. المرجع محفوظ، ويوجد 256px candidate للمعاينة فقط. ما زال مطلوب clean 1024 master + platform exports قبل VERIFIED. |
+| AST-061 | Cairo Rap × Shaabi prototype music | Technical Audio / Integration | INTEGRATING | `assets/audio/` | `agent/audio-002-first-apk-rap-shaabi` | 2026-08-12 | Owner source received; first APK uses a short embedded preview loop. CI + real-device audio smoke required before VERIFIED. |
 
 ## Missing / production asset register
 
@@ -78,7 +79,7 @@
 | Audio | UI click/confirm/back | P1 | P1/Core | Consistent set | Platform clicks | MISSING |
 | Audio | Countdown 3-2-1-Go | P1 | P1 | Clear and punchy | Tones | MISSING |
 | Audio | Race finish sting | P1 | P1 | Short success/fail variants | Tone | MISSING |
-| Audio | Cairo fantasy race music | P2 | Core Alpha | Loopable، original، energetic | Royalty-safe temp | MISSING |
+| Audio | Cairo fantasy race music | P2 | Core Alpha | Loopable، original، energetic; Rap/Trap × Egyptian Shaabi/Mahraganat direction | Embedded Rap×Shaabi preview loop for first APK only | INTEGRATING |
 | Animation | Vehicle wheel rotation rig | P0 | P1 | Compatible with car model | Code rotation if possible | MISSING |
 | Animation | Suspension/body lean hooks | P1 | Core Alpha | Arcade exaggeration | Procedural only | MISSING |
 | Animation | Nitro spirit animation | P1 | Core Alpha | Spawn/flight/fade | VFX-only placeholder | MISSING |
