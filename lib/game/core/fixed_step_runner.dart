@@ -12,10 +12,13 @@ class FixedStepRunner {
 
   double _accumulator = 0;
 
-  double get interpolationAlpha => (_accumulator / stepSeconds).clamp(0.0, 1.0);
+  double get interpolationAlpha =>
+      (_accumulator / stepSeconds).clamp(0.0, 1.0).toDouble();
 
   int advance(double frameDeltaSeconds, FixedStepCallback onStep) {
-    final clampedDelta = frameDeltaSeconds.clamp(0.0, stepSeconds * maxCatchUpSteps);
+    final clampedDelta = frameDeltaSeconds
+        .clamp(0.0, stepSeconds * maxCatchUpSteps)
+        .toDouble();
     _accumulator += clampedDelta;
 
     var steps = 0;
