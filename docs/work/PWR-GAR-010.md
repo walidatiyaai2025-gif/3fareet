@@ -2,8 +2,11 @@
 
 **Owner:** Principal Mobile Game Architect  
 **Branch:** `feature/PWR-006-GAR-001-gameplay-slice`  
-**Status:** IN REVIEW  
-**Scope:** 10 tasks exactly
+**Status:** VERIFIED  
+**Scope:** 10 tasks exactly  
+**Verified code head:** `c565cd8d694b42c62477934406a1c9bbf0bc7b96`  
+**Flutter Prototype CI:** `31623179639` — SUCCESS (attempt 2)  
+**Project Status Freshness Guard:** `31623179586` — SUCCESS
 
 ## Task scope
 
@@ -29,18 +32,20 @@
 - The Garage catalog references `vehicleDefinitionId` instead of duplicating physics tuning.
 - The catalog JSON shape is intentionally compatible with the locked backend direction: Flutter/Flame consumes HTTPS API data from Laravel; it never connects directly to MySQL.
 
-## Verification plan
-
-CI must pass all existing and new gates before these tasks are promoted to VERIFIED:
-
-- `dart format --output=none lib test`
-- `flutter analyze`
-- `flutter test`
-- Android Debug APK build
-- Android Release Skeleton APK build
-
-New tests cover Trap deployment/hit/expiry, Nitro duration, Traffic Curse + Shield immunity, Enchanted Pound multiplier, duration/stacking rules, AI usage policy, feedback hooks, reset cleanup, and Garage catalog JSON round-trip/versioning.
-
 ## Verification evidence
 
-Pending GitHub Actions PR run. This document must be updated with the Green workflow run ID before promotion to VERIFIED.
+GitHub Actions run `31623179639` completed Green on code head `c565cd8d694b42c62477934406a1c9bbf0bc7b96` and proved:
+
+- dependency resolution and formatter gate passed;
+- `flutter analyze` completed with zero issues;
+- complete suite passed with **41 tests**;
+- Android scaffold generation passed;
+- Android Debug APK build passed;
+- Android Release Skeleton APK build passed;
+- preview APK artifact upload passed.
+
+The first workflow attempt reached the APK build after all static/test gates were Green but Gradle wrapper download terminated with a transient `java.net.SocketException: Unexpected end of file from server`. The workflow job was rerun against the **same code head without code changes or weakened gates**; attempt 2 completed successfully end-to-end.
+
+Focused coverage includes Trap deployment/hit/expiry, Nitro duration, Traffic Curse + Shield immunity, Enchanted Pound multiplier, duration/stacking rules, AI usage policy, feedback hooks, reset cleanup, and Garage catalog JSON round-trip/versioning.
+
+Task-promotion commits after the verified code head are documentation-only and do not alter the tested gameplay/application code.
