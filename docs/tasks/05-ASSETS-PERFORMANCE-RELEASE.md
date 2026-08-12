@@ -31,16 +31,16 @@ Owner default: **QA / Release Engineer**
 | PER-007 | P0 | إضافة automated lint/analyze | Principal Mobile Game Architect | IN REVIEW |
 | PER-008 | P0 | إضافة unit tests pipeline | Principal Mobile Game Architect | IN REVIEW |
 | PER-009 | P0 | إضافة widget/game tests pipeline | Principal Mobile Game Architect | IN REVIEW |
-| PER-010 | P0 | إضافة Android build CI | QA / Release Engineer | TODO |
-| PER-011 | P0 | إضافة artifact retention | QA / Release Engineer | TODO |
-| PER-012 | P0 | إضافة version stamping من commit | QA / Release Engineer | TODO |
-| PER-013 | P0 | إنشاء smoke test suite | QA / Release Engineer | TODO |
-| PER-014 | P0 | إنشاء prototype acceptance test | QA / Release Engineer | TODO |
-| PER-015 | P2 | إنشاء regression checklist | QA / Release Engineer | TODO |
-| PER-016 | P2 | إنشاء device matrix | QA / Release Engineer | TODO |
-| PER-017 | P2 | اختبار low-tier profile | QA / Release Engineer | TODO |
-| PER-018 | P2 | اختبار mid-tier profile | QA / Release Engineer | TODO |
-| PER-019 | P2 | اختبار high-tier profile | QA / Release Engineer | TODO |
+| PER-010 | P0 | إضافة Android build CI | Principal Mobile Game Architect | IN REVIEW |
+| PER-011 | P0 | إضافة artifact retention | Principal Mobile Game Architect | IN REVIEW |
+| PER-012 | P0 | إضافة version stamping من commit | Principal Mobile Game Architect | IN REVIEW |
+| PER-013 | P0 | إنشاء smoke test suite | Principal Mobile Game Architect | IN REVIEW |
+| PER-014 | P0 | إنشاء prototype acceptance test | Principal Mobile Game Architect | IN REVIEW |
+| PER-015 | P2 | إنشاء regression checklist | Principal Mobile Game Architect | IN REVIEW |
+| PER-016 | P2 | إنشاء device matrix | Principal Mobile Game Architect | IN REVIEW |
+| PER-017 | P2 | اختبار low-tier profile | Principal Mobile Game Architect | IN REVIEW |
+| PER-018 | P2 | اختبار mid-tier profile | Principal Mobile Game Architect | IN REVIEW |
+| PER-019 | P2 | اختبار high-tier profile | Principal Mobile Game Architect | IN REVIEW |
 | PER-020 | P2 | إضافة crash reporting | QA / Release Engineer | TODO |
 | PER-021 | P2 | إضافة ANR monitoring hooks | QA / Release Engineer | TODO |
 | PER-022 | P2 | إنشاء release signing process | QA / Release Engineer | TODO |
