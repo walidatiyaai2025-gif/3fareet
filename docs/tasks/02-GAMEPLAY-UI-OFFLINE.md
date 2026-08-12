@@ -4,11 +4,11 @@
 Owner default: **Gameplay Lead**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| PWR-001 | P1 | تعريف PowerUpDefinition | Principal Mobile Game Architect | IN REVIEW |
-| PWR-002 | P1 | إنشاء pickup spawn points | Principal Mobile Game Architect | IN REVIEW |
-| PWR-003 | P1 | إنشاء pickup collection | Principal Mobile Game Architect | IN REVIEW |
-| PWR-004 | P1 | إنشاء inventory slot أثناء السباق | Principal Mobile Game Architect | IN REVIEW |
-| PWR-005 | P1 | تنفيذ عين الحصودة Shield | Principal Mobile Game Architect | IN REVIEW |
+| PWR-001 | P1 | تعريف PowerUpDefinition | Principal Mobile Game Architect | VERIFIED |
+| PWR-002 | P1 | إنشاء pickup spawn points | Principal Mobile Game Architect | VERIFIED |
+| PWR-003 | P1 | إنشاء pickup collection | Principal Mobile Game Architect | VERIFIED |
+| PWR-004 | P1 | إنشاء inventory slot أثناء السباق | Principal Mobile Game Architect | VERIFIED |
+| PWR-005 | P1 | تنفيذ عين الحصودة Shield | Principal Mobile Game Architect | VERIFIED |
 | PWR-006 | P1 | تنفيذ شَرَد الأسفلت Trap | Gameplay Lead | TODO |
 | PWR-007 | P1 | تنفيذ روح النيترو Power-up | Gameplay Lead | TODO |
 | PWR-008 | P1 | تنفيذ لعنة الزحمة Slow | Gameplay Lead | TODO |
@@ -22,22 +22,22 @@ Owner default: **Gameplay Lead**
 Owner default: **UI/UX Designer + Flutter Dev**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| UIX-001 | P1 | تصميم Splash/boot minimal | Principal Mobile Game Architect | IN REVIEW |
-| UIX-002 | P1 | تصميم Main menu | Principal Mobile Game Architect | IN REVIEW |
-| UIX-003 | P1 | تصميم Play mode selection | Principal Mobile Game Architect | IN REVIEW |
-| UIX-004 | P1 | تصميم Prototype race HUD | Principal Mobile Game Architect | IN REVIEW |
-| UIX-005 | P1 | تصميم speed indicator | Principal Mobile Game Architect | IN REVIEW |
-| UIX-006 | P1 | تصميم position indicator | Principal Mobile Game Architect | IN REVIEW |
-| UIX-007 | P1 | تصميم Spirit/Drift meter | Principal Mobile Game Architect | IN REVIEW |
-| UIX-008 | P1 | تصميم race timer/progress | Principal Mobile Game Architect | IN REVIEW |
-| UIX-009 | P1 | تصميم pause menu | Principal Mobile Game Architect | IN REVIEW |
-| UIX-010 | P1 | تصميم race result screen | Principal Mobile Game Architect | IN REVIEW |
-| UIX-011 | P1 | تصميم loading screen | Principal Mobile Game Architect | IN REVIEW |
-| UIX-012 | P1 | تصميم error/retry states | Principal Mobile Game Architect | IN REVIEW |
-| UIX-013 | P1 | دعم safe areas | Principal Mobile Game Architect | IN REVIEW |
-| UIX-014 | P1 | دعم اتجاه النص العربي | Principal Mobile Game Architect | IN REVIEW |
-| UIX-015 | P1 | إعداد design tokens | Principal Mobile Game Architect | IN REVIEW |
-| UIX-016 | P1 | تنفيذ accessibility text scaling limits | Principal Mobile Game Architect | IN REVIEW |
+| UIX-001 | P1 | تصميم Splash/boot minimal | Principal Mobile Game Architect | VERIFIED |
+| UIX-002 | P1 | تصميم Main menu | Principal Mobile Game Architect | VERIFIED |
+| UIX-003 | P1 | تصميم Play mode selection | Principal Mobile Game Architect | VERIFIED |
+| UIX-004 | P1 | تصميم Prototype race HUD | Principal Mobile Game Architect | VERIFIED |
+| UIX-005 | P1 | تصميم speed indicator | Principal Mobile Game Architect | VERIFIED |
+| UIX-006 | P1 | تصميم position indicator | Principal Mobile Game Architect | VERIFIED |
+| UIX-007 | P1 | تصميم Spirit/Drift meter | Principal Mobile Game Architect | VERIFIED |
+| UIX-008 | P1 | تصميم race timer/progress | Principal Mobile Game Architect | VERIFIED |
+| UIX-009 | P1 | تصميم pause menu | Principal Mobile Game Architect | VERIFIED |
+| UIX-010 | P1 | تصميم race result screen | Principal Mobile Game Architect | VERIFIED |
+| UIX-011 | P1 | تصميم loading screen | Principal Mobile Game Architect | VERIFIED |
+| UIX-012 | P1 | تصميم error/retry states | Principal Mobile Game Architect | VERIFIED |
+| UIX-013 | P1 | دعم safe areas | Principal Mobile Game Architect | VERIFIED |
+| UIX-014 | P1 | دعم اتجاه النص العربي | Principal Mobile Game Architect | VERIFIED |
+| UIX-015 | P1 | إعداد design tokens | Principal Mobile Game Architect | VERIFIED |
+| UIX-016 | P1 | تنفيذ accessibility text scaling limits | Principal Mobile Game Architect | VERIFIED |
 ## GAR — Garage / Vehicles / Customization
 Owner default: **Flutter/Flame Developer**
 | ID | Priority | Task | Owner | Status |
