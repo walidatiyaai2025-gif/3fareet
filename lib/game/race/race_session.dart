@@ -1,3 +1,4 @@
+import 'package:afareet_asphalt/game/ai/racing_ai.dart';
 import 'package:afareet_asphalt/game/drift/spirit_system.dart';
 import 'package:afareet_asphalt/game/input/game_input.dart';
 import 'package:afareet_asphalt/game/race/race_controller.dart';
@@ -8,11 +9,13 @@ import 'package:afareet_asphalt/game/vehicle/vehicle_simulator.dart';
 class RaceSession {
   RaceSession({
     required VehicleDefinition vehicleDefinition,
-    required this.track,
+    required TrackDefinition track,
     SpiritBalance spiritBalance = SpiritBalance.prototype,
-  })  : vehicle = VehicleSimulator(definition: vehicleDefinition),
+  })  : track = track,
+        vehicle = VehicleSimulator(definition: vehicleDefinition),
         spirit = SpiritSystem(balance: spiritBalance),
-        race = RaceController(track: track);
+        race = RaceController(track: track),
+        ai = AiRacePack.prototype(trackLengthMeters: track.totalLengthMeters);
 
   factory RaceSession.prototype({required VehicleDefinition vehicleDefinition}) {
     return RaceSession(
@@ -25,6 +28,7 @@ class RaceSession {
   final SpiritSystem spirit;
   final RaceController race;
   final TrackDefinition track;
+  final AiRacePack ai;
 
   double distanceAlongLapMeters = 0;
 
@@ -33,6 +37,8 @@ class RaceSession {
     if (race.phase != RacePhase.racing) {
       return;
     }
+
+    ai.step(dt: dt, raceTimeSeconds: race.raceTimeSeconds);
 
     final driftIntensity = (vehicle.state.lateralSlipMps.abs() /
             vehicle.definition.maxLateralSlipMps)
@@ -89,6 +95,7 @@ class RaceSession {
   void restart() {
     race.restart();
     spirit.reset();
+    ai.restart();
     distanceAlongLapMeters = 0;
     vehicle.resetToSafePoint(track.startGrid.first.toSafePoint());
   }
