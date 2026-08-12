@@ -1,14 +1,36 @@
 # Missed Assetes
 
 **Document:** AFA-ASSETS-001  
-**Version:** 1.0 Baseline
+**Version:** 1.1 Live Registry
 
-هذا السجل هو مصدر الحقيقة للأصول الناقصة. لا يبتكر المطور أصلًا بديلًا غير مسجل.
+هذا السجل هو **مصدر الحقيقة الحي** للأصول الناقصة/المستلمة/قيد التنفيذ. لا يبتكر المصمم أو المبرمج أصلًا بديلًا غير مسجل، ولا يبدأ أي شخص أصلًا عليه Owner نشط بدون تنسيق Team Lead.
 
 - P0: يمنع Prototype أو تقييم الأداء/القيادة.
 - P1: مطلوب لـCore Alpha/الهوية.
 - P2: توسع لاحق.
 - Placeholder مسموح فقط إذا كان مسجلًا وواضحًا.
+
+## Asset coordination — mandatory
+
+**قبل بدء أي Asset أو تعديل Asset قائم:** راجع هذا الملف أولًا، ثم سجّل الـOwner والحالة والـTarget path والـBranch/PR. أي PR يضيف أو يعدل أو يدمج Asset يجب أن يحدث هذا الملف في **نفس الـPR**.
+
+الحالات: `MISSING → CLAIMED → IN_PROGRESS → REVIEW → READY → INTEGRATING → INTEGRATED → VERIFIED`.
+
+الحالات `CLAIMED / IN_PROGRESS / REVIEW / READY / INTEGRATING` تعتبر **Asset Lock**: ممنوع شخص ثانٍ يبدأ نسخة موازية من نفس الأصل بدون موافقة Team Lead موثقة هنا.
+
+- المصمم: `MISSING → CLAIMED → IN_PROGRESS → REVIEW → READY`.
+- المبرمج: `READY → INTEGRATING → INTEGRATED`.
+- Team Lead / QA: `INTEGRATED → VERIFIED` بعد التحقق.
+- ملفات `references/` للمرجع فقط؛ المصدر القابل للتعديل في `source/`، والنسخة الجاهزة للدمج في `exports/`.
+- ملف Word هو مرجع إداري؛ هذا الملف Markdown هو السجل الذي يحدّثه الفريق أثناء العمل لتجنب Binary merge conflicts.
+
+## Active asset claims / received references
+
+| AST-ID | Asset | Owner | Status | Target path | Branch / PR | Last update | Notes |
+|---|---|---|---|---|---|---|---|
+| AST-060 | App icon family | UNASSIGNED | REFERENCE_AVAILABLE | `docs/assets/05_ui_hud/app_icons/` | — | 2026-08-12 | استلمنا لوحة المقاسات/التصميم. المرجع محفوظ، ويوجد 256px candidate للمعاينة فقط. ما زال مطلوب clean 1024 master + platform exports قبل VERIFIED. |
+
+## Missing / production asset register
 
 | Category | Asset | Priority | Phase | Required spec | Allowed placeholder | Status |
 |---|---|---|---|---|---|---|
@@ -69,6 +91,6 @@
 | Technical | AI racing line data | P0 | P1 | Waypoints/speeds/drift flags | Manual points | MISSING |
 | Technical | Safe respawn markers | P0 | P1 | Per checkpoint/sector | Manual transforms | MISSING |
 | Technical | Power-up spawn marker set | P1 | Power-ups | Track-integrated transforms | Manual transforms | MISSING |
-| Marketing/Store | App icon | P2 | Beta | Adaptive Android icon + iOS variants later | Dev icon | MISSING |
+| Marketing/Store | App icon | P2 | Beta | Clean 1024x1024 master + Android adaptive foreground/background + Play Store 512x512 + iOS AppIcon family; small-size readability/mask review | Received reference sheet in `docs/assets/05_ui_hud/app_icons/references/` + 256 candidate for preview only | REFERENCE_AVAILABLE |
 | Marketing/Store | Feature graphic/screenshots | P2 | Beta | Store-compliant assets | None until beta | MISSING |
 | Localization | Arabic game font license/selection | P1 | P1/Core | Readable Arabic + Latin numerals | Noto Sans Arabic during development | MISSING |
