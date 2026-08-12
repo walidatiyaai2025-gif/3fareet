@@ -51,11 +51,13 @@ class _AfareetAppState extends State<AfareetApp> with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         widget.game.resumeSimulation();
+        return;
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         widget.game.pauseSimulation();
+        return;
     }
   }
 
