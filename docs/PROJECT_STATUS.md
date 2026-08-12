@@ -2,8 +2,8 @@
 
 **Document:** AFA-STATUS-001  
 **Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 15:13 (Asia/Kuwait)  
-**Overall status:** 🟡 **P1 PROTOTYPE FOUNDATION VERIFIED — FIRST PREVIEW APK PIPELINE ACTIVE — PLAYABLE RACE NOT YET COMPLETE**
+**Last updated:** 2026-08-12 15:23 (Asia/Kuwait)  
+**Overall status:** 🟡 **P1 PROTOTYPE FOUNDATION VERIFIED — AUDIO SOURCE REGISTERED — PLAYABLE RACE NOT YET COMPLETE**
 
 > هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
 
@@ -18,7 +18,8 @@
 | P1 playable prototype | 🔴 Not playable | foundation وPrototype scene entry موجودان، لكن لا توجد سيارة/حلبة/قيادة فعلية بعد |
 | Driving / Drift / Nitro | 🔴 Not started | VEH/DRF الأساسية ما زالت `TODO` |
 | Race / Camera / AI | 🔴 Not started | RAC/CAM/AI الأساسية ما زالت `TODO` |
-| Missing assets | 🟡 Open | سجل `MISSED_ASSETS.md` مفتوح ويجب تحديثه مع كل Asset مؤثر |
+| Audio foundation | 🟡 In review | owner-provided 30.772 s Cairo-fantasy music source registered as `AUD-MUS-001`; runtime folder/naming/import rules established; binary import + loop/device validation still pending |
+| Missing assets | 🟡 Open | Cairo fantasy race music source is now provided; P0 engine/drift/nitro audio remain missing |
 | Android verified release APK | 🔴 None | لا يوجد Release APK موثّق داخل `Last verified APK released/` حتى الآن |
 | Backend architecture | 🟢 Locked | Laravel API + MySQL; Flutter لا يتصل مباشرة بقاعدة البيانات |
 | Backend implementation / Online / Seasons | ⚪ Deferred | التنفيذ الكبير مؤجل حتى نجاح P1 Playable Prototype Gate |
@@ -66,6 +67,24 @@ Workflow `Flutter Prototype CI` الآن يحتوي خطوة `actions/upload-art
 - Classification: **Developer Preview / Debug**
 - Must NOT be copied to `Last verified APK released/`.
 
+## Audio source registered — AUD-MUS-001
+
+المالك قدم مصدر موسيقى بتاريخ 2026-08-12 وتم تحليله وتسجيله كمرشح رسمي لـCairo fantasy race music.
+
+- Duration: `30.772 s`
+- Source: stereo / `44.1 kHz` / ~`192 kbps`
+- Estimated pulse: ~`120 BPM`
+- Source SHA-256: `7e8a5119167f4e5333e6606bbefa1bfe55d735c231b2abc92698a1004b36be50`
+- Reserved runtime path: `assets/audio/music/cairo_fantasy_race_theme_01.mp3`
+- Metadata: [`../assets/audio/music/cairo_fantasy_race_theme_01.asset.json`](../assets/audio/music/cairo_fantasy_race_theme_01.asset.json)
+- Pipeline: [`AUDIO_PIPELINE.md`](AUDIO_PIPELINE.md)
+- Current state: **SOURCE PROVIDED / BINARY IMPORT + LOOP + DEVICE VALIDATION PENDING**
+
+P0 audio still required for playable driving feel:
+1. Prototype engine loop.
+2. Tire skid/drift loop.
+3. Nitro Spirit activation signature.
+
 ## Architecture decisions now locked
 
 - Gameplay simulation الجديدة تعتمد fixed-step clock بدل ربط physics مباشرة بتذبذب frame delta.
@@ -100,9 +119,10 @@ Workflow `Flutter Prototype CI` الآن يحتوي خطوة `actions/upload-art
 1. PRO-011 / PRO-012 — pause/resume + reset/restart lifecycle.
 2. PRO-013 / PRO-014 — تثبيت Android debug/release build surface داخل المستودع.
 3. VEH-001 → VEH-006 — VehicleDefinition + throttle/brake/steering/grip.
-4. VIS-001 → VIS-006 بالتوازي حتى لا يتحول الـPrototype إلى شكل تقني مؤقت.
-5. بعدها DRF/RAC/CAM للاقتراب من أول playable race.
-6. BCK-001 architecture decision already VERIFIED; remaining Laravel/MySQL implementation stays deferred behind P1.
+4. P0 audio generation/acquisition — engine + drift + Nitro Spirit signature.
+5. VIS-001 → VIS-006 بالتوازي حتى لا يتحول الـPrototype إلى شكل تقني مؤقت.
+6. بعدها DRF/RAC/CAM للاقتراب من أول playable race.
+7. BCK-001 architecture decision already VERIFIED; remaining Laravel/MySQL implementation stays deferred behind P1.
 
 ## Active blockers / risks
 
@@ -113,6 +133,7 @@ Workflow `Flutter Prototype CI` الآن يحتوي خطوة `actions/upload-art
 | STS-B04 | 🔴 High | لا يوجد Verified Release APK | لا يغلق P1 قبل release + real-device smoke test |
 | STS-B05 | 🟡 Medium | بعض GOV tasks TODO رغم وجود تنفيذ فعلي جزئي | Team Lead يعمل reconciliation مع Evidence |
 | STS-B06 | 🟡 Medium | Android platform scaffold يولد حاليًا من Flutter pinned template في CI | PRO-013/014 تملكان تثبيت Android build surface النهائي |
+| STS-B07 | 🟡 Medium | P0 engine/drift/nitro audio missing; provided music source is not yet binary-imported/loop-validated | Produce/import P0 SFX and complete AUD-MUS-001 runtime validation |
 
 ## Last verified APK
 
@@ -136,6 +157,7 @@ Workflow `Flutter Prototype CI` الآن يحتوي خطوة `actions/upload-art
 
 - [Master Development Plan](MASTER_DEVELOPMENT_PLAN.md)
 - [Backend Architecture](BACKEND_ARCHITECTURE.md)
+- [Audio Pipeline](AUDIO_PIPELINE.md)
 - [Full Task Register](TASK_REGISTER.md)
 - [Premium Visual Direction](ART_DIRECTION.md)
 - [Missed Assets](MISSED_ASSETS.md)
