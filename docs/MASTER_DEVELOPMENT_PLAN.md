@@ -1,7 +1,7 @@
 # عفاريت الأسفلت — Master Development Plan
 
 **Document:** AFA-PLAN-001  
-**Version:** 1.2 Baseline  
+**Version:** 1.3 Baseline  
 **Date:** 2026-08-12  
 **Status:** Controlled team reference
 
@@ -45,6 +45,18 @@
 - Main Menu وGarage وRace HUD يجب أن تبدو كلعبة Premium وليست Flutter template.
 
 **قاعدة:** إذا نجح الأداء والكود لكن الشكل بعيد عن `ART_DIRECTION.md`، تبقى المرحلة `DONE` وليست `VERIFIED`.
+
+## Locked backend architecture
+
+القرار المعماري المعتمد موثق في [`docs/BACKEND_ARCHITECTURE.md`](BACKEND_ARCHITECTURE.md):
+
+- Game client: Flutter + Flame.
+- Backend/API: **Laravel**.
+- Primary database: **MySQL**.
+- مسار البيانات الإلزامي: `Flutter/Flame → HTTPS API → Laravel → MySQL`.
+- ممنوع اتصال تطبيق Flutter مباشرة بقاعدة MySQL أو تضمين credentials قاعدة البيانات داخل التطبيق.
+- Laravel مسؤول عن auth/authorization/validation/business rules/economy validation/persistence/audit/rate limiting.
+- التنفيذ الكبير للـBackend يظل مؤجلًا حتى نجاح P1، لكن هذا القرار Locked من الآن لمنع أي coupling خاطئ في كود اللعبة.
 
 ## P1 — Mandatory Playable Prototype Gate
 أعلى أولوية في المشروع. لا يبدأ التوسع الكبير في Backend/Store/Online قبل نجاح هذا الـGate.
@@ -109,12 +121,17 @@
 - Unlocks
 - Local persistence
 
-### P6 — Backend Foundation
-- Auth/Profile
-- Inventory
-- Economy
-- Remote Config
-- Telemetry contracts
+### P6 — Backend Foundation — Laravel + MySQL
+- Laravel versioned REST API (`/api/v1` baseline).
+- MySQL as primary relational data store.
+- Auth/Profile.
+- Inventory/Garage.
+- Economy ledger/rewards.
+- Remote Config/feature flags.
+- Telemetry contracts.
+- Rate limiting/audit logging.
+- Separate local/staging/production environments and secrets.
+- No direct Flutter-to-MySQL connectivity.
 
 ### P7 — Real-time Multiplayer
 - Lobby/Matchmaking
@@ -185,9 +202,12 @@
 ## Architecture risk gate
 المشروع يبدأ بـFlutter + Flame حسب الرؤية الحالية. P1 يجب أن يثبت عمليًا أن متطلبات القيادة/الكاميرا/عرض الأصول/الـVFX والاتجاه البصري والأداء قابلة للتنفيذ بصورة مستقرة. إذا فشل الـGate، يرفع ADR قبل أي توسع.
 
+قرار Backend مستقل ومقفل: Laravel + MySQL خلف HTTPS API؛ لا يتم استخدام MySQL كواجهة مباشرة للعميل تحت أي ظرف.
+
 ## Source of truth
 - `docs/PROJECT_STATUS.md` — Executive current-state dashboard
 - `docs/MASTER_DEVELOPMENT_PLAN.md`
+- `docs/BACKEND_ARCHITECTURE.md`
 - `docs/ART_DIRECTION.md`
 - `docs/TASK_REGISTER.md`
 - `docs/MISSED_ASSETS.md`
