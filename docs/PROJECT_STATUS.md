@@ -2,8 +2,8 @@
 
 **Document:** AFA-STATUS-001  
 **Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 14:48 (Asia/Kuwait)  
-**Overall status:** 🟡 **P1 PROTOTYPE FOUNDATION IN REVIEW — NOT YET PLAYABLE**
+**Last updated:** 2026-08-12 15:08 (Asia/Kuwait)  
+**Overall status:** 🟡 **P1 PROTOTYPE FOUNDATION VERIFIED — PLAYABLE RACE NOT YET COMPLETE**
 
 > هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
 
@@ -12,54 +12,59 @@
 | Area | Status | Current reality |
 |---|---|---|
 | Repository / governance | 🟡 In setup | الخطة، Art Direction، Task Register وstatus guard موجودة؛ GOV reconciliation ما زال مطلوبًا |
-| Flutter / Flame foundation | 🟠 In review | PRO-001 → PRO-010 تم تنفيذها على فرع `agent/pro-001-010-prototype-foundation` وتنتظر CI evidence |
-| Premium visual direction | 🔴 Not started | VIS tasks ما زالت `TODO`; الـHUD shell فقط يثبت visual tokens الأولية ولا يغلق Visual Gate |
-| P1 playable prototype | 🔴 Not playable | يوجد game foundation وPrototype scene entry، لكن لا توجد سيارة/حلبة/قيادة فعلية بعد |
+| Flutter / Flame foundation | 🟢 Verified | PRO-001 → PRO-010 اجتازت CI: analyze + tests + Android scaffold + debug APK build |
+| Premium visual direction | 🔴 Not started | VIS tasks ما زالت `TODO`; الـHUD shell يثبت tokens أولية فقط ولا يغلق Visual Gate |
+| P1 playable prototype | 🔴 Not playable | foundation وPrototype scene entry موجودان، لكن لا توجد سيارة/حلبة/قيادة فعلية بعد |
 | Driving / Drift / Nitro | 🔴 Not started | VEH/DRF الأساسية ما زالت `TODO` |
 | Race / Camera / AI | 🔴 Not started | RAC/CAM/AI الأساسية ما زالت `TODO` |
-| Missing assets | 🟡 Open | سجل `MISSED_ASSETS.md` ما زال مفتوحًا ويجب تحديثه مع كل Asset مؤثر |
-| Android verified APK | 🔴 None | لا يوجد Release APK موثّق داخل `Last verified APK released/` حتى الآن |
+| Missing assets | 🟡 Open | سجل `MISSED_ASSETS.md` مفتوح ويجب تحديثه مع كل Asset مؤثر |
+| Android verified release APK | 🔴 None | لا يوجد Release APK موثّق داخل `Last verified APK released/` حتى الآن |
 | Backend / Online / Seasons | ⚪ Deferred | مؤجلة حتى نجاح P1 Playable Prototype Gate |
 
-## Current engineering batch — PRO-001 → PRO-010
+## Verified engineering batch — PRO-001 → PRO-010
 
 **Owner:** Principal Mobile Game Architect  
-**Status:** `IN REVIEW` pending automated CI  
-**Evidence document:** [`work/PRO-001-010.md`](work/PRO-001-010.md)
+**Status:** `VERIFIED`  
+**Evidence document:** [`work/PRO-001-010.md`](work/PRO-001-010.md)  
+**Verified head:** `a9bef308fc47d4dea51f81539749d77939669ab0`  
+**CI run:** `Flutter Prototype CI #9` / run `31594645225`
 
-تم تنفيذ:
+تم التحقق من:
 1. PRO-001 — Flutter project baseline قابل للـdependency resolution والتحليل والاختبار.
 2. PRO-002 — Flame `1.38.0` + root `GameWidget`.
 3. PRO-003 — `GameBootstrap` lifecycle وdependency boundaries.
 4. PRO-004 — `PrototypeScene` mounted في Flame world.
 5. PRO-005 — mobile-neutral `GameInputState` / snapshots.
-6. PRO-006 — fixed-step simulation clock policy مع bounded catch-up.
+6. PRO-006 — fixed-step simulation clock مع bounded catch-up وfloating-point boundary hardening.
 7. PRO-007 — asset loader lifecycle/cache/disposal.
 8. PRO-008 — typed JSON game config loader.
 9. PRO-009 — FPS + frame-time runtime telemetry overlay.
 10. PRO-010 — prototype HUD shell: position/time/spirit/speed بالهوية dark/cyan/gold الأولية.
 
-### Validation gate لهذه الحزمة
-GitHub Actions workflow `Flutter Prototype CI` يجب أن ينجح في:
-- `dart format --set-exit-if-changed`
-- `flutter analyze`
-- `flutter test`
-- توليد Android scaffold من Flutter 3.44.0 pinned template
-- `flutter build apk --debug`
+### Verification evidence
+GitHub Actions على الـverified head نجحت بالكامل في:
+- dependency resolution
+- `flutter analyze` — **0 issues**
+- `flutter test` — **all tests passed**
+- Android scaffold generation from pinned Flutter template
+- `flutter build apk --debug` — **success**
+- Project Status Freshness Guard — **success**
 
-**مهم:** نجاح Debug APK هنا لا يعني وجود `Verified APK` للمستخدم. الـVerified APK المطلوب في P1 يجب أن يكون Release build ويجتاز device smoke test ثم يوضع فقط في `Last verified APK released/`.
+خلال التحقق كشف اختبار fixed-step boundary حالة حقيقية كان فيها floating-point subtraction قد يفقد simulation tick؛ تم تغيير scheduler ليحسب عدد الخطوات قبل التنفيذ مع tolerance صغير، ثم أعيد CI حتى أصبح Green بالكامل.
+
+**مهم:** نجاح Debug APK هنا يثبت buildability للـfoundation فقط. لا يعني وجود `Verified Release APK` للمستخدم. APK الخاصة بإغلاق P1 يجب أن تكون Release build، تعمل على جهاز حقيقي، وتجتاز smoke test ثم توضع فقط في `Last verified APK released/` مع metadata وSHA-256.
 
 ## Architecture decisions now locked
 
-- Gameplay simulation الجديدة يجب أن تعتمد fixed-step clock بدل ربط physics مباشرة بتذبذب frame delta.
-- Input contract منفصل عن Flutter widgets ليخدم touch controls الآن، ثم multiplayer client prediction/reconciliation لاحقًا بدون إعادة تصميم gameplay API.
+- Gameplay simulation الجديدة تعتمد fixed-step clock بدل ربط physics مباشرة بتذبذب frame delta.
+- Input contract منفصل عن Flutter widgets ليخدم touch controls الآن ثم multiplayer client prediction/reconciliation لاحقًا بدون إعادة تصميم gameplay API.
 - Bootstrap/config/assets لها lifecycle وحدود مستقلة لمنع coupling مبكر بين UI وgameplay/networking.
 - Backend/Online لا يسبق إثبات single-player driving loop والـP1 visual/performance gate.
 
 ## Current phase
 
 ### 🟡 P0 — Foundation / Team Control
-جزء التنفيذ البرمجي بدأ فعليًا. ما زال GOV task reconciliation مطلوبًا قبل إعلان P0 VERIFIED بالكامل.
+الـexecutable Flutter/Flame foundation الأولى أصبحت Verified. ما زال GOV task reconciliation وبعض platform/release foundation مطلوبًا قبل إعلان P0 بالكامل `VERIFIED`.
 
 ### 🔴 P1 — Playable Prototype Gate
 **الحالة: NOT VERIFIED / NOT PLAYABLE YET**
@@ -77,17 +82,16 @@ GitHub Actions workflow `Flutter Prototype CI` يجب أن ينجح في:
 
 ## Highest priorities next
 
-1. إغلاق CI للحزمة PRO-001 → PRO-010 ونقلها فقط بعد Evidence إلى VERIFIED.
-2. PRO-011 / PRO-012 — pause/resume + reset/restart lifecycle.
-3. PRO-013 — Android debug build يصبح repository-owned بدل bootstrap مؤقت.
-4. VEH-001 → VEH-006 — VehicleDefinition + throttle/brake/steering/grip.
-5. VIS-001 → VIS-006 بالتوازي حتى لا يتحول الـPrototype إلى شكل تقني مؤقت.
+1. PRO-011 / PRO-012 — pause/resume + reset/restart lifecycle.
+2. PRO-013 / PRO-014 — تثبيت Android debug/release build surface داخل المستودع.
+3. VEH-001 → VEH-006 — VehicleDefinition + throttle/brake/steering/grip.
+4. VIS-001 → VIS-006 بالتوازي حتى لا يتحول الـPrototype إلى شكل تقني مؤقت.
+5. بعدها DRF/RAC/CAM للاقتراب من أول playable race.
 
 ## Active blockers / risks
 
 | ID | Severity | Blocker / Risk | Action |
 |---|---|---|---|
-| STS-B01 | 🟠 Medium | PRO-001 → PRO-010 تنتظر CI build evidence | لا تتحول VERIFIED قبل نجاح workflow بالكامل |
 | STS-B02 | 🔴 High | لا توجد سيارة أو حلبة قابلة للعب بعد | التالي Gameplay/Vehicle foundation |
 | STS-B03 | 🔴 High | VIS tasks ما زالت TODO | بدء VIS بالتوازي مع driving prototype |
 | STS-B04 | 🔴 High | لا يوجد Verified Release APK | لا يغلق P1 قبل release + real-device smoke test |
@@ -96,7 +100,7 @@ GitHub Actions workflow `Flutter Prototype CI` يجب أن ينجح في:
 
 ## Last verified APK
 
-**Status:** 🔴 **NO VERIFIED APK YET**  
+**Status:** 🔴 **NO VERIFIED RELEASE APK YET**  
 **Folder:** [`../Last verified APK released/`](../Last%20verified%20APK%20released/)  
 
 لا يوضع أي APK هنا قبل تسجيل Version, Commit SHA, Build date, Device/API, Tester, smoke result وSHA-256.
