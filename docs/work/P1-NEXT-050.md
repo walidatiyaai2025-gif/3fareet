@@ -2,7 +2,7 @@
 
 **Owner:** Principal Mobile Game Architect  
 **Scope:** exactly 50 tasks  
-**Status:** IN REVIEW until CI is Green
+**Status:** VERIFIED
 
 ## Task count
 
@@ -11,6 +11,23 @@
 - UIX-001 → UIX-016 = 16 tasks.
 - PWR-001 → PWR-005 = 5 tasks.
 - **Total = 50 tasks.**
+
+## Verification evidence
+
+- **Verified code head:** `86a6ea2afb273cab14730e61a152676dc90ea24f`
+- **Flutter Prototype CI:** run `31613691078` — SUCCESS
+- **Project Status Freshness Guard:** run `31613691026` — SUCCESS
+
+The successful CI run proved:
+- `dart format --output=none lib test`;
+- `flutter analyze` with zero issues;
+- complete `flutter test` suite including Camera, AI, UI-flow and Power-up coverage;
+- Android scaffold generation;
+- Android Debug APK build;
+- Android Release Skeleton APK build;
+- preview APK artifact upload.
+
+Task-promotion commits after the verified code head are documentation-only and do not modify the tested gameplay/application code.
 
 ## Delivered architecture
 
@@ -55,21 +72,10 @@
 - Pickup collection rules.
 - Eye Shield activation, timeout and one-hit absorption.
 
-## Verification gates
-
-The batch stays `IN REVIEW` until all of the following succeed on the PR head:
-
-- `dart format --output=none lib test`.
-- `flutter analyze` with zero issues.
-- complete `flutter test` suite.
-- Android scaffold generation.
-- Android Debug APK build.
-- Android Release Skeleton APK build.
-- preview artifact upload.
-- Project Status Freshness Guard.
-
 ## Explicitly not claimed
 
 - CAM-012 multi-device camera tuning remains TODO.
 - VIS tasks remain TODO because their Definition of Done requires screenshot/device review and Team Lead approval.
-- VEH-017 real-device driving feel and final Verified Release APK remain open.
+- VEH-017 real-device driving feel remains TODO.
+- RAC-017 integrated track-completion verification remains TODO.
+- Final real-device Verified Release APK remains open.
