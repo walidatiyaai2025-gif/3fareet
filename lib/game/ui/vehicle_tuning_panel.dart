@@ -85,7 +85,7 @@ class _VehicleTuningPanelState extends State<VehicleTuningPanel> {
       children: <Widget>[
         Text('$label  ${value.toStringAsFixed(1)}'),
         Slider(
-          value: value.clamp(min, max),
+          value: value.clamp(min, max).toDouble(),
           min: min,
           max: max,
           onChanged: (newValue) {

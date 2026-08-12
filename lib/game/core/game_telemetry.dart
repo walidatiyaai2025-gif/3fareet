@@ -9,6 +9,9 @@ class GameTelemetry {
     required this.speedKph,
     required this.spirit,
     required this.raceTimeSeconds,
+    required this.lap,
+    required this.totalLaps,
+    required this.racePhase,
   });
 
   static const GameTelemetry initial = GameTelemetry(
@@ -18,6 +21,9 @@ class GameTelemetry {
     speedKph: 0,
     spirit: 0,
     raceTimeSeconds: 0,
+    lap: 1,
+    totalLaps: 1,
+    racePhase: 'waiting',
   );
 
   final double fps;
@@ -26,6 +32,9 @@ class GameTelemetry {
   final double speedKph;
   final double spirit;
   final double raceTimeSeconds;
+  final int lap;
+  final int totalLaps;
+  final String racePhase;
 
   GameTelemetry copyWith({
     double? fps,
@@ -34,6 +43,9 @@ class GameTelemetry {
     double? speedKph,
     double? spirit,
     double? raceTimeSeconds,
+    int? lap,
+    int? totalLaps,
+    String? racePhase,
   }) {
     return GameTelemetry(
       fps: fps ?? this.fps,
@@ -42,6 +54,9 @@ class GameTelemetry {
       speedKph: speedKph ?? this.speedKph,
       spirit: spirit ?? this.spirit,
       raceTimeSeconds: raceTimeSeconds ?? this.raceTimeSeconds,
+      lap: lap ?? this.lap,
+      totalLaps: totalLaps ?? this.totalLaps,
+      racePhase: racePhase ?? this.racePhase,
     );
   }
 }

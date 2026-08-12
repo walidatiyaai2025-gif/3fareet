@@ -36,7 +36,8 @@ class RaceSession {
 
     final driftIntensity = (vehicle.state.lateralSlipMps.abs() /
             vehicle.definition.maxLateralSlipMps)
-        .clamp(0.0, 1.0);
+        .clamp(0.0, 1.0)
+        .toDouble();
     final nitroAcceleration = spirit.step(
       dt: dt,
       isDrifting: vehicle.state.isDrifting,
@@ -55,7 +56,8 @@ class RaceSession {
     if (vehicle.state.speedMps <= 0) {
       distanceAlongLapMeters =
           (distanceAlongLapMeters + (vehicle.state.speedMps * dt))
-              .clamp(0.0, track.totalLengthMeters);
+              .clamp(0.0, track.totalLengthMeters)
+              .toDouble();
       return;
     }
 

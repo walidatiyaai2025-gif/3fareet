@@ -61,7 +61,8 @@ class SpiritSystem {
   bool nitroActive = false;
   DriftFeedbackLevel driftFeedback = DriftFeedbackLevel.none;
 
-  double get normalizedEnergy => (energy / balance.maxEnergy).clamp(0.0, 1.0);
+  double get normalizedEnergy =>
+      (energy / balance.maxEnergy).clamp(0.0, 1.0).toDouble();
 
   SpiritMeterState get meterState {
     if (nitroActive) {
@@ -90,19 +91,21 @@ class SpiritSystem {
       return 0;
     }
 
-    cooldownRemaining =
-        (cooldownRemaining - dt).clamp(0.0, balance.nitroCooldownSeconds);
+    cooldownRemaining = (cooldownRemaining - dt)
+        .clamp(0.0, balance.nitroCooldownSeconds)
+        .toDouble();
 
-    final intensity = driftIntensity.clamp(0.0, 1.0);
+    final intensity = driftIntensity.clamp(0.0, 1.0).toDouble();
     driftFeedback = _feedbackFor(isDrifting ? intensity : 0);
 
     if (!nitroActive &&
         isDrifting &&
         speedMps >= balance.minChargeSpeedMps) {
-      final speedFactor =
-          (speedMps / (balance.minChargeSpeedMps * 2.5)).clamp(0.45, 1.35);
+      final speedFactor = (speedMps / (balance.minChargeSpeedMps * 2.5))
+          .clamp(0.45, 1.35)
+          .toDouble();
       energy += balance.chargePerSecond * intensity * speedFactor * dt;
-      energy = energy.clamp(0.0, balance.maxEnergy);
+      energy = energy.clamp(0.0, balance.maxEnergy).toDouble();
     }
 
     if (!nitroActive &&
@@ -114,7 +117,7 @@ class SpiritSystem {
 
     if (nitroActive) {
       energy -= balance.nitroDrainPerSecond * dt;
-      energy = energy.clamp(0.0, balance.maxEnergy);
+      energy = energy.clamp(0.0, balance.maxEnergy).toDouble();
       final boostCurve = 0.78 + (0.22 * normalizedEnergy);
       final acceleration = balance.nitroAccelerationMps2 * boostCurve;
 

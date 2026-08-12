@@ -70,10 +70,12 @@ class VehicleSimulator {
       speed += nitroAccelerationMps2 * dt;
     }
 
-    state.speedMps = speed.clamp(
-      -definition.maxReverseSpeedMps,
-      definition.maxForwardSpeedMps,
-    );
+    state.speedMps = speed
+        .clamp(
+          -definition.maxReverseSpeedMps,
+          definition.maxForwardSpeedMps,
+        )
+        .toDouble();
   }
 
   void _updateDriftAndSlip(GameInputSnapshot input, double dt) {
@@ -111,16 +113,19 @@ class VehicleSimulator {
       );
     }
 
-    state.lateralSlipMps = state.lateralSlipMps.clamp(
-      -definition.maxLateralSlipMps,
-      definition.maxLateralSlipMps,
-    );
+    state.lateralSlipMps = state.lateralSlipMps
+        .clamp(
+          -definition.maxLateralSlipMps,
+          definition.maxLateralSlipMps,
+        )
+        .toDouble();
   }
 
   void _updateHeadingAndPosition(GameInputSnapshot input, double dt) {
     final speedRatio = (state.speedMps.abs() /
             definition.steeringHighSpeedStartMps)
-        .clamp(0.0, 1.0);
+        .clamp(0.0, 1.0)
+        .toDouble();
     final steeringRate = _lerp(
       definition.steeringRateLowSpeedRad,
       definition.steeringRateHighSpeedRad,
@@ -144,7 +149,7 @@ class VehicleSimulator {
   }
 
   void applyCollision(double severity) {
-    final clampedSeverity = severity.clamp(0.0, 1.0);
+    final clampedSeverity = severity.clamp(0.0, 1.0).toDouble();
     final retainedFraction = 1 -
         ((1 - definition.collisionSpeedRetention) * clampedSeverity);
     state.speedMps *= retainedFraction;
