@@ -21,16 +21,16 @@ Owner default: **Team Lead**
 Owner default: **Flutter/Flame Developer**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| PRO-001 | P0 | تهيئة Flutter project القابل للبناء | Principal Mobile Game Architect | IN REVIEW |
-| PRO-002 | P0 | إضافة Flame وتهيئة GameWidget | Principal Mobile Game Architect | IN REVIEW |
-| PRO-003 | P0 | إنشاء game bootstrap وdependency boundaries | Principal Mobile Game Architect | IN REVIEW |
-| PRO-004 | P0 | إنشاء Prototype scene entry | Principal Mobile Game Architect | IN REVIEW |
-| PRO-005 | P0 | إنشاء input abstraction للموبايل | Principal Mobile Game Architect | IN REVIEW |
-| PRO-006 | P0 | إنشاء fixed-step/update policy | Principal Mobile Game Architect | IN REVIEW |
-| PRO-007 | P0 | إنشاء asset loader lifecycle | Principal Mobile Game Architect | IN REVIEW |
-| PRO-008 | P0 | إنشاء game config loader | Principal Mobile Game Architect | IN REVIEW |
-| PRO-009 | P0 | إنشاء debug overlay FPS/frame time | Principal Mobile Game Architect | IN REVIEW |
-| PRO-010 | P0 | إنشاء prototype HUD shell | Principal Mobile Game Architect | IN REVIEW |
+| PRO-001 | P0 | تهيئة Flutter project القابل للبناء | Principal Mobile Game Architect | VERIFIED |
+| PRO-002 | P0 | إضافة Flame وتهيئة GameWidget | Principal Mobile Game Architect | VERIFIED |
+| PRO-003 | P0 | إنشاء game bootstrap وdependency boundaries | Principal Mobile Game Architect | VERIFIED |
+| PRO-004 | P0 | إنشاء Prototype scene entry | Principal Mobile Game Architect | VERIFIED |
+| PRO-005 | P0 | إنشاء input abstraction للموبايل | Principal Mobile Game Architect | VERIFIED |
+| PRO-006 | P0 | إنشاء fixed-step/update policy | Principal Mobile Game Architect | VERIFIED |
+| PRO-007 | P0 | إنشاء asset loader lifecycle | Principal Mobile Game Architect | VERIFIED |
+| PRO-008 | P0 | إنشاء game config loader | Principal Mobile Game Architect | VERIFIED |
+| PRO-009 | P0 | إنشاء debug overlay FPS/frame time | Principal Mobile Game Architect | VERIFIED |
+| PRO-010 | P0 | إنشاء prototype HUD shell | Principal Mobile Game Architect | VERIFIED |
 | PRO-011 | P0 | إنشاء pause/resume lifecycle | Flutter/Flame Developer | TODO |
 | PRO-012 | P0 | إنشاء reset/restart race flow | Flutter/Flame Developer | TODO |
 | PRO-013 | P0 | إعداد Android debug build | Flutter/Flame Developer | TODO |
