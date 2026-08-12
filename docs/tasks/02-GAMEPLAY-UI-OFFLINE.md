@@ -43,16 +43,16 @@ Owner default: **Flutter/Flame Developer**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
 | GAR-001 | P1 | تعريف car catalog schema | Principal Mobile Game Architect | IN REVIEW |
-| GAR-002 | P1 | إنشاء Garage list | Flutter/Flame Developer | TODO |
-| GAR-003 | P1 | إنشاء Car detail screen | Flutter/Flame Developer | TODO |
-| GAR-004 | P1 | إنشاء car preview integration | Flutter/Flame Developer | TODO |
-| GAR-005 | P1 | إنشاء paint customization | Flutter/Flame Developer | TODO |
-| GAR-006 | P1 | إنشاء wheel customization | Flutter/Flame Developer | TODO |
-| GAR-007 | P1 | إنشاء magic trail customization | Flutter/Flame Developer | TODO |
-| GAR-008 | P1 | إنشاء spirit cosmetic slot | Flutter/Flame Developer | TODO |
-| GAR-009 | P1 | إنشاء stat visualization | Flutter/Flame Developer | TODO |
-| GAR-010 | P1 | إنشاء unlock state | Flutter/Flame Developer | TODO |
-| GAR-011 | P1 | إنشاء equip flow | Flutter/Flame Developer | TODO |
+| GAR-002 | P1 | إنشاء Garage list | Principal Mobile Game Architect | IN REVIEW |
+| GAR-003 | P1 | إنشاء Car detail screen | Principal Mobile Game Architect | IN REVIEW |
+| GAR-004 | P1 | إنشاء car preview integration | Principal Mobile Game Architect | IN REVIEW |
+| GAR-005 | P1 | إنشاء paint customization | Principal Mobile Game Architect | IN REVIEW |
+| GAR-006 | P1 | إنشاء wheel customization | Principal Mobile Game Architect | IN REVIEW |
+| GAR-007 | P1 | إنشاء magic trail customization | Principal Mobile Game Architect | IN REVIEW |
+| GAR-008 | P1 | إنشاء spirit cosmetic slot | Principal Mobile Game Architect | IN REVIEW |
+| GAR-009 | P1 | إنشاء stat visualization | Principal Mobile Game Architect | IN REVIEW |
+| GAR-010 | P1 | إنشاء unlock state | Principal Mobile Game Architect | IN REVIEW |
+| GAR-011 | P1 | إنشاء equip flow | Principal Mobile Game Architect | IN REVIEW |
 | GAR-012 | P1 | إنشاء local persistence | Flutter/Flame Developer | TODO |
 | GAR-013 | P1 | إنشاء config validation | Flutter/Flame Developer | TODO |
 | GAR-014 | P1 | إضافة أول 4 vehicle archetypes | Flutter/Flame Developer | TODO |
