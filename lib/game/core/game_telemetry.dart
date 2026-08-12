@@ -9,6 +9,7 @@ class GameTelemetry {
     required this.speedKph,
     required this.spirit,
     required this.raceTimeSeconds,
+    required this.raceProgress,
     required this.lap,
     required this.totalLaps,
     required this.racePhase,
@@ -21,6 +22,7 @@ class GameTelemetry {
     speedKph: 0,
     spirit: 0,
     raceTimeSeconds: 0,
+    raceProgress: 0,
     lap: 1,
     totalLaps: 1,
     racePhase: 'waiting',
@@ -32,6 +34,7 @@ class GameTelemetry {
   final double speedKph;
   final double spirit;
   final double raceTimeSeconds;
+  final double raceProgress;
   final int lap;
   final int totalLaps;
   final String racePhase;
@@ -43,6 +46,7 @@ class GameTelemetry {
     double? speedKph,
     double? spirit,
     double? raceTimeSeconds,
+    double? raceProgress,
     int? lap,
     int? totalLaps,
     String? racePhase,
@@ -54,6 +58,7 @@ class GameTelemetry {
       speedKph: speedKph ?? this.speedKph,
       spirit: spirit ?? this.spirit,
       raceTimeSeconds: raceTimeSeconds ?? this.raceTimeSeconds,
+      raceProgress: raceProgress ?? this.raceProgress,
       lap: lap ?? this.lap,
       totalLaps: totalLaps ?? this.totalLaps,
       racePhase: racePhase ?? this.racePhase,

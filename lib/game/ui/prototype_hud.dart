@@ -1,5 +1,6 @@
 import 'package:afareet_asphalt/game/afareet_game.dart';
 import 'package:afareet_asphalt/game/core/game_telemetry.dart';
+import 'package:afareet_asphalt/game/ui/ui_tokens.dart';
 import 'package:flutter/material.dart';
 
 class PrototypeHud extends StatelessWidget {
@@ -25,15 +26,22 @@ class PrototypeHud extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: <Widget>[
                       _HudChip(label: 'POS', value: '${telemetry.position}/4'),
-                      _HudChip(
-                        label: 'LAP',
-                        value: '${telemetry.lap}/${telemetry.totalLaps}',
-                      ),
+                      _HudChip(label: 'LAP', value: '${telemetry.lap}/${telemetry.totalLaps}'),
                       _HudChip(
                         label: telemetry.racePhase.toUpperCase(),
                         value: telemetry.raceTimeSeconds.toStringAsFixed(1),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: telemetry.raceProgress.clamp(0.0, 1.0).toDouble(),
+                      minHeight: 5,
+                      backgroundColor: const Color(0x3300E5FF),
+                      valueColor: const AlwaysStoppedAnimation<Color>(AfareetUiTokens.cyan),
+                    ),
                   ),
                   const Spacer(),
                   Row(
@@ -64,15 +72,15 @@ class _HudChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xCC071326),
-        border: Border.all(color: const Color(0xFF00E5FF), width: 1.2),
-        borderRadius: BorderRadius.circular(10),
+        color: AfareetUiTokens.surface,
+        border: Border.all(color: AfareetUiTokens.cyan, width: 1.2),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Text(
           '$label  $value',
-          style: const TextStyle(fontWeight: FontWeight.w700),
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
     );
@@ -93,17 +101,14 @@ class _SpiritMeter extends StatelessWidget {
         children: <Widget>[
           const Text(
             'SPIRIT',
-            style: TextStyle(
-              color: Color(0xFFFFC857),
-              fontWeight: FontWeight.w800,
-            ),
+            style: TextStyle(color: AfareetUiTokens.gold, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           LinearProgressIndicator(
             value: value.clamp(0.0, 1.0).toDouble(),
             minHeight: 10,
             backgroundColor: const Color(0x6600E5FF),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFC857)),
+            valueColor: const AlwaysStoppedAnimation<Color>(AfareetUiTokens.gold),
             borderRadius: BorderRadius.circular(99),
           ),
         ],
@@ -124,15 +129,11 @@ class _SpeedReadout extends StatelessWidget {
       children: <Widget>[
         Text(
           speedKph.toStringAsFixed(0).padLeft(3, '0'),
-          style: const TextStyle(
-            fontSize: 42,
-            fontWeight: FontWeight.w900,
-            height: 0.9,
-          ),
+          style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w900, height: 0.9),
         ),
         const Text(
           'KM/H',
-          style: TextStyle(color: Color(0xFF00E5FF), letterSpacing: 2),
+          style: TextStyle(color: AfareetUiTokens.cyan, letterSpacing: 2),
         ),
       ],
     );
