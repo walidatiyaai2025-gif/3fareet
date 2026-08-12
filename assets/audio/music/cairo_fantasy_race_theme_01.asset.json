@@ -1,24 +1,31 @@
 {
   "asset_id": "AUD-MUS-001",
-  "runtime_path": "assets/audio/music/cairo_fantasy_race_theme_01.mp3",
   "source_received": "2026-08-12",
-  "classification": "music_candidate",
+  "classification": "owner_source_plus_rap_shaabi_preview_remix",
   "intended_usage": [
-    "race_music",
-    "main_menu_or_garage_if_mood_validation_prefers"
+    "first_apk_background_music",
+    "race_music_prototype"
   ],
-  "duration_seconds": 30.772,
-  "sample_rate_hz": 44100,
-  "channels": 2,
+  "source_duration_seconds": 30.772,
+  "source_sample_rate_hz": 44100,
+  "source_channels": 2,
   "source_bitrate_kbps": 192,
   "estimated_tempo_bpm": 120.2,
   "source_sha256": "7e8a5119167f4e5333e6606bbefa1bfe55d735c231b2abc92698a1004b36be50",
-  "status": "source_received_binary_import_pending",
+  "preview_direction": "Egyptian shaabi/mahraganat percussion + rap/trap drums + 808 + oriental lead over the provided source bed",
+  "embedded_preview_asset": "assets/audio/embedded/cairo_rap_shaabi_loop_4s.b64",
+  "embedded_preview_format": "base64 encoded MP3, decoded in-memory at runtime",
+  "embedded_preview_duration_seconds": 4.0,
+  "embedded_preview_bitrate_kbps": 24,
+  "embedded_preview_channels": 1,
+  "embedded_preview_sha256": "91a85d7979d78a8d2290e847b90e8916a08e9d4248f1ccffb05d3d9d3e2de362",
+  "playback_volume": 0.52,
+  "status": "bundled_preview_runtime_playback_implemented",
   "validation_required": [
-    "copyright_and_usage_rights_confirmed",
-    "loop_point_or_intro_loop_outro_decision",
+    "android_build_green",
+    "real_device_audio_smoke_test",
     "mobile_mix_loudness_check",
-    "in_game_ducking_against_engine_and_sfx",
-    "android_device_smoke_test"
+    "ducking_against_engine_and_sfx",
+    "replace_short_preview_loop_with_full_master_before production"
   ]
 }
