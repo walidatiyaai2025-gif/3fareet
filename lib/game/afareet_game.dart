@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:afareet_asphalt/game/audio/prototype_music_controller.dart';
+import 'package:afareet_asphalt/game/camera/racing_camera_controller.dart';
 import 'package:afareet_asphalt/game/core/fixed_step_runner.dart';
 import 'package:afareet_asphalt/game/core/game_bootstrap.dart';
 import 'package:afareet_asphalt/game/core/game_telemetry.dart';
@@ -15,11 +16,12 @@ import 'package:flutter/services.dart';
 
 class AfareetGame extends FlameGame with SingleGameInstance {
   AfareetGame({required this.bootstrap})
-    : musicController = PrototypeMusicController(bundle: rootBundle);
+      : musicController = PrototypeMusicController(bundle: rootBundle);
 
   final GameBootstrap bootstrap;
   final PrototypeMusicController musicController;
   final GameInputState input = GameInputState();
+  final RacingCameraController racingCamera = RacingCameraController();
   final VehicleTuningController vehicleTuning =
       VehicleTuningController(PrototypeVehiclePreset.definition);
   final ValueNotifier<GameTelemetry> telemetry = ValueNotifier<GameTelemetry>(
@@ -41,6 +43,7 @@ class AfareetGame extends FlameGame with SingleGameInstance {
   }
 
   bool get simulationPaused => _simulationPaused;
+  bool get cameraShakeEnabled => racingCamera.shakeEnabled;
 
   @override
   Future<void> onLoad() async {
@@ -89,6 +92,7 @@ class AfareetGame extends FlameGame with SingleGameInstance {
       telemetry.value = telemetry.value.copyWith(
         fps: fps,
         frameTimeMs: fps > 0 ? 1000 / fps : 0,
+        position: session.ai.playerPosition(session.distanceAlongLapMeters),
         speedKph: session.vehicle.state.speedKph,
         spirit: session.spirit.normalizedEnergy,
         raceTimeSeconds: session.race.raceTimeSeconds,
@@ -107,7 +111,32 @@ class AfareetGame extends FlameGame with SingleGameInstance {
       pauseSimulation();
       return;
     }
-    raceSession.step(snapshot, stepSeconds);
+
+    final session = raceSession;
+    session.step(snapshot, stepSeconds);
+    final maxSlip = session.vehicle.definition.maxLateralSlipMps;
+    final driftIntensity = maxSlip <= 0
+        ? 0.0
+        : (session.vehicle.state.lateralSlipMps.abs() / maxSlip)
+            .clamp(0.0, 1.0)
+            .toDouble();
+    racingCamera.step(
+      dt: stepSeconds,
+      trackDistanceMeters: session.distanceAlongLapMeters,
+      lateralOffsetMeters: session.vehicle.state.lateralSlipMps * 0.12,
+      speedKph: session.vehicle.state.speedKph,
+      driftIntensity: driftIntensity,
+      driftDirection: snapshot.steering,
+      nitroActive: session.spirit.nitroActive,
+      airborne: false,
+    );
+    final cameraState = racingCamera.state;
+    camera.viewfinder.position.setValues(
+      cameraState.followDistanceMeters,
+      cameraState.lateralOffsetMeters + cameraState.shakeY,
+    );
+    camera.viewfinder.zoom = cameraState.zoom;
+    camera.viewfinder.angle = cameraState.rollRadians;
   }
 
   void pauseSimulation() {
@@ -130,12 +159,22 @@ class AfareetGame extends FlameGame with SingleGameInstance {
   void restartRace() {
     input.reset();
     raceSession.restart();
+    racingCamera.reset();
     _fixedStepRunner?.reset();
     telemetry.value = GameTelemetry.initial;
   }
 
   void resetVehicleToSafePoint() {
     raceSession.resetVehicleToSafePoint();
+    racingCamera.reset(trackDistanceMeters: raceSession.distanceAlongLapMeters);
+  }
+
+  void registerCrashFeedback(double strength) {
+    racingCamera.registerCrash(strength);
+  }
+
+  void setCameraShakeEnabled(bool enabled) {
+    racingCamera.setShakeEnabled(enabled);
   }
 
   void updateMaxSpeedKph(double value) {
