@@ -1,0 +1,45 @@
+name: Project Status Freshness Guard
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  require-project-status-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require PROJECT_STATUS update for material project changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+          CHANGED_FILES="$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")"
+
+          echo "Changed files:"
+          printf '%s\n' "$CHANGED_FILES"
+
+          MATERIAL_CHANGES="$(printf '%s\n' "$CHANGED_FILES" | grep -E '^(lib/|test/|integration_test/|assets/|android/|ios/|web/|windows/|macos/|linux/|backend/|server/|api/|pubspec\.yaml$|pubspec\.lock$|docs/tasks/|docs/MASTER_DEVELOPMENT_PLAN\.md$|docs/ART_DIRECTION\.md$|docs/MISSED_ASSETS\.md$|Last verified APK released/)' || true)"
+
+          if [[ -z "$MATERIAL_CHANGES" ]]; then
+            echo "No material project-state changes detected. PROJECT_STATUS update is not required."
+            exit 0
+          fi
+
+          if printf '%s\n' "$CHANGED_FILES" | grep -qx 'docs/PROJECT_STATUS.md'; then
+            echo "PROJECT_STATUS.md updated with material changes. Guard passed."
+            exit 0
+          fi
+
+          echo "::error::Material project changes were detected, but docs/PROJECT_STATUS.md was not updated in the same PR."
+          echo "Material changes:"
+          printf '%s\n' "$MATERIAL_CHANGES"
+          exit 1
