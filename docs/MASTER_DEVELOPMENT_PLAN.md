@@ -1,11 +1,28 @@
 # عفاريت الأسفلت — Master Development Plan
 
 **Document:** AFA-PLAN-001  
-**Version:** 1.1 Baseline  
+**Version:** 1.2 Baseline  
 **Date:** 2026-08-12  
 **Status:** Controlled team reference
 
 > قاعدة التحكم: أي تعديل في Scope أو Architecture أو ترتيب الأولويات أو Art Direction يجب أن يدخل الخطة وسجل المهام قبل بدء التنفيذ.
+
+## Project Status Dashboard — Mandatory
+
+الصفحة التنفيذية الرسمية لمعرفة الوضع الحالي للمشروع هي [`docs/PROJECT_STATUS.md`](PROJECT_STATUS.md).
+
+**قاعدة إلزامية للفريق:** أي PR يغير حالة Task أو Phase أو Milestone أو Blocker/Risk أو Asset مؤثر أو Build/Release أو محتوى `Last verified APK released/` يجب أن يحدّث `PROJECT_STATUS.md` في **نفس PR**. تحديث صفحة الحالة جزء من Definition of Done وليس عملاً مؤجلاً بعد الدمج.
+
+يجب أن تعرض الصفحة دائمًا:
+- Overall project status بالألوان.
+- Current phase ودرجة جاهزيتها.
+- ما تم وما يجري وما هو Blocked/Deferred.
+- أعلى الأولويات التالية.
+- Active blockers/risks.
+- حالة آخر Verified APK وEvidence المطلوبة.
+- روابط مباشرة إلى Master Plan وTask Register وMissed Assets وArt Direction.
+
+إذا تعارضت صفحة الحالة مع ملفات المهام التفصيلية، يجب إصلاح التعارض في نفس PR قبل الدمج، ولا يجوز رفع نسبة تقدم أو إعلان `VERIFIED` بدون Evidence.
 
 ## Product vision
 - 3D Casual Arcade Racing بطابع مصري فانتازي.
@@ -53,6 +70,7 @@
 - وثائق Architecture/Tasks/Assets/Art Direction
 - CI skeleton
 - مجلد Last verified APK released
+- Project Status Dashboard + freshness enforcement
 
 ### P1 — Prototype قابل للعب - أعلى أولوية
 - سيارة واحدة قابلة للقيادة
@@ -152,6 +170,7 @@
 - `VERIFIED` تحتاج Evidence ولا تساوي `DONE`.
 - أي interface مشتركة تُعدل في Task مستقلة أولًا.
 - VIS tasks إلزامية للـPrototype ولا تعتبر polish اختياريًا.
+- أي تغير فعلي في وضع المشروع يجب أن ينعكس في `docs/PROJECT_STATUS.md` داخل نفس PR.
 
 ## Task states
 `TODO → READY → IN PROGRESS → BLOCKED/IN REVIEW → DONE → VERIFIED`
@@ -167,6 +186,7 @@
 المشروع يبدأ بـFlutter + Flame حسب الرؤية الحالية. P1 يجب أن يثبت عمليًا أن متطلبات القيادة/الكاميرا/عرض الأصول/الـVFX والاتجاه البصري والأداء قابلة للتنفيذ بصورة مستقرة. إذا فشل الـGate، يرفع ADR قبل أي توسع.
 
 ## Source of truth
+- `docs/PROJECT_STATUS.md` — Executive current-state dashboard
 - `docs/MASTER_DEVELOPMENT_PLAN.md`
 - `docs/ART_DIRECTION.md`
 - `docs/TASK_REGISTER.md`
