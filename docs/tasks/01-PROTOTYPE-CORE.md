@@ -31,69 +31,69 @@ Owner default: **Flutter/Flame Developer**
 | PRO-008 | P0 | إنشاء game config loader | Principal Mobile Game Architect | VERIFIED |
 | PRO-009 | P0 | إنشاء debug overlay FPS/frame time | Principal Mobile Game Architect | VERIFIED |
 | PRO-010 | P0 | إنشاء prototype HUD shell | Principal Mobile Game Architect | VERIFIED |
-| PRO-011 | P0 | إنشاء pause/resume lifecycle | Principal Mobile Game Architect | IN REVIEW |
-| PRO-012 | P0 | إنشاء reset/restart race flow | Principal Mobile Game Architect | IN REVIEW |
-| PRO-013 | P0 | إعداد Android debug build | Principal Mobile Game Architect | IN REVIEW |
-| PRO-014 | P0 | إعداد Android release build skeleton | Principal Mobile Game Architect | IN REVIEW |
-| PRO-015 | P0 | إعداد smoke test checklist | Principal Mobile Game Architect | IN REVIEW |
-| PRO-016 | P0 | إنشاء أول Prototype release tag policy | Principal Mobile Game Architect | IN REVIEW |
+| PRO-011 | P0 | إنشاء pause/resume lifecycle | Principal Mobile Game Architect | VERIFIED |
+| PRO-012 | P0 | إنشاء reset/restart race flow | Principal Mobile Game Architect | VERIFIED |
+| PRO-013 | P0 | إعداد Android debug build | Principal Mobile Game Architect | VERIFIED |
+| PRO-014 | P0 | إعداد Android release build skeleton | Principal Mobile Game Architect | VERIFIED |
+| PRO-015 | P0 | إعداد smoke test checklist | Principal Mobile Game Architect | VERIFIED |
+| PRO-016 | P0 | إنشاء أول Prototype release tag policy | Principal Mobile Game Architect | VERIFIED |
 ## VEH — Vehicle / Arcade Physics
 Owner default: **Gameplay Lead**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| VEH-001 | P0 | تعريف VehicleDefinition data model | Principal Mobile Game Architect | IN REVIEW |
-| VEH-002 | P0 | تنفيذ throttle/acceleration | Principal Mobile Game Architect | IN REVIEW |
-| VEH-003 | P0 | تنفيذ braking | Principal Mobile Game Architect | IN REVIEW |
-| VEH-004 | P0 | تنفيذ reverse | Principal Mobile Game Architect | IN REVIEW |
-| VEH-005 | P0 | تنفيذ steering curve حسب السرعة | Principal Mobile Game Architect | IN REVIEW |
-| VEH-006 | P0 | تنفيذ grip/traction model | Principal Mobile Game Architect | IN REVIEW |
-| VEH-007 | P0 | تنفيذ lateral slip model | Principal Mobile Game Architect | IN REVIEW |
-| VEH-008 | P0 | تنفيذ handbrake/drift entry | Principal Mobile Game Architect | IN REVIEW |
-| VEH-009 | P0 | تنفيذ drift sustain | Principal Mobile Game Architect | IN REVIEW |
-| VEH-010 | P0 | تنفيذ drift exit stabilization | Principal Mobile Game Architect | IN REVIEW |
-| VEH-011 | P0 | تنفيذ max speed limiter | Principal Mobile Game Architect | IN REVIEW |
-| VEH-012 | P0 | تنفيذ collision response الأساسي | Principal Mobile Game Architect | IN REVIEW |
-| VEH-013 | P0 | تنفيذ off-track slowdown | Principal Mobile Game Architect | IN REVIEW |
-| VEH-014 | P0 | تنفيذ vehicle reset to safe point | Principal Mobile Game Architect | IN REVIEW |
-| VEH-015 | P0 | إضافة tunable parameters debug panel | Principal Mobile Game Architect | IN REVIEW |
-| VEH-016 | P0 | إنشاء prototype car preset | Principal Mobile Game Architect | IN REVIEW |
+| VEH-001 | P0 | تعريف VehicleDefinition data model | Principal Mobile Game Architect | VERIFIED |
+| VEH-002 | P0 | تنفيذ throttle/acceleration | Principal Mobile Game Architect | VERIFIED |
+| VEH-003 | P0 | تنفيذ braking | Principal Mobile Game Architect | VERIFIED |
+| VEH-004 | P0 | تنفيذ reverse | Principal Mobile Game Architect | VERIFIED |
+| VEH-005 | P0 | تنفيذ steering curve حسب السرعة | Principal Mobile Game Architect | VERIFIED |
+| VEH-006 | P0 | تنفيذ grip/traction model | Principal Mobile Game Architect | VERIFIED |
+| VEH-007 | P0 | تنفيذ lateral slip model | Principal Mobile Game Architect | VERIFIED |
+| VEH-008 | P0 | تنفيذ handbrake/drift entry | Principal Mobile Game Architect | VERIFIED |
+| VEH-009 | P0 | تنفيذ drift sustain | Principal Mobile Game Architect | VERIFIED |
+| VEH-010 | P0 | تنفيذ drift exit stabilization | Principal Mobile Game Architect | VERIFIED |
+| VEH-011 | P0 | تنفيذ max speed limiter | Principal Mobile Game Architect | VERIFIED |
+| VEH-012 | P0 | تنفيذ collision response الأساسي | Principal Mobile Game Architect | VERIFIED |
+| VEH-013 | P0 | تنفيذ off-track slowdown | Principal Mobile Game Architect | VERIFIED |
+| VEH-014 | P0 | تنفيذ vehicle reset to safe point | Principal Mobile Game Architect | VERIFIED |
+| VEH-015 | P0 | إضافة tunable parameters debug panel | Principal Mobile Game Architect | VERIFIED |
+| VEH-016 | P0 | إنشاء prototype car preset | Principal Mobile Game Architect | VERIFIED |
 | VEH-017 | P0 | اختبار driving feel على جهاز حقيقي | Gameplay Lead | TODO |
 ## DRF — Magic Drift / Nitro
 Owner default: **Gameplay Lead**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| DRF-001 | P0 | تعريف Spirit Energy meter | Principal Mobile Game Architect | IN REVIEW |
-| DRF-002 | P0 | حساب drift score/charge | Principal Mobile Game Architect | IN REVIEW |
-| DRF-003 | P0 | منع charge abuse عند السرعات المنخفضة | Principal Mobile Game Architect | IN REVIEW |
-| DRF-004 | P0 | إنشاء 3 مستويات Magic Drift feedback | Principal Mobile Game Architect | IN REVIEW |
-| DRF-005 | P0 | تنفيذ Nitro Spirit activation | Principal Mobile Game Architect | IN REVIEW |
-| DRF-006 | P0 | تنفيذ Nitro acceleration curve | Principal Mobile Game Architect | IN REVIEW |
-| DRF-007 | P0 | تنفيذ Nitro cooldown/consumption | Principal Mobile Game Architect | IN REVIEW |
-| DRF-008 | P0 | إضافة trail hooks | Principal Mobile Game Architect | IN REVIEW |
-| DRF-009 | P0 | إضافة camera hooks للـNitro | Principal Mobile Game Architect | IN REVIEW |
-| DRF-010 | P0 | إضافة audio hooks للـDrift/Nitro | Principal Mobile Game Architect | IN REVIEW |
-| DRF-011 | P0 | إضافة UI meter states | Principal Mobile Game Architect | IN REVIEW |
-| DRF-012 | P0 | توازن أولي للـDrift/Nitro | Principal Mobile Game Architect | IN REVIEW |
+| DRF-001 | P0 | تعريف Spirit Energy meter | Principal Mobile Game Architect | VERIFIED |
+| DRF-002 | P0 | حساب drift score/charge | Principal Mobile Game Architect | VERIFIED |
+| DRF-003 | P0 | منع charge abuse عند السرعات المنخفضة | Principal Mobile Game Architect | VERIFIED |
+| DRF-004 | P0 | إنشاء 3 مستويات Magic Drift feedback | Principal Mobile Game Architect | VERIFIED |
+| DRF-005 | P0 | تنفيذ Nitro Spirit activation | Principal Mobile Game Architect | VERIFIED |
+| DRF-006 | P0 | تنفيذ Nitro acceleration curve | Principal Mobile Game Architect | VERIFIED |
+| DRF-007 | P0 | تنفيذ Nitro cooldown/consumption | Principal Mobile Game Architect | VERIFIED |
+| DRF-008 | P0 | إضافة trail hooks | Principal Mobile Game Architect | VERIFIED |
+| DRF-009 | P0 | إضافة camera hooks للـNitro | Principal Mobile Game Architect | VERIFIED |
+| DRF-010 | P0 | إضافة audio hooks للـDrift/Nitro | Principal Mobile Game Architect | VERIFIED |
+| DRF-011 | P0 | إضافة UI meter states | Principal Mobile Game Architect | VERIFIED |
+| DRF-012 | P0 | توازن أولي للـDrift/Nitro | Principal Mobile Game Architect | VERIFIED |
 ## RAC — Race Core / Track
 Owner default: **Gameplay Lead**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| RAC-001 | P0 | تعريف TrackDefinition | Principal Mobile Game Architect | IN REVIEW |
-| RAC-002 | P0 | إنشاء start grid | Principal Mobile Game Architect | IN REVIEW |
-| RAC-003 | P0 | إنشاء start countdown | Principal Mobile Game Architect | IN REVIEW |
-| RAC-004 | P0 | إنشاء checkpoint system | Principal Mobile Game Architect | IN REVIEW |
-| RAC-005 | P0 | إنشاء checkpoint ordering validation | Principal Mobile Game Architect | IN REVIEW |
-| RAC-006 | P0 | إنشاء finish line detection | Principal Mobile Game Architect | IN REVIEW |
-| RAC-007 | P0 | إنشاء lap system | Principal Mobile Game Architect | IN REVIEW |
-| RAC-008 | P0 | إنشاء one-lap prototype mode | Principal Mobile Game Architect | IN REVIEW |
-| RAC-009 | P0 | إنشاء race timer | Principal Mobile Game Architect | IN REVIEW |
-| RAC-010 | P0 | إنشاء race state machine | Principal Mobile Game Architect | IN REVIEW |
-| RAC-011 | P0 | إنشاء race positions logic | Principal Mobile Game Architect | IN REVIEW |
-| RAC-012 | P0 | إنشاء wrong-way detection | Principal Mobile Game Architect | IN REVIEW |
-| RAC-013 | P0 | إنشاء out-of-bounds recovery | Principal Mobile Game Architect | IN REVIEW |
-| RAC-014 | P0 | إنشاء safe respawn points | Principal Mobile Game Architect | IN REVIEW |
-| RAC-015 | P0 | إنشاء race result model | Principal Mobile Game Architect | IN REVIEW |
-| RAC-016 | P0 | إنشاء restart/quit result flow | Principal Mobile Game Architect | IN REVIEW |
+| RAC-001 | P0 | تعريف TrackDefinition | Principal Mobile Game Architect | VERIFIED |
+| RAC-002 | P0 | إنشاء start grid | Principal Mobile Game Architect | VERIFIED |
+| RAC-003 | P0 | إنشاء start countdown | Principal Mobile Game Architect | VERIFIED |
+| RAC-004 | P0 | إنشاء checkpoint system | Principal Mobile Game Architect | VERIFIED |
+| RAC-005 | P0 | إنشاء checkpoint ordering validation | Principal Mobile Game Architect | VERIFIED |
+| RAC-006 | P0 | إنشاء finish line detection | Principal Mobile Game Architect | VERIFIED |
+| RAC-007 | P0 | إنشاء lap system | Principal Mobile Game Architect | VERIFIED |
+| RAC-008 | P0 | إنشاء one-lap prototype mode | Principal Mobile Game Architect | VERIFIED |
+| RAC-009 | P0 | إنشاء race timer | Principal Mobile Game Architect | VERIFIED |
+| RAC-010 | P0 | إنشاء race state machine | Principal Mobile Game Architect | VERIFIED |
+| RAC-011 | P0 | إنشاء race positions logic | Principal Mobile Game Architect | VERIFIED |
+| RAC-012 | P0 | إنشاء wrong-way detection | Principal Mobile Game Architect | VERIFIED |
+| RAC-013 | P0 | إنشاء out-of-bounds recovery | Principal Mobile Game Architect | VERIFIED |
+| RAC-014 | P0 | إنشاء safe respawn points | Principal Mobile Game Architect | VERIFIED |
+| RAC-015 | P0 | إنشاء race result model | Principal Mobile Game Architect | VERIFIED |
+| RAC-016 | P0 | إنشاء restart/quit result flow | Principal Mobile Game Architect | VERIFIED |
 | RAC-017 | P0 | اختبار track completion deterministically | Gameplay Lead | TODO |
 ## CAM — Camera / Feedback
 Owner default: **Gameplay Lead**
