@@ -2,8 +2,8 @@
 
 **Document:** AFA-STATUS-001  
 **Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 20:25 (Asia/Kuwait)  
-**Overall status:** 🟡 **POWER-UP EXPANSION IN REVIEW — PREMIUM VISUAL / REAL-DEVICE GATES STILL OPEN**
+**Last updated:** 2026-08-12 20:43 (Asia/Kuwait)  
+**Overall status:** 🟡 **POWER-UP EXPANSION VERIFIED — PREMIUM VISUAL / REAL-DEVICE GATES STILL OPEN**
 
 > هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
 
@@ -17,20 +17,23 @@
 | Camera | 🟢 Verified core | follow/look-ahead/damping/drift/nitro/crash/air/FOV/shake/accessibility/bounds verified; CAM-012 device tuning remains TODO |
 | Offline AI | 🟢 Verified core | racing line + controls + behavior + three AI rivals + stuck/finish rules integrated into RaceSession |
 | UI / UX | 🟢 Verified core | Splash → Main Menu → Mode Select → Loading → Race plus HUD/Pause/Result/Error, SafeArea, RTL and text-scale clamp |
-| Power-ups | 🟡 In review | PWR-001→005 verified; PWR-006→014 implemented with focused tests on `feature/PWR-006-GAR-001-gameplay-slice` pending Green PR CI |
-| Garage catalog | 🟡 In review | GAR-001 typed/versioned catalog schema implemented with JSON round-trip tests; pending Green PR CI |
+| Power-ups | 🟢 Verified | PWR-001→014 verified; Trap/Nitro/Curse/Multiplier, duration/stacking, immunity, AI policy, feedback hooks and cleanup covered |
+| Garage catalog | 🟢 Verified first slice | GAR-001 typed/versioned catalog schema verified with JSON round-trip tests |
 | Rap × Shaabi music | 🟡 Integrating | AST-061 audio integration from `main` is preserved; real-device listening validation still required |
 | Premium visual direction | 🔴 Open | VIS tasks require screenshot/device review and Team Lead approval; not claimed by this code batch |
-| Android build evidence | 🟢 CI verified | Debug APK + Release Skeleton APK + artifact upload passed on P1-NEXT-050 code head |
+| Android build evidence | 🟢 CI verified | PWR-GAR-010 code head passed Debug APK + Release Skeleton APK + artifact upload |
 | Android verified release APK | 🔴 None | CI artifacts are build evidence only; real-device smoke test still required |
 | Backend architecture | 🟢 Locked | `Flutter/Flame → HTTPS API → Laravel → MySQL`; direct Flutter→MySQL prohibited |
 
-## Engineering batch — PWR-GAR-010
+## Verified engineering batch — PWR-GAR-010
 
 **Owner:** Principal Mobile Game Architect  
 **Scope:** **10 tasks exactly**  
-**Status:** `IN REVIEW`  
+**Status:** `VERIFIED`  
 **Branch:** `feature/PWR-006-GAR-001-gameplay-slice`  
+**Verified code head:** `c565cd8d694b42c62477934406a1c9bbf0bc7b96`  
+**Flutter Prototype CI:** `31623179639` — SUCCESS (attempt 2)  
+**Project Status Freshness Guard:** `31623179586` — SUCCESS  
 **Evidence:** [`work/PWR-GAR-010.md`](work/PWR-GAR-010.md)
 
 ### Exact count
@@ -50,7 +53,17 @@
 - Full race-scoped power-up cleanup/reset path.
 - Versioned Garage car catalog schema that references deterministic vehicle definitions and is compatible with future Laravel HTTPS transport.
 
-Promotion to VERIFIED is blocked until the PR workflow is Green for formatter, analyzer, tests and Android Debug/Release builds.
+### Verification evidence
+Run `31623179639` completed Green on the tested code head and proved:
+- formatter/static-analysis gate passed;
+- `flutter analyze` with zero issues;
+- **41 tests passed** including focused PWR-006→014 and GAR-001 coverage;
+- Android scaffold generation passed;
+- Android Debug APK build passed;
+- Android Release Skeleton APK build passed;
+- preview APK artifact upload passed.
+
+The first CI attempt failed only while downloading Gradle with a transient socket EOF after format/analyze/tests were already Green. Attempt 2 reran the unchanged code and completed successfully. Task-promotion commits after `c565cd8d694b42c62477934406a1c9bbf0bc7b96` are documentation-only.
 
 ## Verified engineering batch — P1-NEXT-050
 
@@ -95,7 +108,7 @@ The task-promotion commits after the verified code head are documentation-only. 
 
 ## P1 Playable Prototype Gate
 
-**Status:** 🟡 **GAMEPLAY + CAMERA + AI + UI CORE READY / FULL P1 NOT VERIFIED**
+**Status:** 🟡 **GAMEPLAY + CAMERA + AI + UI + POWER-UP CORE READY / FULL P1 NOT VERIFIED**
 
 Still required:
 - CAM-012 camera tuning on multiple devices;
@@ -108,10 +121,10 @@ Still required:
 
 ## Highest priorities next
 
-1. Complete PWR-GAR-010 PR CI and promote the 10 tasks only if Green.
-2. VIS implementation + screenshot review against `ART_DIRECTION.md`.
-3. CAM-012 + VEH-017 + RAC-017 real-device verification.
-4. Remaining P0 audio/SFX integration and listening validation.
+1. VIS implementation + screenshot review against `ART_DIRECTION.md`.
+2. CAM-012 + VEH-017 + RAC-017 real-device verification.
+3. Remaining P0 audio/SFX integration and listening validation.
+4. Continue Garage/UI progression after visual gate work is protected.
 5. First real-device Verified Release APK.
 
 ## Active blockers / risks
@@ -122,7 +135,6 @@ Still required:
 | STS-B04 | 🔴 High | No real-device Verified Release APK | Smoke-test a `main` release candidate on Android hardware |
 | STS-B10 | 🟡 Medium | Engine/drift/nitro gameplay SFX still incomplete | Generate/acquire and validate P0 SFX |
 | STS-B11 | 🟡 Medium | CAM-012/VEH-017/RAC-017 require device/integration evidence | Run device and integrated race verification |
-| STS-B12 | 🟡 Medium | PWR-GAR-010 has not yet passed PR CI | Run PR workflow; fix any formatter/analyzer/test/build failure before task promotion |
 
 ## Last verified APK
 
