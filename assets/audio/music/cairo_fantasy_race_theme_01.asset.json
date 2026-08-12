@@ -1,0 +1,16 @@
+{
+  "asset_id": "AUD-MUS-001",
+  "source_received": "2026-08-12",
+  "classification": "owner_source_plus_rap_shaabi_preview_remix",
+  "intended_usage": ["first_apk_background_music", "race_music_prototype"],
+  "source_duration_seconds": 30.772,
+  "estimated_tempo_bpm": 120.2,
+  "source_sha256": "7e8a5119167f4e5333e6606bbefa1bfe55d735c231b2abc92698a1004b36be50",
+  "preview_direction": "Rap/Trap x Egyptian Shaabi/Mahraganat: 808, trap drums, darbuka percussion, oriental lead over owner source bed",
+  "embedded_preview_asset": "assets/audio/embedded/cairo_rap_shaabi_loop_4s.b64",
+  "embedded_preview_duration_seconds": 4.0,
+  "embedded_preview_sha256": "91a85d7979d78a8d2290e847b90e8916a08e9d4248f1ccffb05d3d9d3e2de362",
+  "playback_volume": 0.52,
+  "status": "integrating_first_apk_preview",
+  "validation_required": ["android_ci_green", "real_device_audio_smoke_test", "replace_short_preview_loop_with_full_master_before_production"]
+}
