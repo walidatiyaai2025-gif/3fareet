@@ -14,7 +14,7 @@ Owner default: **3D/Technical Artist**
 | ART-008 | P1 | إنشاء track import checklist | 3D/Technical Artist | TODO |
 | ART-009 | P1 | إنشاء environment prop checklist | 3D/Technical Artist | TODO |
 | ART-010 | P1 | إنشاء VFX atlas/pooling rules | 3D/Technical Artist | TODO |
-| ART-011 | P1 | إنشاء audio import/compression rules | 3D/Technical Artist | TODO |
+| ART-011 | P1 | إنشاء audio import/compression rules | Audio / Technical Artist | IN REVIEW |
 | ART-012 | P1 | إنشاء placeholder labeling policy | 3D/Technical Artist | TODO |
 | ART-013 | P1 | إنشاء asset validation script/checklist | 3D/Technical Artist | TODO |
 | ART-014 | P1 | ربط Missed Assetes بالأولوية المرحلية | 3D/Technical Artist | TODO |
