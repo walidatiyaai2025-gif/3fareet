@@ -1,0 +1,48 @@
+name: Flutter Prototype CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prototype-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned Flutter stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch 3.44.0 https://github.com/flutter/flutter.git "$HOME/flutter"
+          echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Flutter environment
+        shell: bash
+        run: |
+          flutter config --no-analytics
+          flutter --version
+          flutter precache --android
+
+      - name: Dependencies and static analysis
+        shell: bash
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
+          flutter test
+
+      - name: Generate Android scaffold from pinned Flutter template
+        shell: bash
+        run: ./tool/bootstrap_android.sh
+
+      - name: Build Android debug APK
+        shell: bash
+        run: flutter build apk --debug
