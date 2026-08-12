@@ -1,5 +1,8 @@
+import 'dart:ui';
+
 import 'package:afareet_asphalt/game/afareet_game.dart';
 import 'package:afareet_asphalt/game/core/game_telemetry.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class GameDebugOverlay extends StatelessWidget {
@@ -11,6 +14,9 @@ class GameDebugOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kReleaseMode) {
+      return const SizedBox.shrink();
+    }
     return IgnorePointer(
       child: SafeArea(
         child: Align(
