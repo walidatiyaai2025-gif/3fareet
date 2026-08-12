@@ -66,7 +66,10 @@ class _HudChip extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Text('$label  $value', style: const TextStyle(fontWeight: FontWeight.w700)),
+        child: Text(
+          '$label  $value',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
@@ -84,10 +87,16 @@ class _SpiritMeter extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text('SPIRIT', style: TextStyle(color: Color(0xFFFFC857), fontWeight: FontWeight.w800)),
+          const Text(
+            'SPIRIT',
+            style: TextStyle(
+              color: Color(0xFFFFC857),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 6),
           LinearProgressIndicator(
-            value: value.clamp(0.0, 1.0),
+            value: value.clamp(0.0, 1.0).toDouble(),
             minHeight: 10,
             backgroundColor: const Color(0x6600E5FF),
             valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFC857)),
@@ -111,9 +120,16 @@ class _SpeedReadout extends StatelessWidget {
       children: <Widget>[
         Text(
           speedKph.toStringAsFixed(0).padLeft(3, '0'),
-          style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w900, height: 0.9),
+          style: const TextStyle(
+            fontSize: 42,
+            fontWeight: FontWeight.w900,
+            height: 0.9,
+          ),
         ),
-        const Text('KM/H', style: TextStyle(color: Color(0xFF00E5FF), letterSpacing: 2)),
+        const Text(
+          'KM/H',
+          style: TextStyle(color: Color(0xFF00E5FF), letterSpacing: 2),
+        ),
       ],
     );
   }
