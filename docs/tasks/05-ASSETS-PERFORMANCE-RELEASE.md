@@ -6,17 +6,17 @@ Owner default: **3D/Technical Artist**
 |---|---|---|---|---|
 | ART-001 | P1 | تثبيت folder structure للأصول | Principal Mobile Game Architect | IN REVIEW |
 | ART-002 | P1 | تثبيت naming convention | Principal Mobile Game Architect | IN REVIEW |
-| ART-003 | P1 | تثبيت texture budgets | 3D/Technical Artist | TODO |
-| ART-004 | P1 | تثبيت polygon/LOD budgets | 3D/Technical Artist | TODO |
-| ART-005 | P1 | تثبيت collider rules | 3D/Technical Artist | TODO |
-| ART-006 | P1 | تثبيت pivot/scale/orientation rules | 3D/Technical Artist | TODO |
-| ART-007 | P1 | إنشاء car import checklist | 3D/Technical Artist | TODO |
-| ART-008 | P1 | إنشاء track import checklist | 3D/Technical Artist | TODO |
-| ART-009 | P1 | إنشاء environment prop checklist | 3D/Technical Artist | TODO |
-| ART-010 | P1 | إنشاء VFX atlas/pooling rules | 3D/Technical Artist | TODO |
+| ART-003 | P1 | تثبيت texture budgets | Principal Mobile Game Architect | IN REVIEW |
+| ART-004 | P1 | تثبيت polygon/LOD budgets | Principal Mobile Game Architect | IN REVIEW |
+| ART-005 | P1 | تثبيت collider rules | Principal Mobile Game Architect | IN REVIEW |
+| ART-006 | P1 | تثبيت pivot/scale/orientation rules | Principal Mobile Game Architect | IN REVIEW |
+| ART-007 | P1 | إنشاء car import checklist | Principal Mobile Game Architect | IN REVIEW |
+| ART-008 | P1 | إنشاء track import checklist | Principal Mobile Game Architect | IN REVIEW |
+| ART-009 | P1 | إنشاء environment prop checklist | Principal Mobile Game Architect | IN REVIEW |
+| ART-010 | P1 | إنشاء VFX atlas/pooling rules | Principal Mobile Game Architect | IN REVIEW |
 | ART-011 | P1 | إنشاء audio import/compression rules | Technical Audio / Integration | IN REVIEW |
-| ART-012 | P1 | إنشاء placeholder labeling policy | 3D/Technical Artist | TODO |
-| ART-013 | P1 | إنشاء asset validation script/checklist | 3D/Technical Artist | TODO |
+| ART-012 | P1 | إنشاء placeholder labeling policy | Principal Mobile Game Architect | IN REVIEW |
+| ART-013 | P1 | إنشاء asset validation script/checklist | Principal Mobile Game Architect | IN REVIEW |
 | ART-014 | P1 | ربط Missed Assetes بالأولوية المرحلية | 3D/Technical Artist | TODO |
 ## PER — Performance / QA / CI / Release
 Owner default: **QA / Release Engineer**
