@@ -1,7 +1,11 @@
 import 'package:afareet_asphalt/game/core/fixed_step_runner.dart';
 import 'package:afareet_asphalt/game/core/game_bootstrap.dart';
 import 'package:afareet_asphalt/game/core/game_telemetry.dart';
+import 'package:afareet_asphalt/game/input/game_input.dart';
+import 'package:afareet_asphalt/game/race/race_session.dart';
 import 'package:afareet_asphalt/game/scenes/prototype_scene.dart';
+import 'package:afareet_asphalt/game/vehicle/vehicle_definition.dart';
+import 'package:afareet_asphalt/game/vehicle/vehicle_tuning.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
@@ -9,14 +13,28 @@ class AfareetGame extends FlameGame with SingleGameInstance {
   AfareetGame({required this.bootstrap});
 
   final GameBootstrap bootstrap;
+  final GameInputState input = GameInputState();
+  final VehicleTuningController vehicleTuning =
+      VehicleTuningController(PrototypeVehiclePreset.definition);
   final ValueNotifier<GameTelemetry> telemetry = ValueNotifier<GameTelemetry>(
     GameTelemetry.initial,
   );
 
   FixedStepRunner? _fixedStepRunner;
-  double _elapsedSeconds = 0;
+  RaceSession? _raceSession;
+  bool _simulationPaused = false;
   double _telemetryWindowSeconds = 0;
   int _telemetryFrames = 0;
+
+  RaceSession get raceSession {
+    final session = _raceSession;
+    if (session == null) {
+      throw StateError('RaceSession requested before game load completed.');
+    }
+    return session;
+  }
+
+  bool get simulationPaused => _simulationPaused;
 
   @override
   Future<void> onLoad() async {
@@ -28,12 +46,20 @@ class AfareetGame extends FlameGame with SingleGameInstance {
       stepSeconds: config.fixedStepSeconds,
       maxCatchUpSteps: config.maxCatchUpSteps,
     );
+    _raceSession = RaceSession.prototype(
+      vehicleDefinition: vehicleTuning.definition,
+    )..restart();
 
     await world.add(PrototypeScene(trackId: config.prototypeTrackId));
   }
 
   @override
   void update(double dt) {
+    if (_simulationPaused) {
+      super.update(0);
+      return;
+    }
+
     final runner = _fixedStepRunner;
     if (runner == null) {
       super.update(dt);
@@ -47,10 +73,16 @@ class AfareetGame extends FlameGame with SingleGameInstance {
     _telemetryWindowSeconds += dt;
     if (_telemetryWindowSeconds >= 0.25) {
       final fps = _telemetryFrames / _telemetryWindowSeconds;
+      final session = raceSession;
       telemetry.value = telemetry.value.copyWith(
         fps: fps,
         frameTimeMs: fps > 0 ? 1000 / fps : 0,
-        raceTimeSeconds: _elapsedSeconds,
+        speedKph: session.vehicle.state.speedKph,
+        spirit: session.spirit.normalizedEnergy,
+        raceTimeSeconds: session.race.raceTimeSeconds,
+        lap: session.race.currentLap,
+        totalLaps: session.track.totalLaps,
+        racePhase: session.race.phase.name,
       );
       _telemetryFrames = 0;
       _telemetryWindowSeconds = 0;
@@ -58,7 +90,67 @@ class AfareetGame extends FlameGame with SingleGameInstance {
   }
 
   void _simulateFixedStep(double stepSeconds) {
-    _elapsedSeconds += stepSeconds;
+    final snapshot = input.consumeSnapshot();
+    if (snapshot.pausePressed) {
+      pauseSimulation();
+      return;
+    }
+    raceSession.step(snapshot, stepSeconds);
+  }
+
+  void pauseSimulation() {
+    _simulationPaused = true;
+  }
+
+  void resumeSimulation() {
+    _simulationPaused = false;
+    _fixedStepRunner?.reset();
+  }
+
+  void togglePauseSimulation() {
+    if (_simulationPaused) {
+      resumeSimulation();
+    } else {
+      pauseSimulation();
+    }
+  }
+
+  void restartRace() {
+    input.reset();
+    raceSession.restart();
+    _fixedStepRunner?.reset();
+    telemetry.value = GameTelemetry.initial;
+  }
+
+  void resetVehicleToSafePoint() {
+    raceSession.resetVehicleToSafePoint();
+  }
+
+  void updateMaxSpeedKph(double value) {
+    vehicleTuning.setMaxSpeedKph(value);
+    _syncVehicleDefinition();
+  }
+
+  void updateAcceleration(double value) {
+    vehicleTuning.setAcceleration(value);
+    _syncVehicleDefinition();
+  }
+
+  void updateGripRecovery(double value) {
+    vehicleTuning.setGripRecovery(value);
+    _syncVehicleDefinition();
+  }
+
+  void updateDriftSlipBuild(double value) {
+    vehicleTuning.setDriftSlipBuild(value);
+    _syncVehicleDefinition();
+  }
+
+  void _syncVehicleDefinition() {
+    final session = _raceSession;
+    if (session != null) {
+      session.vehicle.definition = vehicleTuning.definition;
+    }
   }
 
   @override

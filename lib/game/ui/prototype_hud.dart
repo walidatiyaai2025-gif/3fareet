@@ -26,7 +26,11 @@ class PrototypeHud extends StatelessWidget {
                     children: <Widget>[
                       _HudChip(label: 'POS', value: '${telemetry.position}/4'),
                       _HudChip(
-                        label: 'TIME',
+                        label: 'LAP',
+                        value: '${telemetry.lap}/${telemetry.totalLaps}',
+                      ),
+                      _HudChip(
+                        label: telemetry.racePhase.toUpperCase(),
                         value: telemetry.raceTimeSeconds.toStringAsFixed(1),
                       ),
                     ],

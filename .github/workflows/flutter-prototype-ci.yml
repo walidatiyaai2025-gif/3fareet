@@ -12,7 +12,7 @@ permissions:
 jobs:
   validate-prototype-foundation:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -47,10 +47,16 @@ jobs:
         shell: bash
         run: flutter build apk --debug
 
-      - name: Publish first preview APK artifact
+      - name: Build Android release skeleton APK
+        shell: bash
+        run: flutter build apk --release --dart-define=BUILD_CHANNEL=prototype
+
+      - name: Publish preview APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: 3fareet-first-preview-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: 3fareet-prototype-apks
+          path: |
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
