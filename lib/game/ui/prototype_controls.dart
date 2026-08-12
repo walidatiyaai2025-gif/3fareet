@@ -1,5 +1,6 @@
 import 'package:afareet_asphalt/game/afareet_game.dart';
 import 'package:afareet_asphalt/game/input/game_input.dart';
+import 'package:afareet_asphalt/game/ui/vehicle_tuning_panel.dart';
 import 'package:flutter/material.dart';
 
 class PrototypeControls extends StatelessWidget {
@@ -24,6 +25,17 @@ class PrototypeControls extends StatelessWidget {
                 _TapControl(label: 'RESET', onTap: game.resetVehicleToSafePoint),
                 const SizedBox(width: 8),
                 _TapControl(label: 'RESTART', onTap: game.restartRace),
+                const SizedBox(width: 8),
+                _TapControl(
+                  label: 'TUNE',
+                  onTap: () {
+                    if (game.overlays.isActive(VehicleTuningPanel.overlayKey)) {
+                      game.overlays.remove(VehicleTuningPanel.overlayKey);
+                    } else {
+                      game.overlays.add(VehicleTuningPanel.overlayKey);
+                    }
+                  },
+                ),
               ],
             ),
             const Spacer(),
