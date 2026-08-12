@@ -31,13 +31,23 @@ jobs:
           flutter --version
           flutter precache --android
 
-      - name: Dependencies and static analysis
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Format and static analysis
         shell: bash
         run: |
-          flutter pub get
-          dart format --output=none lib test
+          dart format --output=none lib test tool
           flutter analyze
-          flutter test
+
+      - name: Asset pipeline validation
+        run: dart run tool/validate_assets.dart
+
+      - name: Unit and pure-Dart tests
+        run: flutter test
+
+      - name: Widget and game integration tests
+        run: flutter test test/front_end_flow_test.dart test/race_session_test.dart
 
       - name: Generate Android scaffold from pinned Flutter template
         shell: bash
