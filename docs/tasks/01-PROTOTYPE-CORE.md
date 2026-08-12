@@ -99,37 +99,37 @@ Owner default: **Gameplay Lead**
 Owner default: **Gameplay Lead**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| CAM-001 | P0 | إنشاء follow camera | Gameplay Lead | TODO |
-| CAM-002 | P0 | ضبط look-ahead حسب السرعة | Gameplay Lead | TODO |
-| CAM-003 | P0 | ضبط camera damping | Gameplay Lead | TODO |
-| CAM-004 | P0 | إنشاء drift camera state | Gameplay Lead | TODO |
-| CAM-005 | P0 | إنشاء nitro camera state | Gameplay Lead | TODO |
-| CAM-006 | P0 | إنشاء crash camera kick | Gameplay Lead | TODO |
-| CAM-007 | P0 | إنشاء jump/air camera behavior | Gameplay Lead | TODO |
-| CAM-008 | P0 | إضافة speed/FOV illusion | Gameplay Lead | TODO |
-| CAM-009 | P0 | إضافة camera shake manager | Gameplay Lead | TODO |
-| CAM-010 | P0 | إضافة accessibility toggle للش shake | Gameplay Lead | TODO |
-| CAM-011 | P0 | منع clipping/invalid camera states | Gameplay Lead | TODO |
+| CAM-001 | P0 | إنشاء follow camera | Principal Mobile Game Architect | IN REVIEW |
+| CAM-002 | P0 | ضبط look-ahead حسب السرعة | Principal Mobile Game Architect | IN REVIEW |
+| CAM-003 | P0 | ضبط camera damping | Principal Mobile Game Architect | IN REVIEW |
+| CAM-004 | P0 | إنشاء drift camera state | Principal Mobile Game Architect | IN REVIEW |
+| CAM-005 | P0 | إنشاء nitro camera state | Principal Mobile Game Architect | IN REVIEW |
+| CAM-006 | P0 | إنشاء crash camera kick | Principal Mobile Game Architect | IN REVIEW |
+| CAM-007 | P0 | إنشاء jump/air camera behavior | Principal Mobile Game Architect | IN REVIEW |
+| CAM-008 | P0 | إضافة speed/FOV illusion | Principal Mobile Game Architect | IN REVIEW |
+| CAM-009 | P0 | إضافة camera shake manager | Principal Mobile Game Architect | IN REVIEW |
+| CAM-010 | P0 | إضافة accessibility toggle للش shake | Principal Mobile Game Architect | IN REVIEW |
+| CAM-011 | P0 | منع clipping/invalid camera states | Principal Mobile Game Architect | IN REVIEW |
 | CAM-012 | P0 | ضبط prototype camera على أجهزة مختلفة | Gameplay Lead | TODO |
 ## AI — Offline Racing AI
 Owner default: **AI Engineer / Gameplay Dev**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| AI-001 | P0 | تعريف racing line representation | AI Engineer / Gameplay Dev | TODO |
-| AI-002 | P0 | إنشاء waypoint/path follower | AI Engineer / Gameplay Dev | TODO |
-| AI-003 | P0 | إنشاء AI throttle control | AI Engineer / Gameplay Dev | TODO |
-| AI-004 | P0 | إنشاء AI steering control | AI Engineer / Gameplay Dev | TODO |
-| AI-005 | P0 | إنشاء AI braking zones | AI Engineer / Gameplay Dev | TODO |
-| AI-006 | P0 | إنشاء AI drift zones | AI Engineer / Gameplay Dev | TODO |
-| AI-007 | P0 | إنشاء overtaking behavior | AI Engineer / Gameplay Dev | TODO |
-| AI-008 | P0 | إنشاء defensive behavior | AI Engineer / Gameplay Dev | TODO |
-| AI-009 | P0 | إنشاء collision avoidance | AI Engineer / Gameplay Dev | TODO |
-| AI-010 | P0 | إنشاء mistake probability | AI Engineer / Gameplay Dev | TODO |
-| AI-011 | P0 | إنشاء aggression parameter | AI Engineer / Gameplay Dev | TODO |
-| AI-012 | P0 | إنشاء nitro usage strategy | AI Engineer / Gameplay Dev | TODO |
-| AI-013 | P0 | إنشاء power-up strategy hook | AI Engineer / Gameplay Dev | TODO |
-| AI-014 | P0 | إنشاء difficulty profiles | AI Engineer / Gameplay Dev | TODO |
-| AI-015 | P0 | إنشاء شخصية AI أولى | AI Engineer / Gameplay Dev | TODO |
-| AI-016 | P0 | إضافة 3 AI للـPrototype | AI Engineer / Gameplay Dev | TODO |
-| AI-017 | P0 | اختبار stuck recovery | AI Engineer / Gameplay Dev | TODO |
-| AI-018 | P0 | اختبار finish consistency | AI Engineer / Gameplay Dev | TODO |
+| AI-001 | P0 | تعريف racing line representation | Principal Mobile Game Architect | IN REVIEW |
+| AI-002 | P0 | إنشاء waypoint/path follower | Principal Mobile Game Architect | IN REVIEW |
+| AI-003 | P0 | إنشاء AI throttle control | Principal Mobile Game Architect | IN REVIEW |
+| AI-004 | P0 | إنشاء AI steering control | Principal Mobile Game Architect | IN REVIEW |
+| AI-005 | P0 | إنشاء AI braking zones | Principal Mobile Game Architect | IN REVIEW |
+| AI-006 | P0 | إنشاء AI drift zones | Principal Mobile Game Architect | IN REVIEW |
+| AI-007 | P0 | إنشاء overtaking behavior | Principal Mobile Game Architect | IN REVIEW |
+| AI-008 | P0 | إنشاء defensive behavior | Principal Mobile Game Architect | IN REVIEW |
+| AI-009 | P0 | إنشاء collision avoidance | Principal Mobile Game Architect | IN REVIEW |
+| AI-010 | P0 | إنشاء mistake probability | Principal Mobile Game Architect | IN REVIEW |
+| AI-011 | P0 | إنشاء aggression parameter | Principal Mobile Game Architect | IN REVIEW |
+| AI-012 | P0 | إنشاء nitro usage strategy | Principal Mobile Game Architect | IN REVIEW |
+| AI-013 | P0 | إنشاء power-up strategy hook | Principal Mobile Game Architect | IN REVIEW |
+| AI-014 | P0 | إنشاء difficulty profiles | Principal Mobile Game Architect | IN REVIEW |
+| AI-015 | P0 | إنشاء شخصية AI أولى | Principal Mobile Game Architect | IN REVIEW |
+| AI-016 | P0 | إضافة 3 AI للـPrototype | Principal Mobile Game Architect | IN REVIEW |
+| AI-017 | P0 | اختبار stuck recovery | Principal Mobile Game Architect | IN REVIEW |
+| AI-018 | P0 | اختبار finish consistency | Principal Mobile Game Architect | IN REVIEW |
