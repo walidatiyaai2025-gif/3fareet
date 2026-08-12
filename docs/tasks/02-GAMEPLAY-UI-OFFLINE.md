@@ -4,11 +4,11 @@
 Owner default: **Gameplay Lead**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| PWR-001 | P1 | تعريف PowerUpDefinition | Gameplay Lead | TODO |
-| PWR-002 | P1 | إنشاء pickup spawn points | Gameplay Lead | TODO |
-| PWR-003 | P1 | إنشاء pickup collection | Gameplay Lead | TODO |
-| PWR-004 | P1 | إنشاء inventory slot أثناء السباق | Gameplay Lead | TODO |
-| PWR-005 | P1 | تنفيذ عين الحصودة Shield | Gameplay Lead | TODO |
+| PWR-001 | P1 | تعريف PowerUpDefinition | Principal Mobile Game Architect | IN REVIEW |
+| PWR-002 | P1 | إنشاء pickup spawn points | Principal Mobile Game Architect | IN REVIEW |
+| PWR-003 | P1 | إنشاء pickup collection | Principal Mobile Game Architect | IN REVIEW |
+| PWR-004 | P1 | إنشاء inventory slot أثناء السباق | Principal Mobile Game Architect | IN REVIEW |
+| PWR-005 | P1 | تنفيذ عين الحصودة Shield | Principal Mobile Game Architect | IN REVIEW |
 | PWR-006 | P1 | تنفيذ شَرَد الأسفلت Trap | Gameplay Lead | TODO |
 | PWR-007 | P1 | تنفيذ روح النيترو Power-up | Gameplay Lead | TODO |
 | PWR-008 | P1 | تنفيذ لعنة الزحمة Slow | Gameplay Lead | TODO |
@@ -22,22 +22,22 @@ Owner default: **Gameplay Lead**
 Owner default: **UI/UX Designer + Flutter Dev**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| UIX-001 | P1 | تصميم Splash/boot minimal | UI/UX Designer + Flutter Dev | TODO |
-| UIX-002 | P1 | تصميم Main menu | UI/UX Designer + Flutter Dev | TODO |
-| UIX-003 | P1 | تصميم Play mode selection | UI/UX Designer + Flutter Dev | TODO |
-| UIX-004 | P1 | تصميم Prototype race HUD | UI/UX Designer + Flutter Dev | TODO |
-| UIX-005 | P1 | تصميم speed indicator | UI/UX Designer + Flutter Dev | TODO |
-| UIX-006 | P1 | تصميم position indicator | UI/UX Designer + Flutter Dev | TODO |
-| UIX-007 | P1 | تصميم Spirit/Drift meter | UI/UX Designer + Flutter Dev | TODO |
-| UIX-008 | P1 | تصميم race timer/progress | UI/UX Designer + Flutter Dev | TODO |
-| UIX-009 | P1 | تصميم pause menu | UI/UX Designer + Flutter Dev | TODO |
-| UIX-010 | P1 | تصميم race result screen | UI/UX Designer + Flutter Dev | TODO |
-| UIX-011 | P1 | تصميم loading screen | UI/UX Designer + Flutter Dev | TODO |
-| UIX-012 | P1 | تصميم error/retry states | UI/UX Designer + Flutter Dev | TODO |
-| UIX-013 | P1 | دعم safe areas | UI/UX Designer + Flutter Dev | TODO |
-| UIX-014 | P1 | دعم اتجاه النص العربي | UI/UX Designer + Flutter Dev | TODO |
-| UIX-015 | P1 | إعداد design tokens | UI/UX Designer + Flutter Dev | TODO |
-| UIX-016 | P1 | تنفيذ accessibility text scaling limits | UI/UX Designer + Flutter Dev | TODO |
+| UIX-001 | P1 | تصميم Splash/boot minimal | Principal Mobile Game Architect | IN REVIEW |
+| UIX-002 | P1 | تصميم Main menu | Principal Mobile Game Architect | IN REVIEW |
+| UIX-003 | P1 | تصميم Play mode selection | Principal Mobile Game Architect | IN REVIEW |
+| UIX-004 | P1 | تصميم Prototype race HUD | Principal Mobile Game Architect | IN REVIEW |
+| UIX-005 | P1 | تصميم speed indicator | Principal Mobile Game Architect | IN REVIEW |
+| UIX-006 | P1 | تصميم position indicator | Principal Mobile Game Architect | IN REVIEW |
+| UIX-007 | P1 | تصميم Spirit/Drift meter | Principal Mobile Game Architect | IN REVIEW |
+| UIX-008 | P1 | تصميم race timer/progress | Principal Mobile Game Architect | IN REVIEW |
+| UIX-009 | P1 | تصميم pause menu | Principal Mobile Game Architect | IN REVIEW |
+| UIX-010 | P1 | تصميم race result screen | Principal Mobile Game Architect | IN REVIEW |
+| UIX-011 | P1 | تصميم loading screen | Principal Mobile Game Architect | IN REVIEW |
+| UIX-012 | P1 | تصميم error/retry states | Principal Mobile Game Architect | IN REVIEW |
+| UIX-013 | P1 | دعم safe areas | Principal Mobile Game Architect | IN REVIEW |
+| UIX-014 | P1 | دعم اتجاه النص العربي | Principal Mobile Game Architect | IN REVIEW |
+| UIX-015 | P1 | إعداد design tokens | Principal Mobile Game Architect | IN REVIEW |
+| UIX-016 | P1 | تنفيذ accessibility text scaling limits | Principal Mobile Game Architect | IN REVIEW |
 ## GAR — Garage / Vehicles / Customization
 Owner default: **Flutter/Flame Developer**
 | ID | Priority | Task | Owner | Status |
