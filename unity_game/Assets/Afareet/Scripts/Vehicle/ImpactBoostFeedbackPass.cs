@@ -42,8 +42,14 @@ namespace Afareet.Vehicle
         private void Awake()
         {
             car = GetComponent<ArcadeCarController>();
-            impactFlash = CreateFlash("Collision Spirit Flash", RuntimeMaterials.Gold, Vector3.zero);
-            boostFlash = CreateFlash("Boost Spirit Flash", RuntimeMaterials.Cyan, new Vector3(0f, .48f, -2.12f));
+            impactFlash = CreateFlash(
+                "Collision Spirit Flash",
+                RuntimeMaterials.Lit(new Color(1f, .48f, .035f), .2f, .9f, 3f),
+                Vector3.zero);
+            boostFlash = CreateFlash(
+                "Boost Spirit Flash",
+                RuntimeMaterials.Lit(new Color(.02f, .78f, 1f), .16f, .9f, 3.4f),
+                new Vector3(0f, .48f, -2.12f));
             boostFlash.transform.localScale = new Vector3(.65f, .65f, .18f);
         }
 
@@ -77,7 +83,10 @@ namespace Afareet.Vehicle
                 boostTimer -= Time.deltaTime;
                 var t = Mathf.Clamp01(boostTimer / .28f);
                 boostFlash.enabled = true;
-                boostFlash.transform.localScale = new Vector3(Mathf.Lerp(1.55f, .65f, 1f - t), Mathf.Lerp(1.55f, .65f, 1f - t), .18f);
+                boostFlash.transform.localScale = new Vector3(
+                    Mathf.Lerp(1.55f, .65f, 1f - t),
+                    Mathf.Lerp(1.55f, .65f, 1f - t),
+                    .18f);
                 if (boostTimer <= 0f) boostFlash.enabled = false;
             }
         }
