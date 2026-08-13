@@ -28,7 +28,7 @@
 
 | AST-ID | Asset | Owner | Status | Target path | Branch / PR | Last update | Notes |
 |---|---|---|---|---|---|---|---|
-| AST-060 | App icon family | UNASSIGNED | REFERENCE_AVAILABLE | `docs/assets/05_ui_hud/app_icons/` | — | 2026-08-12 | استلمنا لوحة المقاسات/التصميم. المرجع محفوظ، ويوجد 256px candidate للمعاينة فقط. ما زال مطلوب clean 1024 master + platform exports قبل VERIFIED. |
+| AST-060 | App icon family | Principal Mobile Game Architect / Integration | INTEGRATING | `docs/assets/05_ui_hud/app_icons/` | `agent/real-visual-apk-p0` | 2026-08-13 | 256px candidate is now bundled only as the first real-image runtime proof for the visual pipeline. It is **not** promoted to production app-icon status; clean 1024 master + platform exports are still required before VERIFIED. |
 | AST-061 | Cairo Rap × Shaabi prototype music | Technical Audio / Integration | INTEGRATING | `assets/audio/` | `agent/audio-002-first-apk-rap-shaabi` | 2026-08-12 | Owner source received; first APK uses a short embedded preview loop. CI + real-device audio smoke required before VERIFIED. |
 
 ## Missing / production asset register
@@ -92,6 +92,6 @@
 | Technical | AI racing line data | P0 | P1 | Waypoints/speeds/drift flags | Manual points | MISSING |
 | Technical | Safe respawn markers | P0 | P1 | Per checkpoint/sector | Manual transforms | MISSING |
 | Technical | Power-up spawn marker set | P1 | Power-ups | Track-integrated transforms | Manual transforms | MISSING |
-| Marketing/Store | App icon | P2 | Beta | Clean 1024x1024 master + Android adaptive foreground/background + Play Store 512x512 + iOS AppIcon family; small-size readability/mask review | Received reference sheet in `docs/assets/05_ui_hud/app_icons/references/` + 256 candidate for preview only | REFERENCE_AVAILABLE |
+| Marketing/Store | App icon | P2 | Beta | Clean 1024x1024 master + Android adaptive foreground/background + Play Store 512x512 + iOS AppIcon family; small-size readability/mask review | Received reference sheet in `docs/assets/05_ui_hud/app_icons/references/` + 256 candidate for preview only | INTEGRATING |
 | Marketing/Store | Feature graphic/screenshots | P2 | Beta | Store-compliant assets | None until beta | MISSING |
 | Localization | Arabic game font license/selection | P1 | P1/Core | Readable Arabic + Latin numerals | Noto Sans Arabic during development | MISSING |
