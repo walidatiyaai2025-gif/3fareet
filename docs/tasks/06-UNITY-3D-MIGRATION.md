@@ -50,7 +50,7 @@
 | ID | Pri | Task | Owner | Status | Acceptance / Evidence |
 |---|---|---|---|---|---|
 | URAC-001 | P0 | Cairo procedural oval track baseline | Principal Mobile Game Architect | IN REVIEW | drivable loop generated |
-| URAC-002 | P0 | Checkpoint volumes and ordered validation | Race Engineer | READY | skipped checkpoint rejected |
+| URAC-002 | P0 | Checkpoint volumes and ordered validation | GPT-5.6 Sol (Race/QA Agent) | IN REVIEW | deterministic validator + runtime tracker/trigger/builder + EditMode tests added on `agent/URAC-002-checkpoint-validation`; skipped/duplicate/out-of-order checkpoints are rejected; Unity execution pending CI license |
 | URAC-003 | P0 | Lap/start/finish state machine | Race Engineer | READY | deterministic one-lap finish |
 | URAC-004 | P0 | Ranking by checkpoint/lap/progress | Race Engineer | READY | no nearest-waypoint ranking exploit |
 | URAC-005 | P0 | Countdown/results/restart flow | Race Engineer | READY | complete race lifecycle |
