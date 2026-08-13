@@ -14,9 +14,12 @@ namespace Afareet.UI
         private GUIStyle activeButton;
         private Texture2D cyan;
         private Texture2D purple;
+        private Texture2D darkOverlay;
         private float canvasScale;
         private float canvasWidth;
         private float canvasHeight;
+        private Vector3 motionBaseline;
+        private bool hasMotionBaseline;
 
         public void Configure(ArcadeCarController playerCar, RaceDirector director)
         {
@@ -28,6 +31,7 @@ namespace Afareet.UI
         {
             cyan = Solid(new Color(0f, .75f, 1f, .85f));
             purple = Solid(new Color(.45f, .08f, .72f, .82f));
+            darkOverlay = Solid(new Color(0f, 0f, 0f, .62f));
         }
 
         private void Update()
@@ -35,6 +39,11 @@ namespace Afareet.UI
             if (player == null) return;
             UpdateCanvasMetrics();
             MobileInput.Reset();
+            if (!race.IsStarted)
+            {
+                ReadStartInput();
+                return;
+            }
             ApplyMotionControls();
 
             for (var i = 0; i < Input.touchCount; i++)
@@ -49,11 +58,33 @@ namespace Afareet.UI
 #endif
         }
 
-        private static void ApplyMotionControls()
+        private void ReadStartInput()
         {
-            if (!Application.isMobilePlatform) return;
+            for (var i = 0; i < Input.touchCount; i++)
+            {
+                var touch = Input.GetTouch(i);
+                if (touch.phase == TouchPhase.Began && StartRect(canvasWidth, canvasHeight).Contains(ToCanvas(touch.position)))
+                    StartRace();
+            }
+#if UNITY_EDITOR || UNITY_STANDALONE
+            if (Input.GetMouseButtonDown(0) && StartRect(canvasWidth, canvasHeight).Contains(ToCanvas(Input.mousePosition)))
+                StartRace();
+#endif
+        }
 
-            var acceleration = Input.acceleration;
+        private void StartRace()
+        {
+            motionBaseline = Input.acceleration;
+            hasMotionBaseline = true;
+            MobileInput.Reset();
+            race.StartRace();
+        }
+
+        private void ApplyMotionControls()
+        {
+            if (!Application.isMobilePlatform || !hasMotionBaseline) return;
+
+            var acceleration = Input.acceleration - motionBaseline;
             var landscapeLeft = Screen.orientation != ScreenOrientation.LandscapeRight;
             var steeringTilt = landscapeLeft ? -acceleration.y : acceleration.y;
             var forwardTilt = landscapeLeft ? -acceleration.x : acceleration.x;
@@ -84,6 +115,14 @@ namespace Afareet.UI
             GUI.Label(new Rect(w - 250, h - 176, 220, 70), $"{Mathf.Abs(player.SpeedKph):000}\nKM/H", title);
             GUI.Label(new Rect(24, h - 176, 240, 30), "SPIRIT NITRO", chip);
             GUI.DrawTexture(new Rect(24, h - 138, 220 * player.NitroEnergy, 13), purple);
+
+            if (!race.IsStarted)
+            {
+                GUI.DrawTexture(new Rect(0f, 0f, w, h), darkOverlay);
+                GUI.Box(StartRect(w, h), "START RACE", activeButton);
+                GUI.Label(new Rect(w * .5f - 260, h * .5f + 58, 520, 44), "HOLD PHONE COMFORTABLY, THEN START", chip);
+                return;
+            }
 
             if (!string.IsNullOrEmpty(race.CountdownText))
                 GUI.Label(new Rect(w * .5f - 130, h * .25f, 260, 120), race.CountdownText, title);
@@ -124,6 +163,7 @@ namespace Afareet.UI
         private static Rect DriftRect(float w, float h) => new(w - 420, h - 96, 112, 76);
         private static Rect NitroRect(float w, float h) => new(w - 296, h - 96, 112, 76);
         private static Rect ThrottleRect(float w, float h) => new(w - 172, h - 96, 148, 76);
+        private static Rect StartRect(float w, float h) => new(w * .5f - 170, h * .5f - 54, 340, 108);
 
         private void EnsureStyles()
         {

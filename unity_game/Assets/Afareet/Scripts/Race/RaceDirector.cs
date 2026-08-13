@@ -10,9 +10,11 @@ namespace Afareet.Race
         private readonly List<ArcadeCarController> rivals = new();
         private ArcadeCarController player;
         private TrackRuntime track;
-        private float countdown = 3.99f;
+        private float countdown;
+        private bool racersReleased;
 
         public float RaceTime { get; private set; }
+        public bool IsStarted { get; private set; }
         public string CountdownText => countdown > 1f ? Mathf.CeilToInt(countdown - 1f).ToString() : countdown > 0f ? "GO!" : string.Empty;
         public int Position
         {
@@ -30,19 +32,50 @@ namespace Afareet.Race
         {
             player = playerCar;
             track = runtimeTrack;
+            player.AcceptsPlayerInput = false;
+            player.GetComponent<Rigidbody>().isKinematic = true;
         }
 
-        public void RegisterRival(ArcadeCarController rival) => rivals.Add(rival);
+        public void RegisterRival(ArcadeCarController rival)
+        {
+            rivals.Add(rival);
+            rival.GetComponent<Rigidbody>().isKinematic = true;
+            var ai = rival.GetComponent<AiRacer>();
+            if (ai != null) ai.enabled = false;
+        }
+
+        public void StartRace()
+        {
+            if (IsStarted) return;
+            IsStarted = true;
+            countdown = 3.99f;
+            RaceTime = 0f;
+        }
 
         private void Update()
         {
+            if (!IsStarted) return;
             if (countdown > 0f)
             {
                 countdown -= Time.deltaTime;
-                player.AcceptsPlayerInput = countdown <= 1f;
+                if (countdown <= 1f) ReleaseRacers();
                 return;
             }
             RaceTime += Time.deltaTime;
+        }
+
+        private void ReleaseRacers()
+        {
+            if (racersReleased) return;
+            racersReleased = true;
+            player.GetComponent<Rigidbody>().isKinematic = false;
+            player.AcceptsPlayerInput = true;
+            foreach (var rival in rivals)
+            {
+                rival.GetComponent<Rigidbody>().isKinematic = false;
+                var ai = rival.GetComponent<AiRacer>();
+                if (ai != null) ai.enabled = true;
+            }
         }
 
         private float Progress(Vector3 position)
