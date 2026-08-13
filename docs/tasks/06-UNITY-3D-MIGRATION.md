@@ -90,7 +90,7 @@
 
 | ID | Pri | Task | Owner | Status | Acceptance / Evidence |
 |---|---|---|---|---|---|
-| UPER-001 | P0 | Target device tiers and budgets | QA/Performance Lead | READY | FPS/memory/thermal targets documented |
+| UPER-001 | P0 | Target device tiers and budgets | GPT-5.6 Sol (Performance/QA Agent) | IN REVIEW | [Low/Mid/High FPS, memory and thermal budgets](../performance/UNITY_DEVICE_TIERS.md) defined |
 | UPER-002 | P0 | Unity Profiler baseline capture | Performance Engineer | READY | CPU/GPU/memory report |
 | UPER-003 | P0 | Object/material/mesh pooling audit | Technical Artist | TODO | allocations and draw calls reduced |
 | UPER-004 | P0 | Android module + SDK/NDK/OpenJDK install | Principal Mobile Game Architect | IN REVIEW | Unity detects Android target |
