@@ -13,6 +13,7 @@ namespace Afareet.UI
         private GUIStyle button;
         private GUIStyle activeButton;
         private GUIStyle micro;
+        private GUIStyle speedUnit;
         private Texture2D cyan;
         private Texture2D purple;
         private Texture2D gold;
@@ -111,24 +112,34 @@ namespace Afareet.UI
             var w = canvasWidth;
             var h = canvasHeight;
 
+            GUI.Label(new Rect(w * .5f - 190, 17, 380, 24), "CAIRO NIGHT // SPIRIT CIRCUIT", micro);
+            GUI.DrawTexture(new Rect(w * .5f - 116, 45, 232, 3), purple);
+            GUI.DrawTexture(new Rect(w * .5f - 42, 45, 84, 3), gold);
+
             DrawPanel(new Rect(20, 16, 218, 62));
             GUI.Label(new Rect(30, 20, 198, 54), $"POS  {race.Position}/4", chip);
             DrawPanel(new Rect(w - 242, 16, 222, 62));
             GUI.Label(new Rect(w - 232, 20, 202, 54), $"{race.RaceTime:0.0} s", chip);
 
-            DrawPanel(new Rect(w - 258, h - 190, 238, 92));
-            GUI.Label(new Rect(w - 248, h - 182, 218, 72), $"{Mathf.Abs(player.SpeedKph):000}\nKM/H", title);
+            DrawPanel(new Rect(w - 258, h - 202, 238, 104));
+            GUI.Label(new Rect(w - 248, h - 196, 218, 58), $"{Mathf.Abs(player.SpeedKph):000}", title);
+            GUI.Label(new Rect(w - 248, h - 144, 218, 30), "KM/H", speedUnit);
+            GUI.DrawTexture(new Rect(w - 228, h - 110, 178, 3), player.NitroActive ? cyan : gold);
 
-            DrawPanel(new Rect(20, h - 190, 260, 64));
-            GUI.Label(new Rect(28, h - 184, 244, 26), "SPIRIT NITRO", micro);
-            GUI.DrawTexture(new Rect(32, h - 148, 232, 16), panel);
-            GUI.DrawTexture(new Rect(32, h - 148, 232 * player.NitroEnergy, 16), player.NitroEnergy > .78f ? gold : purple);
-            GUI.DrawTexture(new Rect(32, h - 148, 4, 16), cyan);
+            DrawPanel(new Rect(20, h - 202, 272, 76));
+            GUI.Label(new Rect(28, h - 196, 164, 26), "SPIRIT NITRO", micro);
+            GUI.Label(new Rect(194, h - 196, 84, 26), $"{Mathf.RoundToInt(player.NitroEnergy * 100f)}%", micro);
+            GUI.DrawTexture(new Rect(32, h - 156, 244, 18), panel);
+            GUI.DrawTexture(new Rect(32, h - 156, 244 * player.NitroEnergy, 18), player.NitroEnergy > .78f ? gold : purple);
+            GUI.DrawTexture(new Rect(32, h - 156, 4, 18), cyan);
 
             if (!race.IsStarted)
             {
                 GUI.DrawTexture(new Rect(0f, 0f, w, h), darkOverlay);
-                GUI.Label(new Rect(w * .5f - 240, h * .5f - 148, 480, 54), "3FAREET // CAIRO NIGHT RUN", title);
+                GUI.DrawTexture(new Rect(w * .5f - 190, h * .5f - 174, 380, 4), purple);
+                GUI.DrawTexture(new Rect(w * .5f - 68, h * .5f - 174, 136, 4), gold);
+                GUI.Label(new Rect(w * .5f - 260, h * .5f - 148, 520, 54), "3FAREET // CAIRO NIGHT RUN", title);
+                GUI.Label(new Rect(w * .5f - 210, h * .5f - 102, 420, 28), "THE KING ENTERS THE SPIRIT CIRCUIT", micro);
                 GUI.Box(StartRect(w, h), "START RACE", activeButton);
                 GUI.Label(new Rect(w * .5f - 280, h * .5f + 66, 560, 38), "HOLD PHONE COMFORTABLY, THEN START", micro);
                 return;
@@ -145,6 +156,7 @@ namespace Afareet.UI
             GUI.DrawTexture(rect, panel);
             GUI.DrawTexture(new Rect(rect.x, rect.y, 4, rect.height), purple);
             GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, 3), gold);
+            GUI.DrawTexture(new Rect(rect.x + rect.width - 3, rect.y + 7, 3, rect.height - 14), cyan);
         }
 
         private void DrawTouchControls(float w, float h)
@@ -181,6 +193,7 @@ namespace Afareet.UI
             title = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 38, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
             chip = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 20, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
             micro = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 16, fontStyle = FontStyle.Bold, normal = { textColor = new Color(.86f, .92f, 1f) } };
+            speedUnit = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 15, fontStyle = FontStyle.Bold, normal = { textColor = new Color(.08f, .82f, 1f) } };
             button = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.MiddleCenter, fontSize = 21, fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = purple } };
             activeButton = new GUIStyle(button) { normal = { textColor = Color.black, background = gold } };
         }
