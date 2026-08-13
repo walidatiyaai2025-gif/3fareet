@@ -28,8 +28,9 @@ namespace Afareet.World
             var pulse = 1f + Mathf.Sin(Time.time * 1.65f) * .08f;
             for (var i = 0; i < lights.Length; i++)
             {
-                if (lights[i] == null || lights[i].type == LightType.Directional) continue;
-                lights[i].intensity = baseIntensity[i] * pulse;
+                var light = lights[i];
+                if (light == null || light.type == LightType.Directional || IsVehicleLight(light)) continue;
+                light.intensity = baseIntensity[i] * pulse;
             }
         }
 
@@ -38,6 +39,12 @@ namespace Afareet.World
             lights = FindObjectsByType<Light>(FindObjectsSortMode.None);
             baseIntensity = new float[lights.Length];
             for (var i = 0; i < lights.Length; i++) baseIntensity[i] = lights[i].intensity;
+        }
+
+        private static bool IsVehicleLight(Light light)
+        {
+            var rootName = light.transform.root.name;
+            return rootName.Contains("PLAYER HERO") || rootName.StartsWith("RIVAL ");
         }
     }
 }
