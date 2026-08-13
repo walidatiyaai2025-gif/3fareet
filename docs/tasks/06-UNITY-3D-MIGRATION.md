@@ -66,7 +66,7 @@
 
 | ID | Pri | Task | Owner | Status | Acceptance / Evidence |
 |---|---|---|---|---|---|
-| UART-001 | P0 | 3D asset folder/naming/import convention | Technical Artist | READY | documented + validator-ready |
+| UART-001 | P0 | 3D asset folder/naming/import convention | GPT-5.6 Sol (Technical Art/Unity Agent) | IN PROGRESS | documented + validator-ready |
 | UART-002 | P0 | Player hero car blockout | Principal Mobile Game Architect | IN REVIEW | correct scale/pivot/wheels/collider |
 | UART-003 | P0 | Hero car production model + LODs | Vehicle Artist | TODO | LOD/poly/texture budgets pass |
 | UART-004 | P1 | Three rival color/material variants | Vehicle Artist | TODO | visually distinct + performant |
