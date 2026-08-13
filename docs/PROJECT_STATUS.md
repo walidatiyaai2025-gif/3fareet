@@ -15,6 +15,7 @@
 | Unity compile | 🟢 Verified | Import وC# compile ناجحان على Unity 6000.5.8f1 |
 | Unity Windows | 🟢 Verified smoke | `afareet-unity3d.exe` بُني واشتغل 15 ثانية بلا Exceptions |
 | Unity Android | 🟢 Build verified | Debug APK بُني؛ package/icon/SDK/ARM64 تم فحصها بـ `aapt` |
+| Unity CI | 🟠 In review / blocked | PR #50 يضيف EditMode + PlayMode + Windows artifact CI؛ أول run وصل للـcredential preflight ثم توقف لأن Unity Actions licensing secrets غير مهيأة، لذلك لا يوجد CI Green claim بعد |
 | 3D driving | 🟡 Blockout | Rigidbody arcade car + drift/nitro + chase camera؛ يحتاج production tuning/tests |
 | Race/AI | 🟡 Blockout | procedural Cairo oval + 3 waypoint rivals؛ checkpoints/lap/ranking production rules مفتوحة |
 | Visuals | 🔴 Gate open | procedural placeholders؛ production car/environment/VFX/lighting غير منفذة |
@@ -45,13 +46,14 @@
 
 ## Highest priorities next
 
-1. `UPER-006`: تثبيت APK وتشغيل smoke matrix على أجهزة Android حقيقية.
-2. `U3D-010`: توسيع الاختبارات إلى PlayMode وruntime smoke آلي.
-3. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
-4. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
-5. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
-6. `UUI-002/UUI-003`: production HUD and touch controls.
-7. `UPER-009/010`: Visual Gate ثم Verified Android APK.
+1. `U3D-011`: تهيئة Unity licensing secrets في GitHub Actions ثم إعادة CI في PR #50 حتى تصبح EditMode/PlayMode/Windows artifact Green.
+2. `UPER-006`: تثبيت APK وتشغيل smoke matrix على أجهزة Android حقيقية.
+3. `U3D-010`: توسيع الاختبارات إلى PlayMode وruntime smoke آلي.
+4. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
+5. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
+6. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
+7. `UUI-002/UUI-003`: production HUD and touch controls.
+8. `UPER-009/010`: Visual Gate ثم Verified Android APK.
 
 ## Active blockers / risks
 
@@ -63,6 +65,7 @@
 | STS-U04 | 🟡 Medium | Race progress الحالي nearest-waypoint prototype | Race Engineer — `URAC-002→005` |
 | STS-U05 | 🟡 Medium | لا Audio production في Unity | Audio team — `UAUD-001→003` |
 | STS-U06 | 🟡 Medium | مطورون كثيرون قد يتعارضون على bootstrap/ProjectSettings | Team Lead — enforce Module Locks |
+| STS-U07 | 🟡 Medium | Unity CI workflow موجود لكن GitHub Actions لا يملك Unity license secret/credentials؛ tests/build تتوقف قبل تشغيل المحرك | Repo Admin / QA — configure `UNITY_LICENSE` أو `UNITY_EMAIL` + `UNITY_PASSWORD` + `UNITY_SERIAL`, ثم rerun PR #50 |
 
 ## Team entry points
 
