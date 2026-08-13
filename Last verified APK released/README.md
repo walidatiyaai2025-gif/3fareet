@@ -1,6 +1,7 @@
 # Last verified APK released
 
-هذا المجلد مخصص **لآخر APK Android اجتاز التحقق الفعلي فقط**.
+هذا مسار Legacy للتوافق مع الروابط القديمة. المصدر الرسمي الحالي هو
+[`docs/releases/LAST_VERIFIED_APK.md`](../docs/releases/LAST_VERIFIED_APK.md)، وملف APK نفسه يُرفع كـGitHub Release Asset.
 
 ## قواعد إلزامية
 1. لا تضع Debug APK أو build غير مختبر.
@@ -15,6 +16,6 @@
    - Tester
    - Smoke test result
    - SHA-256
-6. عند نجاح نسخة أحدث، تكون هي المرجع الأخير الواضح.
+6. لا تعمل commit لأي APK هنا؛ حدّث ملف المؤشر بعد رفع GitHub Release المعتمد.
 
 > لا يوجد APK Verified عند إنشاء هذا المجلد. لا يتم إضافة ملف APK حتى ينجح أول build والتحقق على جهاز فعلي.

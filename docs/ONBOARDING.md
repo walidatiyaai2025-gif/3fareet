@@ -12,12 +12,14 @@
 
 ## 2. اقرأ بهذا الترتيب
 
-1. [`PROJECT_STATUS.md`](PROJECT_STATUS.md) — الواقع الحالي والـBlockers.
-2. [`MASTER_DEVELOPMENT_PLAN.md`](MASTER_DEVELOPMENT_PLAN.md) — المراحل والـGates.
-3. [`tasks/06-UNITY-3D-MIGRATION.md`](tasks/06-UNITY-3D-MIGRATION.md) — المهام النشطة القابلة للتوزيع.
-4. [`MODULE_OWNERSHIP.md`](MODULE_OWNERSHIP.md) — من يملك أي ملفات.
-5. [`TEAM_WORKFLOW.md`](TEAM_WORKFLOW.md) — Branch/PR/Review/DoD.
-6. [`ART_DIRECTION.md`](ART_DIRECTION.md) — الدستور البصري.
+1. [`../AGENTS.md`](../AGENTS.md) — تعليمات إلزامية لكل مبرمج وAI Agent.
+2. [`PROJECT_STATUS.md`](PROJECT_STATUS.md) — الواقع الحالي والـBlockers.
+3. [`MASTER_DEVELOPMENT_PLAN.md`](MASTER_DEVELOPMENT_PLAN.md) — المراحل والـGates.
+4. [`tasks/06-UNITY-3D-MIGRATION.md`](tasks/06-UNITY-3D-MIGRATION.md) — المهام النشطة القابلة للتوزيع.
+5. [`MODULE_OWNERSHIP.md`](MODULE_OWNERSHIP.md) — من يملك أي ملفات.
+6. [`TEAM_WORKFLOW.md`](TEAM_WORKFLOW.md) — Branch/PR/Review/DoD.
+7. [`releases/LAST_VERIFIED_APK.md`](releases/LAST_VERIFIED_APK.md) — آخر APK مثبتة بالدليل، أو بيان واضح أنه لا توجد نسخة Verified بعد.
+8. [`ART_DIRECTION.md`](ART_DIRECTION.md) — الدستور البصري.
 
 ## 3. تجهيز Unity
 

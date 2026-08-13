@@ -25,6 +25,16 @@
 - Device + OS/API (if applicable):
 - Screenshots/video/logs:
 
+## Android artifact truth — mandatory for Unity build/release changes
+- Artifact status: [ ] Not built  [ ] Latest Built only  [ ] Device Verified
+- APK filename:
+- Commit SHA used to build:
+- APK SHA-256:
+- GitHub Actions/Release URL:
+- [ ] I did not call a build `Verified` without a clean real-device smoke test.
+- [ ] If Device Verified, I recorded device/API/tester/evidence and updated `docs/releases/LAST_VERIFIED_APK.md` plus `docs/PROJECT_STATUS.md`.
+- [ ] If not Device Verified, I left the existing Last Verified pointer unchanged.
+
 ## Shared-contract coordination
 - [ ] This PR does not change a shared contract; or Tech Lead coordination is linked.
 - [ ] Active Module Locks in `docs/MODULE_OWNERSHIP.md` are accurate.

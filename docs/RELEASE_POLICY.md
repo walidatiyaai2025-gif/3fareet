@@ -21,6 +21,16 @@ Example: `unity-prototype-v0.1.0+1`.
 4. Unity release candidate build Green.
 5. For a user-facing verified release: real-device smoke checklist Green.
 6. `docs/PROJECT_STATUS.md` updated with the release state.
-7. Only the latest real-device verified APK may be copied to `Last verified APK released/`.
+7. Upload the exact tested APK as a GitHub Release asset named `afareet-unity3d-last-verified.apk`.
+8. Update `docs/releases/LAST_VERIFIED_APK.md` with release/asset links, commit, SHA-256, device and evidence.
+9. Never move the pointer for a merely built, CI-only, emulator-only or failed candidate.
 
 Flutter checks تبقى مطلوبة فقط إذا لمس PR مسار Flutter. CI artifacts هي preview/build evidence وليست تلقائيًا Verified APKs.
+
+## Last Verified invariants
+
+- Build success = `Latest Built`, not `Verified`.
+- Real-device checklist + recorded evidence + exact binary hash = eligible for `Verified`.
+- The GitHub Release asset is the distributed binary; APK files remain excluded from Git commits.
+- `docs/releases/LAST_VERIFIED_APK.md` is the repository pointer and must always distinguish Unity from Flutter.
+- Keep the previous verified GitHub Release available for rollback.

@@ -18,4 +18,7 @@ Use this checklist only on a real Android device for a candidate release APK.
 - HUD speed, race timer, lap and Spirit values remain coherent.
 - No sustained visual stutter, ANR or thermal runaway during a 10-minute session.
 
-A candidate is not a **Verified APK** until device/API, tester, commit SHA, result and SHA-256 are recorded in `Last verified APK released/`.
+A candidate is not a **Verified APK** until device/API, tester, commit SHA, result,
+SHA-256 and evidence are recorded in
+[`releases/LAST_VERIFIED_APK.md`](releases/LAST_VERIFIED_APK.md), and the exact
+tested binary is uploaded as a GitHub Release asset.

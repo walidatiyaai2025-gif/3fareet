@@ -22,7 +22,7 @@
 | Branding | 🟢 Integrated | master icon ومقاسات Flutter، وأسماء Packages/Artifacts منفصلة |
 | Audio | 🔴 Open | engine/drift/nitro production audio غير مدمج في Unity |
 | Team system | 🟢 Baseline ready | onboarding/workflow/module ownership/Unity task register موجودة |
-| Verified release APK | 🔴 None | لا يوجد Unity Android APK اجتاز جهازًا حقيقيًا |
+| Last Verified Unity APK | 🔴 None | المصدر الرسمي: [`releases/LAST_VERIFIED_APK.md`](releases/LAST_VERIFIED_APK.md)؛ لا توجد نسخة اجتازت جهازًا حقيقيًا بعد |
 | Backend | 🔵 Deferred/Locked | Unity → HTTPS API → Laravel → MySQL؛ لا direct DB |
 
 ## Current milestone — U-P1 Unity 3D Vertical Slice
