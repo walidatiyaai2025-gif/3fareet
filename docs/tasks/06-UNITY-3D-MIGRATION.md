@@ -58,7 +58,7 @@
 | URAC-007 | P0 | Waypoint AI baseline (3 rivals) | Principal Mobile Game Architect | IN REVIEW | three rivals complete loop |
 | URAC-008 | P0 | AI racing line and braking zones | GPT-5.6 Sol (Race/QA Agent) | IN REVIEW | `CornerSpeedPolicy` + `RacingLineLookahead` on `agent/URAC-008-ai-speed-planner`; curvature reduces target speed, upcoming turns create braking zones, straights extend aim and allow nitro; EditMode tests committed; Unity execution pending CI license |
 | URAC-009 | P1 | AI avoidance/overtake/personality | AI Engineer | TODO | reproducible seeded behaviors |
-| URAC-010 | P0 | AI stuck recovery and finish tests | AI Engineer | READY | automated coverage |
+| URAC-010 | P0 | AI stuck recovery and finish tests | GPT-5.6 Sol (Race/QA Agent) | IN REVIEW | `RivalMotionGuard` + `RivalResetController` on `agent/URAC-010-ai-recovery`; sustained low speed resets to last accepted checkpoint, normal motion clears the timer, rival finish tests require complete ordered lap; Unity execution pending CI license |
 | URAC-011 | P0 | Replace blockout with Cairo vertical-slice layout | Level Designer | READY | landmarks + readable racing line |
 | URAC-012 | P0 | Track completion device verification | QA Engineer | BLOCKED | requires Android APK |
 
