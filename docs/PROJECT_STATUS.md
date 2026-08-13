@@ -18,6 +18,7 @@
 | 3D driving | 🟡 Blockout | Rigidbody arcade car + drift/nitro + chase camera؛ يحتاج production tuning/tests |
 | Race/AI | 🟡 Blockout | procedural Cairo oval + 3 waypoint rivals؛ checkpoints/lap/ranking production rules مفتوحة |
 | Visuals | 🔴 Gate open | procedural placeholders؛ production car/environment/VFX/lighting غير منفذة |
+| 3D asset pipeline | 🟡 In review | `UART-001`: folder lifecycle + naming/import contract + machine-readable validator rules في [`ASSET_PIPELINE.md`](ASSET_PIPELINE.md) |
 | UI | 🟡 Prototype | splash + IMGUI HUD/touch controls؛ production UI/RTL/safe-area مفتوحة |
 | Branding | 🟢 Integrated | master icon ومقاسات Flutter، وأسماء Packages/Artifacts منفصلة |
 | Audio | 🔴 Open | engine/drift/nitro production audio غير مدمج في Unity |
@@ -49,7 +50,7 @@
 2. `U3D-010`: توسيع الاختبارات إلى PlayMode وruntime smoke آلي.
 3. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
 4. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
-5. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
+5. `UART-002/UART-005/UART-008`: hero car + Cairo kit + mobile rendering؛ `UART-001` في المراجعة.
 6. `UUI-002/UUI-003`: production HUD and touch controls.
 7. `UPER-009/010`: Visual Gate ثم Verified Android APK.
 
@@ -70,6 +71,7 @@
 - [Team workflow and DoD](TEAM_WORKFLOW.md)
 - [Module ownership and locks](MODULE_OWNERSHIP.md)
 - [Active Unity task register](tasks/06-UNITY-3D-MIGRATION.md)
+- [Unity asset pipeline](ASSET_PIPELINE.md)
 - [Contributing rules](../CONTRIBUTING.md)
 
 ## Historical Flutter evidence
@@ -93,6 +95,7 @@ Flutter debug/release-skeleton APKs لا تعتبر المنتج النهائي 
 - [Master Development Plan](MASTER_DEVELOPMENT_PLAN.md)
 - [Full Task Register](TASK_REGISTER.md)
 - [Unity Active Tasks](tasks/06-UNITY-3D-MIGRATION.md)
+- [Unity Asset Pipeline](ASSET_PIPELINE.md)
 - [Art Direction](ART_DIRECTION.md)
 - [Backend Architecture](BACKEND_ARCHITECTURE.md)
 - [Release Policy](RELEASE_POLICY.md)
