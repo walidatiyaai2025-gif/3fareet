@@ -39,9 +39,7 @@ namespace Afareet.Vehicle
 
             for (var side = -1; side <= 1; side += 2)
             for (var axle = -1; axle <= 1; axle += 2)
-            {
                 CreateWheel(root.transform, side, axle, isHero);
-            }
 
             var underglow = new GameObject("Spirit Underglow").AddComponent<Light>();
             underglow.transform.SetParent(root.transform, false);
@@ -56,6 +54,7 @@ namespace Afareet.Vehicle
             _ = body;
             var controller = root.AddComponent<ArcadeCarController>();
             controller.Configure(config);
+            if (isHero) root.AddComponent<HeroCarVfx>();
             return controller;
         }
 
@@ -68,7 +67,6 @@ namespace Afareet.Vehicle
             var white = new Color(.88f, .96f, 1f);
             var red = new Color(1f, .03f, .08f);
 
-            // Lower/wider Egyptian street-racer silhouette.
             CreatePart(root, "Hero Front Bumper", PrimitiveType.Cube, new Vector3(2.02f, .30f, .34f), new Vector3(0f, .44f, 2.03f), bodyAccent * .9f);
             CreatePart(root, "Hero Rear Bumper", PrimitiveType.Cube, new Vector3(2.00f, .27f, .30f), new Vector3(0f, .46f, -2.03f), bodyAccent * .82f);
             CreatePart(root, "Hero Front Splitter", PrimitiveType.Cube, new Vector3(2.20f, .10f, .55f), new Vector3(0f, .25f, 2.16f), black);
@@ -76,46 +74,33 @@ namespace Afareet.Vehicle
             CreatePart(root, "Hero Left Side Skirt", PrimitiveType.Cube, new Vector3(.14f, .16f, 3.28f), new Vector3(-1.00f, .28f, -.10f), gold);
             CreatePart(root, "Hero Right Side Skirt", PrimitiveType.Cube, new Vector3(.14f, .16f, 3.28f), new Vector3(1.00f, .28f, -.10f), gold);
 
-            // Hood and supernatural identity.
             CreatePart(root, "Hero Gold Hood Stripe", PrimitiveType.Cube, new Vector3(.27f, .035f, 3.58f), new Vector3(0f, .86f, .18f), gold);
-            CreatePart(root, "Hero Left Hood Rune", PrimitiveType.Cube, new Vector3(.10f, .025f, 1.48f), new Vector3(-.52f, .89f, .86f), purple)
-                .transform.localRotation = Quaternion.Euler(0f, -13f, 0f);
-            CreatePart(root, "Hero Right Hood Rune", PrimitiveType.Cube, new Vector3(.10f, .025f, 1.48f), new Vector3(.52f, .89f, .86f), purple)
-                .transform.localRotation = Quaternion.Euler(0f, 13f, 0f);
+            CreatePart(root, "Hero Left Hood Rune", PrimitiveType.Cube, new Vector3(.10f, .025f, 1.48f), new Vector3(-.52f, .89f, .86f), purple).transform.localRotation = Quaternion.Euler(0f, -13f, 0f);
+            CreatePart(root, "Hero Right Hood Rune", PrimitiveType.Cube, new Vector3(.10f, .025f, 1.48f), new Vector3(.52f, .89f, .86f), purple).transform.localRotation = Quaternion.Euler(0f, 13f, 0f);
             CreatePart(root, "Hero Blower", PrimitiveType.Cube, new Vector3(.92f, .38f, .82f), new Vector3(0f, 1.22f, .72f), black);
             for (var intake = -1; intake <= 1; intake++)
-                CreatePart(root, "Purple Intake", PrimitiveType.Cylinder, new Vector3(.2f, .32f, .2f), new Vector3(intake * .28f, 1.38f, .88f), purple)
-                    .transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                CreatePart(root, "Purple Intake", PrimitiveType.Cylinder, new Vector3(.2f, .32f, .2f), new Vector3(intake * .28f, 1.38f, .88f), purple).transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
 
-            // Glass treatment breaks up the blockout cabin and improves readability from chase camera.
-            CreatePart(root, "Hero Windshield", PrimitiveType.Cube, new Vector3(1.20f, .46f, .055f), new Vector3(0f, 1.14f, .72f), glass)
-                .transform.localRotation = Quaternion.Euler(18f, 0f, 0f);
-            CreatePart(root, "Hero Rear Glass", PrimitiveType.Cube, new Vector3(1.16f, .40f, .055f), new Vector3(0f, 1.12f, -1.18f), glass)
-                .transform.localRotation = Quaternion.Euler(-18f, 0f, 0f);
+            CreatePart(root, "Hero Windshield", PrimitiveType.Cube, new Vector3(1.20f, .46f, .055f), new Vector3(0f, 1.14f, .72f), glass).transform.localRotation = Quaternion.Euler(18f, 0f, 0f);
+            CreatePart(root, "Hero Rear Glass", PrimitiveType.Cube, new Vector3(1.16f, .40f, .055f), new Vector3(0f, 1.12f, -1.18f), glass).transform.localRotation = Quaternion.Euler(-18f, 0f, 0f);
             CreatePart(root, "Hero Left Window", PrimitiveType.Cube, new Vector3(.045f, .40f, 1.14f), new Vector3(-.755f, 1.11f, -.28f), glass);
             CreatePart(root, "Hero Right Window", PrimitiveType.Cube, new Vector3(.045f, .40f, 1.14f), new Vector3(.755f, 1.11f, -.28f), glass);
 
-            // Aggressive face: spirit eyes, grille and fangs.
             CreatePart(root, "Hero Grille", PrimitiveType.Cube, new Vector3(1.10f, .30f, .075f), new Vector3(0f, .50f, 2.225f), black);
             CreatePart(root, "Left Spirit Eye", PrimitiveType.Sphere, new Vector3(.58f, .18f, .12f), new Vector3(-.58f, .70f, 2.10f), purple);
             CreatePart(root, "Right Spirit Eye", PrimitiveType.Sphere, new Vector3(.58f, .18f, .12f), new Vector3(.58f, .70f, 2.10f), purple);
             CreatePart(root, "Left Headlight Core", PrimitiveType.Sphere, new Vector3(.23f, .10f, .09f), new Vector3(-.58f, .70f, 2.17f), white);
             CreatePart(root, "Right Headlight Core", PrimitiveType.Sphere, new Vector3(.23f, .10f, .09f), new Vector3(.58f, .70f, 2.17f), white);
-            CreatePart(root, "Left Fang", PrimitiveType.Cube, new Vector3(.14f, .34f, .12f), new Vector3(-.38f, .42f, 2.20f), Color.white)
-                .transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
-            CreatePart(root, "Right Fang", PrimitiveType.Cube, new Vector3(.14f, .34f, .12f), new Vector3(.38f, .42f, 2.20f), Color.white)
-                .transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
+            CreatePart(root, "Left Fang", PrimitiveType.Cube, new Vector3(.14f, .34f, .12f), new Vector3(-.38f, .42f, 2.20f), Color.white).transform.localRotation = Quaternion.Euler(0f, 0f, -18f);
+            CreatePart(root, "Right Fang", PrimitiveType.Cube, new Vector3(.14f, .34f, .12f), new Vector3(.38f, .42f, 2.20f), Color.white).transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
 
-            // Rear signature for overtakes and result shots.
             CreatePart(root, "Hero Spoiler", PrimitiveType.Cube, new Vector3(2.58f, .15f, .62f), new Vector3(0f, 1.48f, -1.92f), purple);
             CreatePart(root, "Spoiler Left Support", PrimitiveType.Cube, new Vector3(.13f, .58f, .16f), new Vector3(-.82f, 1.18f, -1.72f), gold);
             CreatePart(root, "Spoiler Right Support", PrimitiveType.Cube, new Vector3(.13f, .58f, .16f), new Vector3(.82f, 1.18f, -1.72f), gold);
             CreatePart(root, "Left Tail Light", PrimitiveType.Cube, new Vector3(.52f, .16f, .08f), new Vector3(-.58f, .68f, -2.10f), red);
             CreatePart(root, "Right Tail Light", PrimitiveType.Cube, new Vector3(.52f, .16f, .08f), new Vector3(.58f, .68f, -2.10f), red);
-            CreatePart(root, "Left Exhaust", PrimitiveType.Cylinder, new Vector3(.19f, .34f, .19f), new Vector3(-.62f, .28f, -2.15f), black)
-                .transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            CreatePart(root, "Right Exhaust", PrimitiveType.Cylinder, new Vector3(.19f, .34f, .19f), new Vector3(.62f, .28f, -2.15f), black)
-                .transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            CreatePart(root, "Left Exhaust", PrimitiveType.Cylinder, new Vector3(.19f, .34f, .19f), new Vector3(-.62f, .28f, -2.15f), black).transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            CreatePart(root, "Right Exhaust", PrimitiveType.Cylinder, new Vector3(.19f, .34f, .19f), new Vector3(.62f, .28f, -2.15f), black).transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
 
             CreateHeroAccentLight(root, "Left Spirit Lamp", new Vector3(-.58f, .69f, 2.16f), purple);
             CreateHeroAccentLight(root, "Right Spirit Lamp", new Vector3(.58f, .69f, 2.16f), purple);
