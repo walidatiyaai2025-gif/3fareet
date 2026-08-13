@@ -26,7 +26,7 @@
 | U3D-001→U3D-012 bootstrap batch | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | `unity_game/`, build identity, migration docs | 2026-08-13 | IN REVIEW |
 | U3D-006 + U3D-008 + UPER-004 + UPER-005 | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | Unity asmdefs, Vehicle/Camera config contracts, tests, Android toolchain and debug APK | 2026-08-13 | IN REVIEW |
 | UVEH input stabilization + UART-002/AST-062 | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | `ArcadeCarController`, `PrototypeHud`, hero blockout/reference and Android verification | 2026-08-13 | IN PROGRESS |
-| UART-001 | GPT-5.6 Sol (Technical Art/Unity Agent) | `agent/UART-001-asset-convention` | `docs/ASSET_PIPELINE.md`; `docs/assets/README.md`; `docs/assets/UNITY_ASSET_CONVENTION.json`; UART-001 status/evidence rows only; excludes `docs/assets/01_vehicles/references/*` and all `unity_game/` | 2026-08-13 | IN PROGRESS |
+| UART-001 | GPT-5.6 Sol (Technical Art/Unity Agent) | `agent/UART-001-asset-convention` / PR #52 | `docs/ASSET_PIPELINE.md`; `docs/assets/README.md`; `docs/assets/UNITY_ASSET_CONVENTION.json`; UART-001 status/evidence rows only; excludes `docs/assets/01_vehicles/references/*` and all `unity_game/` | 2026-08-13 | IN REVIEW |
 
 ## Lock procedure
 
