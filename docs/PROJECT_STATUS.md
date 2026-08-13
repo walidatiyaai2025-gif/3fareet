@@ -21,6 +21,7 @@
 | UI | 🟡 Prototype | splash + IMGUI HUD/touch controls؛ production UI/RTL/safe-area مفتوحة |
 | Branding | 🟢 Integrated | master icon ومقاسات Flutter، وأسماء Packages/Artifacts منفصلة |
 | Audio | 🔴 Open | engine/drift/nitro production audio غير مدمج في Unity |
+| Performance budgets | 🟢 Defined / IN REVIEW | `UPER-001`: Low/Mid/High FPS, frame-time, memory and thermal gates documented in [`performance/UNITY_DEVICE_TIERS.md`](performance/UNITY_DEVICE_TIERS.md) |
 | Team system | 🟢 Baseline ready | onboarding/workflow/module ownership/Unity task register موجودة |
 | Last Verified Unity APK | 🔴 None | المصدر الرسمي: [`releases/LAST_VERIFIED_APK.md`](releases/LAST_VERIFIED_APK.md)؛ لا توجد نسخة اجتازت جهازًا حقيقيًا بعد |
 | Backend | 🔵 Deferred/Locked | Unity → HTTPS API → Laravel → MySQL؛ لا direct DB |
@@ -43,6 +44,16 @@
 
 هذه الدفعة `IN REVIEW` حتى دمج PR #49. لا تحول مهامها إلى `VERIFIED` في السجل قبل الدمج وربط Evidence بالـcommit النهائي.
 
+### Parallel delivery — UPER-001
+
+- capability-based Low/Mid/High Android tiers are defined without relying on model-name allowlists;
+- each tier has measurable FPS/frame-time, process PSS, Unity memory and thermal sustained-performance budgets;
+- the measurement protocol requires warm-up, a sustained physical-device loop, restart leak checks and exact APK/commit evidence;
+- quality-preset envelopes are documented for later implementation without changing `ProjectSettings` or hardcoding gameplay values in this task;
+- no `unity_game/` files are modified while PR #49 owns the active Unity tree lock.
+
+`UPER-001` is `IN REVIEW`; this document is a performance contract, not Android device evidence and not a Verified APK claim.
+
 ## Highest priorities next
 
 1. `UPER-006`: تثبيت APK وتشغيل smoke matrix على أجهزة Android حقيقية.
@@ -51,7 +62,8 @@
 4. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
 5. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
 6. `UUI-002/UUI-003`: production HUD and touch controls.
-7. `UPER-009/010`: Visual Gate ثم Verified Android APK.
+7. `UPER-002`: capture the first Unity CPU/GPU/memory baseline against the `UPER-001` budgets.
+8. `UPER-009/010`: Visual Gate ثم Verified Android APK.
 
 ## Active blockers / risks
 
