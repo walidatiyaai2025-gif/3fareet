@@ -26,7 +26,7 @@
 | U3D-001→U3D-012 bootstrap batch | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | `unity_game/`, build identity, migration docs | 2026-08-13 | IN REVIEW |
 | U3D-006 + U3D-008 + UPER-004 + UPER-005 | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | Unity asmdefs, Vehicle/Camera config contracts, tests, Android toolchain and debug APK | 2026-08-13 | IN REVIEW |
 | UVEH input stabilization + UART-002/AST-062 | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | `ArcadeCarController`, `PrototypeHud`, hero blockout/reference and Android verification | 2026-08-13 | IN PROGRESS |
-| U3D-011 | GPT-5.6 Sol (Unity CI Agent) | `agent/U3D-011-unity-ci` / PR #50 | `.github/workflows/unity-ci.yml`; U3D-011 status/evidence rows only | 2026-08-13 | IN PROGRESS |
+| U3D-011 | GPT-5.6 Sol (Unity CI Agent) | `agent/U3D-011-unity-ci` / PR #50 | `.github/workflows/unity-ci.yml`; U3D-011 status/evidence rows only | 2026-08-13 | IN REVIEW |
 
 ## Lock procedure
 
