@@ -55,6 +55,8 @@ namespace Afareet.Editor
             var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
             if (icon == null)
                 throw new InvalidOperationException($"App icon is missing at {IconPath}");
+            ApplyPlatformIcons(NamedBuildTarget.Android, icon);
+            ApplyPlatformIcons(NamedBuildTarget.Standalone, icon);
             PlayerSettings.SetIcons(
                 NamedBuildTarget.Android,
                 new[] { icon },
@@ -63,8 +65,20 @@ namespace Afareet.Editor
             PlayerSettings.SetIcons(
                 NamedBuildTarget.Standalone,
                 new[] { icon },
-                IconKind.Application
+                IconKind.Any
             );
+#pragma warning disable CS0618
+            // Standalone Windows still reads the legacy icon collection when
+            // producing the executable resource in Unity 6.
+            PlayerSettings.SetIconsForTargetGroup(
+                BuildTargetGroup.Standalone,
+                new[] { icon }
+            );
+            PlayerSettings.SetIconsForTargetGroup(
+                BuildTargetGroup.Android,
+                new[] { icon }
+            );
+#pragma warning restore CS0618
 
             Directory.CreateDirectory("Assets/Scenes");
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -72,6 +86,20 @@ namespace Afareet.Editor
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+        }
+
+        private static void ApplyPlatformIcons(NamedBuildTarget target, Texture2D icon)
+        {
+            foreach (var kind in PlayerSettings.GetSupportedIconKinds(target))
+            {
+                var platformIcons = PlayerSettings.GetPlatformIcons(target, kind);
+                foreach (var platformIcon in platformIcons)
+                {
+                    for (var layer = 0; layer < platformIcon.maxLayerCount; layer++)
+                        platformIcon.SetTexture(icon, layer);
+                }
+                PlayerSettings.SetPlatformIcons(target, kind, platformIcons);
+            }
         }
 
         private static void Build(BuildTarget target, string outputPath, BuildOptions options)
