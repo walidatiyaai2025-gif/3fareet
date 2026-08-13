@@ -16,7 +16,7 @@
 | Unity Windows | 🟢 Verified smoke | `afareet-unity3d.exe` بُني واشتغل 15 ثانية بلا Exceptions |
 | Unity Android | 🟢 Build verified | Debug APK بُني؛ package/icon/SDK/ARM64 تم فحصها بـ `aapt` |
 | 3D driving | 🟡 Blockout | Rigidbody arcade car + drift/nitro + chase camera؛ يحتاج production tuning/tests |
-| Race/AI | 🟡 Blockout | procedural Cairo oval + 3 waypoint rivals؛ checkpoints/lap/ranking production rules مفتوحة |
+| Race/AI | 🟡 In review | PR #54 يضيف ordered checkpoints؛ `URAC-003` يضيف one-lap start/finish state machine واختبارات lifecycle؛ ranking/results ما زالت مفتوحة |
 | Visuals | 🔴 Gate open | procedural placeholders؛ production car/environment/VFX/lighting غير منفذة |
 | UI | 🟡 Prototype | splash + IMGUI HUD/touch controls؛ production UI/RTL/safe-area مفتوحة |
 | Branding | 🟢 Integrated | master icon ومقاسات Flutter، وأسماء Packages/Artifacts منفصلة |
@@ -43,12 +43,20 @@
 
 هذه الدفعة `IN REVIEW` حتى دمج PR #49. لا تحول مهامها إلى `VERIFIED` في السجل قبل الدمج وربط Evidence بالـcommit النهائي.
 
+### Race production work in review
+
+- `URAC-002` — PR #54: deterministic ordered checkpoint validation, runtime checkpoint volumes and EditMode coverage.
+- `URAC-003` — child branch `agent/URAC-003-one-lap-state`: deterministic Ready → Racing → Finished single-lap state with race timing and EditMode lifecycle coverage.
+- Start/finish checkpoint 0 is rejected before checkpoints `1..N-1`; a lap finishes only on the ordered return to checkpoint 0.
+- `URAC-004` ranking and `URAC-005` countdown/results/restart remain independent follow-up scopes.
+- Unity execution on these exact heads remains pending the separate CI licensing unblock, so both tasks stay `IN REVIEW`.
+
 ## Highest priorities next
 
 1. `UPER-006`: تثبيت APK وتشغيل smoke matrix على أجهزة Android حقيقية.
 2. `U3D-010`: توسيع الاختبارات إلى PlayMode وruntime smoke آلي.
 3. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
-4. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
+4. `URAC-004→005`: production ranking ثم countdown/results/restart فوق `URAC-002/003`.
 5. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
 6. `UUI-002/UUI-003`: production HUD and touch controls.
 7. `UPER-009/010`: Visual Gate ثم Verified Android APK.
@@ -60,7 +68,7 @@
 | STS-U01 | 🟡 Medium | APK مبني لكن لم يجتز device smoke حقيقي بعد | QA Engineer — `UPER-006` |
 | STS-U02 | 🔴 High | المشهد الحالي blockout procedural وليس Visual Gate quality | Art Director/Art team — `UART-*`, `UVFX-*` |
 | STS-U03 | 🟡 Medium | asmdefs/config/EditMode tests موجودة؛ PlayMode coverage ما زالت مفتوحة | Unity Tech Lead — `U3D-010` |
-| STS-U04 | 🟡 Medium | Race progress الحالي nearest-waypoint prototype | Race Engineer — `URAC-002→005` |
+| STS-U04 | 🟡 Medium | ordered checkpoints + one-lap lifecycle IN REVIEW؛ production ranking/results لم تُدمج | Race Engineer — `URAC-004→005` |
 | STS-U05 | 🟡 Medium | لا Audio production في Unity | Audio team — `UAUD-001→003` |
 | STS-U06 | 🟡 Medium | مطورون كثيرون قد يتعارضون على bootstrap/ProjectSettings | Team Lead — enforce Module Locks |
 
