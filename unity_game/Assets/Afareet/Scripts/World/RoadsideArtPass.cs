@@ -40,6 +40,7 @@ namespace Afareet.World
                 BuildMarker(root, wp.transform, -1f, i);
                 BuildMarker(root, wp.transform, 1f, i);
             }
+            BuildRoadRunes(root);
             BuildFinishHero(root, first.transform);
             CancelInvoke();
         }
@@ -47,11 +48,29 @@ namespace Afareet.World
         private static void BuildMarker(Transform root, Transform wp, float side, int seed)
         {
             var p = wp.position + wp.right * side * 9.2f;
-            var pole = Cube(root, "Roadside Spirit Pole", p + Vector3.up * 1.5f, new Vector3(.18f, 3f, .18f), dark, wp.rotation);
-            _ = pole;
+            Cube(root, "Roadside Spirit Pole", p + Vector3.up * 1.5f, new Vector3(.18f, 3f, .18f), dark, wp.rotation);
             var bladeMat = seed % 12 == 0 ? gold : (side < 0 ? purple : cyan);
             Cube(root, "Roadside Neon Blade", p + Vector3.up * 2.55f, new Vector3(.18f, 1.25f, 1.15f), bladeMat, wp.rotation * Quaternion.Euler(0f, side * 12f, side * 8f));
             Cube(root, "Roadside Hazard Foot", p + Vector3.up * .08f, new Vector3(.9f, .16f, .9f), seed % 18 == 0 ? gold : purple, wp.rotation * Quaternion.Euler(0f, 45f, 0f));
+        }
+
+        private static void BuildRoadRunes(Transform root)
+        {
+            for (var i = 4; i < 72; i += 9)
+            {
+                var wp = GameObject.Find($"Waypoint {i:00}");
+                if (wp == null) continue;
+                var material = i % 18 == 4 ? gold : (i % 2 == 0 ? purple : cyan);
+                var basePosition = wp.transform.position + Vector3.up * .035f;
+                RoadRune(root, basePosition - wp.transform.right * 1.15f, wp.transform.rotation * Quaternion.Euler(0f, 18f, 0f), material);
+                RoadRune(root, basePosition, wp.transform.rotation, material);
+                RoadRune(root, basePosition + wp.transform.right * 1.15f, wp.transform.rotation * Quaternion.Euler(0f, -18f, 0f), material);
+            }
+        }
+
+        private static void RoadRune(Transform root, Vector3 position, Quaternion rotation, Material material)
+        {
+            Cube(root, "Spirit Road Rune", position, new Vector3(.16f, .025f, 1.9f), material, rotation);
         }
 
         private static void BuildFinishHero(Transform root, Transform start)
