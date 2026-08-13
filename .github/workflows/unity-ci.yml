@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           lfs: true
 
@@ -66,7 +66,7 @@ jobs:
 
       - name: Run ${{ matrix.testMode }} tests
         id: unity-tests
-        uses: game-ci/unity-test-runner@v4
+        uses: game-ci/unity-test-runner@v4.3.1
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -82,10 +82,10 @@ jobs:
 
       - name: Upload ${{ matrix.testMode }} test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: unity-${{ matrix.testMode }}-results-${{ github.sha }}
-          path: ${{ steps.unity-tests.outputs.artifactsPath }}
+          path: artifacts/${{ matrix.testMode }}
           if-no-files-found: warn
           retention-days: 14
 
@@ -97,7 +97,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           lfs: true
 
@@ -122,7 +122,7 @@ jobs:
           exit 1
 
       - name: Build Windows x64
-        uses: game-ci/unity-builder@v5
+        uses: game-ci/unity-builder@v5.0.0
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -143,7 +143,7 @@ jobs:
           echo "Windows build artifact exists and is non-empty."
 
       - name: Upload Windows build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: afareet-unity3d-windows-${{ github.sha }}
           path: unity_game/Builds/Windows/
