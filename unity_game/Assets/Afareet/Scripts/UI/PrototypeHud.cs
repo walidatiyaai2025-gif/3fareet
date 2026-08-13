@@ -22,6 +22,10 @@ namespace Afareet.UI
         private float canvasScale;
         private float canvasWidth;
         private float canvasHeight;
+        private float safeLeft;
+        private float safeRight;
+        private float safeTop;
+        private float safeBottom;
         private Vector3 motionBaseline;
         private bool hasMotionBaseline;
         private float steerInput;
@@ -56,6 +60,7 @@ namespace Afareet.UI
                 ReadStartInput();
                 return;
             }
+
             ApplyMotionControls();
             for (var i = 0; i < Input.touchCount; i++)
             {
@@ -74,10 +79,10 @@ namespace Afareet.UI
             for (var i = 0; i < Input.touchCount; i++)
             {
                 var touch = Input.GetTouch(i);
-                if (touch.phase == TouchPhase.Began && StartRect(canvasWidth, canvasHeight).Contains(ToCanvas(touch.position))) StartRace();
+                if (touch.phase == TouchPhase.Began && StartRect().Contains(ToCanvas(touch.position))) StartRace();
             }
 #if UNITY_EDITOR || UNITY_STANDALONE
-            if (Input.GetMouseButtonDown(0) && StartRect(canvasWidth, canvasHeight).Contains(ToCanvas(Input.mousePosition))) StartRace();
+            if (Input.GetMouseButtonDown(0) && StartRect().Contains(ToCanvas(Input.mousePosition))) StartRace();
 #endif
         }
 
@@ -109,46 +114,53 @@ namespace Afareet.UI
             EnsureStyles();
             UpdateCanvasMetrics();
             GUI.matrix = Matrix4x4.Scale(Vector3.one * canvasScale);
+
             var w = canvasWidth;
             var h = canvasHeight;
+            var left = safeLeft;
+            var right = w - safeRight;
+            var top = safeTop;
+            var bottom = h - safeBottom;
+            var centerX = left + (right - left) * .5f;
+            var centerY = top + (bottom - top) * .5f;
 
-            GUI.Label(new Rect(w * .5f - 190, 17, 380, 24), "CAIRO NIGHT // SPIRIT CIRCUIT", micro);
-            GUI.DrawTexture(new Rect(w * .5f - 116, 45, 232, 3), purple);
-            GUI.DrawTexture(new Rect(w * .5f - 42, 45, 84, 3), gold);
+            GUI.Label(new Rect(centerX - 190, top + 17, 380, 24), "CAIRO NIGHT // SPIRIT CIRCUIT", micro);
+            GUI.DrawTexture(new Rect(centerX - 116, top + 45, 232, 3), purple);
+            GUI.DrawTexture(new Rect(centerX - 42, top + 45, 84, 3), gold);
 
-            DrawPanel(new Rect(20, 16, 218, 62));
-            GUI.Label(new Rect(30, 20, 198, 54), $"POS  {race.Position}/4", chip);
-            DrawPanel(new Rect(w - 242, 16, 222, 62));
-            GUI.Label(new Rect(w - 232, 20, 202, 54), $"{race.RaceTime:0.0} s", chip);
+            DrawPanel(new Rect(left + 20, top + 16, 218, 62));
+            GUI.Label(new Rect(left + 30, top + 20, 198, 54), $"POS  {race.Position}/4", chip);
+            DrawPanel(new Rect(right - 242, top + 16, 222, 62));
+            GUI.Label(new Rect(right - 232, top + 20, 202, 54), $"{race.RaceTime:0.0} s", chip);
 
-            DrawPanel(new Rect(w - 258, h - 202, 238, 104));
-            GUI.Label(new Rect(w - 248, h - 196, 218, 58), $"{Mathf.Abs(player.SpeedKph):000}", title);
-            GUI.Label(new Rect(w - 248, h - 144, 218, 30), "KM/H", speedUnit);
-            GUI.DrawTexture(new Rect(w - 228, h - 110, 178, 3), player.NitroActive ? cyan : gold);
+            DrawPanel(new Rect(right - 258, bottom - 202, 238, 104));
+            GUI.Label(new Rect(right - 248, bottom - 196, 218, 58), $"{Mathf.Abs(player.SpeedKph):000}", title);
+            GUI.Label(new Rect(right - 248, bottom - 144, 218, 30), "KM/H", speedUnit);
+            GUI.DrawTexture(new Rect(right - 228, bottom - 110, 178, 3), player.NitroActive ? cyan : gold);
 
-            DrawPanel(new Rect(20, h - 202, 272, 76));
-            GUI.Label(new Rect(28, h - 196, 164, 26), "SPIRIT NITRO", micro);
-            GUI.Label(new Rect(194, h - 196, 84, 26), $"{Mathf.RoundToInt(player.NitroEnergy * 100f)}%", micro);
-            GUI.DrawTexture(new Rect(32, h - 156, 244, 18), panel);
-            GUI.DrawTexture(new Rect(32, h - 156, 244 * player.NitroEnergy, 18), player.NitroEnergy > .78f ? gold : purple);
-            GUI.DrawTexture(new Rect(32, h - 156, 4, 18), cyan);
+            DrawPanel(new Rect(left + 20, bottom - 202, 272, 76));
+            GUI.Label(new Rect(left + 28, bottom - 196, 164, 26), "SPIRIT NITRO", micro);
+            GUI.Label(new Rect(left + 194, bottom - 196, 84, 26), $"{Mathf.RoundToInt(player.NitroEnergy * 100f)}%", micro);
+            GUI.DrawTexture(new Rect(left + 32, bottom - 156, 244, 18), panel);
+            GUI.DrawTexture(new Rect(left + 32, bottom - 156, 244 * player.NitroEnergy, 18), player.NitroEnergy > .78f ? gold : purple);
+            GUI.DrawTexture(new Rect(left + 32, bottom - 156, 4, 18), cyan);
 
             if (!race.IsStarted)
             {
                 GUI.DrawTexture(new Rect(0f, 0f, w, h), darkOverlay);
-                GUI.DrawTexture(new Rect(w * .5f - 190, h * .5f - 174, 380, 4), purple);
-                GUI.DrawTexture(new Rect(w * .5f - 68, h * .5f - 174, 136, 4), gold);
-                GUI.Label(new Rect(w * .5f - 260, h * .5f - 148, 520, 54), "3FAREET // CAIRO NIGHT RUN", title);
-                GUI.Label(new Rect(w * .5f - 210, h * .5f - 102, 420, 28), "THE KING ENTERS THE SPIRIT CIRCUIT", micro);
-                GUI.Box(StartRect(w, h), "START RACE", activeButton);
-                GUI.Label(new Rect(w * .5f - 280, h * .5f + 66, 560, 38), "HOLD PHONE COMFORTABLY, THEN START", micro);
+                GUI.DrawTexture(new Rect(centerX - 190, centerY - 174, 380, 4), purple);
+                GUI.DrawTexture(new Rect(centerX - 68, centerY - 174, 136, 4), gold);
+                GUI.Label(new Rect(centerX - 260, centerY - 148, 520, 54), "3FAREET // CAIRO NIGHT RUN", title);
+                GUI.Label(new Rect(centerX - 210, centerY - 102, 420, 28), "THE KING ENTERS THE SPIRIT CIRCUIT", micro);
+                GUI.Box(StartRect(), "START RACE", activeButton);
+                GUI.Label(new Rect(centerX - 280, centerY + 66, 560, 38), "HOLD PHONE COMFORTABLY, THEN START", micro);
                 return;
             }
 
             if (!string.IsNullOrEmpty(race.CountdownText))
-                GUI.Label(new Rect(w * .5f - 130, h * .25f, 260, 120), race.CountdownText, title);
+                GUI.Label(new Rect(centerX - 130, top + (bottom - top) * .25f, 260, 120), race.CountdownText, title);
 
-            DrawTouchControls(w, h);
+            DrawTouchControls();
         }
 
         private void DrawPanel(Rect rect)
@@ -159,33 +171,60 @@ namespace Afareet.UI
             GUI.DrawTexture(new Rect(rect.x + rect.width - 3, rect.y + 7, 3, rect.height - 14), cyan);
         }
 
-        private void DrawTouchControls(float w, float h)
+        private void DrawTouchControls()
         {
-            GUI.Box(LeftRect(h), "<", steerInput < 0f ? activeButton : button);
-            GUI.Box(RightRect(h), ">", steerInput > 0f ? activeButton : button);
-            GUI.Box(DriftRect(w, h), "DRIFT", driftInput ? activeButton : button);
-            GUI.Box(NitroRect(w, h), "SPIRIT", nitroInput ? activeButton : button);
-            GUI.Box(ThrottleRect(w, h), "GO", throttleInput > 0f ? activeButton : button);
+            GUI.Box(LeftRect(), "<", steerInput < 0f ? activeButton : button);
+            GUI.Box(RightRect(), ">", steerInput > 0f ? activeButton : button);
+            GUI.Box(DriftRect(), "DRIFT", driftInput ? activeButton : button);
+            GUI.Box(NitroRect(), "SPIRIT", nitroInput ? activeButton : button);
+            GUI.Box(ThrottleRect(), "GO", throttleInput > 0f ? activeButton : button);
         }
 
         private void ApplyPointer(Vector2 point)
         {
-            if (LeftRect(canvasHeight).Contains(point)) steerInput = -1f;
-            if (RightRect(canvasHeight).Contains(point)) steerInput = 1f;
-            if (DriftRect(canvasWidth, canvasHeight).Contains(point)) driftInput = true;
-            if (NitroRect(canvasWidth, canvasHeight).Contains(point)) nitroInput = true;
-            if (ThrottleRect(canvasWidth, canvasHeight).Contains(point)) throttleInput = 1f;
+            if (LeftRect().Contains(point)) steerInput = -1f;
+            if (RightRect().Contains(point)) steerInput = 1f;
+            if (DriftRect().Contains(point)) driftInput = true;
+            if (NitroRect().Contains(point)) nitroInput = true;
+            if (ThrottleRect().Contains(point)) throttleInput = 1f;
         }
 
-        private void ResetInput() { steerInput = 0f; throttleInput = 0f; driftInput = false; nitroInput = false; brakeInput = false; }
+        private void ResetInput()
+        {
+            steerInput = 0f;
+            throttleInput = 0f;
+            driftInput = false;
+            nitroInput = false;
+            brakeInput = false;
+        }
+
         private Vector2 ToCanvas(Vector2 screenPoint) => new(screenPoint.x / canvasScale, (Screen.height - screenPoint.y) / canvasScale);
-        private void UpdateCanvasMetrics() { canvasScale = Mathf.Max(.65f, Mathf.Min(Screen.width / 1280f, Screen.height / 720f)); canvasWidth = Screen.width / canvasScale; canvasHeight = Screen.height / canvasScale; }
-        private static Rect LeftRect(float h) => new(24, h - 96, 92, 76);
-        private static Rect RightRect(float h) => new(128, h - 96, 92, 76);
-        private static Rect DriftRect(float w, float h) => new(w - 420, h - 96, 112, 76);
-        private static Rect NitroRect(float w, float h) => new(w - 296, h - 96, 112, 76);
-        private static Rect ThrottleRect(float w, float h) => new(w - 172, h - 96, 148, 76);
-        private static Rect StartRect(float w, float h) => new(w * .5f - 170, h * .5f - 54, 340, 108);
+
+        private void UpdateCanvasMetrics()
+        {
+            canvasScale = Mathf.Max(.65f, Mathf.Min(Screen.width / 1280f, Screen.height / 720f));
+            canvasWidth = Screen.width / canvasScale;
+            canvasHeight = Screen.height / canvasScale;
+
+            var safe = Screen.safeArea;
+            safeLeft = safe.xMin / canvasScale;
+            safeRight = (Screen.width - safe.xMax) / canvasScale;
+            safeTop = (Screen.height - safe.yMax) / canvasScale;
+            safeBottom = safe.yMin / canvasScale;
+        }
+
+        private Rect LeftRect() => new(safeLeft + 24, canvasHeight - safeBottom - 96, 92, 76);
+        private Rect RightRect() => new(safeLeft + 128, canvasHeight - safeBottom - 96, 92, 76);
+        private Rect DriftRect() => new(canvasWidth - safeRight - 420, canvasHeight - safeBottom - 96, 112, 76);
+        private Rect NitroRect() => new(canvasWidth - safeRight - 296, canvasHeight - safeBottom - 96, 112, 76);
+        private Rect ThrottleRect() => new(canvasWidth - safeRight - 172, canvasHeight - safeBottom - 96, 148, 76);
+
+        private Rect StartRect()
+        {
+            var usableWidth = canvasWidth - safeLeft - safeRight;
+            var usableHeight = canvasHeight - safeTop - safeBottom;
+            return new Rect(safeLeft + usableWidth * .5f - 170, safeTop + usableHeight * .5f - 54, 340, 108);
+        }
 
         private void EnsureStyles()
         {
