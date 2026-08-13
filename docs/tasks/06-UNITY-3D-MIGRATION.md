@@ -24,7 +24,7 @@
 | U3D-007 | P0 | Input System جديد مع keyboard/touch/gamepad | Unity Gameplay Engineer | READY | input actions + rebinding-safe abstraction |
 | U3D-008 | P0 | Config عبر ScriptableObjects | Principal Mobile Game Architect | IN REVIEW | no production tuning hardcoded |
 | U3D-009 | P0 | Logging/diagnostics policy | Unity Tech Lead | TODO | structured channels + release stripping |
-| U3D-010 | P0 | Unity EditMode/PlayMode test assemblies | QA Automation Engineer | READY | tests execute headless in CI |
+| U3D-010 | P0 | Unity EditMode/PlayMode test assemblies | GPT-5.6 Sol (QA Automation / Unity Agent) | IN REVIEW | PR #53 adds headless-ready PlayMode assembly + START/countdown/release coverage; execution blocked by missing Unity Actions license |
 | U3D-011 | P0 | Unity CI compile + Windows artifact | DevOps / QA Engineer | READY | GitHub Actions green |
 | U3D-012 | P0 | Unity Android CI artifact | DevOps / QA Engineer | BLOCKED | blocked: Android module/CI image |
 
