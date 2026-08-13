@@ -4,7 +4,7 @@
 **Owner:** GPT-5.6 Sol (Performance/QA Agent)  
 **Engine:** Unity `6000.5.8f1`  
 **Scope:** `unity_game/` Android vertical slice  
-**Status:** IN PROGRESS  
+**Status:** IN REVIEW  
 
 ## Purpose
 
