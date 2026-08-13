@@ -41,13 +41,13 @@ namespace Afareet.UI
                 Rect destination;
                 if (screenAspect > sourceAspect)
                 {
-                    var width = Screen.height * sourceAspect;
-                    destination = new Rect((Screen.width - width) * .5f, 0f, width, Screen.height);
+                    var height = Screen.width / sourceAspect;
+                    destination = new Rect(0f, (Screen.height - height) * .5f, Screen.width, height);
                 }
                 else
                 {
-                    var height = Screen.width / sourceAspect;
-                    destination = new Rect(0f, (Screen.height - height) * .5f, Screen.width, height);
+                    var width = Screen.height * sourceAspect;
+                    destination = new Rect((Screen.width - width) * .5f, 0f, width, Screen.height);
                 }
                 GUI.DrawTexture(destination, artwork, ScaleMode.StretchToFill);
             }

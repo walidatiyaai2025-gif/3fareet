@@ -103,9 +103,11 @@ namespace Afareet.UI
 
             // Pitching the phone forward accelerates with nitro; pulling it
             // back applies the brake. Neutral leaves the GO button in control.
-            throttleInput = forwardTilt > .18f ? 1f : 0f;
-            nitroInput = forwardTilt > .18f;
-            brakeInput = forwardTilt < -.18f;
+            // Acceleration is touch-only so sensor noise can never launch the
+            // car. Phone pitch controls nitro/brake as a separate gesture.
+            throttleInput = 0f;
+            nitroInput = forwardTilt > .32f;
+            brakeInput = forwardTilt < -.32f;
         }
 
         private void OnGUI()

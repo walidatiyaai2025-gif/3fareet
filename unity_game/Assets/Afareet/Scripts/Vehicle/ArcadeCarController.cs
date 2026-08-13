@@ -66,7 +66,7 @@ namespace Afareet.Vehicle
             }
             else NitroEnergy = Mathf.Min(1f, NitroEnergy + Time.fixedDeltaTime * config.nitroRechargePerSecond);
 
-            var speedFactor = Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 8f);
+            var speedFactor = Mathf.Lerp(.42f, 1f, Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 12f));
             var direction = forwardSpeed < -0.5f ? -1f : 1f;
             body.MoveRotation(body.rotation * Quaternion.Euler(0f, steerInput * config.steerStrengthDegrees * speedFactor * direction * Time.fixedDeltaTime, 0f));
 
