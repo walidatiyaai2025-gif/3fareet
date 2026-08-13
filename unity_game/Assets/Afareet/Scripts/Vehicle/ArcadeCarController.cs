@@ -35,18 +35,13 @@ namespace Afareet.Vehicle
 
         private void Update()
         {
-            if (!AcceptsPlayerInput) return;
-            throttleInput = Mathf.Clamp(Input.GetAxisRaw("Vertical") + MobileInput.Throttle, -1f, 1f);
-            steerInput = Mathf.Clamp(Input.GetAxisRaw("Horizontal") + MobileInput.Steer, -1f, 1f);
-            driftInput = Input.GetKey(KeyCode.Space) || MobileInput.Drift;
-            nitroInput = Input.GetKey(KeyCode.LeftShift) || MobileInput.Nitro;
-            brakeInput = Input.GetKey(KeyCode.DownArrow) || MobileInput.Brake;
             if (Input.GetKeyDown(KeyCode.R)) ResetToSpawn();
         }
 
         private void FixedUpdate()
         {
             if (config == null) return;
+            if (AcceptsPlayerInput) ReadPlayerInput();
             var localVelocity = transform.InverseTransformDirection(body.linearVelocity);
             var forwardSpeed = localVelocity.z;
             if (brakeInput && forwardSpeed > .25f)
@@ -75,6 +70,15 @@ namespace Afareet.Vehicle
             body.linearVelocity = transform.TransformDirection(localVelocity);
 
             foreach (var trail in trails) trail.emitting = IsDrifting || NitroActive;
+        }
+
+        private void ReadPlayerInput()
+        {
+            throttleInput = Mathf.Clamp(Input.GetAxisRaw("Vertical") + MobileInput.Throttle, -1f, 1f);
+            steerInput = Mathf.Clamp(Input.GetAxisRaw("Horizontal") + MobileInput.Steer, -1f, 1f);
+            driftInput = Input.GetKey(KeyCode.Space) || MobileInput.Drift;
+            nitroInput = Input.GetKey(KeyCode.LeftShift) || MobileInput.Nitro;
+            brakeInput = Input.GetKey(KeyCode.DownArrow) || MobileInput.Brake;
         }
 
         public void Configure(ArcadeCarConfig vehicleConfig)

@@ -63,9 +63,9 @@ namespace Afareet.UI
                 ? 0f
                 : Mathf.Clamp(steeringTilt * 2.4f, -1f, 1f);
 
-            // Mobile races use auto-accelerate. Pitching the top of the phone
-            // forward engages nitro; pulling it back applies the brake.
-            MobileInput.Throttle = 1f;
+            // Pitching the phone forward accelerates with nitro; pulling it
+            // back applies the brake. Neutral leaves the GO button in control.
+            MobileInput.Throttle = forwardTilt > .18f ? 1f : 0f;
             MobileInput.Nitro = forwardTilt > .18f;
             MobileInput.Brake = forwardTilt < -.18f;
         }

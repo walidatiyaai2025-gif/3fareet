@@ -35,7 +35,7 @@ namespace Afareet.Editor
             Build(
                 BuildTarget.Android,
                 "Builds/Android/afareet-unity3d-debug.apk",
-                BuildOptions.Development
+                BuildOptions.None
             );
         }
 

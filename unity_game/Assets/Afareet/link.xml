@@ -1,0 +1,11 @@
+<linker>
+  <!-- CreatePrimitive adds these colliders internally. Explicit preservation
+       prevents IL2CPP managed stripping from removing them on Android. -->
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.BoxCollider" preserve="all" />
+    <type fullname="UnityEngine.SphereCollider" preserve="all" />
+    <type fullname="UnityEngine.CapsuleCollider" preserve="all" />
+    <type fullname="UnityEngine.MeshCollider" preserve="all" />
+    <type fullname="UnityEngine.Rigidbody" preserve="all" />
+  </assembly>
+</linker>
