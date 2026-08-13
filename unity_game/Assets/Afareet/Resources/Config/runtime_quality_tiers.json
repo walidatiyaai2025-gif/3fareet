@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "tiers": {
+    "low": {"targetFps": 30, "renderScale": 0.80, "maxDynamicLights": 2, "shadowDistanceMeters": 35},
+    "mid": {"targetFps": 45, "renderScale": 0.90, "maxDynamicLights": 4, "shadowDistanceMeters": 55},
+    "high": {"targetFps": 60, "renderScale": 1.00, "maxDynamicLights": 6, "shadowDistanceMeters": 75}
+  },
+  "selection": {
+    "lowBelowMemoryMb": 4096,
+    "lowBelowCapabilityScore": 40,
+    "midBelowMemoryMb": 6144,
+    "midBelowCapabilityScore": 70
+  }
+}
