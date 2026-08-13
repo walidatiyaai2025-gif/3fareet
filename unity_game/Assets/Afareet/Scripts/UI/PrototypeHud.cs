@@ -12,8 +12,11 @@ namespace Afareet.UI
         private GUIStyle chip;
         private GUIStyle button;
         private GUIStyle activeButton;
+        private GUIStyle micro;
         private Texture2D cyan;
         private Texture2D purple;
+        private Texture2D gold;
+        private Texture2D panel;
         private Texture2D darkOverlay;
         private float canvasScale;
         private float canvasWidth;
@@ -34,9 +37,11 @@ namespace Afareet.UI
 
         private void Awake()
         {
-            cyan = Solid(new Color(0f, .75f, 1f, .85f));
-            purple = Solid(new Color(.45f, .08f, .72f, .82f));
-            darkOverlay = Solid(new Color(0f, 0f, 0f, .62f));
+            cyan = Solid(new Color(.02f, .78f, 1f, .92f));
+            purple = Solid(new Color(.48f, .035f, .9f, .94f));
+            gold = Solid(new Color(1f, .55f, .05f, .96f));
+            panel = Solid(new Color(.018f, .012f, .045f, .82f));
+            darkOverlay = Solid(new Color(0f, 0f, .02f, .72f));
         }
 
         private void Update()
@@ -51,14 +56,12 @@ namespace Afareet.UI
                 return;
             }
             ApplyMotionControls();
-
             for (var i = 0; i < Input.touchCount; i++)
             {
                 var touch = Input.GetTouch(i);
                 if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled) continue;
                 ApplyPointer(ToCanvas(touch.position));
             }
-
 #if UNITY_EDITOR || UNITY_STANDALONE
             if (Input.GetMouseButton(0)) ApplyPointer(ToCanvas(Input.mousePosition));
 #endif
@@ -70,12 +73,10 @@ namespace Afareet.UI
             for (var i = 0; i < Input.touchCount; i++)
             {
                 var touch = Input.GetTouch(i);
-                if (touch.phase == TouchPhase.Began && StartRect(canvasWidth, canvasHeight).Contains(ToCanvas(touch.position)))
-                    StartRace();
+                if (touch.phase == TouchPhase.Began && StartRect(canvasWidth, canvasHeight).Contains(ToCanvas(touch.position))) StartRace();
             }
 #if UNITY_EDITOR || UNITY_STANDALONE
-            if (Input.GetMouseButtonDown(0) && StartRect(canvasWidth, canvasHeight).Contains(ToCanvas(Input.mousePosition)))
-                StartRace();
+            if (Input.GetMouseButtonDown(0) && StartRect(canvasWidth, canvasHeight).Contains(ToCanvas(Input.mousePosition))) StartRace();
 #endif
         }
 
@@ -90,21 +91,12 @@ namespace Afareet.UI
         private void ApplyMotionControls()
         {
             if (!Application.isMobilePlatform || !hasMotionBaseline) return;
-
             var acceleration = Input.acceleration - motionBaseline;
             var landscapeLeft = Screen.orientation != ScreenOrientation.LandscapeRight;
             var steeringTilt = landscapeLeft ? -acceleration.y : acceleration.y;
             var forwardTilt = landscapeLeft ? -acceleration.x : acceleration.x;
-
             const float deadZone = .08f;
-            steerInput = Mathf.Abs(steeringTilt) <= deadZone
-                ? 0f
-                : Mathf.Clamp(steeringTilt * 2.4f, -1f, 1f);
-
-            // Pitching the phone forward accelerates with nitro; pulling it
-            // back applies the brake. Neutral leaves the GO button in control.
-            // Acceleration is touch-only so sensor noise can never launch the
-            // car. Phone pitch controls nitro/brake as a separate gesture.
+            steerInput = Mathf.Abs(steeringTilt) <= deadZone ? 0f : Mathf.Clamp(steeringTilt * 2.4f, -1f, 1f);
             throttleInput = 0f;
             nitroInput = forwardTilt > .32f;
             brakeInput = forwardTilt < -.32f;
@@ -119,27 +111,40 @@ namespace Afareet.UI
             var w = canvasWidth;
             var h = canvasHeight;
 
-            GUI.Label(new Rect(24, 20, 210, 54), $"POS  {race.Position}/4", chip);
-            GUI.Label(new Rect(w - 245, 20, 220, 54), $"{race.RaceTime:0.0} s", chip);
-            GUI.Label(new Rect(w - 250, h - 176, 220, 70), $"{Mathf.Abs(player.SpeedKph):000}\nKM/H", title);
-            GUI.Label(new Rect(24, h - 176, 240, 30), "SPIRIT NITRO", chip);
-            GUI.DrawTexture(new Rect(24, h - 138, 220 * player.NitroEnergy, 13), purple);
+            DrawPanel(new Rect(20, 16, 218, 62));
+            GUI.Label(new Rect(30, 20, 198, 54), $"POS  {race.Position}/4", chip);
+            DrawPanel(new Rect(w - 242, 16, 222, 62));
+            GUI.Label(new Rect(w - 232, 20, 202, 54), $"{race.RaceTime:0.0} s", chip);
+
+            DrawPanel(new Rect(w - 258, h - 190, 238, 92));
+            GUI.Label(new Rect(w - 248, h - 182, 218, 72), $"{Mathf.Abs(player.SpeedKph):000}\nKM/H", title);
+
+            DrawPanel(new Rect(20, h - 190, 260, 64));
+            GUI.Label(new Rect(28, h - 184, 244, 26), "SPIRIT NITRO", micro);
+            GUI.DrawTexture(new Rect(32, h - 148, 232, 16), panel);
+            GUI.DrawTexture(new Rect(32, h - 148, 232 * player.NitroEnergy, 16), player.NitroEnergy > .78f ? gold : purple);
+            GUI.DrawTexture(new Rect(32, h - 148, 4, 16), cyan);
 
             if (!race.IsStarted)
             {
                 GUI.DrawTexture(new Rect(0f, 0f, w, h), darkOverlay);
+                GUI.Label(new Rect(w * .5f - 240, h * .5f - 148, 480, 54), "3FAREET // CAIRO NIGHT RUN", title);
                 GUI.Box(StartRect(w, h), "START RACE", activeButton);
-                GUI.Label(new Rect(w * .5f - 260, h * .5f + 58, 520, 44), "HOLD PHONE COMFORTABLY, THEN START", chip);
+                GUI.Label(new Rect(w * .5f - 280, h * .5f + 66, 560, 38), "HOLD PHONE COMFORTABLY, THEN START", micro);
                 return;
             }
 
             if (!string.IsNullOrEmpty(race.CountdownText))
                 GUI.Label(new Rect(w * .5f - 130, h * .25f, 260, 120), race.CountdownText, title);
 
-            GUI.Label(new Rect(w * .5f - 210, 18, 420, 42),
-                $"STEER {steerInput:+0.00;-0.00;0.00}   GAS {throttleInput:0.00}   BRAKE {(brakeInput ? "ON" : "OFF")}", chip);
-
             DrawTouchControls(w, h);
+        }
+
+        private void DrawPanel(Rect rect)
+        {
+            GUI.DrawTexture(rect, panel);
+            GUI.DrawTexture(new Rect(rect.x, rect.y, 4, rect.height), purple);
+            GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, 3), gold);
         }
 
         private void DrawTouchControls(float w, float h)
@@ -147,7 +152,7 @@ namespace Afareet.UI
             GUI.Box(LeftRect(h), "<", steerInput < 0f ? activeButton : button);
             GUI.Box(RightRect(h), ">", steerInput > 0f ? activeButton : button);
             GUI.Box(DriftRect(w, h), "DRIFT", driftInput ? activeButton : button);
-            GUI.Box(NitroRect(w, h), "NITRO", nitroInput ? activeButton : button);
+            GUI.Box(NitroRect(w, h), "SPIRIT", nitroInput ? activeButton : button);
             GUI.Box(ThrottleRect(w, h), "GO", throttleInput > 0f ? activeButton : button);
         }
 
@@ -160,25 +165,9 @@ namespace Afareet.UI
             if (ThrottleRect(canvasWidth, canvasHeight).Contains(point)) throttleInput = 1f;
         }
 
-        private void ResetInput()
-        {
-            steerInput = 0f;
-            throttleInput = 0f;
-            driftInput = false;
-            nitroInput = false;
-            brakeInput = false;
-        }
-
-        private Vector2 ToCanvas(Vector2 screenPoint) =>
-            new(screenPoint.x / canvasScale, (Screen.height - screenPoint.y) / canvasScale);
-
-        private void UpdateCanvasMetrics()
-        {
-            canvasScale = Mathf.Max(.65f, Mathf.Min(Screen.width / 1280f, Screen.height / 720f));
-            canvasWidth = Screen.width / canvasScale;
-            canvasHeight = Screen.height / canvasScale;
-        }
-
+        private void ResetInput() { steerInput = 0f; throttleInput = 0f; driftInput = false; nitroInput = false; brakeInput = false; }
+        private Vector2 ToCanvas(Vector2 screenPoint) => new(screenPoint.x / canvasScale, (Screen.height - screenPoint.y) / canvasScale);
+        private void UpdateCanvasMetrics() { canvasScale = Mathf.Max(.65f, Mathf.Min(Screen.width / 1280f, Screen.height / 720f)); canvasWidth = Screen.width / canvasScale; canvasHeight = Screen.height / canvasScale; }
         private static Rect LeftRect(float h) => new(24, h - 96, 92, 76);
         private static Rect RightRect(float h) => new(128, h - 96, 92, 76);
         private static Rect DriftRect(float w, float h) => new(w - 420, h - 96, 112, 76);
@@ -190,9 +179,10 @@ namespace Afareet.UI
         {
             if (title != null) return;
             title = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 38, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
-            chip = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.MiddleCenter, fontSize = 19, fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = cyan } };
-            button = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.MiddleCenter, fontSize = 22, fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = purple } };
-            activeButton = new GUIStyle(button) { normal = { textColor = Color.yellow, background = cyan } };
+            chip = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 20, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
+            micro = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 16, fontStyle = FontStyle.Bold, normal = { textColor = new Color(.86f, .92f, 1f) } };
+            button = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.MiddleCenter, fontSize = 21, fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = purple } };
+            activeButton = new GUIStyle(button) { normal = { textColor = Color.black, background = gold } };
         }
 
         private static Texture2D Solid(Color color)
