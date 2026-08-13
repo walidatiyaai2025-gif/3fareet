@@ -51,7 +51,7 @@
 |---|---|---|---|---|---|
 | URAC-001 | P0 | Cairo procedural oval track baseline | Principal Mobile Game Architect | IN REVIEW | drivable loop generated |
 | URAC-002 | P0 | Checkpoint volumes and ordered validation | GPT-5.6 Sol (Race/QA Agent) | IN REVIEW | deterministic validator + runtime tracker/trigger/builder + EditMode tests added on `agent/URAC-002-checkpoint-validation`; skipped/duplicate/out-of-order checkpoints are rejected; Unity execution pending CI license |
-| URAC-003 | P0 | Lap/start/finish state machine | Race Engineer | READY | deterministic one-lap finish |
+| URAC-003 | P0 | Lap/start/finish state machine | GPT-5.6 Sol (Race/QA Agent) | IN REVIEW | additive one-lap state + runtime adapter + EditMode lifecycle tests on `agent/URAC-003-one-lap-state`; start gate cannot finish early, finish occurs only after ordered full lap; Unity execution pending CI license |
 | URAC-004 | P0 | Ranking by checkpoint/lap/progress | Race Engineer | READY | no nearest-waypoint ranking exploit |
 | URAC-005 | P0 | Countdown/results/restart flow | Race Engineer | READY | complete race lifecycle |
 | URAC-006 | P0 | Track bounds/barriers/off-road | Level Designer | READY | player cannot leave playable area silently |
