@@ -35,7 +35,7 @@ namespace Afareet.Editor
             Build(
                 BuildTarget.Android,
                 "Builds/Android/afareet-unity3d-debug.apk",
-                BuildOptions.None
+                BuildOptions.Development
             );
         }
 
@@ -63,7 +63,7 @@ namespace Afareet.Editor
         {
             AfareetAssetSetup.EnsureConfigAssets();
             PlayerSettings.companyName = "Afareet Studio";
-            PlayerSettings.productName = "Afareet Asphalt Unity3D";
+            PlayerSettings.productName = "3Fareet";
             PlayerSettings.SetApplicationIdentifier(
                 NamedBuildTarget.Android,
                 "com.fiftysolutions.afareetunity3d"
