@@ -1,0 +1,151 @@
+name: Unity CI
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/**'
+      - '.github/workflows/unity-ci.yml'
+  push:
+    branches:
+      - main
+      - agent/unity-3d-prototype
+    paths:
+      - 'unity_game/**'
+      - '.github/workflows/unity-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: unity-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UNITY_PROJECT_PATH: unity_game
+  UNITY_VERSION: 6000.5.8f1
+
+jobs:
+  tests:
+    name: Unity ${{ matrix.testMode }} tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        testMode:
+          - editmode
+          - playmode
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Validate Unity CI credentials
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${UNITY_LICENSE:-}" ]]; then
+            echo "Unity license file secret is configured."
+            exit 0
+          fi
+          if [[ -n "${UNITY_EMAIL:-}" && -n "${UNITY_PASSWORD:-}" && -n "${UNITY_SERIAL:-}" ]]; then
+            echo "Unity serial credentials are configured."
+            exit 0
+          fi
+          echo "::error::Unity CI credentials are missing. Configure UNITY_LICENSE, or UNITY_EMAIL + UNITY_PASSWORD + UNITY_SERIAL, in repository Actions secrets."
+          exit 1
+
+      - name: Run ${{ matrix.testMode }} tests
+        id: unity-tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          projectPath: ${{ env.UNITY_PROJECT_PATH }}
+          unityVersion: ${{ env.UNITY_VERSION }}
+          testMode: ${{ matrix.testMode }}
+          artifactsPath: artifacts/${{ matrix.testMode }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Unity ${{ matrix.testMode }} Test Results
+
+      - name: Upload ${{ matrix.testMode }} test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-${{ matrix.testMode }}-results-${{ github.sha }}
+          path: ${{ steps.unity-tests.outputs.artifactsPath }}
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-build:
+    name: Unity Windows x64 build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Validate Unity CI credentials
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${UNITY_LICENSE:-}" ]]; then
+            echo "Unity license file secret is configured."
+            exit 0
+          fi
+          if [[ -n "${UNITY_EMAIL:-}" && -n "${UNITY_PASSWORD:-}" && -n "${UNITY_SERIAL:-}" ]]; then
+            echo "Unity serial credentials are configured."
+            exit 0
+          fi
+          echo "::error::Unity CI credentials are missing. Configure UNITY_LICENSE, or UNITY_EMAIL + UNITY_PASSWORD + UNITY_SERIAL, in repository Actions secrets."
+          exit 1
+
+      - name: Build Windows x64
+        uses: game-ci/unity-builder@v5
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          projectPath: ${{ env.UNITY_PROJECT_PATH }}
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: StandaloneWindows64
+          buildMethod: Afareet.Editor.AfareetBuild.BuildWindows
+
+      - name: Verify Windows artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f unity_game/Builds/Windows/afareet-unity3d.exe
+          test -s unity_game/Builds/Windows/afareet-unity3d.exe
+          echo "Windows build artifact exists and is non-empty."
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: afareet-unity3d-windows-${{ github.sha }}
+          path: unity_game/Builds/Windows/
+          if-no-files-found: error
+          retention-days: 14
