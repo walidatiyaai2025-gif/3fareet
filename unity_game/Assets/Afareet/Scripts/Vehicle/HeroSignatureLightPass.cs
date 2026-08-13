@@ -4,7 +4,10 @@ namespace Afareet.Vehicle
 {
     public sealed class HeroSignatureLightPass : MonoBehaviour
     {
-        private bool installed;
+        private ArcadeCarController car;
+        private Light frontLight;
+        private Light rearLight;
+        private float nitroBlend;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
@@ -16,16 +19,24 @@ namespace Afareet.Vehicle
 
         private void Update()
         {
-            if (installed) return;
-            var hero = GameObject.Find("PLAYER HERO — AFAREET");
-            if (hero == null) return;
+            if (car == null)
+            {
+                var hero = GameObject.Find("PLAYER HERO — AFAREET");
+                if (hero == null) return;
+                car = hero.GetComponent<ArcadeCarController>();
+                if (car == null) return;
 
-            AddLight(hero.transform, "Front Cyan Signature", new Vector3(0f, .78f, 2.18f), new Color(.02f, .82f, 1f), 3.8f, 2.7f);
-            AddLight(hero.transform, "Rear Purple Signature", new Vector3(0f, .52f, -2.12f), new Color(.52f, .02f, 1f), 4.4f, 3.2f);
-            installed = true;
+                frontLight = AddLight(hero.transform, "Front Cyan Signature", new Vector3(0f, .78f, 2.18f), new Color(.02f, .82f, 1f), 3.8f, 2.7f);
+                rearLight = AddLight(hero.transform, "Rear Purple Signature", new Vector3(0f, .52f, -2.12f), new Color(.52f, .02f, 1f), 4.4f, 3.2f);
+            }
+
+            nitroBlend = Mathf.MoveTowards(nitroBlend, car.NitroActive ? 1f : 0f, Time.deltaTime * 4f);
+            frontLight.intensity = Mathf.Lerp(2.7f, 4.1f, nitroBlend);
+            rearLight.intensity = Mathf.Lerp(3.2f, 5.2f, nitroBlend);
+            rearLight.color = Color.Lerp(new Color(.52f, .02f, 1f), new Color(.02f, .82f, 1f), nitroBlend);
         }
 
-        private static void AddLight(Transform parent, string name, Vector3 localPosition, Color color, float range, float intensity)
+        private static Light AddLight(Transform parent, string name, Vector3 localPosition, Color color, float range, float intensity)
         {
             var light = new GameObject(name).AddComponent<Light>();
             light.transform.SetParent(parent, false);
@@ -34,6 +45,7 @@ namespace Afareet.Vehicle
             light.color = color;
             light.range = range;
             light.intensity = intensity;
+            return light;
         }
     }
 }
