@@ -35,6 +35,7 @@ namespace Afareet.UI
             if (player == null) return;
             UpdateCanvasMetrics();
             MobileInput.Reset();
+            ApplyMotionControls();
 
             for (var i = 0; i < Input.touchCount; i++)
             {
@@ -46,6 +47,27 @@ namespace Afareet.UI
 #if UNITY_EDITOR || UNITY_STANDALONE
             if (Input.GetMouseButton(0)) ApplyPointer(ToCanvas(Input.mousePosition));
 #endif
+        }
+
+        private static void ApplyMotionControls()
+        {
+            if (!Application.isMobilePlatform) return;
+
+            var acceleration = Input.acceleration;
+            var landscapeLeft = Screen.orientation != ScreenOrientation.LandscapeRight;
+            var steeringTilt = landscapeLeft ? -acceleration.y : acceleration.y;
+            var forwardTilt = landscapeLeft ? -acceleration.x : acceleration.x;
+
+            const float deadZone = .08f;
+            MobileInput.Steer = Mathf.Abs(steeringTilt) <= deadZone
+                ? 0f
+                : Mathf.Clamp(steeringTilt * 2.4f, -1f, 1f);
+
+            // Mobile races use auto-accelerate. Pitching the top of the phone
+            // forward engages nitro; pulling it back applies the brake.
+            MobileInput.Throttle = 1f;
+            MobileInput.Nitro = forwardTilt > .18f;
+            MobileInput.Brake = forwardTilt < -.18f;
         }
 
         private void OnGUI()

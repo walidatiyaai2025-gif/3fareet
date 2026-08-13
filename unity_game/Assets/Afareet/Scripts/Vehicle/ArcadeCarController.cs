@@ -15,6 +15,7 @@ namespace Afareet.Vehicle
         private float throttleInput;
         private bool driftInput;
         private bool nitroInput;
+        private bool brakeInput;
 
         public bool AcceptsPlayerInput { get; set; }
         public float SpeedKph => body == null ? 0f : Vector3.Dot(body.linearVelocity, transform.forward) * 3.6f;
@@ -39,6 +40,7 @@ namespace Afareet.Vehicle
             steerInput = Mathf.Clamp(Input.GetAxisRaw("Horizontal") + MobileInput.Steer, -1f, 1f);
             driftInput = Input.GetKey(KeyCode.Space) || MobileInput.Drift;
             nitroInput = Input.GetKey(KeyCode.LeftShift) || MobileInput.Nitro;
+            brakeInput = Input.GetKey(KeyCode.DownArrow) || MobileInput.Brake;
             if (Input.GetKeyDown(KeyCode.R)) ResetToSpawn();
         }
 
@@ -47,6 +49,12 @@ namespace Afareet.Vehicle
             if (config == null) return;
             var localVelocity = transform.InverseTransformDirection(body.linearVelocity);
             var forwardSpeed = localVelocity.z;
+            if (brakeInput && forwardSpeed > .25f)
+            {
+                localVelocity.z = Mathf.MoveTowards(localVelocity.z, 0f, 34f * Time.fixedDeltaTime);
+                body.linearVelocity = transform.TransformDirection(localVelocity);
+                forwardSpeed = localVelocity.z;
+            }
             var accelerating = throttleInput >= 0f ? config.acceleration : config.reverseAcceleration;
             if (Mathf.Abs(forwardSpeed) < config.maxSpeedMetersPerSecond || Mathf.Sign(throttleInput) != Mathf.Sign(forwardSpeed))
                 body.AddForce(transform.forward * (throttleInput * accelerating), ForceMode.Acceleration);
@@ -104,6 +112,7 @@ namespace Afareet.Vehicle
         public static float Throttle;
         public static bool Drift;
         public static bool Nitro;
-        public static void Reset() { Steer = 0f; Throttle = 0f; Drift = false; Nitro = false; }
+        public static bool Brake;
+        public static void Reset() { Steer = 0f; Throttle = 0f; Drift = false; Nitro = false; Brake = false; }
     }
 }

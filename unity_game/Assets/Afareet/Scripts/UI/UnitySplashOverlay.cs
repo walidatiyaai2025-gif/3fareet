@@ -4,7 +4,7 @@ namespace Afareet.UI
 {
     public sealed class UnitySplashOverlay : MonoBehaviour
     {
-        private const float Duration = 2.8f;
+        private const float Duration = 5f;
         private Texture2D artwork;
         private Texture2D purple;
         private Texture2D gold;
@@ -13,7 +13,7 @@ namespace Afareet.UI
 
         private void Awake()
         {
-            artwork = Resources.Load<Texture2D>("afareet_splash");
+            artwork = Resources.Load<Texture2D>("afareet_splash_landscape");
             purple = Solid(new Color(.57f, .08f, .9f, 1f));
             gold = Solid(new Color(1f, .66f, .12f, 1f));
             startedAt = Time.realtimeSinceStartup;
