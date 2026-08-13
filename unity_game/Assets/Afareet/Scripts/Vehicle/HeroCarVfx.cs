@@ -29,8 +29,18 @@ namespace Afareet.Vehicle
         private void Update()
         {
             if (car == null) return;
-            leftDriftGlow.emitting = car.IsDrifting;
-            rightDriftGlow.emitting = car.IsDrifting;
+            var drifting = car.IsDrifting;
+            leftDriftGlow.emitting = drifting;
+            rightDriftGlow.emitting = drifting;
+
+            var driftPower = drifting ? Mathf.Clamp01(Mathf.Abs(car.SpeedKph) / 150f) : 0f;
+            var width = Mathf.Lerp(.13f, .23f, driftPower);
+            var life = Mathf.Lerp(.24f, .42f, driftPower);
+            leftDriftGlow.startWidth = width;
+            rightDriftGlow.startWidth = width;
+            leftDriftGlow.time = life;
+            rightDriftGlow.time = life;
+
             var nitro = car.NitroActive && car.NitroEnergy > 0f;
             nitroGlow.intensity = Mathf.MoveTowards(nitroGlow.intensity, nitro ? 8f : 0f, Time.deltaTime * 18f);
             nitroGlow.color = Color.Lerp(new Color(.52f, .02f, 1f), new Color(.05f, .8f, 1f), 1f - car.NitroEnergy);
