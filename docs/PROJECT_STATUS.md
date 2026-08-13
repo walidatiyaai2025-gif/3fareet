@@ -2,8 +2,8 @@
 
 **Document:** AFA-STATUS-001  
 **Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 18:49 (Asia/Kuwait)  
-**Overall status:** 🟡 **CAMERA + AI + UI CORE VERIFIED — PREMIUM VISUAL / REAL-DEVICE GATES STILL OPEN**
+**Last updated:** 2026-08-13 09:23 (Asia/Kuwait)  
+**Overall status:** 🟡 **CAMERA + AI + UI CORE VERIFIED — REAL VISUAL PIPELINE STARTED / PREMIUM VISUAL + REAL-DEVICE GATES STILL OPEN**
 
 > هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
 
@@ -18,11 +18,35 @@
 | Offline AI | 🟢 Verified core | racing line + controls + behavior + three AI rivals + stuck/finish rules integrated into RaceSession |
 | UI / UX | 🟢 Verified core | Splash → Main Menu → Mode Select → Loading → Race plus HUD/Pause/Result/Error, SafeArea, RTL and text-scale clamp |
 | Power-ups | 🟢 Verified first slice | definitions, spawn/pickup, collection, one-slot inventory and Eye Shield verified |
+| Real visual asset pipeline | 🟡 IN REVIEW | P0 issues #38→#47 created; branch `agent/real-visual-apk-p0` bundles the existing 256px visual candidate as the first runtime image proof and routes startup through a real-image preview. No Premium VIS or APK verification claimed yet. |
 | Rap × Shaabi music | 🟡 Integrating | AST-061 audio integration from `main` is preserved; real-device listening validation still required |
 | Premium visual direction | 🔴 Open | VIS tasks require screenshot/device review and Team Lead approval; not claimed by this code batch |
 | Android build evidence | 🟢 CI verified | Debug APK + Release Skeleton APK + artifact upload passed on P1-NEXT-050 code head |
 | Android verified release APK | 🔴 None | CI artifacts are build evidence only; real-device smoke test still required |
 | Backend architecture | 🟢 Locked | `Flutter/Flame → HTTPS API → Laravel → MySQL`; direct Flutter→MySQL prohibited |
+
+## P0 real visual APK execution — IN REVIEW
+
+**Branch:** `agent/real-visual-apk-p0`  
+**Tracking:** GitHub issues **#38 → #47** (`AST-VIS-001` → `AST-VIS-010`)  
+**Immediate milestone:** first APK that visibly contains runtime image assets.
+
+Implemented on the branch so far:
+- registered the first existing image candidate in Flutter assets;
+- added a typed `RealVisualAssets` manifest;
+- added the image to `GameAssetLoader` startup verification;
+- added a short startup visual proof using the bundled image with graceful fallback;
+- moved AST-060 to `INTEGRATING` for this preview-only use;
+- preserved the rule that the 256px candidate is **not** the final production app icon.
+
+Still required before `AST-VIS-010` can be called complete:
+- production Hero Car artwork;
+- Cairo night environment / prototype track visuals;
+- Main Menu / Garage / HUD production visuals;
+- Drift/Nitro VFX exports;
+- mobile optimization;
+- runtime integration of those production assets;
+- green CI build plus screenshot/device Visual Gate.
 
 ## Verified engineering batch — P1-NEXT-050
 
@@ -79,17 +103,17 @@ Still required:
 
 ## Highest priorities next
 
-1. VIS implementation + screenshot review against `ART_DIRECTION.md`.
-2. CAM-012 + VEH-017 + RAC-017 real-device verification.
-3. Remaining P0 audio/SFX integration and listening validation.
-4. PWR-006→PWR-014 remaining race power-ups/effects.
+1. AST-VIS-001→010: production real-visual assets + first real-assets APK.
+2. VIS implementation + screenshot review against `ART_DIRECTION.md`.
+3. CAM-012 + VEH-017 + RAC-017 real-device verification.
+4. Remaining P0 audio/SFX integration and listening validation.
 5. First real-device Verified Release APK.
 
 ## Active blockers / risks
 
 | ID | Severity | Blocker / Risk | Action |
 |---|---|---|---|
-| STS-B03 | 🔴 High | Premium VIS gate remains open | Implement and perform screenshot/device review |
+| STS-B03 | 🔴 High | Premium VIS gate remains open | Implement production AST-VIS assets and perform screenshot/device review |
 | STS-B04 | 🔴 High | No real-device Verified Release APK | Smoke-test a `main` release candidate on Android hardware |
 | STS-B10 | 🟡 Medium | Engine/drift/nitro gameplay SFX still incomplete | Generate/acquire and validate P0 SFX |
 | STS-B11 | 🟡 Medium | CAM-012/VEH-017/RAC-017 require device/integration evidence | Run device and integrated race verification |
