@@ -1,0 +1,1 @@
+namespace Afareet.Support { public static class ResourceTrendPolicy { public static bool Stable(float start, float end, float allowance) { return end - start <= allowance; } } }

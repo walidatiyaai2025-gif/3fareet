@@ -1,0 +1,1 @@
+namespace Afareet.Support { public static class EffectBudgetPolicy { public static bool Allow(int active, int limit) { return active >= 0 && limit > 0 && active < limit; } } }

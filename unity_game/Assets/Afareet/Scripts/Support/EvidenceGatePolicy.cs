@@ -1,0 +1,1 @@
+namespace Afareet.Support { public static class EvidenceGatePolicy { public static bool Complete(bool compile, bool tests, bool android, bool device) { return compile && tests && android && device; } } }

@@ -1,0 +1,1 @@
+namespace Afareet.Support { public static class RenderWorkPolicy { public static bool WithinBudget(int batches, int limit) { return batches >= 0 && limit > 0 && batches <= limit; } } }

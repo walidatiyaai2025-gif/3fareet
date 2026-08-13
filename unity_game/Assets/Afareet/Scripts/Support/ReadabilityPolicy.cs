@@ -1,0 +1,1 @@
+namespace Afareet.Support { public static class ReadabilityPolicy { public static bool Pass(float value) { return value >= 0.8f; } } }
