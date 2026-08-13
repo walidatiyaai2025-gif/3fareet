@@ -26,21 +26,23 @@ namespace Afareet.Core
 
         private void Build()
         {
+            var vehicleConfig = LoadConfig<ArcadeCarConfig>("Config/ArcadeCarConfig");
+            var cameraConfig = LoadConfig<ChaseCameraConfig>("Config/ChaseCameraConfig");
             SetupLighting();
             var track = CairoTrackBuilder.Build(transform);
-            var player = CarFactory.CreatePlayer(track.StartPosition, track.StartRotation, transform);
+            var player = CarFactory.CreatePlayer(track.StartPosition, track.StartRotation, transform, vehicleConfig);
 
             var race = gameObject.AddComponent<RaceDirector>();
             race.Configure(player, track);
 
             for (var i = 0; i < 3; i++)
             {
-                var ai = CarFactory.CreateRival(i, track.GridPosition(i + 1), track.StartRotation, transform);
+                var ai = CarFactory.CreateRival(i, track.GridPosition(i + 1), track.StartRotation, transform, vehicleConfig);
                 ai.gameObject.AddComponent<AiRacer>().Configure(track.Waypoints, i);
                 race.RegisterRival(ai);
             }
 
-            CreateCamera(player.transform);
+            CreateCamera(player.transform, cameraConfig);
             gameObject.AddComponent<PrototypeHud>().Configure(player, race);
             gameObject.AddComponent<UnitySplashOverlay>();
         }
@@ -61,7 +63,7 @@ namespace Afareet.Core
             moon.shadows = LightShadows.Soft;
         }
 
-        private static void CreateCamera(Transform target)
+        private static void CreateCamera(Transform target, ChaseCameraConfig config)
         {
             var cameraObject = new GameObject("Racing Camera");
             cameraObject.tag = "MainCamera";
@@ -72,7 +74,15 @@ namespace Afareet.Core
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.012f, 0.018f, 0.055f);
             cameraObject.AddComponent<AudioListener>();
-            cameraObject.AddComponent<ChaseCamera>().Target = target;
+            cameraObject.AddComponent<ChaseCamera>().Configure(target, config);
+        }
+
+        private static T LoadConfig<T>(string resourcePath) where T : ScriptableObject
+        {
+            var config = Resources.Load<T>(resourcePath);
+            if (config == null)
+                throw new MissingReferenceException($"Required config is missing at Resources/{resourcePath}.");
+            return config;
         }
     }
 }

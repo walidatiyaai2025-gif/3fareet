@@ -20,9 +20,9 @@
 | U3D-003 | P0 | Windows build pipeline وأسماء artifacts | Principal Mobile Game Architect | IN REVIEW | `afareet-unity3d.exe` build green |
 | U3D-004 | P0 | Android build pipeline وهوية package منفصلة | Principal Mobile Game Architect | IN REVIEW | build method + `com.fiftysolutions.afareetunity3d` |
 | U3D-005 | P0 | App icon/branding لكل targets | Principal Mobile Game Architect | IN REVIEW | icon master + generated target icons |
-| U3D-006 | P0 | إضافة asmdefs وحدود assemblies | Unity Tech Lead | READY | Core/Gameplay/UI/Editor منفصلة بلا circular refs |
+| U3D-006 | P0 | إضافة asmdefs وحدود assemblies | Principal Mobile Game Architect | IN REVIEW | Core/Gameplay/UI/Editor منفصلة بلا circular refs |
 | U3D-007 | P0 | Input System جديد مع keyboard/touch/gamepad | Unity Gameplay Engineer | READY | input actions + rebinding-safe abstraction |
-| U3D-008 | P0 | Config عبر ScriptableObjects | Unity Tech Lead | READY | no production tuning hardcoded |
+| U3D-008 | P0 | Config عبر ScriptableObjects | Principal Mobile Game Architect | IN REVIEW | no production tuning hardcoded |
 | U3D-009 | P0 | Logging/diagnostics policy | Unity Tech Lead | TODO | structured channels + release stripping |
 | U3D-010 | P0 | Unity EditMode/PlayMode test assemblies | QA Automation Engineer | READY | tests execute headless in CI |
 | U3D-011 | P0 | Unity CI compile + Windows artifact | DevOps / QA Engineer | READY | GitHub Actions green |
@@ -93,8 +93,8 @@
 | UPER-001 | P0 | Target device tiers and budgets | QA/Performance Lead | READY | FPS/memory/thermal targets documented |
 | UPER-002 | P0 | Unity Profiler baseline capture | Performance Engineer | READY | CPU/GPU/memory report |
 | UPER-003 | P0 | Object/material/mesh pooling audit | Technical Artist | TODO | allocations and draw calls reduced |
-| UPER-004 | P0 | Android module + SDK/NDK/OpenJDK install | Release Engineer | READY | Unity detects Android target |
-| UPER-005 | P0 | First Unity Android debug APK | Release Engineer | BLOCKED | depends UPER-004 |
+| UPER-004 | P0 | Android module + SDK/NDK/OpenJDK install | Principal Mobile Game Architect | IN REVIEW | Unity detects Android target |
+| UPER-005 | P0 | First Unity Android debug APK | Principal Mobile Game Architect | IN REVIEW | APK built and package inspected |
 | UPER-006 | P0 | Android device smoke matrix | QA Engineer | BLOCKED | depends UPER-005 |
 | UPER-007 | P0 | Release keystore/secrets process | Release Engineer | TODO | no secrets in Git |
 | UPER-008 | P0 | Unity release APK/AAB pipeline | Release Engineer | TODO | signed reproducible build |

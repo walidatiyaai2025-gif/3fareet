@@ -1,0 +1,7 @@
+{
+  "name": "Afareet.Editor",
+  "rootNamespace": "Afareet.Editor",
+  "includePlatforms": ["Editor"],
+  "references": ["Afareet.Vehicle"],
+  "autoReferenced": true
+}

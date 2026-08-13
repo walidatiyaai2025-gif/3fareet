@@ -1,0 +1,6 @@
+{
+  "name": "Afareet.UI",
+  "rootNamespace": "Afareet.UI",
+  "references": ["Afareet.Vehicle", "Afareet.Race"],
+  "autoReferenced": true
+}

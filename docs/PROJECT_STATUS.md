@@ -14,7 +14,7 @@
 | Flutter/Flame | 🔵 Legacy verified | مرجع ميكانيك/UI قابل للبناء؛ لا Features إنتاجية جديدة دون `FLT-*` |
 | Unity compile | 🟢 Verified | Import وC# compile ناجحان على Unity 6000.5.8f1 |
 | Unity Windows | 🟢 Verified smoke | `afareet-unity3d.exe` بُني واشتغل 15 ثانية بلا Exceptions |
-| Unity Android | 🔴 Blocked | Android Build Support + SDK/NDK/OpenJDK غير متاحة للإصدار المستخدم وقت آخر فحص |
+| Unity Android | 🟢 Build verified | Debug APK بُني؛ package/icon/SDK/ARM64 تم فحصها بـ `aapt` |
 | 3D driving | 🟡 Blockout | Rigidbody arcade car + drift/nitro + chase camera؛ يحتاج production tuning/tests |
 | Race/AI | 🟡 Blockout | procedural Cairo oval + 3 waypoint rivals؛ checkpoints/lap/ranking production rules مفتوحة |
 | Visuals | 🔴 Gate open | procedural placeholders؛ production car/environment/VFX/lighting غير منفذة |
@@ -45,22 +45,21 @@
 
 ## Highest priorities next
 
-1. `UPER-004`: تثبيت/التحقق من Unity Android module + SDK/NDK/OpenJDK.
-2. `UPER-005`: أول `afareet-unity3d-debug.apk`.
-3. `U3D-006/U3D-008/U3D-010`: assembly boundaries، config assets، test assemblies.
-4. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
-5. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
-6. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
-7. `UUI-002/UUI-003`: production HUD and touch controls.
-8. `UPER-009/010`: Visual Gate ثم Verified Android APK.
+1. `UPER-006`: تثبيت APK وتشغيل smoke matrix على أجهزة Android حقيقية.
+2. `U3D-010`: توسيع الاختبارات إلى PlayMode وruntime smoke آلي.
+3. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
+4. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
+5. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
+6. `UUI-002/UUI-003`: production HUD and touch controls.
+7. `UPER-009/010`: Visual Gate ثم Verified Android APK.
 
 ## Active blockers / risks
 
 | ID | Severity | Blocker / Risk | Owner / Action |
 |---|---|---|---|
-| STS-U01 | 🔴 High | لا Unity Android build evidence | Release Engineer — `UPER-004/005` |
+| STS-U01 | 🟡 Medium | APK مبني لكن لم يجتز device smoke حقيقي بعد | QA Engineer — `UPER-006` |
 | STS-U02 | 🔴 High | المشهد الحالي blockout procedural وليس Visual Gate quality | Art Director/Art team — `UART-*`, `UVFX-*` |
-| STS-U03 | 🟡 Medium | Gameplay code hardcoded وبلا asmdefs/test assemblies | Unity Tech Lead — `U3D-006/008/010` |
+| STS-U03 | 🟡 Medium | asmdefs/config/EditMode tests موجودة؛ PlayMode coverage ما زالت مفتوحة | Unity Tech Lead — `U3D-010` |
 | STS-U04 | 🟡 Medium | Race progress الحالي nearest-waypoint prototype | Race Engineer — `URAC-002→005` |
 | STS-U05 | 🟡 Medium | لا Audio production في Unity | Audio team — `UAUD-001→003` |
 | STS-U06 | 🟡 Medium | مطورون كثيرون قد يتعارضون على bootstrap/ProjectSettings | Team Lead — enforce Module Locks |

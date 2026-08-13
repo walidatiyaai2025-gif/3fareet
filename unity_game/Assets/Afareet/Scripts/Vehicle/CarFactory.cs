@@ -10,19 +10,19 @@ namespace Afareet.Vehicle
             new Color(1f, .2f, .62f), new Color(1f, .62f, .12f), new Color(.35f, 1f, .42f)
         };
 
-        public static ArcadeCarController CreatePlayer(Vector3 position, Quaternion rotation, Transform parent)
+        public static ArcadeCarController CreatePlayer(Vector3 position, Quaternion rotation, Transform parent, ArcadeCarConfig config)
         {
-            var car = Create("PLAYER — عفريت", position, rotation, new Color(.08f, .83f, 1f), parent);
+            var car = Create("PLAYER — عفريت", position, rotation, new Color(.08f, .83f, 1f), parent, config);
             car.AcceptsPlayerInput = true;
             return car;
         }
 
-        public static ArcadeCarController CreateRival(int index, Vector3 position, Quaternion rotation, Transform parent)
+        public static ArcadeCarController CreateRival(int index, Vector3 position, Quaternion rotation, Transform parent, ArcadeCarConfig config)
         {
-            return Create($"RIVAL {index + 1}", position, rotation, RivalColors[index % RivalColors.Length], parent);
+            return Create($"RIVAL {index + 1}", position, rotation, RivalColors[index % RivalColors.Length], parent, config);
         }
 
-        private static ArcadeCarController Create(string name, Vector3 position, Quaternion rotation, Color accent, Transform parent)
+        private static ArcadeCarController Create(string name, Vector3 position, Quaternion rotation, Color accent, Transform parent, ArcadeCarConfig config)
         {
             var root = new GameObject(name);
             root.transform.SetParent(parent);
@@ -54,7 +54,9 @@ namespace Afareet.Vehicle
             CreateTrail(root.transform, new Vector3(-.62f, .2f, -1.9f), accent);
             CreateTrail(root.transform, new Vector3(.62f, .2f, -1.9f), accent);
             _ = body;
-            return root.AddComponent<ArcadeCarController>();
+            var controller = root.AddComponent<ArcadeCarController>();
+            controller.Configure(config);
+            return controller;
         }
 
         private static GameObject CreatePart(Transform parent, string name, PrimitiveType type, Vector3 scale, Vector3 position, Color color)

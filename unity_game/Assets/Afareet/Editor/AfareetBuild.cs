@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
+using UnityEditor.Android;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -26,6 +27,7 @@ namespace Afareet.Editor
 
         public static void BuildAndroid()
         {
+            ConfigureAndroidToolchain();
             PrepareProject();
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
@@ -37,8 +39,29 @@ namespace Afareet.Editor
             );
         }
 
+        private static void ConfigureAndroidToolchain()
+        {
+            var configuredSdk = Environment.GetEnvironmentVariable("AFAREET_ANDROID_SDK_ROOT");
+            var androidSdk = string.IsNullOrWhiteSpace(configuredSdk)
+                ? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Android",
+                    "Sdk"
+                )
+                : configuredSdk;
+
+            // Unity 6 requires CMake 3.22.1 for Android native builds. Android
+            // Studio normally installs it here even when the Hub SDK omits it.
+            if (!Directory.Exists(Path.Combine(androidSdk, "cmake", "3.22.1")))
+                return;
+
+            AndroidExternalToolsSettings.sdkRootPath = androidSdk;
+            Debug.Log($"AFAREET_ANDROID_SDK path={androidSdk}");
+        }
+
         private static void PrepareProject()
         {
+            AfareetAssetSetup.EnsureConfigAssets();
             PlayerSettings.companyName = "Afareet Studio";
             PlayerSettings.productName = "Afareet Asphalt Unity3D";
             PlayerSettings.SetApplicationIdentifier(

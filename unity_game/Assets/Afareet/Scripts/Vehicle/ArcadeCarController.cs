@@ -5,14 +5,7 @@ namespace Afareet.Vehicle
     [RequireComponent(typeof(Rigidbody))]
     public sealed class ArcadeCarController : MonoBehaviour
     {
-        [Header("Arcade handling")]
-        [SerializeField] private float acceleration = 34f;
-        [SerializeField] private float reverseAcceleration = 15f;
-        [SerializeField] private float maxSpeed = 48f;
-        [SerializeField] private float steerStrength = 105f;
-        [SerializeField] private float grip = 8f;
-        [SerializeField] private float driftGrip = 2.1f;
-        [SerializeField] private float nitroForce = 25f;
+        private ArcadeCarConfig config;
 
         private Rigidbody body;
         private TrailRenderer[] trails;
@@ -32,10 +25,6 @@ namespace Afareet.Vehicle
         private void Awake()
         {
             body = GetComponent<Rigidbody>();
-            body.mass = 1150f;
-            body.linearDamping = 0.15f;
-            body.angularDamping = 3.5f;
-            body.centerOfMass = new Vector3(0f, -0.45f, 0.15f);
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.Continuous;
             trails = GetComponentsInChildren<TrailRenderer>();
@@ -55,28 +44,42 @@ namespace Afareet.Vehicle
 
         private void FixedUpdate()
         {
+            if (config == null) return;
             var localVelocity = transform.InverseTransformDirection(body.linearVelocity);
             var forwardSpeed = localVelocity.z;
-            var accelerating = throttleInput >= 0f ? acceleration : reverseAcceleration;
-            if (Mathf.Abs(forwardSpeed) < maxSpeed || Mathf.Sign(throttleInput) != Mathf.Sign(forwardSpeed))
+            var accelerating = throttleInput >= 0f ? config.acceleration : config.reverseAcceleration;
+            if (Mathf.Abs(forwardSpeed) < config.maxSpeedMetersPerSecond || Mathf.Sign(throttleInput) != Mathf.Sign(forwardSpeed))
                 body.AddForce(transform.forward * (throttleInput * accelerating), ForceMode.Acceleration);
 
             if (NitroActive && NitroEnergy > 0f)
             {
-                body.AddForce(transform.forward * nitroForce, ForceMode.Acceleration);
-                NitroEnergy = Mathf.Max(0f, NitroEnergy - Time.fixedDeltaTime * 0.22f);
+                body.AddForce(transform.forward * config.nitroForce, ForceMode.Acceleration);
+                NitroEnergy = Mathf.Max(0f, NitroEnergy - Time.fixedDeltaTime * config.nitroConsumptionPerSecond);
             }
-            else NitroEnergy = Mathf.Min(1f, NitroEnergy + Time.fixedDeltaTime * 0.06f);
+            else NitroEnergy = Mathf.Min(1f, NitroEnergy + Time.fixedDeltaTime * config.nitroRechargePerSecond);
 
             var speedFactor = Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 8f);
             var direction = forwardSpeed < -0.5f ? -1f : 1f;
-            body.MoveRotation(body.rotation * Quaternion.Euler(0f, steerInput * steerStrength * speedFactor * direction * Time.fixedDeltaTime, 0f));
+            body.MoveRotation(body.rotation * Quaternion.Euler(0f, steerInput * config.steerStrengthDegrees * speedFactor * direction * Time.fixedDeltaTime, 0f));
 
-            localVelocity.x = Mathf.Lerp(localVelocity.x, 0f, (driftInput ? driftGrip : grip) * Time.fixedDeltaTime);
-            localVelocity.z = Mathf.Clamp(localVelocity.z, -maxSpeed * 0.3f, maxSpeed * (NitroActive ? 1.22f : 1f));
+            localVelocity.x = Mathf.Lerp(localVelocity.x, 0f, (driftInput ? config.driftGrip : config.grip) * Time.fixedDeltaTime);
+            localVelocity.z = Mathf.Clamp(localVelocity.z, -config.maxSpeedMetersPerSecond * 0.3f, config.maxSpeedMetersPerSecond * (NitroActive ? 1.22f : 1f));
             body.linearVelocity = transform.TransformDirection(localVelocity);
 
             foreach (var trail in trails) trail.emitting = IsDrifting || NitroActive;
+        }
+
+        public void Configure(ArcadeCarConfig vehicleConfig)
+        {
+            if (vehicleConfig == null) throw new System.ArgumentNullException(nameof(vehicleConfig));
+            if (!vehicleConfig.IsValid(out var error))
+                throw new System.ArgumentException(error, nameof(vehicleConfig));
+
+            config = vehicleConfig;
+            body.mass = config.massKilograms;
+            body.linearDamping = config.linearDamping;
+            body.angularDamping = config.angularDamping;
+            body.centerOfMass = config.centerOfMass;
         }
 
         public void SetAiInput(float throttle, float steer, bool drift, bool nitro)
