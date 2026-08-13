@@ -1,0 +1,1 @@
+namespace Afareet.Tests.Race { }
