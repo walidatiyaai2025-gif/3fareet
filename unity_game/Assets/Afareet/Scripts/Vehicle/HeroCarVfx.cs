@@ -1,4 +1,5 @@
 using UnityEngine;
+using Afareet.World;
 
 namespace Afareet.Vehicle
 {
@@ -45,6 +46,7 @@ namespace Afareet.Vehicle
             trail.endWidth = 0f;
             trail.startColor = new Color(1f, .55f, .05f, 1f);
             trail.endColor = new Color(.52f, .02f, 1f, 0f);
+            trail.material = RuntimeMaterials.Trail(new Color(.72f, .08f, 1f));
             trail.emitting = false;
             return trail;
         }
