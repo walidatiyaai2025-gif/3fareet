@@ -22,6 +22,9 @@ namespace Afareet.Vehicle
         public bool IsDrifting => driftInput && Mathf.Abs(steerInput) > 0.15f && Mathf.Abs(SpeedKph) > 25f;
         public bool NitroActive => nitroInput && SpeedKph > 15f;
         public float NitroEnergy { get; private set; } = 1f;
+        public float CurrentSteerInput => steerInput;
+        public float CurrentThrottleInput => throttleInput;
+        public bool CurrentBrakeInput => brakeInput;
 
         private void Awake()
         {
@@ -41,7 +44,9 @@ namespace Afareet.Vehicle
         private void FixedUpdate()
         {
             if (config == null) return;
-            if (AcceptsPlayerInput) ReadPlayerInput();
+#if UNITY_EDITOR || UNITY_STANDALONE
+            if (AcceptsPlayerInput) ReadDesktopInput();
+#endif
             var localVelocity = transform.InverseTransformDirection(body.linearVelocity);
             var forwardSpeed = localVelocity.z;
             if (brakeInput && forwardSpeed > .25f)
@@ -72,13 +77,22 @@ namespace Afareet.Vehicle
             foreach (var trail in trails) trail.emitting = IsDrifting || NitroActive;
         }
 
-        private void ReadPlayerInput()
+        private void ReadDesktopInput()
         {
-            throttleInput = Mathf.Clamp(Input.GetAxisRaw("Vertical") + MobileInput.Throttle, -1f, 1f);
-            steerInput = Mathf.Clamp(Input.GetAxisRaw("Horizontal") + MobileInput.Steer, -1f, 1f);
-            driftInput = Input.GetKey(KeyCode.Space) || MobileInput.Drift;
-            nitroInput = Input.GetKey(KeyCode.LeftShift) || MobileInput.Nitro;
-            brakeInput = Input.GetKey(KeyCode.DownArrow) || MobileInput.Brake;
+            throttleInput = Input.GetAxisRaw("Vertical");
+            steerInput = Input.GetAxisRaw("Horizontal");
+            driftInput = Input.GetKey(KeyCode.Space);
+            nitroInput = Input.GetKey(KeyCode.LeftShift);
+            brakeInput = Input.GetKey(KeyCode.DownArrow);
+        }
+
+        public void SetPlayerInput(float throttle, float steer, bool drift, bool nitro, bool brake)
+        {
+            throttleInput = Mathf.Clamp(throttle, -1f, 1f);
+            steerInput = Mathf.Clamp(steer, -1f, 1f);
+            driftInput = drift;
+            nitroInput = nitro;
+            brakeInput = brake;
         }
 
         public void Configure(ArcadeCarConfig vehicleConfig)
@@ -110,13 +124,4 @@ namespace Afareet.Vehicle
         }
     }
 
-    public static class MobileInput
-    {
-        public static float Steer;
-        public static float Throttle;
-        public static bool Drift;
-        public static bool Nitro;
-        public static bool Brake;
-        public static void Reset() { Steer = 0f; Throttle = 0f; Drift = false; Nitro = false; Brake = false; }
-    }
 }

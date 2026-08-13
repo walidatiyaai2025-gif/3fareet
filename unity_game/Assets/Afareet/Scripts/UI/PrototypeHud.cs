@@ -20,6 +20,11 @@ namespace Afareet.UI
         private float canvasHeight;
         private Vector3 motionBaseline;
         private bool hasMotionBaseline;
+        private float steerInput;
+        private float throttleInput;
+        private bool driftInput;
+        private bool nitroInput;
+        private bool brakeInput;
 
         public void Configure(ArcadeCarController playerCar, RaceDirector director)
         {
@@ -38,9 +43,10 @@ namespace Afareet.UI
         {
             if (player == null) return;
             UpdateCanvasMetrics();
-            MobileInput.Reset();
+            ResetInput();
             if (!race.IsStarted)
             {
+                player.SetPlayerInput(0f, 0f, false, false, true);
                 ReadStartInput();
                 return;
             }
@@ -56,6 +62,7 @@ namespace Afareet.UI
 #if UNITY_EDITOR || UNITY_STANDALONE
             if (Input.GetMouseButton(0)) ApplyPointer(ToCanvas(Input.mousePosition));
 #endif
+            player.SetPlayerInput(throttleInput, steerInput, driftInput, nitroInput, brakeInput);
         }
 
         private void ReadStartInput()
@@ -76,7 +83,7 @@ namespace Afareet.UI
         {
             motionBaseline = Input.acceleration;
             hasMotionBaseline = true;
-            MobileInput.Reset();
+            ResetInput();
             race.StartRace();
         }
 
@@ -90,15 +97,15 @@ namespace Afareet.UI
             var forwardTilt = landscapeLeft ? -acceleration.x : acceleration.x;
 
             const float deadZone = .08f;
-            MobileInput.Steer = Mathf.Abs(steeringTilt) <= deadZone
+            steerInput = Mathf.Abs(steeringTilt) <= deadZone
                 ? 0f
                 : Mathf.Clamp(steeringTilt * 2.4f, -1f, 1f);
 
             // Pitching the phone forward accelerates with nitro; pulling it
             // back applies the brake. Neutral leaves the GO button in control.
-            MobileInput.Throttle = forwardTilt > .18f ? 1f : 0f;
-            MobileInput.Nitro = forwardTilt > .18f;
-            MobileInput.Brake = forwardTilt < -.18f;
+            throttleInput = forwardTilt > .18f ? 1f : 0f;
+            nitroInput = forwardTilt > .18f;
+            brakeInput = forwardTilt < -.18f;
         }
 
         private void OnGUI()
@@ -127,25 +134,37 @@ namespace Afareet.UI
             if (!string.IsNullOrEmpty(race.CountdownText))
                 GUI.Label(new Rect(w * .5f - 130, h * .25f, 260, 120), race.CountdownText, title);
 
+            GUI.Label(new Rect(w * .5f - 210, 18, 420, 42),
+                $"STEER {steerInput:+0.00;-0.00;0.00}   GAS {throttleInput:0.00}   BRAKE {(brakeInput ? "ON" : "OFF")}", chip);
+
             DrawTouchControls(w, h);
         }
 
         private void DrawTouchControls(float w, float h)
         {
-            GUI.Box(LeftRect(h), "<", MobileInput.Steer < 0f ? activeButton : button);
-            GUI.Box(RightRect(h), ">", MobileInput.Steer > 0f ? activeButton : button);
-            GUI.Box(DriftRect(w, h), "DRIFT", MobileInput.Drift ? activeButton : button);
-            GUI.Box(NitroRect(w, h), "NITRO", MobileInput.Nitro ? activeButton : button);
-            GUI.Box(ThrottleRect(w, h), "GO", MobileInput.Throttle > 0f ? activeButton : button);
+            GUI.Box(LeftRect(h), "<", steerInput < 0f ? activeButton : button);
+            GUI.Box(RightRect(h), ">", steerInput > 0f ? activeButton : button);
+            GUI.Box(DriftRect(w, h), "DRIFT", driftInput ? activeButton : button);
+            GUI.Box(NitroRect(w, h), "NITRO", nitroInput ? activeButton : button);
+            GUI.Box(ThrottleRect(w, h), "GO", throttleInput > 0f ? activeButton : button);
         }
 
         private void ApplyPointer(Vector2 point)
         {
-            if (LeftRect(canvasHeight).Contains(point)) MobileInput.Steer = -1f;
-            if (RightRect(canvasHeight).Contains(point)) MobileInput.Steer = 1f;
-            if (DriftRect(canvasWidth, canvasHeight).Contains(point)) MobileInput.Drift = true;
-            if (NitroRect(canvasWidth, canvasHeight).Contains(point)) MobileInput.Nitro = true;
-            if (ThrottleRect(canvasWidth, canvasHeight).Contains(point)) MobileInput.Throttle = 1f;
+            if (LeftRect(canvasHeight).Contains(point)) steerInput = -1f;
+            if (RightRect(canvasHeight).Contains(point)) steerInput = 1f;
+            if (DriftRect(canvasWidth, canvasHeight).Contains(point)) driftInput = true;
+            if (NitroRect(canvasWidth, canvasHeight).Contains(point)) nitroInput = true;
+            if (ThrottleRect(canvasWidth, canvasHeight).Contains(point)) throttleInput = 1f;
+        }
+
+        private void ResetInput()
+        {
+            steerInput = 0f;
+            throttleInput = 0f;
+            driftInput = false;
+            nitroInput = false;
+            brakeInput = false;
         }
 
         private Vector2 ToCanvas(Vector2 screenPoint) =>

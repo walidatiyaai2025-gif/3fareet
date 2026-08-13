@@ -30,12 +30,13 @@
 |---|---|---|---|---|---|---|---|
 | AST-060 | App icon family | UNASSIGNED | REFERENCE_AVAILABLE | `docs/assets/05_ui_hud/app_icons/` | — | 2026-08-12 | استلمنا لوحة المقاسات/التصميم. المرجع محفوظ، ويوجد 256px candidate للمعاينة فقط. ما زال مطلوب clean 1024 master + platform exports قبل VERIFIED. |
 | AST-061 | Cairo Rap × Shaabi prototype music | Technical Audio / Integration | INTEGRATING | `assets/audio/` | `agent/audio-002-first-apk-rap-shaabi` | 2026-08-12 | Owner source received; first APK uses a short embedded preview loop. CI + real-device audio smoke required before VERIFIED. |
+| AST-062 | Afareet black/purple/gold hero car | Principal Mobile Game Architect | REVIEW | `docs/assets/01_vehicles/references/`, procedural Unity blockout in `CarFactory` | `agent/unity-3d-prototype` / PR #49 | 2026-08-13 | User reference received. Procedural hero blockout integrated; production mesh, UVs and LODs remain required for UART-003. |
 
 ## Missing / production asset register
 
 | Category | Asset | Priority | Phase | Required spec | Allowed placeholder | Status |
 |---|---|---|---|---|---|---|
-| Vehicle 3D | Prototype Hero Car | P0 | P1 | GLB/GLTF أو format معتمد، stylized Egyptian sedan، LODs/Collider/Pivot صحيح | استخدام greybox car فقط لاختبار physics | MISSING |
+| Vehicle 3D | Prototype Hero Car | P0 | P1 | GLB/GLTF أو format معتمد، stylized Egyptian sedan، LODs/Collider/Pivot صحيح | black/purple/gold procedural hero blockout | REVIEW |
 | Vehicle 3D | Shahin-inspired fictional car | P1 | Garage/Alpha | Stylized non-infringing design + LOD0/1/2 + collider | Prototype Hero Car | MISSING |
 | Vehicle 3D | Ritmo-inspired fictional car | P1 | Garage/Alpha | نفس pipeline مع silhouette مختلف | Placeholder car | MISSING |
 | Vehicle 3D | Microbus-inspired fictional vehicle | P1 | Garage/Alpha | High silhouette، collision footprint مضبوط | Placeholder box vehicle | MISSING |
