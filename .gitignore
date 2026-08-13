@@ -18,6 +18,13 @@ android/.gradle/
 android/local.properties
 **/captures/
 
+# Unity generated builds / release signing
+unity_game/Builds/
+*.jks
+*.keystore
+*.p12
+*.pfx
+
 # OS
 .DS_Store
 Thumbs.db
