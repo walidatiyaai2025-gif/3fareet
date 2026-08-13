@@ -1,5 +1,9 @@
 # 3fareet — عفاريت الأسفلت
 
+> **3D development track:** The new playable Unity project lives in
+> [`unity_game/`](unity_game/). The Flutter/Flame implementation remains as the
+> legacy mechanics and UI prototype while production moves to mobile-first 3D.
+
 ## 🚦 حالة المشروع الآن
 
 **افتح أولًا:** [Project Status Dashboard — الوضع الحالي للمشروع](docs/PROJECT_STATUS.md)

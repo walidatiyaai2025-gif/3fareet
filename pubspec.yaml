@@ -23,3 +23,4 @@ flutter:
     - assets/config/game_config.json
     - assets/audio/embedded/
     - assets/audio/music/
+    - assets/images/

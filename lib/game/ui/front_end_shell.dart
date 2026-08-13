@@ -30,7 +30,7 @@ class _AfareetAppState extends State<AfareetApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     widget.game.pauseSimulation(showOverlay: false);
     unawaited(
-      Future<void>.delayed(const Duration(milliseconds: 420), () {
+      Future<void>.delayed(const Duration(milliseconds: 2800), () {
         if (mounted) {
           _flow.showMainMenu();
         }
@@ -57,7 +57,9 @@ class _AfareetAppState extends State<AfareetApp> with WidgetsBindingObserver {
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
-        widget.game.pauseSimulation(showOverlay: _flow.stage == FrontEndStage.racing);
+        widget.game.pauseSimulation(
+          showOverlay: _flow.stage == FrontEndStage.racing,
+        );
         return;
     }
   }
@@ -87,8 +89,9 @@ class _AfareetAppState extends State<AfareetApp> with WidgetsBindingObserver {
             return MediaQuery(
               data: media.copyWith(textScaler: TextScaler.linear(scale)),
               child: Directionality(
-                textDirection:
-                    _flow.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                textDirection: _flow.isArabic
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
                 child: child ?? const SizedBox.shrink(),
               ),
             );
@@ -101,25 +104,25 @@ class _AfareetAppState extends State<AfareetApp> with WidgetsBindingObserver {
                   game: widget.game,
                   overlayBuilderMap:
                       <String, Widget Function(BuildContext, AfareetGame)>{
-                    PrototypeHud.overlayKey: (context, game) =>
-                        PrototypeHud(game: game),
-                    GameDebugOverlay.overlayKey: (context, game) =>
-                        GameDebugOverlay(game: game),
-                    PrototypeControls.overlayKey: (context, game) =>
-                        PrototypeControls(game: game),
-                    VehicleTuningPanel.overlayKey: (context, game) =>
-                        VehicleTuningPanel(game: game),
-                    UiOverlayKeys.pauseMenu: (context, game) =>
-                        _PrototypePauseMenu(
-                      game: game,
-                      onQuit: _returnToMenu,
-                    ),
-                    UiOverlayKeys.raceResult: (context, game) =>
-                        _PrototypeResultOverlay(
-                      game: game,
-                      onQuit: _returnToMenu,
-                    ),
-                  },
+                        PrototypeHud.overlayKey: (context, game) =>
+                            PrototypeHud(game: game),
+                        GameDebugOverlay.overlayKey: (context, game) =>
+                            GameDebugOverlay(game: game),
+                        PrototypeControls.overlayKey: (context, game) =>
+                            PrototypeControls(game: game),
+                        VehicleTuningPanel.overlayKey: (context, game) =>
+                            VehicleTuningPanel(game: game),
+                        UiOverlayKeys.pauseMenu: (context, game) =>
+                            _PrototypePauseMenu(
+                              game: game,
+                              onQuit: _returnToMenu,
+                            ),
+                        UiOverlayKeys.raceResult: (context, game) =>
+                            _PrototypeResultOverlay(
+                              game: game,
+                              onQuit: _returnToMenu,
+                            ),
+                      },
                   initialActiveOverlays: const <String>[
                     PrototypeHud.overlayKey,
                     PrototypeControls.overlayKey,
@@ -180,28 +183,32 @@ class _FrontEndLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (flow.stage == FrontEndStage.splash) {
+      return const _SplashScreen();
+    }
+
     return ColoredBox(
       color: AfareetUiTokens.background,
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AfareetUiTokens.contentPadding),
           child: switch (flow.stage) {
-            FrontEndStage.splash => const _SplashScreen(),
+            FrontEndStage.splash => const SizedBox.shrink(),
             FrontEndStage.mainMenu => _MainMenu(
-                isArabic: flow.isArabic,
-                onPlay: onPlay,
-                onLanguage: flow.toggleLanguage,
-              ),
+              isArabic: flow.isArabic,
+              onPlay: onPlay,
+              onLanguage: flow.toggleLanguage,
+            ),
             FrontEndStage.modeSelection => _ModeSelection(
-                isArabic: flow.isArabic,
-                onBack: onBack,
-                onRace: onRace,
-              ),
+              isArabic: flow.isArabic,
+              onBack: onBack,
+              onRace: onRace,
+            ),
             FrontEndStage.loading => const _LoadingScreen(),
             FrontEndStage.error => _ErrorScreen(
-                message: flow.errorMessage ?? 'Unknown error',
-                onRetry: onRetry,
-              ),
+              message: flow.errorMessage ?? 'Unknown error',
+              onRetry: onRetry,
+            ),
             FrontEndStage.racing => const SizedBox.shrink(),
           },
         ),
@@ -210,31 +217,125 @@ class _FrontEndLayer extends StatelessWidget {
   }
 }
 
-class _SplashScreen extends StatelessWidget {
+class _SplashScreen extends StatefulWidget {
   const _SplashScreen();
 
   @override
+  State<_SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<_SplashScreen> {
+  @override
+  void didChangeDependencies() {
+    precacheImage(
+      const AssetImage('assets/images/afareet_splash.jpg'),
+      context,
+    );
+    super.didChangeDependencies();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    return ColoredBox(
+      color: const Color(0xFF160B25),
+      child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
-          Icon(Icons.bolt_rounded, color: AfareetUiTokens.gold, size: 54),
-          SizedBox(height: 16),
-          Text(
-            '3FAREET ASPHALT',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 3,
+          Image.asset(
+            'assets/images/afareet_splash.jpg',
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (context, error, stackTrace) => const ColoredBox(
+              color: AfareetUiTokens.background,
+              child: Center(
+                child: Icon(
+                  Icons.auto_awesome,
+                  color: AfareetUiTokens.gold,
+                  size: 64,
+                ),
+              ),
             ),
           ),
-          SizedBox(height: 10),
-          Text(
-            'CAIRO AFTER DARK',
-            style: TextStyle(
-              color: AfareetUiTokens.cyan,
-              letterSpacing: 2,
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[
+                  Colors.transparent,
+                  Colors.transparent,
+                  Color(0x330D0618),
+                  Color(0xF20D0618),
+                ],
+                stops: <double>[0, .7, .82, 1],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(28, 0, 28, 22),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 390),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: 1),
+                    duration: const Duration(milliseconds: 2550),
+                    curve: Curves.easeInOutCubic,
+                    builder: (context, progress, child) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Container(
+                            height: 18,
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xCC1A0C2A),
+                              borderRadius: BorderRadius.circular(99),
+                              border: Border.all(
+                                color: const Color(0xFFFFC857),
+                                width: 1.4,
+                              ),
+                              boxShadow: const <BoxShadow>[
+                                BoxShadow(
+                                  color: Color(0xAA9B35FF),
+                                  blurRadius: 18,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(99),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: const Color(0xFF28143B),
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Color(0xFFB747FF),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            progress < .9
+                                ? 'جاري تحضير العفاريت...'
+                                : 'استعد للانطلاق!',
+                            textDirection: TextDirection.rtl,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              shadows: <Shadow>[
+                                Shadow(color: Colors.black, blurRadius: 8),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -386,9 +487,16 @@ class _ErrorScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.error_outline, color: AfareetUiTokens.danger, size: 42),
+            const Icon(
+              Icons.error_outline,
+              color: AfareetUiTokens.danger,
+              size: 42,
+            ),
             const SizedBox(height: 14),
-            const Text('RACE SYSTEM ERROR', style: TextStyle(fontWeight: FontWeight.w900)),
+            const Text(
+              'RACE SYSTEM ERROR',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
             const SizedBox(height: 8),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 18),
@@ -463,7 +571,10 @@ class _PrototypePauseMenuState extends State<_PrototypePauseMenu> {
                   },
                   child: const Text('RESTART RACE'),
                 ),
-                TextButton(onPressed: widget.onQuit, child: const Text('MAIN MENU')),
+                TextButton(
+                  onPressed: widget.onQuit,
+                  child: const Text('MAIN MENU'),
+                ),
               ],
             ),
           ),
@@ -493,25 +604,37 @@ class _PrototypeResultOverlay extends StatelessWidget {
                 padding: const EdgeInsets.all(26),
                 decoration: BoxDecoration(
                   color: AfareetUiTokens.surface,
-                  borderRadius: BorderRadius.circular(AfareetUiTokens.radiusLarge),
+                  borderRadius: BorderRadius.circular(
+                    AfareetUiTokens.radiusLarge,
+                  ),
                   border: Border.all(color: AfareetUiTokens.gold),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    const Icon(Icons.emoji_events, color: AfareetUiTokens.gold, size: 48),
+                    const Icon(
+                      Icons.emoji_events,
+                      color: AfareetUiTokens.gold,
+                      size: 48,
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       'P${telemetry.position} FINISH',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       '${telemetry.raceTimeSeconds.toStringAsFixed(2)} s',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AfareetUiTokens.cyan, fontSize: 22),
+                      style: const TextStyle(
+                        color: AfareetUiTokens.cyan,
+                        fontSize: 22,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     _PrimaryButton(
@@ -522,7 +645,10 @@ class _PrototypeResultOverlay extends StatelessWidget {
                         game.resumeSimulation();
                       },
                     ),
-                    TextButton(onPressed: onQuit, child: const Text('MAIN MENU')),
+                    TextButton(
+                      onPressed: onQuit,
+                      child: const Text('MAIN MENU'),
+                    ),
                   ],
                 ),
               );
@@ -544,7 +670,10 @@ class _BrandLockup extends StatelessWidget {
       children: <Widget>[
         Icon(Icons.bolt_rounded, color: AfareetUiTokens.gold),
         SizedBox(width: 8),
-        Text('3FAREET', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2)),
+        Text(
+          '3FAREET',
+          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2),
+        ),
       ],
     );
   }
@@ -568,14 +697,24 @@ class _PrimaryButton extends StatelessWidget {
       icon: Icon(icon),
       label: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+          ),
+        ),
       ),
     );
   }
 }
 
 class _ModeCard extends StatelessWidget {
-  const _ModeCard({required this.title, required this.subtitle, required this.onPressed});
+  const _ModeCard({
+    required this.title,
+    required this.subtitle,
+    required this.onPressed,
+  });
 
   final String title;
   final String subtitle;
@@ -596,15 +735,31 @@ class _ModeCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const Icon(Icons.sports_motorsports, color: AfareetUiTokens.gold, size: 40),
+            const Icon(
+              Icons.sports_motorsports,
+              color: AfareetUiTokens.gold,
+              size: 40,
+            ),
             const SizedBox(height: 18),
-            Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            ),
             const SizedBox(height: 8),
-            Text(subtitle, style: const TextStyle(color: AfareetUiTokens.textSecondary)),
+            Text(
+              subtitle,
+              style: const TextStyle(color: AfareetUiTokens.textSecondary),
+            ),
             const SizedBox(height: 20),
             const Row(
               children: <Widget>[
-                Text('ENTER RACE', style: TextStyle(color: AfareetUiTokens.cyan, fontWeight: FontWeight.w800)),
+                Text(
+                  'ENTER RACE',
+                  style: TextStyle(
+                    color: AfareetUiTokens.cyan,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 SizedBox(width: 8),
                 Icon(Icons.arrow_forward, color: AfareetUiTokens.cyan),
               ],
@@ -624,7 +779,9 @@ class _StatusStrip extends StatelessWidget {
     return const DecoratedBox(
       decoration: BoxDecoration(
         color: AfareetUiTokens.surfaceSoft,
-        borderRadius: BorderRadius.all(Radius.circular(AfareetUiTokens.radiusMedium)),
+        borderRadius: BorderRadius.all(
+          Radius.circular(AfareetUiTokens.radiusMedium),
+        ),
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -635,7 +792,10 @@ class _StatusStrip extends StatelessWidget {
             Expanded(
               child: Text(
                 'PROTOTYPE • OFFLINE RACE • 3 AI RIVALS',
-                style: TextStyle(color: AfareetUiTokens.textSecondary, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: AfareetUiTokens.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],

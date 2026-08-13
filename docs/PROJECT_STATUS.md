@@ -5,6 +5,19 @@
 **Last updated:** 2026-08-12 18:49 (Asia/Kuwait)  
 **Overall status:** 🟡 **CAMERA + AI + UI CORE VERIFIED — PREMIUM VISUAL / REAL-DEVICE GATES STILL OPEN**
 
+**2026-08-13 Unity 3D direction:** Production 3D development has started in
+`unity_game/`. The first code-generated vertical slice includes an arcade
+vehicle, chase camera, Cairo neon circuit, procedural buildings and pyramids,
+three waypoint AI rivals, drift/nitro feedback, race HUD and mobile controls.
+Unity Editor/device verification is pending because Unity is not installed on
+the current workstation.
+
+**2026-08-13 implementation note:** The previously empty race scene now has a
+playable 2.5D Cairo night visual slice with a perspective neon track, Egyptian
+skyline landmarks, player/rival cars, and simulation-driven Drift/Nitro VFX.
+Static analysis, all 31 automated tests, and an Android Debug APK build pass.
+The Premium Visual Gate remains open pending screenshot and real-device review.
+
 > هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
 
 ## Executive snapshot
