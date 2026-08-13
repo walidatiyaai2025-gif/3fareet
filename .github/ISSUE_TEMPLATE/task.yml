@@ -1,0 +1,36 @@
+name: Implementation task
+description: Propose or claim a scoped repository task.
+title: "[TASK] "
+labels: ["task", "triage"]
+body:
+  - type: input
+    id: task
+    attributes:
+      label: Task ID
+      placeholder: U3D-006
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Proposed owner
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: locks
+    attributes:
+      label: Paths/contracts requiring Module Lock
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Planned validation/evidence
+    validations:
+      required: true

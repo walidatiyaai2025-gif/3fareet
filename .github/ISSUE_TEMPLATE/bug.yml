@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible defect tied to an Afareet task.
+title: "[BUG] "
+labels: ["bug", "triage"]
+body:
+  - type: input
+    id: task
+    attributes:
+      label: Task ID
+      placeholder: UVEH-003
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Client
+      options: [Unity production, Flutter legacy, Backend, Docs/tooling]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Build, device and evidence
+      description: Commit, Unity/Flutter version, OS/API, logs, screenshots or video.
+    validations:
+      required: true

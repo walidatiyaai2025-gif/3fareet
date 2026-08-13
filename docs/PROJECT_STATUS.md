@@ -1,127 +1,103 @@
 # عفاريت الأسفلت — Project Status Dashboard
 
 **Document:** AFA-STATUS-001  
-**Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 18:49 (Asia/Kuwait)  
-**Overall status:** 🟡 **CAMERA + AI + UI CORE VERIFIED — PREMIUM VISUAL / REAL-DEVICE GATES STILL OPEN**
+**Last updated:** 2026-08-13 (Asia/Kuwait)
+**Overall status:** 🟡 **UNITY 3D PRODUCTION STARTED — WINDOWS SLICE VERIFIED / ANDROID GATE BLOCKED**
 
-**2026-08-13 Unity 3D direction:** Production 3D development has started in
-`unity_game/`. The first code-generated vertical slice includes an arcade
-vehicle, chase camera, Cairo neon circuit, procedural buildings and pyramids,
-three waypoint AI rivals, drift/nitro feedback, race HUD and mobile controls.
-Unity Editor/device verification is pending because Unity is not installed on
-the current workstation.
-
-**2026-08-13 implementation note:** The previously empty race scene now has a
-playable 2.5D Cairo night visual slice with a perspective neon track, Egyptian
-skyline landmarks, player/rival cars, and simulation-driven Drift/Nitro VFX.
-Static analysis, all 31 automated tests, and an Android Debug APK build pass.
-The Premium Visual Gate remains open pending screenshot and real-device review.
-
-> هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
+> هذه هي الصفحة الأولى للفريق. أي PR يغيّر Task/Milestone/Blocker/Build/Asset يجب أن يحدّثها في نفس PR.
 
 ## Executive snapshot
 
 | Area | Status | Current reality |
 |---|---|---|
-| Flutter / Flame foundation | 🟢 Verified | PRO-001 → PRO-016 Verified |
-| GAMEPLAY-050 | 🟢 Verified | VEH-001→016 + DRF-001→012 + RAC-001→016 Verified |
-| P1-NEXT-050 | 🟢 Verified | **50 tasks exactly:** CAM-001→011 + AI-001→018 + UIX-001→016 + PWR-001→005 |
-| Camera | 🟢 Verified core | follow/look-ahead/damping/drift/nitro/crash/air/FOV/shake/accessibility/bounds verified; CAM-012 device tuning remains TODO |
-| Offline AI | 🟢 Verified core | racing line + controls + behavior + three AI rivals + stuck/finish rules integrated into RaceSession |
-| UI / UX | 🟢 Verified core | Splash → Main Menu → Mode Select → Loading → Race plus HUD/Pause/Result/Error, SafeArea, RTL and text-scale clamp |
-| Power-ups | 🟢 Verified first slice | definitions, spawn/pickup, collection, one-slot inventory and Eye Shield verified |
-| Rap × Shaabi music | 🟡 Integrating | AST-061 audio integration from `main` is preserved; real-device listening validation still required |
-| Premium visual direction | 🔴 Open | VIS tasks require screenshot/device review and Team Lead approval; not claimed by this code batch |
-| Android build evidence | 🟢 CI verified | Debug APK + Release Skeleton APK + artifact upload passed on P1-NEXT-050 code head |
-| Android verified release APK | 🔴 None | CI artifacts are build evidence only; real-device smoke test still required |
-| Backend architecture | 🟢 Locked | `Flutter/Flame → HTTPS API → Laravel → MySQL`; direct Flutter→MySQL prohibited |
+| Product client | 🟢 Locked | Unity `6000.5.8f1` داخل `unity_game/` |
+| Flutter/Flame | 🔵 Legacy verified | مرجع ميكانيك/UI قابل للبناء؛ لا Features إنتاجية جديدة دون `FLT-*` |
+| Unity compile | 🟢 Verified | Import وC# compile ناجحان على Unity 6000.5.8f1 |
+| Unity Windows | 🟢 Verified smoke | `afareet-unity3d.exe` بُني واشتغل 15 ثانية بلا Exceptions |
+| Unity Android | 🔴 Blocked | Android Build Support + SDK/NDK/OpenJDK غير متاحة للإصدار المستخدم وقت آخر فحص |
+| 3D driving | 🟡 Blockout | Rigidbody arcade car + drift/nitro + chase camera؛ يحتاج production tuning/tests |
+| Race/AI | 🟡 Blockout | procedural Cairo oval + 3 waypoint rivals؛ checkpoints/lap/ranking production rules مفتوحة |
+| Visuals | 🔴 Gate open | procedural placeholders؛ production car/environment/VFX/lighting غير منفذة |
+| UI | 🟡 Prototype | splash + IMGUI HUD/touch controls؛ production UI/RTL/safe-area مفتوحة |
+| Branding | 🟢 Integrated | master icon ومقاسات Flutter، وأسماء Packages/Artifacts منفصلة |
+| Audio | 🔴 Open | engine/drift/nitro production audio غير مدمج في Unity |
+| Team system | 🟢 Baseline ready | onboarding/workflow/module ownership/Unity task register موجودة |
+| Verified release APK | 🔴 None | لا يوجد Unity Android APK اجتاز جهازًا حقيقيًا |
+| Backend | 🔵 Deferred/Locked | Unity → HTTPS API → Laravel → MySQL؛ لا direct DB |
 
-## Verified engineering batch — P1-NEXT-050
+## Current milestone — U-P1 Unity 3D Vertical Slice
 
-**Owner:** Principal Mobile Game Architect  
-**Scope:** **50 tasks exactly**  
-**Status:** `VERIFIED`  
-**Verified code head:** `86a6ea2afb273cab14730e61a152676dc90ea24f`  
-**Flutter Prototype CI:** `31613691078` — SUCCESS  
-**Project Status Freshness Guard:** `31613691026` — SUCCESS  
-**Evidence:** [`work/P1-NEXT-050.md`](work/P1-NEXT-050.md)
+**Gate target:** سباق 3D واحد كامل على Android به سيارة لاعب، 3 AI، Cairo premium look، Drift/Nitro، HUD/Touch، Audio، وDevice evidence.
 
-### Exact count
-- CAM-001 → CAM-011 = 11
-- AI-001 → AI-018 = 18
-- UIX-001 → UIX-016 = 16
-- PWR-001 → PWR-005 = 5
-- **Total = 50**
+### Delivered in PR #49
 
-### Verification evidence
-Run `31613691078` completed Green and proved:
-- formatter check;
-- `flutter analyze` with zero issues;
-- complete tests including Camera, AI, UI-flow and Power-up coverage;
-- Android scaffold generation;
-- Android Debug APK build;
-- Android Release Skeleton APK build;
-- preview APK artifact upload.
+- Unity project and runtime bootstrap.
+- Procedural Cairo track blockout, pyramids/buildings/neon rails.
+- Arcade controller, drift, nitro, chase camera and three waypoint rivals.
+- Splash, prototype HUD/touch controls and custom runtime shaders.
+- Repeatable Windows/Android build entry points.
+- Windows build + headless runtime smoke test.
+- Flutter visual prototype/splash preservation as legacy reference.
+- Shared app icon and engine-specific naming.
+- Team onboarding, ownership and active Unity task system.
 
-The task-promotion commits after the verified code head are documentation-only. No tested application/gameplay code changed after that Green run.
-
-## Architecture now locked
-
-- Camera feedback consumes deterministic fixed-step state and feeds Flame's viewfinder as an adapter.
-- Camera invalid values are sanitized and hard-bounded; accessibility can disable shake without changing simulation.
-- Offline AI uses seeded deterministic decisions, making race behavior reproducible for later replay, multiplayer debugging and authoritative reconciliation work.
-- Three AI rivals are now part of `RaceSession`; HUD position derives from actual race progress instead of a placeholder.
-- Front-end UI remains outside the gameplay kernel and keeps a persistent Game instance beneath menus, preserving audio and simulation lifecycle boundaries.
-- UI supports SafeArea, Arabic RTL and bounded accessibility text scaling.
-- First power-up rules are pure Dart and isolated from rendering/networking.
-- Backend path remains `Flutter/Flame → HTTPS API → Laravel → MySQL`; direct client database access is prohibited.
-
-## P1 Playable Prototype Gate
-
-**Status:** 🟡 **GAMEPLAY + CAMERA + AI + UI CORE READY / FULL P1 NOT VERIFIED**
-
-Still required:
-- CAM-012 camera tuning on multiple devices;
-- VIS-001→VIS-014 implementation and screenshot/device Visual Gate;
-- VEH-017 real-device driving-feel verification;
-- RAC-017 integrated track-completion verification;
-- remaining P0 engine/drift/nitro audio validation;
-- real-device Android Release APK smoke test;
-- final verified APK in `Last verified APK released/`.
+هذه الدفعة `IN REVIEW` حتى دمج PR #49. لا تحول مهامها إلى `VERIFIED` في السجل قبل الدمج وربط Evidence بالـcommit النهائي.
 
 ## Highest priorities next
 
-1. VIS implementation + screenshot review against `ART_DIRECTION.md`.
-2. CAM-012 + VEH-017 + RAC-017 real-device verification.
-3. Remaining P0 audio/SFX integration and listening validation.
-4. PWR-006→PWR-014 remaining race power-ups/effects.
-5. First real-device Verified Release APK.
+1. `UPER-004`: تثبيت/التحقق من Unity Android module + SDK/NDK/OpenJDK.
+2. `UPER-005`: أول `afareet-unity3d-debug.apk`.
+3. `U3D-006/U3D-008/U3D-010`: assembly boundaries، config assets، test assemblies.
+4. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
+5. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
+6. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
+7. `UUI-002/UUI-003`: production HUD and touch controls.
+8. `UPER-009/010`: Visual Gate ثم Verified Android APK.
 
 ## Active blockers / risks
 
-| ID | Severity | Blocker / Risk | Action |
+| ID | Severity | Blocker / Risk | Owner / Action |
 |---|---|---|---|
-| STS-B03 | 🔴 High | Premium VIS gate remains open | Implement and perform screenshot/device review |
-| STS-B04 | 🔴 High | No real-device Verified Release APK | Smoke-test a `main` release candidate on Android hardware |
-| STS-B10 | 🟡 Medium | Engine/drift/nitro gameplay SFX still incomplete | Generate/acquire and validate P0 SFX |
-| STS-B11 | 🟡 Medium | CAM-012/VEH-017/RAC-017 require device/integration evidence | Run device and integrated race verification |
+| STS-U01 | 🔴 High | لا Unity Android build evidence | Release Engineer — `UPER-004/005` |
+| STS-U02 | 🔴 High | المشهد الحالي blockout procedural وليس Visual Gate quality | Art Director/Art team — `UART-*`, `UVFX-*` |
+| STS-U03 | 🟡 Medium | Gameplay code hardcoded وبلا asmdefs/test assemblies | Unity Tech Lead — `U3D-006/008/010` |
+| STS-U04 | 🟡 Medium | Race progress الحالي nearest-waypoint prototype | Race Engineer — `URAC-002→005` |
+| STS-U05 | 🟡 Medium | لا Audio production في Unity | Audio team — `UAUD-001→003` |
+| STS-U06 | 🟡 Medium | مطورون كثيرون قد يتعارضون على bootstrap/ProjectSettings | Team Lead — enforce Module Locks |
+
+## Team entry points
+
+- [New contributor onboarding](ONBOARDING.md)
+- [Team workflow and DoD](TEAM_WORKFLOW.md)
+- [Module ownership and locks](MODULE_OWNERSHIP.md)
+- [Active Unity task register](tasks/06-UNITY-3D-MIGRATION.md)
+- [Contributing rules](../CONTRIBUTING.md)
+
+## Historical Flutter evidence
+
+Flutter engineering batches remain valid historical evidence, not Unity production completion:
+
+- PRO-001→016 verified.
+- GAMEPLAY-050 verified.
+- P1-NEXT-050 verified at code head `86a6ea2afb273cab14730e61a152676dc90ea24f`.
+- Evidence: [`work/P1-NEXT-050.md`](work/P1-NEXT-050.md).
 
 ## Last verified APK
 
-**Status:** 🔴 **NO VERIFIED RELEASE APK YET**  
+**Status:** 🔴 **NO UNITY VERIFIED RELEASE APK YET**
 **Folder:** [`../Last verified APK released/`](../Last%20verified%20APK%20released/)  
 
-## Source of truth links
+Flutter debug/release-skeleton APKs لا تعتبر المنتج النهائي ولا تدخل هذا المجلد.
+
+## Source of truth
 
 - [Master Development Plan](MASTER_DEVELOPMENT_PLAN.md)
-- [Prototype Core Tasks](tasks/01-PROTOTYPE-CORE.md)
-- [Gameplay/UI/Offline Tasks](tasks/02-GAMEPLAY-UI-OFFLINE.md)
-- [P1-NEXT-050 Evidence](work/P1-NEXT-050.md)
-- [Backend Architecture](BACKEND_ARCHITECTURE.md)
+- [Full Task Register](TASK_REGISTER.md)
+- [Unity Active Tasks](tasks/06-UNITY-3D-MIGRATION.md)
 - [Art Direction](ART_DIRECTION.md)
+- [Backend Architecture](BACKEND_ARCHITECTURE.md)
+- [Release Policy](RELEASE_POLICY.md)
 - [Missed Assets](MISSED_ASSETS.md)
-- [Last verified APK released](../Last%20verified%20APK%20released/)
 
 ---
 

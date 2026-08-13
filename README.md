@@ -15,6 +15,11 @@ Flutter prototype uses `afareet-flutter-*`.
 
 ## مراجع الفريق الرسمية
 
+- [New Contributor Onboarding](docs/ONBOARDING.md) — **ابدأ من هنا إذا انضممت للفريق**
+- [Contributing & PR Rules](CONTRIBUTING.md)
+- [Team Workflow & Definition of Done](docs/TEAM_WORKFLOW.md)
+- [Module Ownership & Active Locks](docs/MODULE_OWNERSHIP.md)
+- [Active Unity 3D Tasks](docs/tasks/06-UNITY-3D-MIGRATION.md)
 - [Project Status Dashboard](docs/PROJECT_STATUS.md) — **ابدأ من هنا لمعرفة الحالة الحالية**
 - [Master Development Plan](docs/MASTER_DEVELOPMENT_PLAN.md)
 - [Premium Visual Direction](docs/ART_DIRECTION.md)

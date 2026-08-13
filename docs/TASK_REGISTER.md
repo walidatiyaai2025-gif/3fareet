@@ -1,8 +1,9 @@
 # عفاريت الأسفلت — Full Task Register
 
 **Document:** AFA-TASKS-001  
-**Version:** 1.1 Baseline  
-**Total baseline tasks:** 309
+**Version:** 2.0 Unity Production Baseline
+**Legacy baseline tasks:** 309 (Flutter-era history preserved)
+**Active production register:** Unity 3D task file below
 
 ## قواعد إلزامية
 - لا يبدأ أي عمل بدون Task ID.
@@ -14,6 +15,8 @@
 - `VERIFIED` تحتاج Build/Test/Device evidence حسب نوع المهمة.
 - P1 Prototype لا تغلق بدون APK Android Verified في `Last verified APK released/`.
 - **Visual Gate إلزامي:** لا يمكن إعلان P1 VERIFIED إذا كان الشكل بعيدًا عن `docs/ART_DIRECTION.md` حتى لو الكود والأداء ناجحين.
+- المنتج الأساسي الآن Unity 3D. حالات Flutter `VERIFIED` تاريخ هندسي ولا تعني أن Unity Feature مكتملة.
+- العمل الإنتاجي الجديد يأخذ IDs من سجل Unity؛ Flutter maintenance يأخذ `FLT-*`.
 
 ## تقسيم السجل لتقليل تعارض الفريق
 تم تقسيم الـ309 مهمة إلى ملفات مستقلة حتى لا يضطر مطورون متعددون لتعديل نفس ملف المهام في نفس الوقت:
@@ -24,6 +27,7 @@
 3. [Economy, Backend & Online](tasks/03-ECONOMY-BACKEND-ONLINE.md) — ECO/BCK/NET
 4. [Seasons & Admin](tasks/04-SEASONS-ADMIN.md) — SEA/ADM
 5. [Assets, Performance & Release](tasks/05-ASSETS-PERFORMANCE-RELEASE.md) — ART/PER
+6. [Unity 3D Production & Migration](tasks/06-UNITY-3D-MIGRATION.md) — **ACTIVE** U3D/UVEH/URAC/UART/UVFX/UUI/UAUD/UPER
 
 ## أولوية التنفيذ الحالية
-أولوية قصوى: **VIS + P0/P1 Prototype tasks** حتى نجاح الـPlayable Prototype Gate. Backend/Online/Season work يبقى مخططًا ولكنه لا يزاحم إثبات القيادة والـDrift/Nitro والـAI والهوية البصرية الفخمة والـAPK.
+أولوية قصوى: **U-P1 Unity 3D Vertical Slice** حسب الملف السادس. ملفات 0→5 تحفظ Backlog وتاريخ Flutter والخطة الطويلة، لكنها لا تمنح إذنًا ببدء Feature خارج Unity Active Register. Backend/Online/Seasons تبقى Deferred حتى Unity Android Verified APK.
