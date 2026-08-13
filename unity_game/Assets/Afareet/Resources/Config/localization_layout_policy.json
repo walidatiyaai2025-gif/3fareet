@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "defaultLanguage": "en",
+  "rightToLeftLanguages": ["ar"],
+  "mirrorHorizontalAnchors": true,
+  "preserveNumericDirection": true,
+  "safeArea": {
+    "useNormalizedMargins": true,
+    "minimumHorizontalMargin": 0.03,
+    "minimumVerticalMargin": 0.03
+  }
+}
