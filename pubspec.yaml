@@ -23,3 +23,4 @@ flutter:
     - assets/config/game_config.json
     - assets/audio/embedded/
     - assets/audio/music/
+    - docs/assets/05_ui_hud/app_icons/exports_candidate/app_icon_candidate_256.jpg
