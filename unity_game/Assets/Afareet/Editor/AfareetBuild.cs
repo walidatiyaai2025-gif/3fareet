@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -11,13 +12,14 @@ namespace Afareet.Editor
     public static class AfareetBuild
     {
         private const string ScenePath = "Assets/Scenes/Prototype.unity";
+        private const string IconPath = "Assets/Afareet/Branding/afareet_app_icon.png";
 
         public static void BuildWindows()
         {
             PrepareProject();
             Build(
                 BuildTarget.StandaloneWindows64,
-                "Builds/Windows/3fareet.exe",
+                "Builds/Windows/afareet-unity3d.exe",
                 BuildOptions.Development
             );
         }
@@ -30,7 +32,7 @@ namespace Afareet.Editor
             EditorUserBuildSettings.buildAppBundle = false;
             Build(
                 BuildTarget.Android,
-                "Builds/Android/3fareet-prototype.apk",
+                "Builds/Android/afareet-unity3d-debug.apk",
                 BuildOptions.Development
             );
         }
@@ -38,13 +40,31 @@ namespace Afareet.Editor
         private static void PrepareProject()
         {
             PlayerSettings.companyName = "Afareet Studio";
-            PlayerSettings.productName = "Afareet Asphalt";
+            PlayerSettings.productName = "Afareet Asphalt Unity3D";
+            PlayerSettings.SetApplicationIdentifier(
+                NamedBuildTarget.Android,
+                "com.fiftysolutions.afareetunity3d"
+            );
             PlayerSettings.bundleVersion = "0.1.0";
             PlayerSettings.defaultScreenWidth = 1280;
             PlayerSettings.defaultScreenHeight = 720;
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
             PlayerSettings.resizableWindow = true;
             PlayerSettings.runInBackground = true;
+
+            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
+            if (icon == null)
+                throw new InvalidOperationException($"App icon is missing at {IconPath}");
+            PlayerSettings.SetIcons(
+                NamedBuildTarget.Android,
+                new[] { icon },
+                IconKind.Application
+            );
+            PlayerSettings.SetIcons(
+                NamedBuildTarget.Standalone,
+                new[] { icon },
+                IconKind.Application
+            );
 
             Directory.CreateDirectory("Assets/Scenes");
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);

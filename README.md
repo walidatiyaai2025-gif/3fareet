@@ -4,6 +4,9 @@
 > [`unity_game/`](unity_game/). The Flutter/Flame implementation remains as the
 > legacy mechanics and UI prototype while production moves to mobile-first 3D.
 
+Build names are engine-specific: Unity outputs use `afareet-unity3d-*` and the
+Flutter prototype uses `afareet-flutter-*`.
+
 ## 🚦 حالة المشروع الآن
 
 **افتح أولًا:** [Project Status Dashboard — الوضع الحالي للمشروع](docs/PROJECT_STATUS.md)

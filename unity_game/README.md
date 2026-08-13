@@ -23,6 +23,12 @@ controls, drift and nitro feedback.
 
 Landscape orientation is enforced at runtime. Touch controls appear on mobile.
 
+Build artifacts are intentionally named by engine:
+
+- Unity Android: `afareet-unity3d-debug.apk`
+- Unity Windows: `afareet-unity3d.exe`
+- Flutter Android: `afareet-flutter-debug.apk` (built from the repository root)
+
 ## Verified build
 
 - Unity `6000.5.8f1`: script compilation passed.
