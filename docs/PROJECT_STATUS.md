@@ -22,6 +22,7 @@
 | Branding | 🟢 Integrated | master icon ومقاسات Flutter، وأسماء Packages/Artifacts منفصلة |
 | Audio | 🔴 Open | engine/drift/nitro production audio غير مدمج في Unity |
 | Team system | 🟢 Baseline ready | onboarding/workflow/module ownership/Unity task register موجودة |
+| Unity test automation | 🟠 In review | EditMode baseline exists; PR #53 adds PlayMode START/countdown/release coverage. Execution is blocked by missing Unity Actions licensing credentials. |
 | Last Verified Unity APK | 🔴 None | المصدر الرسمي: [`releases/LAST_VERIFIED_APK.md`](releases/LAST_VERIFIED_APK.md)؛ لا توجد نسخة اجتازت جهازًا حقيقيًا بعد |
 | Backend | 🔵 Deferred/Locked | Unity → HTTPS API → Laravel → MySQL؛ لا direct DB |
 
@@ -46,7 +47,7 @@
 ## Highest priorities next
 
 1. `UPER-006`: تثبيت APK وتشغيل smoke matrix على أجهزة Android حقيقية.
-2. `U3D-010`: توسيع الاختبارات إلى PlayMode وruntime smoke آلي.
+2. `U3D-010`: مراجعة PR #53 ثم تشغيل EditMode/PlayMode headless بعد توفير Unity Actions license.
 3. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
 4. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
 5. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
@@ -59,7 +60,7 @@
 |---|---|---|---|
 | STS-U01 | 🟡 Medium | APK مبني لكن لم يجتز device smoke حقيقي بعد | QA Engineer — `UPER-006` |
 | STS-U02 | 🔴 High | المشهد الحالي blockout procedural وليس Visual Gate quality | Art Director/Art team — `UART-*`, `UVFX-*` |
-| STS-U03 | 🟡 Medium | asmdefs/config/EditMode tests موجودة؛ PlayMode coverage ما زالت مفتوحة | Unity Tech Lead — `U3D-010` |
+| STS-U03 | 🟡 Medium | PlayMode START/countdown/release tests موجودة في PR #53 لكن لم تدخل Unity runner بسبب غياب Actions licensing credentials | QA Automation / Unity Tech Lead — `U3D-010` + unblock Unity CI license |
 | STS-U04 | 🟡 Medium | Race progress الحالي nearest-waypoint prototype | Race Engineer — `URAC-002→005` |
 | STS-U05 | 🟡 Medium | لا Audio production في Unity | Audio team — `UAUD-001→003` |
 | STS-U06 | 🟡 Medium | مطورون كثيرون قد يتعارضون على bootstrap/ProjectSettings | Team Lead — enforce Module Locks |
