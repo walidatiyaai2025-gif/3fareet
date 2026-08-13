@@ -16,7 +16,7 @@
 | Unity Windows | 🟢 Verified smoke | `afareet-unity3d.exe` بُني واشتغل 15 ثانية بلا Exceptions |
 | Unity Android | 🟢 Build verified | Debug APK بُني؛ package/icon/SDK/ARM64 تم فحصها بـ `aapt` |
 | 3D driving | 🟡 Blockout | Rigidbody arcade car + drift/nitro + chase camera؛ يحتاج production tuning/tests |
-| Race/AI | 🟡 In review | `URAC-002→006` stacked implementation covers ordered checkpoints, one-lap finish, deterministic ranking, round flow, solid track edges and explicit off-road state; Unity execution still pending CI licensing |
+| Race/AI | 🟡 In review | `URAC-002→006` plus `URAC-008` cover race rules, track bounds and curve-aware AI speed/braking planning; exact-head Unity execution still pending CI licensing |
 | Visuals | 🔴 Gate open | procedural placeholders؛ production car/environment/VFX/lighting غير منفذة |
 | UI | 🟡 Prototype | splash + IMGUI HUD/touch controls؛ production UI/RTL/safe-area مفتوحة |
 | Branding | 🟢 Integrated | master icon ومقاسات Flutter، وأسماء Packages/Artifacts منفصلة |
@@ -49,7 +49,8 @@
 - `URAC-003` — PR #55: deterministic Ready → Racing → Finished single-lap lifecycle with stable finish timing.
 - `URAC-004` — PR #56: ranking uses Finished → completed laps → accepted checkpoints → validated-segment progress → stable order; nearest-waypoint exploit removed from the new ranking contract.
 - `URAC-005` — PR #57: deterministic Countdown → Racing → Results orchestration plus Restart that resets lap/checkpoint state for a new round.
-- `URAC-006` — branch `agent/URAC-006-track-bounds`: deterministic road-corridor sampling, solid edge colliders on both sides of each valid segment, and explicit off-road leave/reenter events.
+- `URAC-006` — PR #58: deterministic road-corridor sampling, solid edge colliders on both sides of each valid segment, and explicit off-road leave/reenter events.
+- `URAC-008` — branch `agent/URAC-008-ai-speed-planner`: curvature-driven target speed/brake policy plus racing-line lookahead that aims farther on straights, closer in sharp corners and suppresses nitro in braking zones.
 - Unity import/compile and committed Race EditMode tests have not executed on these exact stacked heads because the separate Unity CI licensing path remains blocked; all remain `IN REVIEW`.
 
 ## Highest priorities next
@@ -57,7 +58,7 @@
 1. `UPER-006`: تثبيت APK وتشغيل smoke matrix على أجهزة Android حقيقية.
 2. `U3D-010/U3D-011`: unblock Unity licensing, execute EditMode/PlayMode and Windows CI on exact stacked heads.
 3. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
-4. `URAC-008/010`: AI racing-line/braking robustness ثم stuck recovery/finish tests.
+4. `URAC-010`: AI stuck recovery and finish tests فوق race/checkpoint contracts الحالية.
 5. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
 6. `UUI-002/UUI-003`: production HUD and touch controls.
 7. `UPER-009/010`: Visual Gate ثم Verified Android APK.
@@ -69,7 +70,7 @@
 | STS-U01 | 🟡 Medium | APK مبني لكن لم يجتز device smoke حقيقي بعد | QA Engineer — `UPER-006` |
 | STS-U02 | 🔴 High | المشهد الحالي blockout procedural وليس Visual Gate quality | Art Director/Art team — `UART-*`, `UVFX-*` |
 | STS-U03 | 🟡 Medium | Unity Actions licensing credentials unavailable, so stacked Race tests are committed but not executed | DevOps / Unity Tech Lead — `U3D-010/011` |
-| STS-U04 | 🟡 Medium | `URAC-002→006` code IN REVIEW; exact-head Unity execution and AI race robustness still pending | Race Engineer / AI Engineer / QA |
+| STS-U04 | 🟡 Medium | race/bounds/AI speed planning code IN REVIEW; exact-head Unity execution and AI stuck recovery still pending | Race Engineer / AI Engineer / QA |
 | STS-U05 | 🟡 Medium | لا Audio production في Unity | Audio team — `UAUD-001→003` |
 | STS-U06 | 🟡 Medium | مطورون كثيرون قد يتعارضون على bootstrap/ProjectSettings | Team Lead — enforce Module Locks |
 
