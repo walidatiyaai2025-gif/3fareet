@@ -12,7 +12,7 @@ namespace Afareet.Tests.Support
         [Test] public void FeatureTierHonorsRequirement() => Assert.That(Afareet.Support.FeatureTierPolicy.Enabled(2, 1), Is.True);
         [Test] public void SequenceWraps() => Assert.That(Afareet.Support.SequenceIndexPolicy.Wrap(5, 3), Is.EqualTo(2));
         [Test] public void TickWindowContainsInteriorTick() => Assert.That(Afareet.Support.TickWindowPolicy.Contains(12, 10, 5), Is.True);
-        [Test] public void QualityFallbackStepsDown() => Assert.That(Afareet.Support.QualityFallbackPolicy.Lower(2), Is.EqualTo(1));
-        [Test] public void RetryBudgetCapsAttempts() => Assert.That(Afareet.Support.RetryBudgetPolicy.Allow(2, 3), Is.True);
+        [Test] public void IndexBackoffStepsDown() => Assert.That(Afareet.Support.IndexBackoffPolicy.Previous(2), Is.EqualTo(1));
+        [Test] public void AttemptIndexCapsHigh() => Assert.That(Afareet.Support.AttemptIndexPolicy.Limit(8, 3), Is.EqualTo(2));
     }
 }
