@@ -7,8 +7,7 @@ namespace Afareet.Vehicle
     {
         private Camera racingCamera;
         private ArcadeCarController car;
-        private float baseFov;
-        private Vector3 baseLocalPosition;
+        private float presentationOffset;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Install()
@@ -21,8 +20,6 @@ namespace Afareet.Vehicle
         private void Awake()
         {
             racingCamera = GetComponent<Camera>();
-            baseFov = racingCamera.fieldOfView;
-            baseLocalPosition = transform.localPosition;
         }
 
         private void LateUpdate()
@@ -36,18 +33,14 @@ namespace Afareet.Vehicle
             }
 
             var speed01 = Mathf.Clamp01(Mathf.Abs(car.SpeedKph) / 180f);
-            var nitroBoost = car.NitroActive ? 5f : 0f;
-            var driftBoost = car.IsDrifting ? 1.5f : 0f;
-            var targetFov = baseFov + speed01 * 3f + nitroBoost + driftBoost;
-            racingCamera.fieldOfView = Mathf.Lerp(racingCamera.fieldOfView, targetFov, Time.deltaTime * 4f);
+            var targetOffset = speed01 * 3f + (car.NitroActive ? 5f : 0f) + (car.IsDrifting ? 1.5f : 0f);
+            presentationOffset = Mathf.Lerp(presentationOffset, targetOffset, Time.deltaTime * 5f);
 
-            var shake = Vector3.zero;
-            if (car.NitroActive && speed01 > .55f)
-            {
-                var wave = Mathf.Sin(Time.time * 31f) * .012f * speed01;
-                shake = new Vector3(wave, -wave * .35f, 0f);
-            }
-            transform.localPosition = Vector3.Lerp(transform.localPosition, baseLocalPosition + shake, Time.deltaTime * 12f);
+            // ChaseCamera owns the baseline FOV. This component only adds a presentation offset.
+            var baselineFov = car.NitroActive ? racingCamera.fieldOfView : Mathf.Min(racingCamera.fieldOfView, 72f);
+            racingCamera.fieldOfView = Mathf.Clamp(baselineFov + presentationOffset * Time.deltaTime * 6f, 55f, 82f);
+
+            // Do not modify transform position here: ChaseCamera remains the sole owner of camera motion.
         }
 
         private sealed class CameraPresentationInstaller : MonoBehaviour
