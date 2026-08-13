@@ -30,7 +30,8 @@
 | URAC-003 | GPT-5.6 Sol (Race/QA Agent) | `agent/URAC-003-one-lap-state` / PR #55 | Shared carve-out: new one-lap state/runtime file, new EditMode lifecycle tests, URAC-003 status/evidence rows; depends on PR #54 | 2026-08-13 | IN REVIEW |
 | URAC-004 | GPT-5.6 Sol (Race/QA Agent) | `agent/URAC-004-race-ranking` / PR #56 | Shared carve-out: new deterministic ranking file, new EditMode ranking tests, URAC-004 status/evidence rows; depends on PR #55 | 2026-08-13 | IN REVIEW |
 | URAC-005 | GPT-5.6 Sol (Race/QA Agent) | `agent/URAC-005-race-round-flow` / PR #57 | Shared carve-out: new countdown/results/restart state+controller, new EditMode flow tests, URAC-005 status/evidence rows; depends on PR #56 | 2026-08-13 | IN REVIEW |
-| URAC-006 | GPT-5.6 Sol (Race/QA Agent) | `agent/URAC-006-track-bounds` | Shared carve-out: new deterministic road-corridor policy, solid track-edge colliders, off-road monitor and EditMode tests; depends on PR #57 | 2026-08-13 | IN REVIEW |
+| URAC-006 | GPT-5.6 Sol (Race/QA Agent) | `agent/URAC-006-track-bounds` / PR #58 | Shared carve-out: new deterministic road-corridor policy, solid track-edge colliders, off-road monitor and EditMode tests; depends on PR #57 | 2026-08-13 | IN REVIEW |
+| URAC-008 | GPT-5.6 Sol (Race/QA Agent) | `agent/URAC-008-ai-speed-planner` | Shared carve-out: new corner-speed/braking policy, racing-line lookahead policy and EditMode tests; depends on PR #58 | 2026-08-13 | IN REVIEW |
 
 ## Lock procedure
 
