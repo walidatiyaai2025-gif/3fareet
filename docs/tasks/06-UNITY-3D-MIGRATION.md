@@ -66,7 +66,7 @@
 
 | ID | Pri | Task | Owner | Status | Acceptance / Evidence |
 |---|---|---|---|---|---|
-| UART-001 | P0 | 3D asset folder/naming/import convention | GPT-5.6 Sol (Technical Art/Unity Agent) | IN PROGRESS | documented + validator-ready |
+| UART-001 | P0 | 3D asset folder/naming/import convention | GPT-5.6 Sol (Technical Art/Unity Agent) | IN REVIEW | [`ASSET_PIPELINE.md`](../ASSET_PIPELINE.md) + [`UNITY_ASSET_CONVENTION.json`](../assets/UNITY_ASSET_CONVENTION.json); PR #52 |
 | UART-002 | P0 | Player hero car blockout | Principal Mobile Game Architect | IN REVIEW | correct scale/pivot/wheels/collider |
 | UART-003 | P0 | Hero car production model + LODs | Vehicle Artist | TODO | LOD/poly/texture budgets pass |
 | UART-004 | P1 | Three rival color/material variants | Vehicle Artist | TODO | visually distinct + performant |
@@ -119,7 +119,7 @@
 - Engineer C: `URAC-002` + `URAC-003`.
 - AI Engineer: `URAC-008` + `URAC-010`.
 - UI Engineer: `UUI-002` + `UUI-003`.
-- Technical Artist: `UART-001` + `UART-008`.
+- Technical Artist: `UART-008`؛ `UART-001` حاليًا `IN REVIEW` في PR #52.
 - Vehicle Artist: `UART-002`.
 - Environment Artist: `UART-005` + `UART-006`.
 - VFX Artist: `UVFX-001` + `UVFX-002`.
