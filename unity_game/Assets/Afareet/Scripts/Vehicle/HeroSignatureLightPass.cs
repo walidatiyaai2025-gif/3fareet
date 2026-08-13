@@ -8,6 +8,8 @@ namespace Afareet.Vehicle
         private ArcadeCarController car;
         private Light frontLight;
         private Light rearLight;
+        private Light leftRimGlow;
+        private Light rightRimGlow;
         private float nitroBlend;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -29,6 +31,8 @@ namespace Afareet.Vehicle
 
                 frontLight = AddLight(hero.transform, "Front Cyan Signature", new Vector3(0f, .78f, 2.18f), new Color(.02f, .82f, 1f), 3.8f, 2.7f);
                 rearLight = AddLight(hero.transform, "Rear Purple Signature", new Vector3(0f, .52f, -2.12f), new Color(.52f, .02f, 1f), 4.4f, 3.2f);
+                leftRimGlow = AddLight(hero.transform, "Left Rim Spirit Glow", new Vector3(-1.02f, .42f, -.05f), new Color(.52f, .02f, 1f), 2.5f, 1.15f);
+                rightRimGlow = AddLight(hero.transform, "Right Rim Spirit Glow", new Vector3(1.02f, .42f, -.05f), new Color(.02f, .82f, 1f), 2.5f, 1.15f);
                 AddSilhouetteParts(hero.transform);
             }
 
@@ -36,6 +40,13 @@ namespace Afareet.Vehicle
             frontLight.intensity = Mathf.Lerp(2.7f, 4.1f, nitroBlend);
             rearLight.intensity = Mathf.Lerp(3.2f, 5.2f, nitroBlend);
             rearLight.color = Color.Lerp(new Color(.52f, .02f, 1f), new Color(.02f, .82f, 1f), nitroBlend);
+
+            var speedBlend = Mathf.Clamp01(Mathf.Abs(car.SpeedKph) / 160f);
+            var rimIntensity = Mathf.Lerp(1.15f, 2.05f, speedBlend) + nitroBlend * .75f;
+            leftRimGlow.intensity = rimIntensity;
+            rightRimGlow.intensity = rimIntensity;
+            leftRimGlow.color = Color.Lerp(new Color(.52f, .02f, 1f), new Color(.02f, .82f, 1f), nitroBlend * .7f);
+            rightRimGlow.color = Color.Lerp(new Color(.02f, .82f, 1f), new Color(1f, .48f, .035f), nitroBlend * .55f);
         }
 
         private static void AddSilhouetteParts(Transform hero)
