@@ -56,7 +56,7 @@
 | URAC-005 | P0 | Countdown/results/restart flow | GPT-5.6 Sol (Race/QA Agent) | IN REVIEW | additive `RaceRoundFlowState` + `RaceRoundController` on `agent/URAC-005-race-round-flow`; deterministic countdown starts URAC-003 lap tracker, finish drives Results, restart resets lap/checkpoint state for next round; EditMode flow tests committed; Unity execution pending CI license |
 | URAC-006 | P0 | Track bounds/barriers/off-road | GPT-5.6 Sol (Race/QA Agent) | IN REVIEW | `TrackBoundaryPolicy` + runtime solid track-edge colliders + off-road state monitor on `agent/URAC-006-track-bounds`; EditMode tests cover corridor classification, edge generation and leave/reenter events; Unity execution pending CI license |
 | URAC-007 | P0 | Waypoint AI baseline (3 rivals) | Principal Mobile Game Architect | IN REVIEW | three rivals complete loop |
-| URAC-008 | P0 | AI racing line and braking zones | AI Engineer | READY | curve-aware speed planning |
+| URAC-008 | P0 | AI racing line and braking zones | GPT-5.6 Sol (Race/QA Agent) | IN REVIEW | `CornerSpeedPolicy` + `RacingLineLookahead` on `agent/URAC-008-ai-speed-planner`; curvature reduces target speed, upcoming turns create braking zones, straights extend aim and allow nitro; EditMode tests committed; Unity execution pending CI license |
 | URAC-009 | P1 | AI avoidance/overtake/personality | AI Engineer | TODO | reproducible seeded behaviors |
 | URAC-010 | P0 | AI stuck recovery and finish tests | AI Engineer | READY | automated coverage |
 | URAC-011 | P0 | Replace blockout with Cairo vertical-slice layout | Level Designer | READY | landmarks + readable racing line |
