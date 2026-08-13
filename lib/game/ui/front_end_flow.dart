@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 enum FrontEndStage { splash, mainMenu, modeSelection, loading, racing, error }
 
 class FrontEndFlowController extends ChangeNotifier {
-  FrontEndStage _stage = FrontEndStage.splash;
+  FrontEndStage _stage = FrontEndStage.mainMenu;
   bool _isArabic = false;
   String? _errorMessage;
 
