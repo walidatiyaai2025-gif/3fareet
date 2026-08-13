@@ -69,5 +69,25 @@ namespace Afareet.Tests
                 Object.DestroyImmediate(config);
             }
         }
+
+        [Test]
+        public void PlayerInputIsAppliedDirectlyAndClamped()
+        {
+            var carObject = new GameObject("Input Test Car");
+            try
+            {
+                carObject.AddComponent<Rigidbody>();
+                var car = carObject.AddComponent<ArcadeCarController>();
+                car.SetPlayerInput(2f, -2f, false, true, true);
+
+                Assert.That(car.CurrentThrottleInput, Is.EqualTo(1f));
+                Assert.That(car.CurrentSteerInput, Is.EqualTo(-1f));
+                Assert.That(car.CurrentBrakeInput, Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(carObject);
+            }
+        }
     }
 }
