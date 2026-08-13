@@ -16,7 +16,11 @@ namespace Afareet.Core
             if (GameObject.Find(RootName) != null) return;
 
             Application.targetFrameRate = 60;
-            Screen.orientation = ScreenOrientation.LandscapeLeft;
+            Screen.autorotateToPortrait = false;
+            Screen.autorotateToPortraitUpsideDown = false;
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = true;
+            Screen.orientation = ScreenOrientation.AutoRotation;
             QualitySettings.vSyncCount = 0;
 
             var root = new GameObject(RootName);
