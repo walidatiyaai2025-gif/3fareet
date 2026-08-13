@@ -33,7 +33,8 @@ namespace Afareet.Vehicle
             leftDriftGlow.emitting = drifting;
             rightDriftGlow.emitting = drifting;
 
-            var driftPower = drifting ? Mathf.Clamp01(Mathf.Abs(car.SpeedKph) / 150f) : 0f;
+            var speedBlend = Mathf.Clamp01(Mathf.Abs(car.SpeedKph) / 160f);
+            var driftPower = drifting ? speedBlend : 0f;
             var width = Mathf.Lerp(.13f, .23f, driftPower);
             var life = Mathf.Lerp(.24f, .42f, driftPower);
             leftDriftGlow.startWidth = width;
@@ -42,7 +43,9 @@ namespace Afareet.Vehicle
             rightDriftGlow.time = life;
 
             var nitro = car.NitroActive && car.NitroEnergy > 0f;
-            nitroGlow.intensity = Mathf.MoveTowards(nitroGlow.intensity, nitro ? 8f : 0f, Time.deltaTime * 18f);
+            var targetIntensity = nitro ? Mathf.Lerp(7.5f, 10f, speedBlend) : 0f;
+            nitroGlow.intensity = Mathf.MoveTowards(nitroGlow.intensity, targetIntensity, Time.deltaTime * 18f);
+            nitroGlow.range = Mathf.Lerp(6.5f, nitro ? 9f : 7f, speedBlend);
             nitroGlow.color = Color.Lerp(new Color(.52f, .02f, 1f), new Color(.05f, .8f, 1f), 1f - car.NitroEnergy);
         }
 
