@@ -65,6 +65,8 @@ The test script:
 - rejects missing/empty XML, zero-test runs, non-passing result state, or any failed test;
 - writes `artifacts/unity-local-tests/test-metadata.json` pinned to the exact Git SHA.
 
+Unity is started with `Start-Process -Wait -PassThru`, so PowerShell waits for the real editor process and reads its actual exit code instead of continuing early from the Windows GUI executable.
+
 Successful output contains:
 
 `AFAREET_LOCAL_UNITY_TESTS_OK`
@@ -93,7 +95,9 @@ The build script:
 - rejects a dirty Git tree by default;
 - treats `-AllowDirty` output as debug-only and marks it `releaseEvidenceEligible: false`;
 - confirms Android Build Support exists;
-- invokes Unity with an explicit PowerShell argument array, then runs `Afareet.Editor.AfareetBuild.BuildAndroid` in batch mode;
+- waits for the actual Unity process with `Start-Process -Wait -PassThru` and captures its exit code;
+- deletes stale APK/log output before launching Unity;
+- requires the explicit `AFAREET_BUILD_SUCCESS target=Android` Unity log marker before accepting a zero exit code;
 - requires a non-empty APK;
 - verifies package `com.fiftysolutions.afareetunity3d`;
 - verifies minSdk API 26;
@@ -134,25 +138,50 @@ Successful output contains:
 
 The generated manifest deliberately contains `readyForDeviceEvidence: true` and `verified: false`. It is an integrity handoff to physical-device QA, not release approval.
 
-## Evidence consistency rule
+### 4. Start device evidence only from that candidate
 
-For local release review, the Unity test metadata, APK metadata and actual APK bytes must pass `verify_local_candidate.py`. A dirty-tree run must never be promoted to release evidence.
-
-The safest GitHub-hosted path remains a fully Green `Unity Production CI` run after a complete licensing secret set is configured. The local path exists to make exact-head test/build execution possible on an already licensed workstation without weakening the physical-device or manual review gates.
-
-## After an APK exists
-
-For the local path, first require a successful candidate integrity manifest as described above. Then use the exact APK produced from the current production candidate:
+For the local path, do not manually pass an arbitrary APK to the ADB collector. Use the candidate-aware bridge:
 
 ```bash
-python3 tools/android/device_evidence.py prepare \
+python3 tools/android/prepare_candidate_device.py \
+  --candidate-manifest artifacts/local-candidate-manifest.json \
+  --output evidence/p1-device
+```
+
+If the candidate manifest/APK bundle was moved to another workstation, provide the moved APK explicitly:
+
+```bash
+python3 tools/android/prepare_candidate_device.py \
+  --candidate-manifest /path/to/local-candidate-manifest.json \
   --apk /path/to/afareet-unity3d-debug.apk \
   --output evidence/p1-device
 ```
 
-The device harness independently hashes the APK again when it creates the evidence session.
+Before invoking ADB, this wrapper independently requires:
 
-Then follow `docs/qa/P1_FINAL_5_GATE_PLAN.md` to capture and review:
+- supported local candidate type and production package id;
+- `releaseEvidenceEligible: true`;
+- `readyForDeviceEvidence: true`;
+- the expected non-self-VERIFIED manifest contract;
+- verdict `READY_FOR_PHYSICAL_DEVICE_EVIDENCE`;
+- a valid full Git SHA;
+- exact APK filename, positive byte length and SHA-256 match.
+
+Successful precheck contains:
+
+`AFAREET_CANDIDATE_DEVICE_PRECHECK_OK`
+
+It then invokes the existing `device_evidence.py prepare` flow against those exact APK bytes.
+
+## Evidence consistency rule
+
+For local release review, the Unity test metadata, APK metadata and actual APK bytes must pass `verify_local_candidate.py`, and the resulting manifest must be consumed by `prepare_candidate_device.py` before physical-device collection. A dirty-tree run must never be promoted to release evidence.
+
+The safest GitHub-hosted path remains a fully Green `Unity Production CI` run after a complete licensing secret set is configured. The local path exists to make exact-head test/build execution possible on an already licensed workstation without weakening the physical-device or manual review gates.
+
+## After a device session exists
+
+Follow `docs/qa/P1_FINAL_5_GATE_PLAN.md` to capture and review:
 
 - `UVEH-012` driving feel;
 - `URAC-012` race completion/results/restart;
