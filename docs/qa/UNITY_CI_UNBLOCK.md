@@ -1,6 +1,6 @@
 # Unity CI / Android Build Unblock
 
-This runbook addresses the external blocker tracked in Issue #98 and provides two supported paths to obtain a current Android APK for the five remaining P1 device/release gates.
+This runbook addresses the external blocker tracked in Issue #98 and provides two supported paths to obtain exact-head Unity test evidence and a current Android APK for the five remaining P1 device/release gates.
 
 ## Current blocker
 
@@ -26,20 +26,54 @@ Configure all three repository Actions secrets:
 
 Never commit any of these values to Git.
 
-After secrets are configured, rerun `Unity Production CI` on the latest production-stack head. Do not use a Green static-contract job as evidence that Unity compile/build executed.
+After secrets are configured, rerun `Unity Production CI` on the latest production-stack head. Do not use a Green static-contract job as evidence that Unity compile/tests/build executed.
 
-## Local Windows fallback — no GitHub Actions license secrets required
+## Local Windows fallback — licensed workstation
 
-If a Windows workstation already has Unity `6000.5.8f1` activated through Unity Hub, the project can build the current checkout directly with the repository script.
+If a Windows workstation already has Unity `6000.5.8f1` activated through Unity Hub, the repository now provides a clean exact-head fallback for both automated Unity tests and the Android APK build without storing Unity credentials in GitHub Actions.
 
 Prerequisites:
 
 1. Unity `6000.5.8f1` installed and licensed locally.
-2. Android Build Support installed for that Unity version.
+2. Android Build Support installed for the APK build step.
 3. Git CLI installed and the repository checked out at the exact production candidate commit.
-4. Clean Git working tree for release evidence.
+4. Clean Git working tree for release-eligible evidence.
 
-Run from PowerShell at repository root:
+### 1. Run EditMode + PlayMode tests
+
+From PowerShell at repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/android/test_current_windows.ps1
+```
+
+If Unity is installed in a non-default path:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/android/test_current_windows.ps1 `
+  -UnityPath 'D:\Unity\6000.5.8f1\Editor\Unity.exe'
+```
+
+The test script:
+
+- rejects the wrong Unity version;
+- requires Git and a full 40-character commit SHA;
+- rejects a dirty tree by default;
+- treats `-AllowDirty` output as debug-only and marks it `releaseEvidenceEligible: false`;
+- runs Unity Test Framework from the command line in both `EditMode` and `PlayMode`;
+- writes separate NUnit XML results and Unity logs;
+- rejects missing/empty XML, zero-test runs, non-passing result state, or any failed test;
+- writes `artifacts/unity-local-tests/test-metadata.json` pinned to the exact Git SHA.
+
+Successful output contains:
+
+`AFAREET_LOCAL_UNITY_TESTS_OK`
+
+This is exact-head local automated-test evidence. It does **not** make the GitHub `Unity Production CI` workflow Green and does not substitute for CI provenance where CI provenance is explicitly required.
+
+### 2. Build and inspect Android APK
+
+Run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/android/build_current_windows.ps1
@@ -52,7 +86,7 @@ powershell -ExecutionPolicy Bypass -File tools/android/build_current_windows.ps1
   -UnityPath 'D:\Unity\6000.5.8f1\Editor\Unity.exe'
 ```
 
-The script:
+The build script:
 
 - rejects the wrong Unity version;
 - requires a full Git commit SHA and records the active branch;
@@ -71,7 +105,13 @@ Successful output contains:
 
 `AFAREET_LOCAL_ANDROID_BUILD_OK`
 
-This local fallback is **APK build/inspection evidence only**. It does not replace the `Unity Production CI` EditMode/PlayMode test gates and it is not Device Verified evidence. A final verified release still requires the required automated Unity tests plus the physical-device/manual gates.
+The APK build/inspection evidence is not Device Verified evidence.
+
+## Evidence consistency rule
+
+For release review, the local Unity test metadata and APK metadata must both be release-eligible and pin to the same exact Git SHA. A dirty-tree run must never be promoted to release evidence.
+
+The safest GitHub-hosted path remains a fully Green `Unity Production CI` run after a complete licensing secret set is configured. The local path exists to make exact-head test/build execution possible on an already licensed workstation without weakening the physical-device or manual review gates.
 
 ## After an APK exists
 
