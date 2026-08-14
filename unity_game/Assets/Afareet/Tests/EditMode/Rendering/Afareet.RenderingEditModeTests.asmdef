@@ -1,0 +1,8 @@
+{
+  "name": "Afareet.RenderingEditModeTests",
+  "rootNamespace": "Afareet.Tests.Rendering",
+  "references": ["Afareet.Rendering"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}
