@@ -1,11 +1,18 @@
 import hashlib
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
 
-from verify_local_candidate import CandidateError, verify_candidate
 
+MODULE_PATH = Path(__file__).resolve().parents[1] / "verify_local_candidate.py"
+SPEC = importlib.util.spec_from_file_location("verify_local_candidate", MODULE_PATH)
+assert SPEC is not None and SPEC.loader is not None
+VERIFY = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(VERIFY)
 
+CandidateError = VERIFY.CandidateError
+verify_candidate = VERIFY.verify_candidate
 SHA = "a" * 40
 
 
