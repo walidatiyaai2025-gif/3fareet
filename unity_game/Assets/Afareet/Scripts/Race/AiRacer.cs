@@ -31,9 +31,10 @@ namespace Afareet.Race
 
         private void FixedUpdate()
         {
-            if (waypoints == null || waypoints.Count == 0) return;
+            if (waypoints == null || waypoints.Count < 3) return;
 
-            var target = waypoints[waypointIndex];
+            var racingPlan = RacingLineLookahead.Plan(waypoints, waypointIndex, Mathf.Abs(car.SpeedKph));
+            var target = waypoints[racingPlan.AimWaypointIndex];
             var targetPosition = target.position + target.right * laneBias;
             var local = transform.InverseTransformPoint(targetPosition);
             var steer = Mathf.Clamp(local.x / Mathf.Max(2f, local.magnitude * .28f), -1f, 1f);
@@ -41,18 +42,29 @@ namespace Afareet.Race
             var avoidance = ComputeAvoidance(out var carAhead, out var nearestCarDistance);
             steer = Mathf.Clamp(steer + avoidance, -1f, 1f);
 
-            var corner = Mathf.Abs(steer);
-            var throttle = corner > .72f ? .48f : skill;
+            var brakeStrength = racingPlan.SpeedPlan.Brake01;
+            var throttle = Mathf.Lerp(skill, .12f, brakeStrength);
             if (carAhead && nearestCarDistance < 3.5f)
+            {
                 throttle *= .68f;
+                brakeStrength = Mathf.Max(brakeStrength, .22f);
+            }
             else if (carAhead)
+            {
                 throttle = Mathf.Min(1f, throttle + aggression * .08f);
+            }
 
+            var corner = Mathf.Max(racingPlan.SpeedPlan.Severity01, Mathf.Abs(steer));
             var drift = corner > .48f && car.SpeedKph > 65f;
-            var nitro = corner < .15f && car.NitroEnergy > .35f && (!carAhead || nearestCarDistance > 4.5f);
-            car.SetAiInput(throttle, steer, drift, nitro);
+            var nitro = racingPlan.UseNitro &&
+                        Mathf.Abs(steer) < .22f &&
+                        car.NitroEnergy > .35f &&
+                        (!carAhead || nearestCarDistance > 4.5f);
+            var brake = brakeStrength > .08f;
+            car.SetAiInput(throttle, steer, drift, nitro, brake);
 
-            if (local.magnitude < 9f)
+            var checkpointLocal = transform.InverseTransformPoint(waypoints[waypointIndex].position);
+            if (checkpointLocal.magnitude < 9f)
                 waypointIndex = (waypointIndex + 1) % waypoints.Count;
         }
 
