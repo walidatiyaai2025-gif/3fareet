@@ -6,7 +6,7 @@ This runbook addresses the external blocker tracked in Issue #98 and provides tw
 
 Unity Production CI is implemented, but Unity engine jobs cannot start until a complete Unity licensing credential set is available to GitHub Actions.
 
-The workflow now accepts only complete sets:
+The workflow accepts only complete sets:
 
 ### Unity Personal / file-license path
 
@@ -36,7 +36,7 @@ Prerequisites:
 
 1. Unity `6000.5.8f1` installed and licensed locally.
 2. Android Build Support installed for that Unity version.
-3. Repository checked out at the exact production candidate commit.
+3. Git CLI installed and the repository checked out at the exact production candidate commit.
 4. Clean Git working tree for release evidence.
 
 Run from PowerShell at repository root:
@@ -55,9 +55,11 @@ powershell -ExecutionPolicy Bypass -File tools/android/build_current_windows.ps1
 The script:
 
 - rejects the wrong Unity version;
+- requires a full Git commit SHA and records the active branch;
 - rejects a dirty Git tree by default;
+- treats `-AllowDirty` output as debug-only and marks it `releaseEvidenceEligible: false`;
 - confirms Android Build Support exists;
-- runs `Afareet.Editor.AfareetBuild.BuildAndroid` in batch mode;
+- invokes Unity with an explicit PowerShell argument array, then runs `Afareet.Editor.AfareetBuild.BuildAndroid` in batch mode;
 - requires a non-empty APK;
 - verifies package `com.fiftysolutions.afareetunity3d`;
 - verifies minSdk API 26;
@@ -69,7 +71,7 @@ Successful output contains:
 
 `AFAREET_LOCAL_ANDROID_BUILD_OK`
 
-This is build evidence only. It is not Device Verified evidence.
+This local fallback is **APK build/inspection evidence only**. It does not replace the `Unity Production CI` EditMode/PlayMode test gates and it is not Device Verified evidence. A final verified release still requires the required automated Unity tests plus the physical-device/manual gates.
 
 ## After an APK exists
 
