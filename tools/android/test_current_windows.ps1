@@ -81,16 +81,16 @@ function Invoke-UnityTests([string]$Mode) {
     $unityArgs = @(
         '-batchmode',
         '-quit',
-        '-projectPath', $ProjectPath,
+        '-projectPath', ('"{0}"' -f $ProjectPath),
         '-runTests',
         '-testPlatform', $Mode,
-        '-testResults', $ResultPath,
-        '-logFile', $LogPath
+        '-testResults', ('"{0}"' -f $ResultPath),
+        '-logFile', ('"{0}"' -f $LogPath)
     )
 
     Write-Host "AFAREET_LOCAL_TEST_START mode=$Mode gitSha=$GitSha branch=$GitBranch"
-    & $UnityPath @unityArgs
-    $unityExitCode = $LASTEXITCODE
+    $unityProcess = Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru
+    $unityExitCode = $unityProcess.ExitCode
 
     if ($unityExitCode -ne 0) {
         Get-Content $LogPath -Tail 160 -ErrorAction SilentlyContinue | Write-Host
