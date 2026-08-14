@@ -44,13 +44,14 @@ jobs:
           python3 tools/android/p1_gate_readiness.py plan >/dev/null
           python3 -m json.tool tools/android/p1_gate_spec.json >/dev/null
 
-      - name: Validate Windows local-build PowerShell syntax
+      - name: Validate Windows local-build PowerShell contract
         shell: pwsh
         run: |
+          $scriptPath = Resolve-Path 'tools/android/build_current_windows.ps1'
           $tokens = $null
           $errors = $null
           [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path 'tools/android/build_current_windows.ps1'),
+            $scriptPath,
             [ref]$tokens,
             [ref]$errors
           ) | Out-Null
@@ -58,7 +59,21 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             exit 1
           }
-          Write-Host 'PowerShell syntax OK.'
+
+          $scriptText = Get-Content -Raw $scriptPath
+          if ($scriptText.Contains('& $UnityPath \')) {
+            throw 'Invalid PowerShell invocation: backslash must not be used as a line-continuation argument for Unity.'
+          }
+          if (-not $scriptText.Contains('& $UnityPath @unityArgs')) {
+            throw 'Unity invocation must use the explicit $unityArgs argument array.'
+          }
+          if (-not $scriptText.Contains('git is required for SHA-pinned build evidence')) {
+            throw 'Local build must fail closed when Git is unavailable.'
+          }
+          if (-not $scriptText.Contains('releaseEvidenceEligible')) {
+            throw 'Local build metadata must distinguish clean release evidence from dirty debug builds.'
+          }
+          Write-Host 'PowerShell syntax and semantic contract OK.'
 
       - name: Run standard-library unit tests
         shell: bash
