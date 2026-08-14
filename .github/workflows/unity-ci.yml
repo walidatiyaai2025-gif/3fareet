@@ -6,6 +6,7 @@ on:
       - 'unity_game/**'
       - 'docs/assets/01_vehicles/**'
       - 'docs/assets/02_tracks_environments/**'
+      - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
       - '.github/workflows/unity-ci.yml'
       - '.github/scripts/verify-unity-android-apk.sh'
   push:
@@ -15,6 +16,7 @@ on:
       - 'unity_game/**'
       - 'docs/assets/01_vehicles/**'
       - 'docs/assets/02_tracks_environments/**'
+      - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
       - '.github/workflows/unity-ci.yml'
       - '.github/scripts/verify-unity-android-apk.sh'
   workflow_dispatch:
