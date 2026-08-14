@@ -51,13 +51,19 @@ namespace Afareet.UI
 
         private void Update()
         {
-            if (player == null) return;
+            if (player == null || race == null) return;
             UpdateCanvasMetrics();
             ResetInput();
             if (!race.IsStarted)
             {
                 player.SetPlayerInput(0f, 0f, false, false, true);
                 ReadStartInput();
+                return;
+            }
+
+            if (race.IsPaused || race.Phase == RaceRoundPhase.Results)
+            {
+                player.SetPlayerInput(0f, 0f, false, false, true);
                 return;
             }
 
@@ -160,6 +166,7 @@ namespace Afareet.UI
             if (!string.IsNullOrEmpty(race.CountdownText))
                 GUI.Label(new Rect(centerX - 130, top + (bottom - top) * .25f, 260, 120), race.CountdownText, title);
 
+            if (race.IsPaused || race.Phase == RaceRoundPhase.Results) return;
             DrawTouchControls();
         }
 
