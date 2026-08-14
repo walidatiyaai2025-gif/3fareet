@@ -9,6 +9,7 @@ namespace Afareet.Vehicle
 
         private Rigidbody body;
         private TrailRenderer[] trails;
+        private ArcadeGroundSurfaceSensor surfaceSensor;
         private Vector3 spawnPosition;
         private Quaternion spawnRotation;
         private float steerInput;
@@ -21,14 +22,18 @@ namespace Afareet.Vehicle
 
         public bool AcceptsPlayerInput { get; set; }
         public float SpeedKph => body == null ? 0f : Vector3.Dot(body.linearVelocity, transform.forward) * 3.6f;
-        public bool IsDrifting => driftInput && Mathf.Abs(steerInput) > 0.15f && Mathf.Abs(SpeedKph) > 25f;
-        public bool NitroActive => config != null && VehicleSpiritPolicy.CanActivateNitro(
-            nitroInput,
-            NitroEnergy,
-            nitroCooldownRemaining,
-            Mathf.Abs(SpeedKph),
-            config.nitroMinimumActivationEnergy,
-            config.nitroMinimumSpeedKph);
+        public bool IsDrifting => DriftChargeActive;
+        public bool IsGrounded => surfaceSensor != null && surfaceSensor.IsGrounded;
+        public ArcadeSurfaceKind CurrentSurface => surfaceSensor == null ? ArcadeSurfaceKind.Asphalt : surfaceSensor.CurrentSurface;
+        public bool NitroActive => config != null &&
+            (surfaceSensor == null || surfaceSensor.IsGrounded) &&
+            VehicleSpiritPolicy.CanActivateNitro(
+                nitroInput,
+                NitroEnergy,
+                nitroCooldownRemaining,
+                Mathf.Abs(SpeedKph),
+                config.nitroMinimumActivationEnergy,
+                config.nitroMinimumSpeedKph);
         public bool NitroReady => config != null && VehicleSpiritPolicy.CanActivateNitro(
             true,
             NitroEnergy,
@@ -50,6 +55,9 @@ namespace Afareet.Vehicle
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.Continuous;
             trails = GetComponentsInChildren<TrailRenderer>();
+            surfaceSensor = GetComponent<ArcadeGroundSurfaceSensor>();
+            if (surfaceSensor == null)
+                surfaceSensor = gameObject.AddComponent<ArcadeGroundSurfaceSensor>();
             spawnPosition = transform.position;
             spawnRotation = transform.rotation;
         }
@@ -65,14 +73,18 @@ namespace Afareet.Vehicle
 #if UNITY_EDITOR || UNITY_STANDALONE
             if (AcceptsPlayerInput) ReadDesktopInput();
 #endif
+            surfaceSensor.ProbeNow();
+            var grounded = surfaceSensor.IsGrounded;
+            var surfaceResponse = config.SurfaceResponseFor(surfaceSensor.CurrentSurface);
             nitroCooldownRemaining = VehicleSpiritPolicy.AdvanceCooldown(nitroCooldownRemaining, Time.fixedDeltaTime);
 
             var localVelocity = transform.InverseTransformDirection(body.linearVelocity);
             var forwardSpeed = localVelocity.z;
             var lateralSlip = localVelocity.x;
 
+            var driftRequestedOnGround = driftInput && grounded;
             DriftChargeActive = VehicleSpiritPolicy.CanChargeDrift(
-                driftInput,
+                driftRequestedOnGround,
                 steerInput,
                 SpeedKph,
                 lateralSlip,
@@ -81,7 +93,7 @@ namespace Afareet.Vehicle
                 config.driftEnergyMinimumSlipMetersPerSecond);
             DriftEnergy = VehicleSpiritPolicy.StepDriftEnergy(
                 DriftEnergy,
-                driftInput,
+                driftRequestedOnGround,
                 steerInput,
                 SpeedKph,
                 lateralSlip,
@@ -93,15 +105,25 @@ namespace Afareet.Vehicle
                 config.driftEnergyMinimumSlipMetersPerSecond,
                 config.driftEnergyFullGainSlipMetersPerSecond);
 
-            if (brakeInput && forwardSpeed > .25f)
+            if (grounded && brakeInput && forwardSpeed > .25f)
             {
                 localVelocity.z = Mathf.MoveTowards(localVelocity.z, 0f, 34f * Time.fixedDeltaTime);
                 body.linearVelocity = transform.TransformDirection(localVelocity);
                 forwardSpeed = localVelocity.z;
             }
-            var accelerating = throttleInput >= 0f ? config.acceleration : config.reverseAcceleration;
-            if (Mathf.Abs(forwardSpeed) < config.maxSpeedMetersPerSecond || Mathf.Sign(throttleInput) != Mathf.Sign(forwardSpeed))
-                body.AddForce(transform.forward * (throttleInput * accelerating), ForceMode.Acceleration);
+
+            var tractionDrive = VehicleHandlingPolicy.LimitDriveForTraction(
+                throttleInput,
+                lateralSlip,
+                config.tractionSlipThresholdMetersPerSecond,
+                config.tractionStrength);
+            var accelerating = (tractionDrive >= 0f ? config.acceleration : config.reverseAcceleration) * surfaceResponse.AccelerationMultiplier;
+            var surfaceMaxSpeed = config.maxSpeedMetersPerSecond * surfaceResponse.MaxSpeedMultiplier;
+            if (grounded &&
+                (Mathf.Abs(forwardSpeed) < surfaceMaxSpeed || Mathf.Sign(tractionDrive) != Mathf.Sign(forwardSpeed)))
+            {
+                body.AddForce(transform.forward * (tractionDrive * accelerating), ForceMode.Acceleration);
+            }
 
             var nitroActive = NitroActive;
             if (nitroWasActive && !nitroActive)
@@ -141,12 +163,30 @@ namespace Afareet.Vehicle
             }
             nitroWasActive = nitroActive;
 
-            var speedFactor = Mathf.Lerp(.42f, 1f, Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 12f));
-            var direction = forwardSpeed < -0.5f ? -1f : 1f;
-            body.MoveRotation(body.rotation * Quaternion.Euler(0f, steerInput * config.steerStrengthDegrees * speedFactor * direction * Time.fixedDeltaTime, 0f));
+            if (grounded)
+            {
+                var speedFactor = Mathf.Lerp(.42f, 1f, Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 12f));
+                var direction = forwardSpeed < -0.5f ? -1f : 1f;
+                body.MoveRotation(body.rotation * Quaternion.Euler(0f, steerInput * config.steerStrengthDegrees * speedFactor * direction * Time.fixedDeltaTime, 0f));
 
-            localVelocity.x = Mathf.Lerp(localVelocity.x, 0f, (driftInput ? config.driftGrip : config.grip) * Time.fixedDeltaTime);
-            localVelocity.z = Mathf.Clamp(localVelocity.z, -config.maxSpeedMetersPerSecond * 0.3f, config.maxSpeedMetersPerSecond * (nitroActive ? 1.22f : 1f));
+                var driftBlend = VehicleHandlingPolicy.DriftBlend(
+                    driftInput,
+                    steerInput,
+                    lateralSlip,
+                    config.driftGripMinimumSteer,
+                    config.driftGripFullSlipMetersPerSecond);
+                var effectiveGrip = VehicleHandlingPolicy.EffectiveGrip(
+                    config.grip,
+                    config.driftGrip,
+                    driftBlend,
+                    surfaceResponse.GripMultiplier);
+                localVelocity.x = Mathf.Lerp(localVelocity.x, 0f, effectiveGrip * Time.fixedDeltaTime);
+            }
+
+            var maxForwardSpeed = config.maxSpeedMetersPerSecond *
+                                  (grounded ? surfaceResponse.MaxSpeedMultiplier : 1f) *
+                                  (nitroActive ? 1.22f : 1f);
+            localVelocity.z = Mathf.Clamp(localVelocity.z, -config.maxSpeedMetersPerSecond * 0.3f, maxForwardSpeed);
             body.linearVelocity = transform.TransformDirection(localVelocity);
 
             foreach (var trail in trails) trail.emitting = IsDrifting || nitroActive;
