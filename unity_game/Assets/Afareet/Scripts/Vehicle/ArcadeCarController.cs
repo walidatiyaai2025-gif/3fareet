@@ -118,7 +118,12 @@ namespace Afareet.Vehicle
 
         public void ResetToSpawn()
         {
-            transform.SetPositionAndRotation(spawnPosition + Vector3.up, spawnRotation);
+            var checkpoint = GetComponent<LastCheckpointTracker>();
+            if (checkpoint != null && checkpoint.HasCheckpoint)
+                transform.SetPositionAndRotation(checkpoint.Position + Vector3.up, checkpoint.Rotation);
+            else
+                transform.SetPositionAndRotation(spawnPosition + Vector3.up, spawnRotation);
+
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
         }
