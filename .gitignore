@@ -20,6 +20,7 @@ android/local.properties
 
 # Unity generated builds / release signing
 unity_game/Builds/
+unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated/
 *.jks
 *.keystore
 *.p12
