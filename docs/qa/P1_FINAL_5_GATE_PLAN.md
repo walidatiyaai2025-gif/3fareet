@@ -14,19 +14,55 @@ The five remaining blocked tasks are:
 4. `UPER-009` — P1 Visual Gate.
 5. `UPER-010` — Verified APK publication gate.
 
-`U3D-012` is no longer one of these five: the Android CI workflow exists and is `IN REVIEW`; Unity engine execution is currently blocked by repository licensing secrets tracked in Issue #98.
+`U3D-012` is no longer one of these five: the Android CI workflow exists and is `IN REVIEW`; GitHub-hosted Unity engine execution is currently blocked by repository licensing secrets tracked in Issue #98.
 
-## Prerequisite
+## Prerequisite — exact current candidate
 
-Generate the Android APK from the latest production stack head after Unity/GameCI licensing is configured. Do not reuse an older APK from a different ancestry as final evidence.
+Do not reuse an older APK from a different ancestry as final evidence. Obtain exact-head automated Unity test evidence and an inspected Android APK through one of the supported paths.
 
-Then prepare a physical-device evidence session:
+### Preferred GitHub-hosted path
+
+Configure one complete Unity/GameCI credential set and require the current `Unity Production CI` run to execute and pass the applicable Unity tests/build/APK verification.
+
+Supported complete credential sets are:
+
+- Personal/file-license: `UNITY_LICENSE + UNITY_EMAIL + UNITY_PASSWORD`; or
+- Professional: `UNITY_SERIAL + UNITY_EMAIL + UNITY_PASSWORD`.
+
+Secrets must never be committed to Git.
+
+### Licensed-Windows fallback
+
+On an already licensed Unity `6000.5.8f1` Windows workstation, from the same clean exact commit:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/android/test_current_windows.ps1
+powershell -ExecutionPolicy Bypass -File tools/android/build_current_windows.ps1
+```
+
+Then require the machine-checked same-candidate integrity gate:
+
+```bash
+python3 tools/android/verify_local_candidate.py \
+  --test-metadata artifacts/unity-local-tests/test-metadata.json \
+  --build-metadata artifacts/android-local/artifact-metadata.json \
+  --apk artifacts/android-local/afareet-unity3d-debug.apk \
+  --output artifacts/local-candidate-manifest.json
+```
+
+A successful local manifest must say `readyForDeviceEvidence: true` and still says `verified: false`. It proves clean same-SHA test/build/APK integrity only.
+
+## Prepare physical-device evidence
+
+Prepare a physical-device evidence session with the exact APK that passed the selected candidate path:
 
 ```bash
 python3 tools/android/device_evidence.py prepare \
   --apk /path/to/current.apk \
   --output evidence/p1-device
 ```
+
+The harness hashes the APK again and pins the session to that exact SHA plus the physical device identity.
 
 ## Required captures
 
@@ -121,6 +157,7 @@ python3 tools/android/p1_gate_readiness.py validate \
 
 `UPER-010` can only reach `READY_FOR_RELEASE_REVIEW` when:
 
+- the APK came from an accepted exact-head candidate path;
 - the session is from a physical device;
 - all required checkpoints exist;
 - automated fatal/crash/ANR red flags are zero;
@@ -132,9 +169,4 @@ Even then the evaluator emits `verified: false`. Publication and `Last Verified 
 
 ## External blocker still open
 
-Issue #98 must be resolved first by configuring one supported Unity/GameCI Actions licensing path:
-
-- `UNITY_LICENSE`, or
-- `UNITY_EMAIL` + `UNITY_PASSWORD` + `UNITY_SERIAL`.
-
-Secrets must never be committed to Git.
+Issue #98 remains open while GitHub-hosted Unity execution lacks one complete credential triple. The licensed-Windows path can produce exact-head test/build evidence, but it does not make GitHub `Unity Production CI` Green and does not replace physical-device/manual gates.
