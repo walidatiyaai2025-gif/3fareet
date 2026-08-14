@@ -23,5 +23,16 @@ MonoBehaviour:
   linearDamping: 0.15
   angularDamping: 3.5
   centerOfMass: {x: 0, y: -0.45, z: 0.15}
+  nitroLowSpeedForceScale: 0.7
+  nitroFullForceSpeedRatio: 0.72
+  nitroMinimumSpeedKph: 15
+  nitroMinimumActivationEnergy: 0.12
+  nitroCooldownSeconds: 0.85
   nitroConsumptionPerSecond: 0.22
   nitroRechargePerSecond: 0.06
+  driftEnergyGainPerSecond: 0.24
+  driftEnergyDecayPerSecond: 0.1
+  driftEnergyMinimumSteer: 0.2
+  driftEnergyMinimumSpeedKph: 30
+  driftEnergyMinimumSlipMetersPerSecond: 0.8
+  driftEnergyFullGainSlipMetersPerSecond: 6
