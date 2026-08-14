@@ -71,25 +71,29 @@ jobs:
           }
 
           $buildText = Get-Content -Raw 'tools/android/build_current_windows.ps1'
-          if ($buildText.Contains('& $UnityPath \')) {
+          if ($buildText.Contains('& $UnityPath \\')) {
             throw 'Invalid build invocation: backslash must not be used as a line-continuation argument for Unity.'
           }
-          if (-not $buildText.Contains('& $UnityPath @unityArgs')) {
-            throw 'Build invocation must use the explicit $unityArgs argument array.'
-          }
-          if (-not $buildText.Contains('git is required for SHA-pinned build evidence')) {
-            throw 'Local build must fail closed when Git is unavailable.'
-          }
-          if (-not $buildText.Contains('releaseEvidenceEligible')) {
-            throw 'Local build metadata must distinguish clean release evidence from dirty debug builds.'
+          $buildRequired = @(
+            'Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru',
+            '$unityProcess.ExitCode',
+            'AFAREET_BUILD_SUCCESS target=Android',
+            'git is required for SHA-pinned build evidence',
+            'releaseEvidenceEligible'
+          )
+          foreach ($required in $buildRequired) {
+            if (-not $buildText.Contains($required)) {
+              throw "Local Unity build fallback is missing required contract: $required"
+            }
           }
 
           $testText = Get-Content -Raw 'tools/android/test_current_windows.ps1'
-          if ($testText.Contains('& $UnityPath \')) {
+          if ($testText.Contains('& $UnityPath \\')) {
             throw 'Invalid test invocation: backslash must not be used as a line-continuation argument for Unity.'
           }
           $requiredContracts = @(
-            '& $UnityPath @unityArgs',
+            'Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru',
+            '$unityProcess.ExitCode',
             'git is required for SHA-pinned test evidence',
             'releaseEvidenceEligible',
             "Invoke-UnityTests 'EditMode'",
