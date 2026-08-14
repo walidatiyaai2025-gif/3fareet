@@ -70,15 +70,28 @@ jobs:
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
         run: |
           set -euo pipefail
-          if [[ -n "${UNITY_LICENSE:-}" ]]; then
-            echo 'Unity license file secret is configured.'
+
+          has_email=false
+          has_password=false
+          has_license=false
+          has_serial=false
+          [[ -n "${UNITY_EMAIL:-}" ]] && has_email=true
+          [[ -n "${UNITY_PASSWORD:-}" ]] && has_password=true
+          [[ -n "${UNITY_LICENSE:-}" ]] && has_license=true
+          [[ -n "${UNITY_SERIAL:-}" ]] && has_serial=true
+
+          if [[ "$has_license" == true && "$has_email" == true && "$has_password" == true ]]; then
+            echo 'Unity Personal/file-license credential set is configured.'
             exit 0
           fi
-          if [[ -n "${UNITY_EMAIL:-}" && -n "${UNITY_PASSWORD:-}" && -n "${UNITY_SERIAL:-}" ]]; then
-            echo 'Unity serial credentials are configured.'
+
+          if [[ "$has_serial" == true && "$has_email" == true && "$has_password" == true ]]; then
+            echo 'Unity Professional serial credential set is configured.'
             exit 0
           fi
-          echo '::error::Unity CI credentials are missing. Configure UNITY_LICENSE, or UNITY_EMAIL + UNITY_PASSWORD + UNITY_SERIAL, in repository Actions secrets.'
+
+          echo "::error::Unity CI licensing is incomplete. Configure either UNITY_LICENSE + UNITY_EMAIL + UNITY_PASSWORD, or UNITY_SERIAL + UNITY_EMAIL + UNITY_PASSWORD."
+          echo "::notice::Present flags: UNITY_LICENSE=$has_license UNITY_SERIAL=$has_serial UNITY_EMAIL=$has_email UNITY_PASSWORD=$has_password"
           exit 1
 
   tests:
