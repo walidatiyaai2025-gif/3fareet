@@ -26,6 +26,8 @@ P1 deliberately uses no texture maps for this Hero asset. The generated Unity pr
 
 `Afareet.Editor.HeroCarProductionAssetBuilder.BuildOrThrow()` parses these OBJ files, validates the exact mesh budgets, creates generated Mesh/Material assets and builds the `PF_Vehicle_AfareetKing_Production` prefab with a three-level Unity `LODGroup`.
 
-`AfareetBuild.PrepareProject()` invokes the builder before Windows/Android Player builds so a clean checkout creates the runtime Resources prefab deterministically before packaging.
+`HeroCarProductionBuildPreprocessor` invokes the builder before every Unity Player build. In interactive Editor sessions, the builder also generates the prefab once after domain load when the generated prefab is absent. This keeps clean checkouts and CI builds deterministic without modifying the shared `AfareetBuild` implementation.
 
-Generated Unity assets are derived build inputs; the OBJ source + manifest + builder are the versioned source of truth.
+At runtime `HeroCarProductionVisualInstaller` finds only the player Hero, disables its existing visual-only `MeshRenderer` blockout, then attaches the generated production LOD prefab. Rigidbody, gameplay collider, controller, trails, lighting and VFX remain owned by the existing runtime. If the production prefab is unavailable or invalid, the installer restores the procedural renderers and the race remains playable.
+
+Generated Unity assets are derived build inputs and are git-ignored; the OBJ source + manifest + builder are the versioned source of truth.
