@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "packageId": "com.fiftysolutions.afareetunity3d",
+  "gates": {
+    "UVEH-012": {
+      "title": "Real-device driving feel pass",
+      "requiredCheckpoints": [
+        "drive-straight",
+        "brake-reverse",
+        "drift",
+        "nitro",
+        "reset-recovery"
+      ],
+      "manualApprovalRequired": true
+    },
+    "URAC-012": {
+      "title": "Track completion device verification",
+      "requiredCheckpoints": [
+        "race-countdown",
+        "race-midlap",
+        "race-results",
+        "race-restart"
+      ],
+      "manualApprovalRequired": true
+    },
+    "UPER-006": {
+      "title": "Android device smoke matrix",
+      "requiredCheckpoints": [
+        "smoke-cold-start",
+        "smoke-warm-race",
+        "smoke-after-restarts"
+      ],
+      "manualApprovalRequired": true
+    },
+    "UPER-009": {
+      "title": "P1 Visual Gate review",
+      "requiredCheckpoints": [
+        "visual-hero",
+        "visual-cairo",
+        "visual-hud",
+        "visual-arabic"
+      ],
+      "manualApprovalRequired": true
+    },
+    "UPER-010": {
+      "title": "P1 Verified APK publication",
+      "requiredCheckpoints": [],
+      "dependsOnManualApprovals": [
+        "UVEH-012",
+        "URAC-012",
+        "UPER-006",
+        "UPER-009"
+      ],
+      "manualApprovalRequired": true
+    }
+  }
+}
