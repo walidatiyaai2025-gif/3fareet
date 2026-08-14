@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace Afareet.Vehicle
@@ -12,6 +11,8 @@ namespace Afareet.Vehicle
     public sealed class SurfaceResponseProbe : MonoBehaviour
     {
         private const float ProbeDistance = 1.35f;
+        private readonly RaycastHit[] hits = new RaycastHit[6];
+        private Rigidbody ownerBody;
 
         public VehicleSurface CurrentSurface { get; private set; } = VehicleSurface.Asphalt;
         public bool IsGrounded { get; private set; }
@@ -19,10 +20,32 @@ namespace Afareet.Vehicle
         public float GripMultiplier => CurrentSurface == VehicleSurface.OffRoad ? .62f : 1f;
         public float SpeedMultiplier => CurrentSurface == VehicleSurface.OffRoad ? .78f : 1f;
 
+        private void Awake() => ownerBody = GetComponentInParent<Rigidbody>();
+
         private void FixedUpdate()
         {
             var origin = transform.position + transform.up * .35f;
-            if (!Physics.Raycast(origin, -transform.up, out var hit, ProbeDistance, ~0, QueryTriggerInteraction.Ignore))
+            var hitCount = Physics.RaycastNonAlloc(
+                origin,
+                -transform.up,
+                hits,
+                ProbeDistance,
+                ~0,
+                QueryTriggerInteraction.Ignore
+            );
+
+            Collider groundCollider = null;
+            var nearestDistance = float.MaxValue;
+            for (var i = 0; i < hitCount; i++)
+            {
+                var hit = hits[i];
+                if (hit.collider == null || hit.collider.attachedRigidbody == ownerBody) continue;
+                if (hit.distance >= nearestDistance) continue;
+                nearestDistance = hit.distance;
+                groundCollider = hit.collider;
+            }
+
+            if (groundCollider == null)
             {
                 IsGrounded = false;
                 CurrentSurface = VehicleSurface.Asphalt;
@@ -30,7 +53,7 @@ namespace Afareet.Vehicle
             }
 
             IsGrounded = true;
-            CurrentSurface = Classify(hit.collider);
+            CurrentSurface = Classify(groundCollider);
         }
 
         private static VehicleSurface Classify(Collider collider)
@@ -40,12 +63,13 @@ namespace Afareet.Vehicle
             var materialName = collider.sharedMaterial == null
                 ? string.Empty
                 : collider.sharedMaterial.name;
-            var combined = string.Concat(collider.gameObject.name, " ", materialName).ToLowerInvariant();
+            var combined = (collider.gameObject.name + " " + materialName).ToLowerInvariant();
 
-            return combined.Contains("sand", StringComparison.Ordinal)
-                || combined.Contains("dirt", StringComparison.Ordinal)
-                || combined.Contains("offroad", StringComparison.Ordinal)
-                || combined.Contains("shoulder", StringComparison.Ordinal)
+            return combined.Contains("sand")
+                || combined.Contains("desert")
+                || combined.Contains("dirt")
+                || combined.Contains("offroad")
+                || combined.Contains("shoulder")
                     ? VehicleSurface.OffRoad
                     : VehicleSurface.Asphalt;
         }
