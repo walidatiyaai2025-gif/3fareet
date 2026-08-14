@@ -43,15 +43,35 @@ if (-not (Test-Path $ProjectPath)) {
 }
 
 $git = Get-Command git -ErrorAction SilentlyContinue
-$GitSha = ""
-$GitBranch = ""
-if ($null -ne $git) {
-    $GitSha = (& git -C $RepoRoot rev-parse HEAD 2>$null).Trim()
-    $GitBranch = (& git -C $RepoRoot rev-parse --abbrev-ref HEAD 2>$null).Trim()
-    $dirty = (& git -C $RepoRoot status --porcelain 2>$null)
-    if (-not $AllowDirty -and $dirty) {
-        Fail "Repository has uncommitted changes. Commit/stash them or use -AllowDirty for non-release debugging only."
-    }
+if ($null -eq $git) {
+    Fail "git is required for SHA-pinned build evidence. Install Git and retry."
+}
+
+$gitShaOutput = & git -C $RepoRoot rev-parse HEAD 2>$null
+if ($LASTEXITCODE -ne 0 -or $null -eq $gitShaOutput) {
+    Fail "Unable to resolve Git HEAD for repository: $RepoRoot"
+}
+$GitSha = ($gitShaOutput | Select-Object -First 1).Trim()
+if ($GitSha -notmatch '^[0-9a-fA-F]{40}$') {
+    Fail "Git HEAD is not a full 40-character commit SHA: $GitSha"
+}
+
+$gitBranchOutput = & git -C $RepoRoot rev-parse --abbrev-ref HEAD 2>$null
+if ($LASTEXITCODE -ne 0 -or $null -eq $gitBranchOutput) {
+    Fail "Unable to resolve Git branch for repository: $RepoRoot"
+}
+$GitBranch = ($gitBranchOutput | Select-Object -First 1).Trim()
+
+$dirty = @(& git -C $RepoRoot status --porcelain 2>$null)
+if ($LASTEXITCODE -ne 0) {
+    Fail "Unable to inspect Git working-tree state for repository: $RepoRoot"
+}
+$IsDirty = $dirty.Count -gt 0
+if (-not $AllowDirty -and $IsDirty) {
+    Fail "Repository has uncommitted changes. Commit/stash them or use -AllowDirty for non-release debugging only."
+}
+if ($AllowDirty -and $IsDirty) {
+    Write-Warning "Dirty-tree override is active. The resulting artifact is debug evidence only and is not release-evidence eligible."
 }
 
 $androidPlayer = Join-Path (Split-Path $UnityPath -Parent) "Data\PlaybackEngines\AndroidPlayer"
@@ -65,14 +85,16 @@ New-Item -ItemType Directory -Force -Path $ArtifactDir, $LogDir | Out-Null
 $LogPath = Join-Path $LogDir "unity-android-local.log"
 $ApkPath = Join-Path $ProjectPath "Builds\Android\afareet-unity3d-debug.apk"
 
-Write-Host "AFAREET_LOCAL_BUILD_START unity=$UnityPath project=$ProjectPath gitSha=$GitSha branch=$GitBranch"
+Write-Host "AFAREET_LOCAL_BUILD_START unity=$UnityPath project=$ProjectPath gitSha=$GitSha branch=$GitBranch dirty=$IsDirty"
 
-& $UnityPath \
-    -batchmode \
-    -quit \
-    -projectPath $ProjectPath \
-    -executeMethod Afareet.Editor.AfareetBuild.BuildAndroid \
-    -logFile $LogPath
+$unityArgs = @(
+    "-batchmode",
+    "-quit",
+    "-projectPath", $ProjectPath,
+    "-executeMethod", "Afareet.Editor.AfareetBuild.BuildAndroid",
+    "-logFile", $LogPath
+)
+& $UnityPath @unityArgs
 
 if ($LASTEXITCODE -ne 0) {
     Get-Content $LogPath -Tail 120 -ErrorAction SilentlyContinue | Write-Host
@@ -155,7 +177,7 @@ $shaPath = Join-Path $ArtifactDir "afareet-unity3d-debug.apk.sha256"
 $metadata = [ordered]@{
     schemaVersion = 1
     artifact = "afareet-unity3d-debug.apk"
-    source = "local-windows-licensed-unity"
+    source = if ($IsDirty) { "local-windows-licensed-unity-dirty-debug" } else { "local-windows-licensed-unity" }
     unityVersion = $ExpectedUnityVersion
     packageId = $ExpectedPackage
     minSdk = 26
@@ -164,6 +186,8 @@ $metadata = [ordered]@{
     sizeBytes = $size
     gitSha = $GitSha
     gitBranch = $GitBranch
+    gitDirty = $IsDirty
+    releaseEvidenceEligible = (-not $IsDirty)
     generatedAtUtc = [DateTime]::UtcNow.ToString("o")
     unityLog = $LogPath
 }
@@ -171,6 +195,6 @@ $metadata | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 (Join-Path $Art
 
 Copy-Item -Force $ApkPath (Join-Path $ArtifactDir "afareet-unity3d-debug.apk")
 
-Write-Host "AFAREET_LOCAL_ANDROID_BUILD_OK package=$ExpectedPackage abi=$ExpectedAbi sha256=$hash size=$size"
+Write-Host "AFAREET_LOCAL_ANDROID_BUILD_OK package=$ExpectedPackage abi=$ExpectedAbi sha256=$hash size=$size gitSha=$GitSha releaseEligible=$(-not $IsDirty)"
 Write-Host "APK: $ApkPath"
 Write-Host "Evidence: $ArtifactDir"
