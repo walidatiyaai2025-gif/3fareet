@@ -19,6 +19,19 @@ MonoBehaviour:
   steerStrengthDegrees: 105
   grip: 8
   driftGrip: 2.1
+  tractionSlipThresholdMetersPerSecond: 3.5
+  tractionStrength: 0.55
+  driftGripMinimumSteer: 0.2
+  driftGripFullSlipMetersPerSecond: 5
+  offRoadGripMultiplier: 0.58
+  offRoadAccelerationMultiplier: 0.72
+  offRoadMaxSpeedMultiplier: 0.66
+  boostGripMultiplier: 0.95
+  boostAccelerationMultiplier: 1.18
+  boostMaxSpeedMultiplier: 1.1
+  slipperyGripMultiplier: 0.42
+  slipperyAccelerationMultiplier: 0.75
+  slipperyMaxSpeedMultiplier: 0.82
   massKilograms: 1150
   linearDamping: 0.15
   angularDamping: 3.5
