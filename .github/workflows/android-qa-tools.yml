@@ -44,36 +44,64 @@ jobs:
           python3 tools/android/p1_gate_readiness.py plan >/dev/null
           python3 -m json.tool tools/android/p1_gate_spec.json >/dev/null
 
-      - name: Validate Windows local-build PowerShell contract
+      - name: Validate Windows local Unity fallback contracts
         shell: pwsh
         run: |
-          $scriptPath = Resolve-Path 'tools/android/build_current_windows.ps1'
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            $scriptPath,
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_.Message }
-            exit 1
+          $scripts = @(
+            'tools/android/build_current_windows.ps1',
+            'tools/android/test_current_windows.ps1'
+          )
+          foreach ($relativePath in $scripts) {
+            $scriptPath = Resolve-Path $relativePath
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $scriptPath,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$relativePath: $($_.Message)" }
+              exit 1
+            }
           }
 
-          $scriptText = Get-Content -Raw $scriptPath
-          if ($scriptText.Contains('& $UnityPath \')) {
-            throw 'Invalid PowerShell invocation: backslash must not be used as a line-continuation argument for Unity.'
+          $buildText = Get-Content -Raw 'tools/android/build_current_windows.ps1'
+          if ($buildText.Contains('& $UnityPath \')) {
+            throw 'Invalid build invocation: backslash must not be used as a line-continuation argument for Unity.'
           }
-          if (-not $scriptText.Contains('& $UnityPath @unityArgs')) {
-            throw 'Unity invocation must use the explicit $unityArgs argument array.'
+          if (-not $buildText.Contains('& $UnityPath @unityArgs')) {
+            throw 'Build invocation must use the explicit $unityArgs argument array.'
           }
-          if (-not $scriptText.Contains('git is required for SHA-pinned build evidence')) {
+          if (-not $buildText.Contains('git is required for SHA-pinned build evidence')) {
             throw 'Local build must fail closed when Git is unavailable.'
           }
-          if (-not $scriptText.Contains('releaseEvidenceEligible')) {
+          if (-not $buildText.Contains('releaseEvidenceEligible')) {
             throw 'Local build metadata must distinguish clean release evidence from dirty debug builds.'
           }
-          Write-Host 'PowerShell syntax and semantic contract OK.'
+
+          $testText = Get-Content -Raw 'tools/android/test_current_windows.ps1'
+          if ($testText.Contains('& $UnityPath \')) {
+            throw 'Invalid test invocation: backslash must not be used as a line-continuation argument for Unity.'
+          }
+          foreach ($required in @(
+            '& $UnityPath @unityArgs',
+            'git is required for SHA-pinned test evidence',
+            'releaseEvidenceEligible',
+            "Invoke-UnityTests 'EditMode'",
+            "Invoke-UnityTests 'PlayMode'",
+            "'-runTests'",
+            "'-testPlatform'",
+            "'-testResults'",
+            "$resultXml.'test-run'",
+            '$total -le 0',
+            '$failed -gt 0'
+          )) {
+            if (-not $testText.Contains($required)) {
+              throw "Local Unity test fallback is missing required contract: $required"
+            }
+          }
+          Write-Host 'PowerShell syntax and semantic fallback contracts OK.'
 
       - name: Run standard-library unit tests
         shell: bash
