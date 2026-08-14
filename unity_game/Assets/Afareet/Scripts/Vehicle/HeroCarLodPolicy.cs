@@ -1,0 +1,52 @@
+using System;
+
+namespace Afareet.Vehicle
+{
+    public static class HeroCarLodPolicy
+    {
+        public const string ResourcePath = "Art/Vehicles/HeroCar/Generated/PF_Vehicle_AfareetKing_Production";
+
+        public const float Lod0Transition = 0.18f;
+        public const float Lod1Transition = 0.07f;
+        public const float Lod2Transition = 0.01f;
+
+        public static readonly int[] ExpectedVertices = { 274, 194, 104 };
+        public static readonly int[] ExpectedTriangles = { 476, 332, 180 };
+        public static readonly int[] TriangleBudgets = { 600, 400, 220 };
+
+        public static float TransitionFor(int lod)
+        {
+            return lod switch
+            {
+                0 => Lod0Transition,
+                1 => Lod1Transition,
+                2 => Lod2Transition,
+                _ => throw new ArgumentOutOfRangeException(nameof(lod))
+            };
+        }
+
+        public static bool IsWithinBudget(int lod, int vertexCount, int triangleCount)
+        {
+            if (lod < 0 || lod >= ExpectedTriangles.Length) return false;
+            if (vertexCount <= 0 || triangleCount <= 0) return false;
+            return vertexCount == ExpectedVertices[lod] &&
+                   triangleCount == ExpectedTriangles[lod] &&
+                   triangleCount <= TriangleBudgets[lod];
+        }
+
+        public static void ValidateContract()
+        {
+            if (!(Lod0Transition > Lod1Transition && Lod1Transition > Lod2Transition && Lod2Transition > 0f))
+                throw new InvalidOperationException("Hero LOD screen-height thresholds must be strictly descending and positive.");
+
+            for (var i = 0; i < ExpectedTriangles.Length; i++)
+            {
+                if (!IsWithinBudget(i, ExpectedVertices[i], ExpectedTriangles[i]))
+                    throw new InvalidOperationException($"Hero LOD{i} mesh budget contract is invalid.");
+            }
+
+            if (!(ExpectedTriangles[0] > ExpectedTriangles[1] && ExpectedTriangles[1] > ExpectedTriangles[2]))
+                throw new InvalidOperationException("Hero triangle counts must decrease with distance.");
+        }
+    }
+}
