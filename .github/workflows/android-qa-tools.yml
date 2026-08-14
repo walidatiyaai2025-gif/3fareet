@@ -38,7 +38,8 @@ jobs:
           python3 -m py_compile \
             tools/android/device_evidence.py \
             tools/android/p1_gate_readiness.py \
-            tools/android/verify_local_candidate.py
+            tools/android/verify_local_candidate.py \
+            tools/android/prepare_candidate_device.py
           python3 tools/android/device_evidence.py --help >/dev/null
           python3 tools/android/device_evidence.py prepare --help >/dev/null
           python3 tools/android/device_evidence.py capture --help >/dev/null
@@ -46,6 +47,7 @@ jobs:
           python3 tools/android/p1_gate_readiness.py --help >/dev/null
           python3 tools/android/p1_gate_readiness.py plan >/dev/null
           python3 tools/android/verify_local_candidate.py --help >/dev/null
+          python3 tools/android/prepare_candidate_device.py --help >/dev/null
           python3 -m json.tool tools/android/p1_gate_spec.json >/dev/null
 
       - name: Validate Windows local Unity fallback contracts
