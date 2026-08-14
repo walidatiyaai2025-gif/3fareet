@@ -30,7 +30,7 @@ After secrets are configured, rerun `Unity Production CI` on the latest producti
 
 ## Local Windows fallback — licensed workstation
 
-If a Windows workstation already has Unity `6000.5.8f1` activated through Unity Hub, the repository now provides a clean exact-head fallback for both automated Unity tests and the Android APK build without storing Unity credentials in GitHub Actions.
+If a Windows workstation already has Unity `6000.5.8f1` activated through Unity Hub, the repository provides a clean exact-head fallback for automated Unity tests and the Android APK build without storing Unity credentials in GitHub Actions.
 
 Prerequisites:
 
@@ -107,21 +107,50 @@ Successful output contains:
 
 The APK build/inspection evidence is not Device Verified evidence.
 
+### 3. Verify tests + APK are one candidate
+
+Do not manually compare metadata. Run the fail-closed candidate integrity gate:
+
+```bash
+python3 tools/android/verify_local_candidate.py \
+  --test-metadata artifacts/unity-local-tests/test-metadata.json \
+  --build-metadata artifacts/android-local/artifact-metadata.json \
+  --apk artifacts/android-local/afareet-unity3d-debug.apk \
+  --output artifacts/local-candidate-manifest.json
+```
+
+The gate rejects the candidate unless:
+
+- test and build metadata are both release-eligible and clean;
+- EditMode and PlayMode each executed at least one test and passed with zero failures;
+- both metadata files use Unity `6000.5.8f1`;
+- test and build metadata pin to the same full Git SHA;
+- package/minSdk/ABI/artifact identity matches the production contract;
+- the actual APK SHA-256 and file size exactly match build metadata.
+
+Successful output contains:
+
+`AFAREET_LOCAL_CANDIDATE_READY`
+
+The generated manifest deliberately contains `readyForDeviceEvidence: true` and `verified: false`. It is an integrity handoff to physical-device QA, not release approval.
+
 ## Evidence consistency rule
 
-For release review, the local Unity test metadata and APK metadata must both be release-eligible and pin to the same exact Git SHA. A dirty-tree run must never be promoted to release evidence.
+For local release review, the Unity test metadata, APK metadata and actual APK bytes must pass `verify_local_candidate.py`. A dirty-tree run must never be promoted to release evidence.
 
 The safest GitHub-hosted path remains a fully Green `Unity Production CI` run after a complete licensing secret set is configured. The local path exists to make exact-head test/build execution possible on an already licensed workstation without weakening the physical-device or manual review gates.
 
 ## After an APK exists
 
-Use the exact APK produced from the current production candidate:
+For the local path, first require a successful candidate integrity manifest as described above. Then use the exact APK produced from the current production candidate:
 
 ```bash
 python3 tools/android/device_evidence.py prepare \
   --apk /path/to/afareet-unity3d-debug.apk \
   --output evidence/p1-device
 ```
+
+The device harness independently hashes the APK again when it creates the evidence session.
 
 Then follow `docs/qa/P1_FINAL_5_GATE_PLAN.md` to capture and review:
 
