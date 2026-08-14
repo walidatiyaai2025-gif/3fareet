@@ -1,0 +1,8 @@
+{
+  "name": "Afareet.UiFlowEditModeTests",
+  "rootNamespace": "Afareet.Tests.UI",
+  "references": ["Afareet.UI", "Afareet.Race"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}
