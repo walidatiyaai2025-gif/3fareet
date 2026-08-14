@@ -54,15 +54,38 @@ A successful local manifest must say `readyForDeviceEvidence: true` and still sa
 
 ## Prepare physical-device evidence
 
-Prepare a physical-device evidence session with the exact APK that passed the selected candidate path:
+### Local licensed-Windows candidate
+
+Do not bypass the candidate manifest by manually selecting an APK. Bind the physical-device session to the exact integrity-checked candidate:
 
 ```bash
-python3 tools/android/device_evidence.py prepare \
-  --apk /path/to/current.apk \
+python3 tools/android/prepare_candidate_device.py \
+  --candidate-manifest artifacts/local-candidate-manifest.json \
   --output evidence/p1-device
 ```
 
-The harness hashes the APK again and pins the session to that exact SHA plus the physical device identity.
+If the evidence bundle was copied to another machine, pass the moved APK explicitly; its filename, byte length and SHA-256 still must match the manifest exactly:
+
+```bash
+python3 tools/android/prepare_candidate_device.py \
+  --candidate-manifest /path/to/local-candidate-manifest.json \
+  --apk /path/to/afareet-unity3d-debug.apk \
+  --output evidence/p1-device
+```
+
+The wrapper fails before ADB install unless the candidate is release-evidence eligible, `READY_FOR_PHYSICAL_DEVICE_EVIDENCE`, non-self-VERIFIED, pinned to a full Git SHA, and the actual APK bytes match the manifest.
+
+### Fully Green GitHub-hosted candidate
+
+Once `Unity Production CI` is fully Green and its exact APK artifact has passed the workflow verifier, prepare the downloaded exact artifact directly:
+
+```bash
+python3 tools/android/device_evidence.py prepare \
+  --apk /path/to/exact-ci-artifact.apk \
+  --output evidence/p1-device
+```
+
+Retain the GitHub run/commit/artifact metadata alongside the device evidence. The harness hashes the APK again and pins the session to that exact SHA plus the physical device identity.
 
 ## Required captures
 
