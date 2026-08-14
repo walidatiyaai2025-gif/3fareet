@@ -1,6 +1,6 @@
 {
   "name": "Afareet.Vehicle",
   "rootNamespace": "Afareet.Vehicle",
-  "references": ["Afareet.World"],
+  "references": ["Afareet.World", "Unity.InputSystem"],
   "autoReferenced": true
 }
