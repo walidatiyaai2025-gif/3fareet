@@ -55,6 +55,7 @@ $GitSha = ($gitShaOutput | Select-Object -First 1).Trim()
 if ($GitSha -notmatch '^[0-9a-fA-F]{40}$') {
     Fail "Git HEAD is not a full 40-character commit SHA: $GitSha"
 }
+$GitSha = $GitSha.ToLowerInvariant()
 
 $gitBranchOutput = & git -C $RepoRoot rev-parse --abbrev-ref HEAD 2>$null
 if ($LASTEXITCODE -ne 0 -or $null -eq $gitBranchOutput) {
@@ -85,24 +86,43 @@ New-Item -ItemType Directory -Force -Path $ArtifactDir, $LogDir | Out-Null
 $LogPath = Join-Path $LogDir "unity-android-local.log"
 $ApkPath = Join-Path $ProjectPath "Builds\Android\afareet-unity3d-debug.apk"
 
+Remove-Item -Force $LogPath -ErrorAction SilentlyContinue
+Remove-Item -Force $ApkPath -ErrorAction SilentlyContinue
+
 Write-Host "AFAREET_LOCAL_BUILD_START unity=$UnityPath project=$ProjectPath gitSha=$GitSha branch=$GitBranch dirty=$IsDirty"
 
+# Unity.exe is a Windows GUI executable. Invoking it directly from PowerShell can
+# return control before the editor process has finished, which can produce a
+# false exit-code 0 followed by a missing APK. Start-Process -Wait makes process
+# completion explicit and gives us the real Unity process exit code.
 $unityArgs = @(
-    "-batchmode",
-    "-quit",
-    "-projectPath", $ProjectPath,
-    "-executeMethod", "Afareet.Editor.AfareetBuild.BuildAndroid",
-    "-logFile", $LogPath
+    '-batchmode',
+    '-quit',
+    '-projectPath', ('"{0}"' -f $ProjectPath),
+    '-executeMethod', 'Afareet.Editor.AfareetBuild.BuildAndroid',
+    '-logFile', ('"{0}"' -f $LogPath)
 )
-& $UnityPath @unityArgs
+$unityProcess = Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru
+$unityExitCode = $unityProcess.ExitCode
 
-if ($LASTEXITCODE -ne 0) {
-    Get-Content $LogPath -Tail 120 -ErrorAction SilentlyContinue | Write-Host
-    Fail "Unity exited with code $LASTEXITCODE. See $LogPath"
+if ($unityExitCode -ne 0) {
+    Get-Content $LogPath -Tail 160 -ErrorAction SilentlyContinue | Write-Host
+    Fail "Unity exited with code $unityExitCode. See $LogPath"
+}
+
+if (-not (Test-Path $LogPath)) {
+    Fail "Unity exited with code 0 but did not create its requested log file: $LogPath"
+}
+
+$buildMarker = Select-String -Path $LogPath -SimpleMatch 'AFAREET_BUILD_SUCCESS target=Android' -Quiet -ErrorAction SilentlyContinue
+if (-not $buildMarker) {
+    Get-Content $LogPath -Tail 160 -ErrorAction SilentlyContinue | Write-Host
+    Fail "Unity exited with code 0 but the Android build-success marker is missing. See $LogPath"
 }
 
 if (-not (Test-Path $ApkPath)) {
-    Fail "Unity returned success but APK is missing: $ApkPath"
+    Get-Content $LogPath -Tail 160 -ErrorAction SilentlyContinue | Write-Host
+    Fail "Unity reported Android build success but APK is missing: $ApkPath"
 }
 if ((Get-Item $ApkPath).Length -le 0) {
     Fail "APK exists but is empty: $ApkPath"
