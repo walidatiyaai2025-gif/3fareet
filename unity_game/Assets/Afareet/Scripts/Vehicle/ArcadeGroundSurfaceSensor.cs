@@ -101,7 +101,7 @@ namespace Afareet.Vehicle
 
         private static bool Contains(string value, string fragment)
         {
-            return value?.IndexOf(fragment, StringComparison.OrdinalIgnoreCase) >= 0;
+            return value != null && value.IndexOf(fragment, StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
 }
