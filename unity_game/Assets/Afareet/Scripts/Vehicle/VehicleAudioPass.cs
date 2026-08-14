@@ -32,10 +32,10 @@ namespace Afareet.Vehicle
             car = GetComponent<ArcadeCarController>();
             EnsureSharedClips();
 
-            lowEngine = CreateSource("Engine Low", lowEngineClip, true, .42f);
-            highEngine = CreateSource("Engine High", highEngineClip, true, 0f);
-            drift = CreateSource("Drift Loop", driftClip, true, 0f);
-            oneShots = CreateSource("Vehicle SFX", null, false, .72f);
+            lowEngine = CreateSource(lowEngineClip, true, .42f);
+            highEngine = CreateSource(highEngineClip, true, 0f);
+            drift = CreateSource(driftClip, true, 0f);
+            oneShots = CreateSource(null, false, .72f);
 
             lowEngine.Play();
             highEngine.Play();
@@ -71,10 +71,9 @@ namespace Afareet.Vehicle
             oneShots.PlayOneShot(impactClip, Mathf.Lerp(.25f, .9f, strength));
         }
 
-        private AudioSource CreateSource(string sourceName, AudioClip clip, bool loop, float volume)
+        private AudioSource CreateSource(AudioClip clip, bool loop, float volume)
         {
             var source = gameObject.AddComponent<AudioSource>();
-            source.name = sourceName;
             source.clip = clip;
             source.loop = loop;
             source.playOnAwake = false;
