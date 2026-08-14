@@ -8,6 +8,8 @@ namespace Afareet.Race
 {
     public sealed class RaceDirector : MonoBehaviour
     {
+        private const float P1RoadHalfWidth = 7f;
+
         private sealed class RacerRuntime
         {
             public ArcadeCarController Car;
@@ -23,6 +25,7 @@ namespace Afareet.Race
         private TrackRuntime track;
         private RaceRoundController round;
         private Transform checkpointRoot;
+        private Transform boundaryRoot;
         private bool racersReleased;
 
         public RaceRoundPhase Phase => round?.Phase ?? RaceRoundPhase.Ready;
@@ -70,6 +73,7 @@ namespace Afareet.Race
             round.RoundReset += OnRoundReset;
 
             BuildCheckpointVolumes();
+            BuildTrackBoundaries();
             SetPausedInternal(false);
             FreezeRacers();
             ResetRacersToGrid();
@@ -140,6 +144,16 @@ namespace Afareet.Race
             if (lap == null) lap = car.gameObject.AddComponent<OneLapRaceTracker>();
             lap.Configure(track.Waypoints.Count);
 
+            TrackBoundaryRuntimeBuilder.EnsureMonitor(car.gameObject, track, P1RoadHalfWidth);
+
+            if (stableOrder > 0)
+            {
+                var reset = car.GetComponent<RivalResetController>();
+                if (reset == null) reset = car.gameObject.AddComponent<RivalResetController>();
+                reset.Configure(track.Waypoints, checkpoints);
+                reset.SetActive(false);
+            }
+
             racers.Add(new RacerRuntime
             {
                 Car = car,
@@ -156,6 +170,14 @@ namespace Afareet.Race
             checkpointRoot = new GameObject("ORDERED RACE CHECKPOINTS").transform;
             checkpointRoot.SetParent(transform, false);
             RaceCheckpointRuntimeBuilder.Build(track, checkpointRoot);
+        }
+
+        private void BuildTrackBoundaries()
+        {
+            if (boundaryRoot != null) Destroy(boundaryRoot.gameObject);
+            boundaryRoot = new GameObject("TRACK BOUNDARY EDGES").transform;
+            boundaryRoot.SetParent(transform, false);
+            TrackBoundaryRuntimeBuilder.BuildEdges(track, boundaryRoot, P1RoadHalfWidth);
         }
 
         private void OnRoundRaceStarted()
@@ -175,6 +197,7 @@ namespace Afareet.Race
         private void OnRoundReset()
         {
             racersReleased = false;
+            SetRivalRecoveryActive(false);
         }
 
         private void ReleaseRacers()
@@ -197,17 +220,21 @@ namespace Afareet.Race
                     if (ai != null) ai.enabled = true;
                 }
             }
+
+            SetRivalRecoveryActive(true);
         }
 
         private void FreezeRacers()
         {
             for (var i = 0; i < racers.Count; i++) FreezeRacer(racers[i].Car);
+            SetRivalRecoveryActive(false);
         }
 
         private void FreezeRacer(ArcadeCarController car)
         {
             if (car == null) return;
             car.AcceptsPlayerInput = false;
+            car.SetAiInput(0f, 0f, false, false, false);
             var body = car.GetComponent<Rigidbody>();
             if (body != null)
             {
@@ -217,6 +244,15 @@ namespace Afareet.Race
             }
             var ai = car.GetComponent<AiRacer>();
             if (ai != null) ai.enabled = false;
+        }
+
+        private void SetRivalRecoveryActive(bool active)
+        {
+            for (var i = 1; i < racers.Count; i++)
+            {
+                var reset = racers[i].Car.GetComponent<RivalResetController>();
+                if (reset != null) reset.SetActive(active);
+            }
         }
 
         private void ResetRacersToGrid()
