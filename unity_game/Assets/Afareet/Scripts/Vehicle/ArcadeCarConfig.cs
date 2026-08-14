@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Afareet.Vehicle
@@ -15,6 +16,25 @@ namespace Afareet.Vehicle
         [Min(1f)] public float steerStrengthDegrees = 105f;
         [Min(0.1f)] public float grip = 8f;
         [Min(0.1f)] public float driftGrip = 2.1f;
+        [Min(0.01f)] public float tractionSlipThresholdMetersPerSecond = 3.5f;
+        [Range(0f, 1f)] public float tractionStrength = 0.55f;
+        [Range(0f, 1f)] public float driftGripMinimumSteer = 0.2f;
+        [Min(0.01f)] public float driftGripFullSlipMetersPerSecond = 5f;
+
+        [Header("Surface - Off Road")]
+        [Range(0.05f, 2f)] public float offRoadGripMultiplier = 0.58f;
+        [Range(0.05f, 2f)] public float offRoadAccelerationMultiplier = 0.72f;
+        [Range(0.05f, 2f)] public float offRoadMaxSpeedMultiplier = 0.66f;
+
+        [Header("Surface - Boost")]
+        [Range(0.05f, 2f)] public float boostGripMultiplier = 0.95f;
+        [Range(0.05f, 2f)] public float boostAccelerationMultiplier = 1.18f;
+        [Range(0.05f, 2f)] public float boostMaxSpeedMultiplier = 1.10f;
+
+        [Header("Surface - Slippery")]
+        [Range(0.05f, 2f)] public float slipperyGripMultiplier = 0.42f;
+        [Range(0.05f, 2f)] public float slipperyAccelerationMultiplier = 0.75f;
+        [Range(0.05f, 2f)] public float slipperyMaxSpeedMultiplier = 0.82f;
 
         [Header("Body")]
         [Min(1f)] public float massKilograms = 1150f;
@@ -39,6 +59,23 @@ namespace Afareet.Vehicle
         [Min(0f)] public float driftEnergyMinimumSlipMetersPerSecond = 0.8f;
         [Min(0.01f)] public float driftEnergyFullGainSlipMetersPerSecond = 6f;
 
+        public ArcadeSurfaceResponse SurfaceResponseFor(ArcadeSurfaceKind surface)
+        {
+            switch (surface)
+            {
+                case ArcadeSurfaceKind.Asphalt:
+                    return new ArcadeSurfaceResponse(1f, 1f, 1f);
+                case ArcadeSurfaceKind.OffRoad:
+                    return new ArcadeSurfaceResponse(offRoadGripMultiplier, offRoadAccelerationMultiplier, offRoadMaxSpeedMultiplier);
+                case ArcadeSurfaceKind.Boost:
+                    return new ArcadeSurfaceResponse(boostGripMultiplier, boostAccelerationMultiplier, boostMaxSpeedMultiplier);
+                case ArcadeSurfaceKind.Slippery:
+                    return new ArcadeSurfaceResponse(slipperyGripMultiplier, slipperyAccelerationMultiplier, slipperyMaxSpeedMultiplier);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(surface), surface, null);
+            }
+        }
+
         public bool IsValid(out string error)
         {
             if (acceleration <= 0f || reverseAcceleration <= 0f)
@@ -47,6 +84,14 @@ namespace Afareet.Vehicle
                 return Fail("Speed and steering values must be positive.", out error);
             if (grip <= 0f || driftGrip <= 0f || driftGrip >= grip)
                 return Fail("Drift grip must be positive and lower than normal grip.", out error);
+            if (tractionSlipThresholdMetersPerSecond <= 0f || tractionStrength < 0f || tractionStrength > 1f)
+                return Fail("Traction tuning is invalid.", out error);
+            if (driftGripMinimumSteer < 0f || driftGripMinimumSteer > 1f || driftGripFullSlipMetersPerSecond <= 0f)
+                return Fail("Drift grip blend tuning is invalid.", out error);
+            if (!SurfaceTuningValid(offRoadGripMultiplier, offRoadAccelerationMultiplier, offRoadMaxSpeedMultiplier) ||
+                !SurfaceTuningValid(boostGripMultiplier, boostAccelerationMultiplier, boostMaxSpeedMultiplier) ||
+                !SurfaceTuningValid(slipperyGripMultiplier, slipperyAccelerationMultiplier, slipperyMaxSpeedMultiplier))
+                return Fail("Surface response multipliers must be within (0, 2].", out error);
             if (massKilograms <= 0f)
                 return Fail("Vehicle mass must be positive.", out error);
             if (nitroForce < 0f || nitroLowSpeedForceScale <= 0f || nitroLowSpeedForceScale > 1f)
@@ -66,6 +111,13 @@ namespace Afareet.Vehicle
 
             error = string.Empty;
             return true;
+        }
+
+        private static bool SurfaceTuningValid(float gripMultiplier, float accelerationMultiplier, float maxSpeedMultiplier)
+        {
+            return gripMultiplier > 0f && gripMultiplier <= 2f &&
+                   accelerationMultiplier > 0f && accelerationMultiplier <= 2f &&
+                   maxSpeedMultiplier > 0f && maxSpeedMultiplier <= 2f;
         }
 
         private static bool Fail(string message, out string error)
