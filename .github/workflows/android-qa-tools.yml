@@ -61,7 +61,7 @@ jobs:
               [ref]$errors
             ) | Out-Null
             if ($errors.Count -gt 0) {
-              $errors | ForEach-Object { Write-Error "$relativePath: $($_.Message)" }
+              $errors | ForEach-Object { Write-Error "${relativePath}: $($_.Message)" }
               exit 1
             }
           }
@@ -84,7 +84,7 @@ jobs:
           if ($testText.Contains('& $UnityPath \')) {
             throw 'Invalid test invocation: backslash must not be used as a line-continuation argument for Unity.'
           }
-          foreach ($required in @(
+          $requiredContracts = @(
             '& $UnityPath @unityArgs',
             'git is required for SHA-pinned test evidence',
             'releaseEvidenceEligible',
@@ -93,10 +93,11 @@ jobs:
             "'-runTests'",
             "'-testPlatform'",
             "'-testResults'",
-            "$resultXml.'test-run'",
+            '$resultXml.''test-run''',
             '$total -le 0',
             '$failed -gt 0'
-          )) {
+          )
+          foreach ($required in $requiredContracts) {
             if (-not $testText.Contains($required)) {
               throw "Local Unity test fallback is missing required contract: $required"
             }
