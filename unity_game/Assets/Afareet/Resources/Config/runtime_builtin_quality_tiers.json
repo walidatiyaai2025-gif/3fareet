@@ -15,10 +15,12 @@
     "shadowDistanceMeters": 35.0,
     "softShadows": false,
     "shadowCascades": 0,
+    "shadowResolution": 0,
     "antiAliasing": 0,
     "anisotropicMode": 0,
     "lodBias": 0.75,
     "maximumLodLevel": 1,
+    "shaderMaximumLod": 150,
     "softParticles": false,
     "realtimeReflectionProbes": false
   },
@@ -29,10 +31,12 @@
     "shadowDistanceMeters": 55.0,
     "softShadows": true,
     "shadowCascades": 2,
+    "shadowResolution": 1,
     "antiAliasing": 2,
     "anisotropicMode": 1,
     "lodBias": 1.00,
     "maximumLodLevel": 0,
+    "shaderMaximumLod": 200,
     "softParticles": true,
     "realtimeReflectionProbes": false
   },
@@ -43,10 +47,12 @@
     "shadowDistanceMeters": 75.0,
     "softShadows": true,
     "shadowCascades": 4,
+    "shadowResolution": 2,
     "antiAliasing": 4,
     "anisotropicMode": 2,
     "lodBias": 1.25,
     "maximumLodLevel": 0,
+    "shaderMaximumLod": 300,
     "softParticles": true,
     "realtimeReflectionProbes": true
   }
