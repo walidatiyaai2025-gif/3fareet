@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "taskId": "UART-001",
+  "unityVersion": "6000.5.8f1",
+  "sourceRoot": "docs/assets",
+  "runtimeRoot": "unity_game/Assets/Afareet/Art",
+  "coordinateSystem": {
+    "unitMeters": 1.0,
+    "upAxis": "+Y",
+    "forwardAxis": "+Z",
+    "rightAxis": "+X",
+    "transformRule": "Export at scale 1.0 with zeroed rotation/scale unless an asset-specific task documents an exception."
+  },
+  "pivotRules": {
+    "staticProp": "Pivot on the placement/contact plane at a stable logical origin.",
+    "modularEnvironment": "Pivot on the modular snap corner or authored snap origin; document grid size in the asset task.",
+    "vehicle": "Vehicle-specific wheel/chassis pivots are owned by the vehicle task; UART-001 only requires consistent local axes and scale.",
+    "vfx": "Pivot at the gameplay attachment/emission origin."
+  },
+  "sourceCategories": {
+    "00_reference": {
+      "runtimeCategory": null,
+      "productionExportAllowed": false
+    },
+    "01_vehicles": {
+      "runtimeCategory": "Vehicles",
+      "productionExportAllowed": true
+    },
+    "02_tracks_environments": {
+      "runtimeCategory": "TracksEnvironments",
+      "productionExportAllowed": true
+    },
+    "03_props_architecture": {
+      "runtimeCategory": "PropsArchitecture",
+      "productionExportAllowed": true
+    },
+    "04_vfx_spirits": {
+      "runtimeCategory": "VFX",
+      "productionExportAllowed": true
+    },
+    "05_ui_hud": {
+      "runtimeCategory": null,
+      "productionExportAllowed": false
+    },
+    "06_audio_music": {
+      "runtimeCategory": null,
+      "productionExportAllowed": false
+    },
+    "07_animation": {
+      "runtimeCategory": "Animation",
+      "productionExportAllowed": true
+    },
+    "08_marketing_keyart": {
+      "runtimeCategory": null,
+      "productionExportAllowed": false
+    },
+    "09_technical_exports": {
+      "runtimeCategory": "Technical",
+      "productionExportAllowed": true
+    }
+  },
+  "namingRules": [
+    {
+      "kind": "Model",
+      "prefix": "SM_",
+      "regex": "^SM_[A-Z][A-Za-z0-9]*(?:_[A-Z][A-Za-z0-9]*)+$",
+      "example": "SM_Vehicle_TukTuk_Player"
+    },
+    {
+      "kind": "Prefab",
+      "prefix": "PF_",
+      "regex": "^PF_[A-Z][A-Za-z0-9]*(?:_[A-Z][A-Za-z0-9]*)+$",
+      "example": "PF_Track_CairoGate"
+    },
+    {
+      "kind": "Texture",
+      "prefix": "T_",
+      "regex": "^T_[A-Z][A-Za-z0-9]*(?:_[A-Z][A-Za-z0-9]*)*_(BC|N|M|R|AO|E|ORM)$",
+      "example": "T_TukTuk_Body_BC"
+    },
+    {
+      "kind": "Material",
+      "prefix": "M_",
+      "regex": "^M_[A-Z][A-Za-z0-9]*(?:_[A-Z][A-Za-z0-9]*)+$",
+      "example": "M_TukTuk_Player"
+    },
+    {
+      "kind": "Collider",
+      "prefix": "COL_",
+      "regex": "^COL_[A-Z][A-Za-z0-9]*(?:_[A-Z][A-Za-z0-9]*)+$",
+      "example": "COL_Prop_ConcreteBarrier"
+    },
+    {
+      "kind": "Socket",
+      "prefix": "SO_",
+      "regex": "^SO_[A-Z][A-Za-z0-9]*(?:_[A-Z][A-Za-z0-9]*)+$",
+      "example": "SO_Vehicle_Nitro"
+    },
+    {
+      "kind": "Animation",
+      "prefix": "A_",
+      "regex": "^A_[A-Z][A-Za-z0-9]*(?:_[A-Z][A-Za-z0-9]*)+$",
+      "example": "A_Spirit_Idle_Loop"
+    },
+    {
+      "kind": "VFX",
+      "prefix": "VFX_",
+      "regex": "^VFX_[A-Z][A-Za-z0-9]*(?:_[A-Z][A-Za-z0-9]*)+$",
+      "example": "VFX_Nitro_SpiritTrail"
+    }
+  ],
+  "lodRule": {
+    "meshSuffixRegex": "_LOD[0-3]$",
+    "examples": [
+      "SM_Prop_CairoLamp_LOD0",
+      "SM_Prop_CairoLamp_LOD1"
+    ],
+    "requirement": "Assets that require LODs must use matching base names with only the LOD suffix changing."
+  },
+  "textureRules": {
+    "mapSuffixes": [
+      "BC",
+      "N",
+      "M",
+      "R",
+      "AO",
+      "E",
+      "ORM"
+    ],
+    "colorSpace": {
+      "BC": "sRGB",
+      "E": "sRGB",
+      "N": "Linear/NormalMap",
+      "M": "Linear",
+      "R": "Linear",
+      "AO": "Linear",
+      "ORM": "Linear"
+    },
+    "mipmaps": "Enabled for 3D world textures unless a task documents a justified exception.",
+    "maxSizePolicy": "Controlled by device/performance budgets and asset-specific review; do not promote arbitrary source resolution directly to runtime."
+  },
+  "modelImportBaseline": {
+    "scaleFactor": 1.0,
+    "importCameras": false,
+    "importLights": false,
+    "readWriteEnabled": false,
+    "generateColliders": false,
+    "meshColliderDynamicVehicleAllowed": false,
+    "notes": [
+      "Exceptions require task evidence and Technical Artist review.",
+      "Do not bake gameplay tuning into imported transforms."
+    ]
+  },
+  "folderContract": {
+    "sourceSubfolders": [
+      "references",
+      "source",
+      "exports_candidate",
+      "exports"
+    ],
+    "meaning": {
+      "references": "Visual/reference material only; never promoted automatically.",
+      "source": "Editable DCC/source files or source-link manifests.",
+      "exports_candidate": "Game-ready candidate pending review.",
+      "exports": "Approved game-ready export for ingestion into Unity runtime Art folders."
+    }
+  },
+  "validation": {
+    "requiredMetadata": [
+      "taskId",
+      "owner",
+      "sourceOrLicense",
+      "targetRuntimePath",
+      "reviewState"
+    ],
+    "forbiddenRuntimeInputs": [
+      "references"
+    ],
+    "caseSensitiveNames": true,
+    "spacesAllowedInRuntimeAssetNames": false,
+    "nonAsciiAllowedInRuntimeAssetNames": false
+  }
+}
