@@ -91,9 +91,7 @@ Remove-Item -Force $ApkPath -ErrorAction SilentlyContinue
 
 Write-Host "AFAREET_LOCAL_BUILD_START unity=$UnityPath project=$ProjectPath gitSha=$GitSha branch=$GitBranch dirty=$IsDirty"
 
-# Unity.exe is a Windows GUI executable. Invoking it directly from PowerShell can
-# return control before the editor process has finished, which can produce a
-# false exit-code 0 followed by a missing APK. Start-Process -Wait makes process
+# Unity.exe is a Windows GUI executable. Start-Process -Wait makes process
 # completion explicit and gives us the real Unity process exit code.
 $unityArgs = @(
     '-batchmode',
@@ -189,6 +187,19 @@ try {
     $zip.Dispose()
 }
 
+# Unity/UPM is not allowed to silently mutate tracked source and still produce
+# release-eligible evidence. A stale packages-lock.json is a common example.
+$postDirty = @(& git -C $RepoRoot status --porcelain 2>$null)
+if ($LASTEXITCODE -ne 0) {
+    Fail "Unable to inspect post-build Git working-tree state."
+}
+$IsDirtyAfterBuild = $postDirty.Count -gt 0
+$ReleaseEvidenceEligible = (-not $IsDirty) -and (-not $IsDirtyAfterBuild)
+if ($IsDirtyAfterBuild) {
+    Write-Warning "Unity modified tracked/untracked repository content during build. APK is retained for debugging, but release evidence is not eligible until those source/package changes are reconciled."
+    $postDirty | ForEach-Object { Write-Warning "POST_BUILD_DIRTY $_" }
+}
+
 $hash = (Get-FileHash -Algorithm SHA256 $ApkPath).Hash.ToLowerInvariant()
 $size = (Get-Item $ApkPath).Length
 $shaPath = Join-Path $ArtifactDir "afareet-unity3d-debug.apk.sha256"
@@ -197,7 +208,7 @@ $shaPath = Join-Path $ArtifactDir "afareet-unity3d-debug.apk.sha256"
 $metadata = [ordered]@{
     schemaVersion = 1
     artifact = "afareet-unity3d-debug.apk"
-    source = if ($IsDirty) { "local-windows-licensed-unity-dirty-debug" } else { "local-windows-licensed-unity" }
+    source = if ($ReleaseEvidenceEligible) { "local-windows-licensed-unity" } else { "local-windows-licensed-unity-dirty-debug" }
     unityVersion = $ExpectedUnityVersion
     packageId = $ExpectedPackage
     minSdk = 26
@@ -207,7 +218,8 @@ $metadata = [ordered]@{
     gitSha = $GitSha
     gitBranch = $GitBranch
     gitDirty = $IsDirty
-    releaseEvidenceEligible = (-not $IsDirty)
+    gitDirtyAfterBuild = $IsDirtyAfterBuild
+    releaseEvidenceEligible = $ReleaseEvidenceEligible
     generatedAtUtc = [DateTime]::UtcNow.ToString("o")
     unityLog = $LogPath
 }
@@ -215,6 +227,6 @@ $metadata | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 (Join-Path $Art
 
 Copy-Item -Force $ApkPath (Join-Path $ArtifactDir "afareet-unity3d-debug.apk")
 
-Write-Host "AFAREET_LOCAL_ANDROID_BUILD_OK package=$ExpectedPackage abi=$ExpectedAbi sha256=$hash size=$size gitSha=$GitSha releaseEligible=$(-not $IsDirty)"
+Write-Host "AFAREET_LOCAL_ANDROID_BUILD_OK package=$ExpectedPackage abi=$ExpectedAbi sha256=$hash size=$size gitSha=$GitSha releaseEligible=$ReleaseEvidenceEligible"
 Write-Host "APK: $ApkPath"
 Write-Host "Evidence: $ArtifactDir"
