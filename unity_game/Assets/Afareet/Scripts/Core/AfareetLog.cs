@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using UnityEngine;
 
 namespace Afareet.Core
@@ -17,15 +16,15 @@ namespace Afareet.Core
 
     public static class AfareetLog
     {
-        [Conditional("UNITY_EDITOR")]
-        [Conditional("DEVELOPMENT_BUILD")]
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        [System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
         public static void Info(AfareetLogChannel channel, string message)
         {
             Debug.Log(Format(channel, "INFO", message));
         }
 
-        [Conditional("UNITY_EDITOR")]
-        [Conditional("DEVELOPMENT_BUILD")]
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        [System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
         public static void Warning(AfareetLogChannel channel, string message)
         {
             Debug.LogWarning(Format(channel, "WARN", message));
