@@ -222,12 +222,13 @@ namespace Afareet.Vehicle
             body.centerOfMass = config.centerOfMass;
         }
 
-        public void SetAiInput(float throttle, float steer, bool drift, bool nitro)
+        public void SetAiInput(float throttle, float steer, bool drift, bool nitro, bool brake = false)
         {
             throttleInput = Mathf.Clamp(throttle, -1f, 1f);
             steerInput = Mathf.Clamp(steer, -1f, 1f);
             driftInput = drift;
             nitroInput = nitro;
+            brakeInput = brake;
         }
 
         public void ResetToSpawn()
