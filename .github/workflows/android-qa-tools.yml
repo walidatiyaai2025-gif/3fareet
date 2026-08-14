@@ -1,0 +1,44 @@
+name: Android QA Tools
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/**'
+      - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
+      - '.github/workflows/android-qa-tools.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/android/**'
+      - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
+      - '.github/workflows/android-qa-tools.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Android evidence harness unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Python syntax and CLI contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/android/device_evidence.py
+          python3 tools/android/device_evidence.py --help >/dev/null
+          python3 tools/android/device_evidence.py prepare --help >/dev/null
+          python3 tools/android/device_evidence.py capture --help >/dev/null
+          python3 tools/android/device_evidence.py finish --help >/dev/null
+
+      - name: Run standard-library unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_*.py' -v
