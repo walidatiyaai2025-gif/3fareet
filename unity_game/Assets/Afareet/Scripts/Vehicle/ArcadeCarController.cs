@@ -73,7 +73,6 @@ namespace Afareet.Vehicle
 #if UNITY_EDITOR || UNITY_STANDALONE
             if (AcceptsPlayerInput) ReadDesktopInput();
 #endif
-            surfaceSensor.ProbeNow();
             var grounded = surfaceSensor.IsGrounded;
             var surfaceResponse = config.SurfaceResponseFor(surfaceSensor.CurrentSurface);
             nitroCooldownRemaining = VehicleSpiritPolicy.AdvanceCooldown(nitroCooldownRemaining, Time.fixedDeltaTime);
