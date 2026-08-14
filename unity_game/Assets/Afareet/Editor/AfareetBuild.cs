@@ -39,7 +39,7 @@ namespace Afareet.Editor
             );
         }
 
-        private static void ConfigureAndroidToolchain()
+        internal static void ConfigureAndroidToolchain()
         {
             var configuredSdk = Environment.GetEnvironmentVariable("AFAREET_ANDROID_SDK_ROOT");
             var androidSdk = string.IsNullOrWhiteSpace(configuredSdk)
@@ -50,8 +50,6 @@ namespace Afareet.Editor
                 )
                 : configuredSdk;
 
-            // Unity 6 requires CMake 3.22.1 for Android native builds. Android
-            // Studio normally installs it here even when the Hub SDK omits it.
             if (!Directory.Exists(Path.Combine(androidSdk, "cmake", "3.22.1")))
                 return;
 
@@ -59,7 +57,7 @@ namespace Afareet.Editor
             Debug.Log($"AFAREET_ANDROID_SDK path={androidSdk}");
         }
 
-        private static void PrepareProject()
+        internal static void PrepareProject()
         {
             AfareetAssetSetup.EnsureConfigAssets();
             PlayerSettings.companyName = "Afareet Studio";
@@ -96,8 +94,6 @@ namespace Afareet.Editor
                 IconKind.Any
             );
 #pragma warning disable CS0618
-            // Standalone Windows still reads the legacy icon collection when
-            // producing the executable resource in Unity 6.
             PlayerSettings.SetIconsForTargetGroup(
                 BuildTargetGroup.Standalone,
                 new[] { icon }
@@ -130,7 +126,7 @@ namespace Afareet.Editor
             }
         }
 
-        private static void Build(BuildTarget target, string outputPath, BuildOptions options)
+        internal static void Build(BuildTarget target, string outputPath, BuildOptions options)
         {
             var directory = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
