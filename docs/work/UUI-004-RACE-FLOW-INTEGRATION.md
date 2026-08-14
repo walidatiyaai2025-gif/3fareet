@@ -57,14 +57,20 @@ Added pure `RaceUiPresentationPolicy` so overlay visibility/action guards can be
 `PrototypeHud` now suppresses drive input and touch-control rendering while the race is Paused or in Results, preventing controls behind the production overlay from affecting the car.
 
 ## Automated coverage committed
-New `Afareet.UiFlowEditModeTests` assembly includes 5 tests:
+The reviewed `Afareet.RaceEditModeTests` assembly is also ported unchanged from PR #57 with the same blobs/GUIDs, including:
+- `OrderedCheckpointValidatorTests`;
+- `OneLapRaceStateTests`;
+- `RaceRankingTests`;
+- `RaceRoundFlowTests`.
+
+A new `Afareet.UiFlowEditModeTests` assembly adds 5 integration/UI tests:
 1. Pause overlay only while Racing + paused;
 2. Results overlay priority;
 3. pause/resume/restart phase guards;
 4. reviewed countdown → Racing → Results → Restart state flow;
 5. skipped ordered checkpoint rejection.
 
-The original Race tests on PRs #54→#57 remain the authoritative detailed coverage for their source contracts.
+This means the reviewed Race source contracts and their detailed regression suites now exist on the same exact integration head as UUI-004.
 
 ## Scope guard
 No Vehicle physics, Audio, Art assets, World generation, Packages, ProjectSettings, Android build or Release files are changed by this integration.
@@ -72,8 +78,9 @@ No Vehicle physics, Audio, Art assets, World generation, Packages, ProjectSettin
 ## Validation truth
 - Static source/API review: completed in-repo.
 - Unity 6000.5.8f1 import/compile on this exact head: NOT EXECUTED.
-- `Afareet.UiFlowEditModeTests`: committed, NOT EXECUTED.
-- Existing Race EditMode/PlayMode suites on this exact integration head: NOT EXECUTED.
+- `Afareet.RaceEditModeTests`: committed on this exact head, NOT EXECUTED.
+- `Afareet.UiFlowEditModeTests`: committed on this exact head, NOT EXECUTED.
+- Project PlayMode regression suite on this exact head: NOT EXECUTED.
 - Pause/Resume touch interaction on Android: NOT EXECUTED.
 - Results/Restart end-to-end on Android: NOT EXECUTED.
 - Arabic shaping/font/layout on device: NOT EXECUTED.
@@ -81,7 +88,7 @@ No Vehicle physics, Audio, Art assets, World generation, Packages, ProjectSettin
 
 ## Remaining QA before VERIFIED
 1. Import exact PR head in Unity 6000.5.8f1 and compile with zero errors.
-2. Execute UI-flow tests plus Race EditMode/PlayMode suites.
+2. Execute `Afareet.RaceEditModeTests`, `Afareet.UiFlowEditModeTests` and the project PlayMode suite.
 3. Complete one real ordered lap; confirm early/skipped checkpoint crossing cannot reach Results.
 4. Pause/resume on Android and confirm no hidden driving input leaks through.
 5. Finish race, verify result position/time, restart, and complete second countdown.
