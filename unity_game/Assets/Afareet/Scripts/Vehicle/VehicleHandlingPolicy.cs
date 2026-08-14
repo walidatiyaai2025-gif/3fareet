@@ -66,8 +66,9 @@ namespace Afareet.Vehicle
             if (steerMagnitude < minimumSteer)
                 return 0f;
 
-            var steerRange = Math.Max(0.001f, 1f - minimumSteer);
-            var steerBlend = Clamp((steerMagnitude - minimumSteer) / steerRange, 0f, 1f);
+            var steerBlend = minimumSteer >= 1f
+                ? 1f
+                : Clamp((steerMagnitude - minimumSteer) / (1f - minimumSteer), 0f, 1f);
             var slipBlend = Clamp(Math.Abs(lateralSlipMetersPerSecond) / fullBlendSlipMetersPerSecond, 0f, 1f);
             return steerBlend * slipBlend;
         }
