@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace Afareet.Vehicle
 {
+    [DefaultExecutionOrder(-200)]
     [DisallowMultipleComponent]
     public sealed class ArcadeGroundSurfaceSensor : MonoBehaviour
     {
