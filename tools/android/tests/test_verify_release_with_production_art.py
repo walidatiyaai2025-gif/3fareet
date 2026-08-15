@@ -1,84 +1,165 @@
 import importlib.util
-import json
-import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 
 TOOLS_DIR = Path(__file__).resolve().parents[1]
-MODULE_PATH = TOOLS_DIR / "verify_release_with_production_art.py"
-SPEC = importlib.util.spec_from_file_location("verify_release_with_production_art", MODULE_PATH)
-MODULE = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
-SPEC.loader.exec_module(MODULE)
+
+
+def _load_module():
+    path = TOOLS_DIR / "verify_release_with_production_art.py"
+    spec = importlib.util.spec_from_file_location("verify_release_with_production_art", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+WRAPPER = _load_module()
 
 
 class ReleaseWithProductionArtTests(unittest.TestCase):
-    def test_combined_preflight_requires_matching_art_smoke_and_release_fingerprints(self):
-        candidate = {"gitSha": "a" * 40, "apkSha256": "b" * 64}
-        art = {"verdict": "PRODUCTION_ART_GATE_PASSED", "verified": False}
-        smoke = {
+    def _kwargs(self):
+        return {
+            "candidate_manifest_path": Path("candidate.json"),
+            "apk_path": Path("game.apk"),
+            "session_dir": Path("session"),
+            "review_bundle_dir": Path("review"),
+            "approvals_path": Path("approvals.json"),
+            "gate_spec_path": Path("p1_gate_spec.json"),
+            "production_art_manifest_path": Path("p1-production-art.json"),
+            "production_art_spec_path": Path("p1_production_art_spec.json"),
+            "repo_root": Path("."),
+            "performance_tier": "mid",
+        }
+
+    def _candidate(self):
+        return {
+            "gitSha": "a" * 40,
+            "apkSha256": "b" * 64,
+        }
+
+    def _art(self, candidate):
+        return {
+            "verdict": WRAPPER.verify_p1_production_art.PASS_VERDICT,
+            "verified": False,
+            "candidate": candidate,
+            "acceptedTasks": ["UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"],
+        }
+
+    def _smoke(self, candidate):
+        return {
             "verdict": "PASSABLE_FOR_MANUAL_REVIEW",
             "verified": False,
-            "apkSha256": "b" * 64,
+            "apkSha256": candidate["apkSha256"],
             "blockers": [],
         }
+
+    def test_success_requires_art_smoke_and_release_and_never_verifies(self):
+        candidate = self._candidate()
         release = {
             "eligibleForManualPublication": True,
             "verified": False,
             "candidate": candidate,
+            "verdict": "ELIGIBLE_FOR_MANUAL_PUBLICATION",
         }
-        with mock.patch.object(MODULE.prepare_candidate_device, "read_json", return_value={}), \
-             mock.patch.object(MODULE.prepare_candidate_device, "resolve_candidate", return_value=candidate), \
-             mock.patch.object(MODULE.verify_p1_production_art, "verify_art_manifest", return_value=art), \
-             mock.patch.object(MODULE.analyze_device_smoke, "analyze", return_value=smoke), \
-             mock.patch.object(MODULE.verify_release_publication, "verify_publication", return_value=release):
-            result = MODULE.verify_release_with_art(
-                candidate_manifest_path=Path("candidate.json"),
-                apk_path=None,
-                session_dir=Path("session"),
-                review_bundle_dir=Path("review"),
-                approvals_path=Path("approvals.json"),
-                gate_spec_path=Path("spec.json"),
-                production_art_manifest_path=Path("art.json"),
-                production_art_spec_path=Path("art-spec.json"),
-                repo_root=Path("."),
-                performance_tier="mid",
-            )
+        with mock.patch.object(WRAPPER.prepare_candidate_device, "read_json", return_value={}), \
+             mock.patch.object(WRAPPER.prepare_candidate_device, "resolve_candidate", return_value=candidate), \
+             mock.patch.object(WRAPPER.verify_p1_production_art, "verify_art_manifest", return_value=self._art(candidate)), \
+             mock.patch.object(WRAPPER.analyze_device_smoke, "analyze", return_value=self._smoke(candidate)), \
+             mock.patch.object(WRAPPER.verify_release_publication, "verify_publication", return_value=release):
+            result = WRAPPER.verify_release_with_art(**self._kwargs())
+
         self.assertTrue(result["eligibleForManualPublication"])
         self.assertFalse(result["verified"])
+        self.assertEqual("ELIGIBLE_FOR_MANUAL_PUBLICATION_WITH_PRODUCTION_ART_AND_SMOKE_METRICS", result["verdict"])
+        self.assertEqual(candidate, result["candidate"])
         self.assertEqual("MID", result["performanceTier"])
         self.assertEqual("PASSABLE_FOR_MANUAL_REVIEW", result["uper006SmokeMetrics"]["verdict"])
 
-    def test_smoke_apk_mismatch_is_rejected(self):
-        candidate = {"gitSha": "a" * 40, "apkSha256": "b" * 64}
-        art = {"verdict": "PRODUCTION_ART_GATE_PASSED", "verified": False}
+    def test_art_failure_blocks_before_smoke_and_release_preflight(self):
+        candidate = self._candidate()
+        with mock.patch.object(WRAPPER.prepare_candidate_device, "read_json", return_value={}), \
+             mock.patch.object(WRAPPER.prepare_candidate_device, "resolve_candidate", return_value=candidate), \
+             mock.patch.object(
+                 WRAPPER.verify_p1_production_art,
+                 "verify_art_manifest",
+                 side_effect=WRAPPER.verify_p1_production_art.ProductionArtGateError("trackProcedural is active"),
+             ), \
+             mock.patch.object(WRAPPER.analyze_device_smoke, "analyze") as smoke_mock, \
+             mock.patch.object(WRAPPER.verify_release_publication, "verify_publication") as release_mock:
+            with self.assertRaisesRegex(WRAPPER.verify_p1_production_art.ProductionArtGateError, "trackProcedural"):
+                WRAPPER.verify_release_with_art(**self._kwargs())
+            smoke_mock.assert_not_called()
+            release_mock.assert_not_called()
+
+    def test_blocked_smoke_metrics_abort_before_release_preflight(self):
+        candidate = self._candidate()
         smoke = {
-            "verdict": "PASSABLE_FOR_MANUAL_REVIEW",
+            "verdict": "BLOCKED",
             "verified": False,
-            "apkSha256": "c" * 64,
-            "blockers": [],
+            "apkSha256": candidate["apkSha256"],
+            "blockers": ["smoke-warm-race: frameP95Ms exceeds budget"],
         }
-        with mock.patch.object(MODULE.prepare_candidate_device, "read_json", return_value={}), \
-             mock.patch.object(MODULE.prepare_candidate_device, "resolve_candidate", return_value=candidate), \
-             mock.patch.object(MODULE.verify_p1_production_art, "verify_art_manifest", return_value=art), \
-             mock.patch.object(MODULE.analyze_device_smoke, "analyze", return_value=smoke), \
-             mock.patch.object(MODULE.verify_release_publication, "verify_publication") as release:
-            with self.assertRaisesRegex(MODULE.ReleaseWithProductionArtError, "smoke APK SHA does not match"):
-                MODULE.verify_release_with_art(
-                    candidate_manifest_path=Path("candidate.json"),
-                    apk_path=None,
-                    session_dir=Path("session"),
-                    review_bundle_dir=Path("review"),
-                    approvals_path=Path("approvals.json"),
-                    gate_spec_path=Path("spec.json"),
-                    production_art_manifest_path=Path("art.json"),
-                    production_art_spec_path=Path("art-spec.json"),
-                    repo_root=Path("."),
-                    performance_tier="low",
-                )
-            release.assert_not_called()
+        with mock.patch.object(WRAPPER.prepare_candidate_device, "read_json", return_value={}), \
+             mock.patch.object(WRAPPER.prepare_candidate_device, "resolve_candidate", return_value=candidate), \
+             mock.patch.object(WRAPPER.verify_p1_production_art, "verify_art_manifest", return_value=self._art(candidate)), \
+             mock.patch.object(WRAPPER.analyze_device_smoke, "analyze", return_value=smoke), \
+             mock.patch.object(WRAPPER.verify_release_publication, "verify_publication") as release_mock:
+            with self.assertRaisesRegex(WRAPPER.ReleaseWithProductionArtError, "UPER-006 Android-observable smoke metrics are blocked"):
+                WRAPPER.verify_release_with_art(**self._kwargs())
+            release_mock.assert_not_called()
+
+    def test_smoke_apk_fingerprint_must_match_candidate(self):
+        candidate = self._candidate()
+        smoke = self._smoke(candidate)
+        smoke["apkSha256"] = "c" * 64
+        with mock.patch.object(WRAPPER.prepare_candidate_device, "read_json", return_value={}), \
+             mock.patch.object(WRAPPER.prepare_candidate_device, "resolve_candidate", return_value=candidate), \
+             mock.patch.object(WRAPPER.verify_p1_production_art, "verify_art_manifest", return_value=self._art(candidate)), \
+             mock.patch.object(WRAPPER.analyze_device_smoke, "analyze", return_value=smoke), \
+             mock.patch.object(WRAPPER.verify_release_publication, "verify_publication") as release_mock:
+            with self.assertRaisesRegex(WRAPPER.ReleaseWithProductionArtError, "smoke APK SHA does not match"):
+                WRAPPER.verify_release_with_art(**self._kwargs())
+            release_mock.assert_not_called()
+
+    def test_release_fingerprint_must_match_art_candidate(self):
+        candidate = self._candidate()
+        release = {
+            "eligibleForManualPublication": True,
+            "verified": False,
+            "candidate": {"gitSha": "c" * 40, "apkSha256": candidate["apkSha256"]},
+        }
+        with mock.patch.object(WRAPPER.prepare_candidate_device, "read_json", return_value={}), \
+             mock.patch.object(WRAPPER.prepare_candidate_device, "resolve_candidate", return_value=candidate), \
+             mock.patch.object(WRAPPER.verify_p1_production_art, "verify_art_manifest", return_value=self._art(candidate)), \
+             mock.patch.object(WRAPPER.analyze_device_smoke, "analyze", return_value=self._smoke(candidate)), \
+             mock.patch.object(WRAPPER.verify_release_publication, "verify_publication", return_value=release):
+            with self.assertRaisesRegex(WRAPPER.ReleaseWithProductionArtError, "Git SHA does not match"):
+                WRAPPER.verify_release_with_art(**self._kwargs())
+
+    def test_release_preflight_not_eligible_is_rejected(self):
+        candidate = self._candidate()
+        release = {
+            "eligibleForManualPublication": False,
+            "verified": False,
+            "candidate": candidate,
+        }
+        with mock.patch.object(WRAPPER.prepare_candidate_device, "read_json", return_value={}), \
+             mock.patch.object(WRAPPER.prepare_candidate_device, "resolve_candidate", return_value=candidate), \
+             mock.patch.object(WRAPPER.verify_p1_production_art, "verify_art_manifest", return_value=self._art(candidate)), \
+             mock.patch.object(WRAPPER.analyze_device_smoke, "analyze", return_value=self._smoke(candidate)), \
+             mock.patch.object(WRAPPER.verify_release_publication, "verify_publication", return_value=release):
+            with self.assertRaisesRegex(WRAPPER.ReleaseWithProductionArtError, "not eligible"):
+                WRAPPER.verify_release_with_art(**self._kwargs())
+
+    def test_cli_requires_performance_tier(self):
+        parser = WRAPPER.build_parser()
+        actions = {action.dest: action for action in parser._actions}
+        self.assertIn("performance_tier", actions)
+        self.assertTrue(actions["performance_tier"].required)
+        self.assertEqual(("low", "mid", "high"), actions["performance_tier"].choices)
 
 
 if __name__ == "__main__":
