@@ -488,6 +488,77 @@ def command_validate(args: argparse.Namespace) -> int:
     return 0 if result["releaseReviewReady"] else 2
 
 
+def command_approval_template(args: argparse.Namespace) -> int:
+    spec = load_spec(Path(args.spec))
+    session = Path(args.session).expanduser().resolve()
+    index = read_json(session / INDEX_FILE)
+    candidate, binding_error = load_bound_candidate(session, index)
+    if binding_error:
+        raise RuntimeError(f"candidate binding invalid: {binding_error}")
+    if not isinstance(candidate, dict):
+        raise RuntimeError("candidate provenance is missing")
+
+    git_sha = _normalized_sha40(candidate.get("gitSha"))
+    apk_sha = _normalized_sha256(index.get("apkSha256"))
+    if not git_sha or not apk_sha:
+        raise RuntimeError("candidate Git/APK SHA is invalid")
+
+    review_result = verify_review_bundle(
+        Path(args.review_bundle).expanduser().resolve(),
+        expected_git_sha=git_sha,
+        expected_apk_sha=apk_sha,
+    )
+    review_content_set_sha = _normalized_sha256(review_result.get("contentSetSha256"))
+    if not review_content_set_sha:
+        raise RuntimeError("verified review bundle has no valid contentSetSha256")
+
+    evaluation_index = dict(index)
+    evaluation_index["candidate"] = candidate
+    evaluation_index["reviewBundleBound"] = True
+    evaluation_index["reviewContentSetSha256"] = review_content_set_sha
+    result = evaluate(spec, evaluation_index, None)
+    if not result["allEvidenceReady"]:
+        blockers: list[str] = []
+        for task_id, gate in result["gates"].items():
+            if task_id == FINAL_GATE:
+                continue
+            for blocker in gate.get("blockers", []):
+                text = str(blocker)
+                if text and text not in blockers:
+                    blockers.append(text)
+        detail = "; ".join(blockers) if blockers else "required physical-device evidence is incomplete"
+        raise RuntimeError(
+            "approval template requires complete clean evidence for the first four manual gates: "
+            + detail
+        )
+
+    output = Path(args.output).expanduser().resolve()
+    if output.exists():
+        raise RuntimeError(
+            f"refusing to overwrite existing manual approval file: {output}. "
+            "Preserve reviewer decisions and choose a new path."
+        )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schemaVersion": APPROVALS_SCHEMA_VERSION,
+        "gitSha": git_sha,
+        "apkSha256": apk_sha,
+        "reviewContentSetSha256": review_content_set_sha,
+        "approvals": {
+            task_id: {"approved": False, "reviewer": ""}
+            for task_id in spec["gates"]
+        },
+    }
+    output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(
+        "AFAREET_P1_APPROVAL_TEMPLATE "
+        f"gitSha={git_sha} apkSha256={apk_sha} "
+        f"reviewContentSetSha256={review_content_set_sha} "
+        f"approvals=0/{len(spec['gates'])} output={output}"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Evaluate 3Fareet P1 final-five Android gate readiness."
@@ -520,6 +591,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate.add_argument("--output", help="Optional readiness JSON output path")
     validate.set_defaults(func=command_validate)
+
+    approval_template = sub.add_parser(
+        "approval-template",
+        help="Create a fail-closed schema-v2 approval template with every approval set to false.",
+    )
+    approval_template.add_argument(
+        "--session",
+        required=True,
+        help="Complete candidate-bound physical-device evidence session.",
+    )
+    approval_template.add_argument(
+        "--review-bundle",
+        required=True,
+        help="Sanitized content-addressed review bundle that verifies for the same candidate.",
+    )
+    approval_template.add_argument(
+        "--output",
+        required=True,
+        help="New manual-approvals JSON path. Existing files are never overwritten.",
+    )
+    approval_template.set_defaults(func=command_approval_template)
     return parser
 
 
