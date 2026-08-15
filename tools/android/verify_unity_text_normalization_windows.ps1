@@ -39,7 +39,7 @@ $failures = New-Object System.Collections.Generic.List[string]
 foreach ($relativePath in $paths) {
     $attrLines = @(& $git.Source -C $RepoRoot check-attr text eol -- $relativePath 2>$null)
     if ($LASTEXITCODE -ne 0) {
-        $failures.Add("$relativePath: git check-attr failed")
+        $failures.Add("${relativePath}: git check-attr failed")
         continue
     }
 
@@ -54,22 +54,22 @@ foreach ($relativePath in $paths) {
     }
 
     if ($textValue -ne 'set') {
-        $failures.Add("$relativePath: text='$textValue', expected 'set'")
+        $failures.Add("${relativePath}: text='$textValue', expected 'set'")
     }
     if ($eolValue -ne 'lf') {
-        $failures.Add("$relativePath: eol='$eolValue', expected 'lf'")
+        $failures.Add("${relativePath}: eol='$eolValue', expected 'lf'")
     }
 
     $filePath = Join-Path $RepoRoot ($relativePath -replace '/', '\')
     if (-not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
-        $failures.Add("$relativePath: tracked working-tree file is missing")
+        $failures.Add("${relativePath}: tracked working-tree file is missing")
         continue
     }
 
     $bytes = [System.IO.File]::ReadAllBytes($filePath)
     for ($i = 0; $i -lt ($bytes.Length - 1); $i++) {
         if ($bytes[$i] -eq 13 -and $bytes[$i + 1] -eq 10) {
-            $failures.Add("$relativePath: working-tree content contains CRLF bytes")
+            $failures.Add("${relativePath}: working-tree content contains CRLF bytes")
             break
         }
     }
