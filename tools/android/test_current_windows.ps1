@@ -69,6 +69,10 @@ $ReleaseEvidenceEligible = -not $IsDirty
 $ArtifactDir = Join-Path $RepoRoot "artifacts\unity-local-tests"
 $LogDir = Join-Path $RepoRoot "artifacts\logs"
 New-Item -ItemType Directory -Force -Path $ArtifactDir, $LogDir | Out-Null
+$MetadataPath = Join-Path $ArtifactDir "test-metadata.json"
+$hadStaleMetadata = Test-Path $MetadataPath
+Remove-Item -Force $MetadataPath -ErrorAction SilentlyContinue
+Write-Host "AFAREET_STALE_TEST_METADATA_CLEARED present=$hadStaleMetadata path=$MetadataPath"
 
 function Write-TestCaseDiagnostics([xml]$ResultXml, [string]$Mode, [string]$ResultPath) {
     $problemCases = @($ResultXml.SelectNodes("//test-case[@result='Failed' or @result='Inconclusive']"))
@@ -219,8 +223,7 @@ $metadata = [ordered]@{
     editMode = $editMode
     playMode = $playMode
 }
-$metadataPath = Join-Path $ArtifactDir "test-metadata.json"
-$metadata | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $metadataPath
+$metadata | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $MetadataPath
 
 Write-Host "AFAREET_LOCAL_UNITY_TESTS_OK gitSha=$GitSha releaseEvidenceEligible=$ReleaseEvidenceEligible"
 Write-Host "Evidence: $ArtifactDir"
