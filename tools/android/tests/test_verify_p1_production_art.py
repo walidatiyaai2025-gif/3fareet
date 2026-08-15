@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import json
 import tempfile
@@ -20,6 +21,10 @@ def _load_module():
 GATE = _load_module()
 
 
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 class ProductionArtGateTests(unittest.TestCase):
     def _fixture(self, root: Path):
         repo = root / "repo"
@@ -37,9 +42,9 @@ class ProductionArtGateTests(unittest.TestCase):
             shot = evidence_dir / f"{task_id.lower()}.png"
             source.parent.mkdir(parents=True, exist_ok=True)
             runtime.parent.mkdir(parents=True, exist_ok=True)
-            source.write_bytes(b"authored-model")
-            runtime.write_text("prefab", encoding="utf-8")
-            shot.write_bytes(b"png-evidence")
+            source.write_bytes(f"authored-model-{task_id}".encode("utf-8"))
+            runtime.write_text(f"prefab-{task_id}", encoding="utf-8")
+            shot.write_bytes(f"png-evidence-{task_id}".encode("utf-8"))
             assets[task_id] = {
                 "reviewState": "ACCEPTED",
                 "quality": "production",
@@ -47,13 +52,13 @@ class ProductionArtGateTests(unittest.TestCase):
                 "runtimeActive": True,
                 "proceduralFallbackActive": False,
                 "ownerAccepted": True,
-                "sourceFiles": [source.relative_to(repo).as_posix()],
-                "runtimeAssets": [runtime.relative_to(repo).as_posix()],
-                "evidence": [{"kind": "screenshot", "path": shot.name}],
+                "sourceFiles": [{"path": source.relative_to(repo).as_posix(), "sha256": _sha256(source)}],
+                "runtimeAssets": [{"path": runtime.relative_to(repo).as_posix(), "sha256": _sha256(runtime)}],
+                "evidence": [{"kind": "screenshot", "path": shot.name, "sha256": _sha256(shot)}],
             }
 
         manifest = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "visualGate": "UPER-009",
             "verified": False,
             "ownerAccepted": True,
@@ -86,8 +91,11 @@ class ProductionArtGateTests(unittest.TestCase):
             result = self._verify(repo, path, git_sha, apk_sha)
             self.assertEqual("PRODUCTION_ART_GATE_PASSED", result["verdict"])
             self.assertFalse(result["verified"])
+            self.assertEqual(2, result["schemaVersion"])
             self.assertEqual(6, len(result["acceptedTasks"]))
             self.assertEqual(6, result["evidenceCount"])
+            self.assertEqual(18, result["artifactFingerprintCount"])
+            self.assertTrue(result["artifactFingerprintsVerified"])
             self.assertFalse(result["proceduralFallbackAccepted"])
 
     def test_blockout_quality_is_rejected(self):
@@ -123,7 +131,7 @@ class ProductionArtGateTests(unittest.TestCase):
     def test_missing_runtime_asset_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
-            runtime_rel = manifest["assets"]["UART-006"]["runtimeAssets"][0]
+            runtime_rel = manifest["assets"]["UART-006"]["runtimeAssets"][0]["path"]
             (repo / runtime_rel).unlink()
             with self.assertRaisesRegex(GATE.ProductionArtGateError, r"runtimeAssets\[0\] file is missing"):
                 self._verify(repo, path, git_sha, apk_sha)
@@ -134,6 +142,69 @@ class ProductionArtGateTests(unittest.TestCase):
             manifest["verified"] = True
             path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(GATE.ProductionArtGateError, "must never self-assert VERIFIED"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_legacy_unhashed_schema_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            manifest["schemaVersion"] = 1
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "schemaVersion must be 2"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_source_sha_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            source_rel = manifest["assets"]["UART-003"]["sourceFiles"][0]["path"]
+            (repo / source_rel).write_bytes(b"tampered-after-review")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, r"UART-003 sourceFiles\[0\] SHA-256 mismatch"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_runtime_sha_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            runtime_rel = manifest["assets"]["UART-004"]["runtimeAssets"][0]["path"]
+            (repo / runtime_rel).write_text("tampered-prefab", encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, r"UART-004 runtimeAssets\[0\] SHA-256 mismatch"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_evidence_sha_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            shot_rel = manifest["assets"]["UART-005"]["evidence"][0]["path"]
+            (path.parent / shot_rel).write_bytes(b"replacement-screenshot")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, r"UART-005 evidence\[0\] SHA-256 mismatch"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_missing_or_invalid_artifact_sha_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            del manifest["assets"]["UART-006"]["sourceFiles"][0]["sha256"]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, r"UART-006 sourceFiles\[0\] sha256 must be 64 hex"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_generated_preview_source_path_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, path, manifest, git_sha, apk_sha = self._fixture(root)
+            generated = repo / "Assets/UART-003/Generated/model.fbx"
+            generated.parent.mkdir(parents=True, exist_ok=True)
+            generated.write_bytes(b"generated-preview")
+            manifest["assets"]["UART-003"]["sourceFiles"] = [{
+                "path": generated.relative_to(repo).as_posix(),
+                "sha256": _sha256(generated),
+            }]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "forbidden generated/preview/blockout source segment: generated"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_visual_evidence_cannot_be_reused_across_tasks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            manifest["assets"]["UART-004"]["evidence"] = [dict(manifest["assets"]["UART-003"]["evidence"][0])]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "visual evidence file is reused"):
                 self._verify(repo, path, git_sha, apk_sha)
 
 

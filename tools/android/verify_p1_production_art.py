@@ -6,13 +6,15 @@ an exact candidate fingerprint is bound to an owner-accepted production-art
 manifest and that none of the accepted visual tasks are claiming a procedural
 or blockout fallback as the production path.
 
-It never marks an APK VERIFIED. A pass means only that the production-art
-precondition for UPER-009/release review is structurally satisfied.
+Every reviewed source, runtime asset and screenshot/video is SHA-256 pinned so
+changing bytes after review invalidates the manifest even when the path stays
+unchanged. It never marks an APK VERIFIED.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -42,6 +44,20 @@ def read_json(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _require_sha256(value: Any, label: str) -> str:
+    digest = str(value or "").strip().lower()
+    _require(bool(SHA256_RE.fullmatch(digest)), f"{label} sha256 must be 64 hex characters")
+    return digest
+
+
 def _safe_repo_file(repo_root: Path, relative_path: str, label: str) -> Path:
     _require(bool(relative_path.strip()), f"{label} path is empty")
     candidate = (repo_root / relative_path).resolve()
@@ -64,6 +80,30 @@ def _safe_evidence_file(manifest_dir: Path, relative_path: str, label: str) -> P
     return candidate
 
 
+def _verify_file_fingerprint(path: Path, expected_sha256: Any, label: str) -> str:
+    expected = _require_sha256(expected_sha256, label)
+    actual = _sha256_file(path)
+    _require(actual == expected, f"{label} SHA-256 mismatch")
+    return actual
+
+
+def _require_hashed_file_record(item: Any, label: str) -> dict[str, Any]:
+    _require(isinstance(item, dict), f"{label} must be an object with path + sha256")
+    _require(bool(str(item.get("path") or "").strip()), f"{label} path is empty")
+    _require_sha256(item.get("sha256"), label)
+    return item
+
+
+def _reject_forbidden_source_segments(path: Path, repo_root: Path, forbidden_segments: set[str], label: str) -> None:
+    relative = path.relative_to(repo_root)
+    parts = {part.lower() for part in relative.parts}
+    blocked = sorted(parts.intersection(forbidden_segments))
+    if blocked:
+        raise ProductionArtGateError(
+            f"{label} uses forbidden generated/preview/blockout source segment: {blocked[0]}"
+        )
+
+
 def verify_art_manifest(
     *,
     manifest_path: Path,
@@ -80,7 +120,7 @@ def verify_art_manifest(
     manifest = read_json(manifest_path)
     spec = read_json(spec_path)
 
-    _require(manifest.get("schemaVersion") == spec.get("schemaVersion") == 1, "production-art schemaVersion must be 1")
+    _require(manifest.get("schemaVersion") == spec.get("schemaVersion") == 2, "production-art schemaVersion must be 2")
     _require(manifest.get("visualGate") == spec.get("visualGate") == "UPER-009", "production-art manifest must target UPER-009")
     _require(manifest.get("verified") is False, "production-art manifest must never self-assert VERIFIED")
     _require(manifest.get("ownerAccepted") is True, "owner production-art acceptance is missing")
@@ -108,9 +148,12 @@ def verify_art_manifest(
 
     accepted: list[str] = []
     evidence_count = 0
+    fingerprint_count = 0
     manifest_dir = manifest_path.parent
     allowed_visual_evidence = set(spec.get("allowedVisualEvidenceKinds", ["screenshot", "video"]))
     allowed_source_suffixes = {str(x).lower() for x in spec.get("allowedAuthored3DSuffixes", [])}
+    forbidden_source_segments = {str(x).strip().lower() for x in spec.get("forbiddenAuthoredSourcePathSegments", []) if str(x).strip()}
+    seen_evidence_paths: set[Path] = set()
 
     for task_id in required_tasks:
         task = assets.get(task_id)
@@ -131,35 +174,51 @@ def verify_art_manifest(
 
         authored_source_seen = False
         for index, raw in enumerate(source_files):
-            path = _safe_repo_file(repo_root, str(raw), f"{task_id} sourceFiles[{index}]")
+            label = f"{task_id} sourceFiles[{index}]"
+            item = _require_hashed_file_record(raw, label)
+            path = _safe_repo_file(repo_root, str(item["path"]), label)
+            _verify_file_fingerprint(path, item.get("sha256"), label)
+            _reject_forbidden_source_segments(path, repo_root, forbidden_source_segments, label)
+            fingerprint_count += 1
             if path.suffix.lower() in allowed_source_suffixes:
                 authored_source_seen = True
         _require(authored_source_seen, f"{task_id} has no authored 3D source file with an allowed suffix")
 
         for index, raw in enumerate(runtime_assets):
-            _safe_repo_file(repo_root, str(raw), f"{task_id} runtimeAssets[{index}]")
+            label = f"{task_id} runtimeAssets[{index}]"
+            item = _require_hashed_file_record(raw, label)
+            path = _safe_repo_file(repo_root, str(item["path"]), label)
+            _verify_file_fingerprint(path, item.get("sha256"), label)
+            fingerprint_count += 1
 
         visual_evidence_seen = False
-        for index, item in enumerate(evidence):
-            _require(isinstance(item, dict), f"{task_id} evidence[{index}] must be an object")
+        for index, raw in enumerate(evidence):
+            label = f"{task_id} evidence[{index}]"
+            item = _require_hashed_file_record(raw, label)
             kind = str(item.get("kind") or "").lower()
-            _require(kind in allowed_visual_evidence, f"{task_id} evidence[{index}] has unsupported kind: {kind}")
-            _safe_evidence_file(manifest_dir, str(item.get("path") or ""), f"{task_id} evidence[{index}]")
+            _require(kind in allowed_visual_evidence, f"{label} has unsupported kind: {kind}")
+            path = _safe_evidence_file(manifest_dir, str(item["path"]), label)
+            _require(path not in seen_evidence_paths, f"visual evidence file is reused across production-art tasks: {item['path']}")
+            seen_evidence_paths.add(path)
+            _verify_file_fingerprint(path, item.get("sha256"), label)
             visual_evidence_seen = True
             evidence_count += 1
+            fingerprint_count += 1
         _require(visual_evidence_seen, f"{task_id} has no screenshot/video evidence")
         accepted.append(task_id)
 
     _require(set(accepted) == set(required_tasks), "not all required production-art tasks were accepted")
 
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "verdict": PASS_VERDICT,
         "verified": False,
         "visualGate": "UPER-009",
         "candidate": {"gitSha": git_sha, "apkSha256": apk_sha},
         "acceptedTasks": accepted,
         "evidenceCount": evidence_count,
+        "artifactFingerprintCount": fingerprint_count,
+        "artifactFingerprintsVerified": True,
         "proceduralFallbackAccepted": False,
     }
 
@@ -196,7 +255,7 @@ def main(argv: list[str] | None = None) -> int:
             "AFAREET_PRODUCTION_ART_GATE_OK "
             f"gitSha={result['candidate']['gitSha']} apkSha256={result['candidate']['apkSha256']} "
             f"tasks={len(result['acceptedTasks'])} evidence={result['evidenceCount']} "
-            f"verdict={result['verdict']} verified=false"
+            f"fingerprints={result['artifactFingerprintCount']} verdict={result['verdict']} verified=false"
             + (f" output={output}" if output else "")
         )
         return 0
