@@ -11,10 +11,10 @@ STATUS=REPO_ROOT/'docs/assets/02_tracks_environments/cairo_street_kit/MOBILE_LOD
 class Uart005MobileLodContractTests(unittest.TestCase):
     def _read(self,p): return (REPO_ROOT/p).read_text(encoding='utf-8')
 
-    def test_11_modules_have_22_distinct_monotonic_lod_sources(self):
+    def test_13_modules_have_26_distinct_monotonic_lod_sources(self):
         m=json.loads(MANIFEST.read_text())
-        self.assertEqual('BLOCKED',m['reviewState']); self.assertEqual('11/11',m['moduleCoverage'])
-        self.assertEqual(22,m['distinctLodSourceAssets']); self.assertFalse(m['sameMeshLodReuseAllowed'])
+        self.assertEqual('BLOCKED',m['reviewState']); self.assertEqual('13/13',m['moduleCoverage'])
+        self.assertEqual(26,m['distinctLodSourceAssets']); self.assertFalse(m['sameMeshLodReuseAllowed'])
         digests=set()
         for mod in m['modules']:
             self.assertGreater(mod['lod0Triangles'],mod['lod1']['triangles'])
@@ -28,7 +28,7 @@ class Uart005MobileLodContractTests(unittest.TestCase):
                 self.assertIn(f"usemtl {mod['materialName']}",text)
                 self.assertIn('\nvt ','\n'+text); self.assertIn('\nvn ','\n'+text)
                 digests.add(hashlib.sha256(p.read_bytes()).hexdigest())
-        self.assertEqual(22,len(digests))
+        self.assertEqual(26,len(digests))
 
     def test_runtime_pass_rejects_fake_same_mesh_and_builds_three_level_groups(self):
         text=self._read('unity_game/Assets/Afareet/Scripts/World/CairoStreetKitMobileLodRuntimePass.cs')
@@ -84,8 +84,8 @@ class Uart005MobileLodContractTests(unittest.TestCase):
 
     def test_runtime_status_remains_unverified(self):
         s=json.loads(STATUS.read_text())
-        self.assertEqual('BLOCKED',s['reviewState']); self.assertEqual('11/11',s['moduleCoverage'])
-        self.assertEqual(22,s['distinctLodSourceAssets']); self.assertTrue(s['runtimeLodIntegrationImplemented'])
+        self.assertEqual('BLOCKED',s['reviewState']); self.assertEqual('13/13',s['moduleCoverage'])
+        self.assertEqual(26,s['distinctLodSourceAssets']); self.assertTrue(s['runtimeLodIntegrationImplemented'])
         self.assertFalse(s['runtimeLodIntegrationVerified']); self.assertFalse(s['sameMeshLodReuseAllowed'])
 
 if __name__=='__main__': unittest.main()
