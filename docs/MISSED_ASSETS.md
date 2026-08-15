@@ -1,7 +1,7 @@
 # Missed Assetes
 
 **Document:** AFA-ASSETS-001  
-**Version:** 1.1 Live Registry
+**Version:** 1.2 Live Registry
 
 هذا السجل هو **مصدر الحقيقة الحي** للأصول الناقصة/المستلمة/قيد التنفيذ. لا يبتكر المصمم أو المبرمج أصلًا بديلًا غير مسجل، ولا يبدأ أي شخص أصلًا عليه Owner نشط بدون تنسيق Team Lead.
 
@@ -31,6 +31,7 @@
 | AST-060 | App icon family | UNASSIGNED | REFERENCE_AVAILABLE | `docs/assets/05_ui_hud/app_icons/` | — | 2026-08-12 | استلمنا لوحة المقاسات/التصميم. المرجع محفوظ، ويوجد 256px candidate للمعاينة فقط. ما زال مطلوب clean 1024 master + platform exports قبل VERIFIED. |
 | AST-061 | Cairo Rap × Shaabi prototype music | Technical Audio / Integration | INTEGRATING | `assets/audio/` | `agent/audio-002-first-apk-rap-shaabi` | 2026-08-12 | Owner source received; first APK uses a short embedded preview loop. CI + real-device audio smoke required before VERIFIED. |
 | AST-062 | Afareet black/purple/gold hero car | Principal Mobile Game Architect | REVIEW | `docs/assets/01_vehicles/references/`, procedural Unity blockout in `CarFactory` | `agent/unity-3d-prototype` / PR #49 | 2026-08-13 | User reference received. Procedural hero blockout integrated; production mesh, UVs and LODs remain required for UART-003. |
+| AST-063 | 3Fareet branded splash key art | Flutter/Android Integration | INTEGRATED | `assets/branding/3fareet_splash.jpg` | `main` → `agent/unity-main-sync-resolution` | 2026-08-15 | Approved key art carried into the Unity production integration line; Flutter startup and Android launch background use it. CI + real-device launch smoke required before VERIFIED. |
 
 ## Missing / production asset register
 
