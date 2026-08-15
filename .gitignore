@@ -18,10 +18,12 @@ android/.gradle/
 android/local.properties
 **/captures/
 
-# Unity generated builds / release signing
+# Unity generated builds / release signing / deterministic staged runtime art
 unity_game/Builds/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated.meta
+unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated/
+unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated.meta
 
 # Local CI / QA evidence outputs (generated, never source-of-truth)
 /artifacts/
