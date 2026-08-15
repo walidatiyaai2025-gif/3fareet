@@ -18,6 +18,13 @@
   "runtimePass": "unity_game/Assets/Afareet/Scripts/World/CairoLandmarkRuntimePass.cs",
   "trackPyramidReplacementPass": "unity_game/Assets/Afareet/Scripts/World/CairoTrackPyramidAuthoredReplacementPass.cs",
   "androidGate": "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkBuildGate.cs",
+  "sourceSurfaceProgress": "4/4",
+  "sourceSurfaceEvidence": {
+    "authoringCommit": "72ce19e54bfd6c563b99699e1eb07e73b7dafd60",
+    "workflowRun": 31893122805,
+    "topologyPreserved": true,
+    "trackedObjMtlTextureChains": 4
+  },
   "modules": [
     {
       "model": "SM_Landmark_GizaPyramid_A.obj",
