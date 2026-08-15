@@ -50,6 +50,38 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
 
+    def test_android_gate_requires_three_distinct_authored_model_sources(self):
+        text = self._read("unity_game/Assets/Afareet/Editor/RivalProductionBuildGate.cs")
+        self.assertIn("HashSet<string>", text)
+        self.assertIn("usedSourceGuids", text)
+        self.assertIn("duplicate-authored-source-guid", text)
+        self.assertIn("expected=three-distinct-rival-model-sources", text)
+        self.assertIn("distinctSources=3", text)
+
+    def test_source_binder_records_real_unity_provenance_and_refuses_cross_variant_reuse(self):
+        text = self._read("unity_game/Assets/Afareet/Editor/RivalProductionSourceBinder.cs")
+        for required in (
+            "Afareet/Bind UART-004/",
+            "Rival 1 Source",
+            "Rival 2 Source",
+            "Rival 3 Source",
+            "RivalProductionPolicy.IsSupportedAuthoredModelSource",
+            "EnsureSourceIsUniqueAcrossOtherVariants",
+            "AssetDatabase.AssetPathToGUID",
+            "AssetDatabase.GetAssetDependencyHash",
+            "AssetDatabase.GetAssetPath(mesh)",
+            "mesh is not backed by selected source",
+            "mesh.uv",
+            "mesh.normals",
+            "material.mainTexture",
+            "metadata.Configure",
+            "ValidateProductionPrefab",
+            "AFAREET_UART004_SOURCE_BIND_OK",
+        ):
+            self.assertIn(required, text)
+        self.assertIn("cannot reuse rival", text)
+        self.assertNotIn("GameObject.CreatePrimitive", text)
+
     def test_rival_quality_contract_requires_surface_authoring_identity_and_external_model_source(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
         for required in (
