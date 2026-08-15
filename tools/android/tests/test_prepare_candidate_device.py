@@ -16,7 +16,7 @@ SHA = "a" * 40
 
 def make_manifest(apk: Path, candidate_type: str = "local-windows-licensed-unity"):
     payload = apk.read_bytes()
-    return {
+    manifest = {
         "schemaVersion": 1,
         "candidateType": candidate_type,
         "gitSha": SHA,
@@ -32,6 +32,16 @@ def make_manifest(apk: Path, candidate_type: str = "local-windows-licensed-unity
             "sha256": hashlib.sha256(payload).hexdigest(),
         },
     }
+    if candidate_type == "github-actions-unity-ci":
+        manifest["githubRun"] = {
+            "runId": "12345",
+            "runAttempt": "1",
+            "repository": "walidatiyaai2025-gif/3fareet",
+            "workflow": "Unity Production CI",
+            "eventName": "pull_request",
+            "ref": "refs/pull/108/merge",
+        }
+    return manifest
 
 
 class PrepareCandidateDeviceTests(unittest.TestCase):
@@ -48,6 +58,7 @@ class PrepareCandidateDeviceTests(unittest.TestCase):
             self.assertEqual(apk.resolve(), candidate["apkPath"])
             self.assertEqual(SHA, candidate["gitSha"])
             self.assertEqual("local-windows-licensed-unity", candidate["candidateType"])
+            self.assertIsNone(candidate["githubRun"])
             self.assertEqual(hashlib.sha256(apk.read_bytes()).hexdigest(), candidate["apkSha256"])
 
     def test_valid_github_ci_candidate_resolves_exact_apk(self):
@@ -61,6 +72,25 @@ class PrepareCandidateDeviceTests(unittest.TestCase):
             self.assertEqual(apk.resolve(), candidate["apkPath"])
             self.assertEqual(SHA, candidate["gitSha"])
             self.assertEqual("github-actions-unity-ci", candidate["candidateType"])
+            self.assertEqual("12345", candidate["githubRun"]["runId"])
+
+    def test_rejects_ci_candidate_without_exact_github_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = self.make_apk(tmp)
+            manifest = make_manifest(apk, "github-actions-unity-ci")
+            manifest.pop("githubRun")
+            with self.assertRaisesRegex(PREPARE.CandidatePrepareError, "missing githubRun provenance"):
+                PREPARE.resolve_candidate(manifest, Path(tmp) / "manifest.json")
+
+            manifest = make_manifest(apk, "github-actions-unity-ci")
+            manifest["githubRun"]["repository"] = "other/repo"
+            with self.assertRaisesRegex(PREPARE.CandidatePrepareError, "Unexpected GitHub candidate repository"):
+                PREPARE.resolve_candidate(manifest, Path(tmp) / "manifest.json")
+
+            manifest = make_manifest(apk, "github-actions-unity-ci")
+            manifest["githubRun"]["workflow"] = "Other Workflow"
+            with self.assertRaisesRegex(PREPARE.CandidatePrepareError, "Unexpected GitHub candidate workflow"):
+                PREPARE.resolve_candidate(manifest, Path(tmp) / "manifest.json")
 
     def test_rejects_unsupported_candidate_type(self):
         with tempfile.TemporaryDirectory() as tmp:
