@@ -17,6 +17,7 @@ namespace Afareet.World
         private const string BarrierPath = ResourceRoot + "/SM_Prop_CairoBarrier_A";
         private const string RoadPath = ResourceRoot + "/SM_Track_CairoRoad_A";
         private const string CurbPath = ResourceRoot + "/SM_Track_CairoCurb_A";
+        private const float AuthoredAwningWidth = 3f;
 
         private static bool activationLogged;
         private static bool roadActivationLogged;
@@ -118,9 +119,19 @@ namespace Afareet.World
             {
                 var canopy = Object.Instantiate(awning, root, false);
                 canopy.name = "Authored Cairo Awning";
-                canopy.transform.localPosition = new Vector3(-Mathf.Min(width * .32f, 1.5f), 1.55f, -width * .5f - .06f);
-                canopy.transform.localRotation = Quaternion.identity;
-                canopy.transform.localScale = new Vector3(Mathf.Min(1f, width / 6f), 1f, .78f);
+                var awningScaleX = Mathf.Min(1f, width / 6f);
+                var placedAwningWidth = AuthoredAwningWidth * awningScaleX;
+
+                // The authored awning is modeled from Z=0 toward +Z. The front facade's
+                // street-facing detail projects toward -Z, so rotate 180 degrees and place
+                // the authored X=0 pivot at +half-width. This keeps the canopy centered and
+                // projects its full depth outside the building instead of into the interior.
+                canopy.transform.localPosition = new Vector3(
+                    placedAwningWidth * .5f,
+                    1.55f,
+                    -width * .5f - .06f);
+                canopy.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                canopy.transform.localScale = new Vector3(awningScaleX, 1f, .78f);
                 ApplyMaterialForEditorPreview(canopy, accentMaterial);
             }
 
