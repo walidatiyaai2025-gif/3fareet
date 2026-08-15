@@ -55,7 +55,8 @@ jobs:
         run: |
           $scripts = @(
             'tools/android/build_current_windows.ps1',
-            'tools/android/test_current_windows.ps1'
+            'tools/android/test_current_windows.ps1',
+            'tools/android/run_local_candidate_windows.ps1'
           )
           foreach ($relativePath in $scripts) {
             $scriptPath = Resolve-Path $relativePath
@@ -93,7 +94,7 @@ jobs:
           if ($testText.Contains('& $UnityPath \\')) {
             throw 'Invalid test invocation: backslash must not be used as a line-continuation argument for Unity.'
           }
-          $requiredContracts = @(
+          $testRequired = @(
             'Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru',
             '$unityProcess.ExitCode',
             'git is required for SHA-pinned test evidence',
@@ -107,12 +108,28 @@ jobs:
             '$total -le 0',
             '$failed -gt 0'
           )
-          foreach ($required in $requiredContracts) {
+          foreach ($required in $testRequired) {
             if (-not $testText.Contains($required)) {
               throw "Local Unity test fallback is missing required contract: $required"
             }
           }
-          Write-Host 'PowerShell syntax and semantic fallback contracts OK.'
+
+          $candidateText = Get-Content -Raw 'tools/android/run_local_candidate_windows.ps1'
+          $candidateRequired = @(
+            'Assert-CleanTree "UNITY_TESTS"',
+            'Assert-CleanTree "UNITY_BUILD"',
+            'Assert-CleanTree "CANDIDATE_VERIFY"',
+            'verify_local_candidate.py',
+            'AFAREET_LOCAL_CANDIDATE_OK',
+            'Candidate orchestration requires a clean Git working tree before Unity starts.'
+          )
+          foreach ($required in $candidateRequired) {
+            if (-not $candidateText.Contains($required)) {
+              throw "Local candidate orchestrator is missing fail-closed contract: $required"
+            }
+          }
+
+          Write-Host 'PowerShell syntax and semantic fallback/orchestration contracts OK.'
 
       - name: Run standard-library unit tests
         shell: bash
