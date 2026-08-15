@@ -68,6 +68,33 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
             self.assertGreaterEqual(vertex_count(path), minimum_vertices, name)
             self.assertGreater(triangle_count(path), 50, name)
 
+    def test_giza_has_tracked_surface_chain_but_package_is_only_one_of_four_surfaced(self):
+        obj = (SOURCE_ROOT / "SM_Landmark_GizaPyramid_A.obj").read_text(encoding="utf-8")
+        mtl = (SOURCE_ROOT / "SM_Landmark_GizaPyramid_A.mtl").read_text(encoding="utf-8")
+        texture = SOURCE_ROOT / "T_Landmark_GizaPyramid_BC.png"
+        self.assertIn("mtllib SM_Landmark_GizaPyramid_A.mtl", obj)
+        self.assertIn("usemtl Giza_Stone", obj)
+        self.assertIn("\nvt ", "\n" + obj)
+        self.assertIn("\nvn ", "\n" + obj)
+        self.assertIn("newmtl Giza_Stone", mtl)
+        self.assertIn("map_Kd T_Landmark_GizaPyramid_BC.png", mtl)
+        payload = texture.read_bytes()
+        self.assertGreater(len(payload), 32)
+        self.assertTrue(payload.startswith(b"\x89PNG\r\n\x1a\n"))
+        faces = [line for line in obj.splitlines() if line.startswith("f ")]
+        self.assertTrue(faces)
+        for face in faces:
+            for token in face.split()[1:]:
+                fields = token.split("/")
+                self.assertEqual(3, len(fields), token)
+                self.assertTrue(fields[1] and fields[2], token)
+        self.assertEqual(42, vertex_count(SOURCE_ROOT / "SM_Landmark_GizaPyramid_A.obj"))
+        self.assertEqual(80, triangle_count(SOURCE_ROOT / "SM_Landmark_GizaPyramid_A.obj"))
+
+        minaret = (SOURCE_ROOT / "SM_Landmark_Minaret_A.obj").read_text(encoding="utf-8")
+        self.assertNotIn("\nmtllib ", "\n" + minaret)
+        self.assertNotIn("\nvn ", "\n" + minaret)
+
     def test_manifest_stays_blocked_until_render_and_owner_acceptance(self):
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
         self.assertEqual("UART-006", manifest["taskId"])
@@ -79,6 +106,8 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         self.assertEqual(4, len(manifest["modules"]))
         self.assertEqual("replacement-implemented-unverified", manifest["runtimeReplacementStatus"]["trackBuilderPyramids"])
         self.assertFalse(manifest["runtimeReplacementStatus"]["primitiveTrackPyramidFallbackInPlayer"])
+        self.assertEqual("tracked-uv-normal-mtl-texture-candidate", manifest["modules"][0]["surfaceAuthoring"])
+        self.assertEqual(3, sum(module.get("surfaceAuthoring") == "pending" for module in manifest["modules"]))
         for module in manifest["modules"]:
             self.assertGreater(module["productionMinVertices"], 0)
             self.assertGreater(module["productionMinTriangles"], 0)
@@ -157,56 +186,32 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
     def test_android_gate_requires_production_state_geometry_and_real_surface_authoring(self):
         gate = ANDROID_GATE.read_text(encoding="utf-8")
         for required in (
-            "IPreprocessBuildWithReport",
-            "BuildTarget.Android",
-            'ProductionReadyState = "PRODUCTION_READY"',
-            'ProductionQuality = "authored-production"',
-            "runtimeIntegrationVerified",
-            "proceduralFallbackAllowedInCandidate",
-            "AFAREET_P1_PRODUCTION_LANDMARK_GATE_BLOCKED",
-            "productionMinVertices",
-            "productionMinTriangles",
-            "TextureCoordinates",
-            "Normals",
-            "FacesWithUvAndNormal",
-            'line.StartsWith("vt ", StringComparison.Ordinal)',
-            'line.StartsWith("vn ", StringComparison.Ordinal)',
-            "mesh.uv",
-            "mesh.normals",
-            "material.mainTexture",
-            "authored-surface rejected",
-            "imported production surface rejected",
+            "IPreprocessBuildWithReport", "BuildTarget.Android",
+            'ProductionReadyState = "PRODUCTION_READY"', 'ProductionQuality = "authored-production"',
+            "runtimeIntegrationVerified", "proceduralFallbackAllowedInCandidate",
+            "AFAREET_P1_PRODUCTION_LANDMARK_GATE_BLOCKED", "productionMinVertices", "productionMinTriangles",
+            "TextureCoordinates", "Normals", "FacesWithUvAndNormal",
+            'line.StartsWith("vt ", StringComparison.Ordinal)', 'line.StartsWith("vn ", StringComparison.Ordinal)',
+            "mesh.uv", "mesh.normals", "material.mainTexture", "authored-surface rejected", "imported production surface rejected",
         ):
             self.assertIn(required, gate)
 
     def test_landmark_production_materials_require_tracked_obj_mtl_texture_chain(self):
         policy = MATERIAL_POLICY.read_text(encoding="utf-8")
         for required in (
-            'line.StartsWith("mtllib ", StringComparison.Ordinal)',
-            'line.StartsWith("usemtl ", StringComparison.Ordinal)',
-            'line.StartsWith("newmtl ", StringComparison.Ordinal)',
-            "Production OBJ has no mtllib declaration",
-            "Production OBJ has no usemtl assignments",
-            "OBJ usemtl is not defined by tracked MTL files",
-            "OBJ production material has no tracked texture map",
-            "Path.IsPathRooted(reference)",
-            "dependency escapes tracked source root",
-            "Tracked material dependency is missing",
-            "Tracked texture dependency is missing",
+            'line.StartsWith("mtllib ", StringComparison.Ordinal)', 'line.StartsWith("usemtl ", StringComparison.Ordinal)',
+            'line.StartsWith("newmtl ", StringComparison.Ordinal)', "Production OBJ has no mtllib declaration",
+            "Production OBJ has no usemtl assignments", "OBJ usemtl is not defined by tracked MTL files",
+            "OBJ production material has no tracked texture map", "Path.IsPathRooted(reference)",
+            "dependency escapes tracked source root", "Tracked material dependency is missing", "Tracked texture dependency is missing",
         ):
             self.assertIn(required, policy)
 
         gate = MATERIAL_GATE.read_text(encoding="utf-8")
         for required in (
-            "IPreprocessBuildWithReport",
-            "BuildTarget.Android",
-            '"PRODUCTION_READY"',
-            '"authored-production"',
-            "ObjProductionMaterialDependencyPolicy.ValidateOrThrow",
-            "AFAREET_UART006_MATERIAL_DEPENDENCY_GATE_BLOCKED",
-            "AFAREET_UART006_MATERIAL_DEPENDENCY_GATE_OK",
-            "obj-mtllib-usemtl-tracked-textures",
-            "rootBound=true",
+            "IPreprocessBuildWithReport", "BuildTarget.Android", '"PRODUCTION_READY"', '"authored-production"',
+            "ObjProductionMaterialDependencyPolicy.ValidateOrThrow", "AFAREET_UART006_MATERIAL_DEPENDENCY_GATE_BLOCKED",
+            "AFAREET_UART006_MATERIAL_DEPENDENCY_GATE_OK", "obj-mtllib-usemtl-tracked-textures", "rootBound=true",
         ):
             self.assertIn(required, gate)
 
