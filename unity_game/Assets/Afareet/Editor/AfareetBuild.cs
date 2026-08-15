@@ -27,6 +27,7 @@ namespace Afareet.Editor
         {
             ConfigureAndroidToolchain();
             PrepareProject();
+            P1ProductionWorldBuildGate.ValidateAndroidCandidateOrThrow();
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             EditorUserBuildSettings.buildAppBundle = false;
