@@ -3,17 +3,23 @@
   "scope": "mobile-lod-runtime",
   "reviewState": "BLOCKED",
   "sourceManifest": "docs/assets/02_tracks_environments/cairo_street_kit/MOBILE_LOD_MANIFEST.json",
-  "moduleCoverage": "11/11",
-  "distinctLodSourceAssets": 22,
+  "moduleCoverage": "13/13",
+  "distinctLodSourceAssets": 26,
   "runtimeLodIntegrationImplemented": true,
   "runtimeLodIntegrationVerified": false,
   "sameMeshLodReuseAllowed": false,
-  "runtimePass": "unity_game/Assets/Afareet/Scripts/World/CairoStreetKitMobileLodRuntimePass.cs",
-  "androidGate": "unity_game/Assets/Afareet/Editor/P1ProductionMobileLodBuildGate.cs",
+  "runtimePasses": [
+    "unity_game/Assets/Afareet/Scripts/World/CairoStreetKitMobileLodRuntimePass.cs",
+    "unity_game/Assets/Afareet/Scripts/World/CairoRoadCurbMobileLodRuntimePass.cs"
+  ],
+  "androidGates": [
+    "unity_game/Assets/Afareet/Editor/P1ProductionMobileLodBuildGate.cs",
+    "unity_game/Assets/Afareet/Editor/P1ProductionRoadCurbMobileLodBuildGate.cs"
+  ],
   "transitions": [0.56, 0.27, 0.08],
   "acceptancePending": [
     "licensed Unity compile/import/runtime verification",
-    "verify all 11 LODGroups bind LOD0/LOD1/LOD2 to distinct source OBJ assets",
+    "verify all 13 LOD module families bind LOD0/LOD1/LOD2 to distinct source OBJ assets, including repeated road and curb segments",
     "physical-device performance review and transition visual review",
     "exact Android in-race screenshots/video",
     "owner/Art Director Visual Gate acceptance"
