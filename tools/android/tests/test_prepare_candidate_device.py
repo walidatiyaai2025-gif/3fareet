@@ -1,5 +1,6 @@
 import hashlib
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -44,6 +45,12 @@ def make_manifest(apk: Path, candidate_type: str = "local-windows-licensed-unity
     return manifest
 
 
+class FakeDeviceEvidence:
+    @staticmethod
+    def write_json(path: Path, payload):
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 class PrepareCandidateDeviceTests(unittest.TestCase):
     def make_apk(self, directory: str, payload: bytes = b"candidate-apk") -> Path:
         apk = Path(directory) / "afareet-unity3d-debug.apk"
@@ -73,6 +80,41 @@ class PrepareCandidateDeviceTests(unittest.TestCase):
             self.assertEqual(SHA, candidate["gitSha"])
             self.assertEqual("github-actions-unity-ci", candidate["candidateType"])
             self.assertEqual("12345", candidate["githubRun"]["runId"])
+
+    def test_bind_candidate_to_session_persists_manifest_and_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk = self.make_apk(tmp, b"bound-session-apk")
+            source_manifest = make_manifest(apk, "github-actions-unity-ci")
+            manifest_path = root / "ci-candidate-manifest.json"
+            manifest_path.write_text(json.dumps(source_manifest, sort_keys=True) + "\n", encoding="utf-8")
+            candidate = PREPARE.resolve_candidate(source_manifest, manifest_path)
+            session_path = root / PREPARE.SESSION_FILE
+            session_path.write_text(
+                json.dumps({
+                    "packageId": PREPARE.EXPECTED_PACKAGE_ID,
+                    "apk": {
+                        "sha256": candidate["apkSha256"],
+                        "sizeBytes": candidate["sizeBytes"],
+                    },
+                }),
+                encoding="utf-8",
+            )
+
+            context = PREPARE.bind_candidate_to_session(
+                candidate,
+                manifest_path,
+                root,
+                FakeDeviceEvidence,
+            )
+            saved_session = json.loads(session_path.read_text(encoding="utf-8"))
+            bound_manifest = root / PREPARE.BOUND_MANIFEST_FILE
+            self.assertTrue(bound_manifest.is_file())
+            self.assertEqual(manifest_path.read_bytes(), bound_manifest.read_bytes())
+            self.assertEqual(SHA, saved_session["candidate"]["gitSha"])
+            self.assertEqual("github-actions-unity-ci", saved_session["candidate"]["candidateType"])
+            self.assertEqual("12345", saved_session["candidate"]["githubRun"]["runId"])
+            self.assertEqual(hashlib.sha256(bound_manifest.read_bytes()).hexdigest(), context["manifest"]["sha256"])
 
     def test_rejects_ci_candidate_without_exact_github_provenance(self):
         with tempfile.TemporaryDirectory() as tmp:
