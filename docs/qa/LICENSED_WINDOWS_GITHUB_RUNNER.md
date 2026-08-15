@@ -16,7 +16,9 @@ The self-hosted job deliberately does **not** accept an arbitrary Git ref. It al
 
 `agent/unblock-final-5`
 
-The operator supplies only an `expected_sha`. The job fails before Unity starts unless the checked-out branch head exactly matches that 40-character SHA. This prevents an accidental branch move from producing evidence for a different revision and prevents the workflow from being used to execute an arbitrary PR branch on the self-hosted machine.
+The operator must explicitly supply the current full `expected_sha`. There is intentionally **no default SHA** in the workflow because the production branch is shared by multiple implementation agents and can move while another gate is running.
+
+The job fails before Unity starts unless the checked-out branch head exactly matches the supplied 40-character SHA. This prevents an accidental branch move from producing evidence for a different revision and prevents the workflow from being used to execute an arbitrary PR branch on the self-hosted machine.
 
 `actions/checkout` also uses `persist-credentials: false` for the self-hosted job.
 
@@ -36,18 +38,16 @@ Default Unity path used by the workflow:
 
 The path can be changed at dispatch time without changing the workflow.
 
-## Current exact candidate dispatch
+## Exact candidate dispatch
 
-For the current canonical production head:
+Before every dispatch, read the current head of `agent/unblock-final-5` from GitHub and review any commits that landed since the last verified SHA. Do not reuse an old SHA from documentation, a previous workflow run, or a previous chat message.
 
-`61364edf05ce72fd1aaf98ecd6ce28f4d4a12a55`
+Then open **Actions → Unity Licensed Windows Candidate → Run workflow** and enter:
 
-Open **Actions → Unity Licensed Windows Candidate → Run workflow** and keep/enter:
-
-- `expected_sha`: `61364edf05ce72fd1aaf98ecd6ce28f4d4a12a55`
+- `expected_sha`: the current reviewed 40-character head SHA of `agent/unblock-final-5`;
 - `unity_path`: the licensed Unity `6000.5.8f1` executable on that runner.
 
-If `agent/unblock-final-5` moves, the old SHA dispatch fails closed. Use the new exact head only after reviewing the new commits.
+If the production branch moves between inspection and checkout, the dispatch fails closed. Review the new commits and start a new dispatch with the new exact SHA; never edit evidence to make an older run appear current.
 
 ## Execution chain
 
