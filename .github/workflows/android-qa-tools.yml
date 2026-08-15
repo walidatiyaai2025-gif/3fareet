@@ -7,6 +7,7 @@ on:
       - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
       - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
       - 'docs/qa/UNITY_CI_UNBLOCK.md'
+      - '.gitignore'
       - '.github/workflows/android-qa-tools.yml'
   push:
     branches:
@@ -16,6 +17,7 @@ on:
       - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
       - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
       - 'docs/qa/UNITY_CI_UNBLOCK.md'
+      - '.gitignore'
       - '.github/workflows/android-qa-tools.yml'
   workflow_dispatch:
 
@@ -49,6 +51,21 @@ jobs:
           python3 tools/android/verify_local_candidate.py --help >/dev/null
           python3 tools/android/prepare_candidate_device.py --help >/dev/null
           python3 -m json.tool tools/android/p1_gate_spec.json >/dev/null
+
+      - name: Validate generated evidence ignore contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe='artifacts/.afareet-candidate-evidence-probe'
+          if ! git check-ignore -q "$probe"; then
+            echo "::error::Local candidate evidence under artifacts/ must be ignored, otherwise fail-closed Git cleanliness checks reject their own generated output."
+            exit 1
+          fi
+          if git check-ignore -q 'unity_game/Packages/manifest.json'; then
+            echo '::error::Tracked Unity package source must never be hidden by the evidence ignore contract.'
+            exit 1
+          fi
+          echo 'Generated evidence ignore contract OK.'
 
       - name: Validate Windows local Unity fallback contracts
         shell: pwsh
