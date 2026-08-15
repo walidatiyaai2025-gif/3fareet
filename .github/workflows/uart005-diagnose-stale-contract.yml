@@ -1,0 +1,31 @@
+name: UART005 Diagnose Stale Contract
+
+on:
+  push:
+    branches:
+      - agent/p1-production-world-hard-gate
+    paths:
+      - .github/workflows/uart005-diagnose-stale-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/p1-production-world-hard-gate
+      - name: Locate stale six-module assumptions
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== phrase matches ==='
+          grep -RInE 'all six|six UART-005|6/6|sourceSurfaceProgress|surface-authored candidates|surface-authored candidate' tools docs unity_game/Assets/Afareet .github || true
+          echo '=== UART005-related test files ==='
+          find tools/android/tests -maxdepth 1 -type f -print | sort | grep -Ei 'uart005|cairo|production|world' || true
+          echo '=== targeted verbose tests ==='
+          python -m unittest -v \
+            tools.android.tests.test_uart005_production_surface_contract \
+            tools.android.tests.test_uart005_awning_surface_candidate || true
