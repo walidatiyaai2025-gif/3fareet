@@ -63,7 +63,7 @@ class P1RemediationConvergenceContractTests(unittest.TestCase):
 
         for forbidden in ("GameObject.CreatePrimitive", "new Mesh(", "RecalculateNormals"):
             self.assertNotIn(forbidden, hero)
-        for required in ("StuckDurationSeconds", "IsRecoveryCheckpointAdvanceAllowed"):
+        for required in ("StuckSecondsBeforeAutoRecovery", "IsRecoveryCheckpointAdvanceAllowed"):
             self.assertIn(required, handling)
         for required in ("smoke-cold-start", "smoke-warm-race", "smoke-after-restarts"):
             self.assertIn(required, smoke)
