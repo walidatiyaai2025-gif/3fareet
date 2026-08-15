@@ -55,20 +55,26 @@ function Assert-CleanTree([string]$Phase) {
     }
 }
 
-$sharedArgs = @()
-if (-not [string]::IsNullOrWhiteSpace($RepoRoot)) {
-    $sharedArgs += @('-RepoRoot', $RepoRoot)
+# Use named splatting when invoking child PowerShell scripts. Passing parameter
+# names/values through a positional string array is brittle when paths contain
+# spaces and can result in UnityPath being silently unbound in the child script.
+$sharedParams = @{
+    RepoRoot = $RepoRoot
 }
 if (-not [string]::IsNullOrWhiteSpace($UnityPath)) {
-    $sharedArgs += @('-UnityPath', $UnityPath)
+    if (-not (Test-Path $UnityPath)) {
+        Fail "The supplied UnityPath does not exist: $UnityPath"
+    }
+    $UnityPath = (Resolve-Path $UnityPath).Path
+    $sharedParams.UnityPath = $UnityPath
 }
 
-Write-Host "AFAREET_LOCAL_CANDIDATE_START gitSha=$gitSha"
+Write-Host "AFAREET_LOCAL_CANDIDATE_START gitSha=$gitSha unity=$UnityPath"
 
-& $testScript @sharedArgs
+& $testScript @sharedParams
 Assert-CleanTree "UNITY_TESTS"
 
-& $buildScript @sharedArgs
+& $buildScript @sharedParams
 Assert-CleanTree "UNITY_BUILD"
 
 $testMetadata = Join-Path $RepoRoot "artifacts\unity-local-tests\test-metadata.json"
