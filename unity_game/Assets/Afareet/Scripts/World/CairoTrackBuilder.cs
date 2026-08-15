@@ -26,6 +26,7 @@ namespace Afareet.World
             CreateGround(root);
 
             var asphalt = Material(new Color(.022f, .028f, .052f), .18f, .58f);
+            var curbStone = Material(new Color(.11f, .075f, .09f), .12f, .46f);
             var cyan = Emissive(new Color(0f, .72f, 1f), 4.2f);
             var purple = Emissive(new Color(.5f, .03f, .95f), 4.8f);
             var gold = Emissive(new Color(1f, .48f, .06f), 3.5f);
@@ -40,22 +41,29 @@ namespace Afareet.World
                 var direction = (next - p).normalized;
                 var length = Vector3.Distance(p, next) + .3f;
                 var rotation = Quaternion.LookRotation(direction);
+                var right = rotation * Vector3.right;
+                var leftGlow = i % 3 == 0 ? purple : (i % 2 == 0 ? cyan : gold);
+                var rightGlow = i % 5 == 0 ? magenta : (i % 2 == 0 ? gold : cyan);
 
-                var road = Cube(root, $"Road {i:00}", (p + next) * .5f, new Vector3(RoadWidth, .28f, length), asphalt, rotation);
-                road.layer = 0;
+                CreateRoadSegment(
+                    root,
+                    (p + next) * .5f,
+                    rotation,
+                    length,
+                    asphalt,
+                    curbStone,
+                    i % 2 == 0 ? cyan : purple,
+                    i);
 
                 var waypoint = new GameObject($"Waypoint {i:00}").transform;
                 waypoint.SetParent(root);
                 waypoint.SetPositionAndRotation(p + Vector3.up * .3f, rotation);
                 track.Waypoints.Add(waypoint);
 
-                var right = rotation * Vector3.right;
-                var leftGlow = i % 3 == 0 ? purple : (i % 2 == 0 ? cyan : gold);
-                var rightGlow = i % 5 == 0 ? magenta : (i % 2 == 0 ? gold : cyan);
-                CreateNeonRail(root, p + right * (RoadWidth * .53f), rotation, length, leftGlow);
-                CreateNeonRail(root, p - right * (RoadWidth * .53f), rotation, length, rightGlow);
+                CreateNeonRail(root, p + right * (RoadWidth * .56f), rotation, length, leftGlow, i, "L");
+                CreateNeonRail(root, p - right * (RoadWidth * .56f), rotation, length, rightGlow, i, "R");
 
-                if (i % 6 == 0) CreateRoadRune(root, (p + next) * .5f + Vector3.up * .18f, rotation, i, purple, gold);
+                if (i % 6 == 0) CreateRoadRune(root, (p + next) * .5f + Vector3.up * .22f, rotation, i, purple, gold);
                 if (i % 9 == 0) CreateLightTotem(root, p + right * (RoadWidth * .72f), rotation, i % 18 == 0 ? purple : cyan);
                 if (i % 4 == 0) CreateBuilding(root, p + right * (RoadWidth + 8f), i, gold, purple);
                 if (i % 5 == 0) CreateBuilding(root, p - right * (RoadWidth + 10f), i + 17, cyan, magenta);
@@ -74,9 +82,66 @@ namespace Afareet.World
             ground.GetComponent<Collider>().isTrigger = false;
         }
 
-        private static void CreateNeonRail(Transform root, Vector3 position, Quaternion rotation, float length, Material glow)
+        private static void CreateRoadSegment(
+            Transform root,
+            Vector3 center,
+            Quaternion rotation,
+            float length,
+            Material asphalt,
+            Material curbStone,
+            Material accent,
+            int segmentIndex)
         {
-            Cube(root, "Neon Rail", position + Vector3.up * .35f, new Vector3(.18f, .18f, length), glow, rotation);
+            CreateRoadCollision(root, center, rotation, length);
+
+            if (CairoAuthoredStreetKit.TryCreateRoadSegment(root, center, rotation, length, RoadWidth, asphalt, curbStone, accent))
+                return;
+
+            if (!Application.isEditor)
+            {
+                Debug.LogError($"AFAREET_UART005_PLAYER_PRIMITIVE_ROAD_FALLBACK_DISABLED segment={segmentIndex}");
+                return;
+            }
+
+            var road = Cube(root, $"DEV Road Blockout {segmentIndex:00}", center, new Vector3(RoadWidth, .28f, length), asphalt, rotation);
+            var collider = road.GetComponent<Collider>();
+            if (collider != null) Object.Destroy(collider);
+        }
+
+        private static void CreateRoadCollision(Transform root, Vector3 center, Quaternion rotation, float length)
+        {
+            var collision = new GameObject("Road Collision");
+            collision.transform.SetParent(root, false);
+            collision.transform.SetPositionAndRotation(center + Vector3.up * .06f, rotation);
+            var collider = collision.AddComponent<BoxCollider>();
+            collider.size = new Vector3(RoadWidth, .28f, length);
+            collider.center = Vector3.zero;
+        }
+
+        private static void CreateNeonRail(
+            Transform root,
+            Vector3 position,
+            Quaternion rotation,
+            float length,
+            Material glow,
+            int segmentIndex,
+            string side)
+        {
+            if (CairoAuthoredStreetKit.TryCreateBarrier(
+                    root,
+                    position + Vector3.up * .02f,
+                    rotation * Quaternion.Euler(0f, 90f, 0f),
+                    glow,
+                    Mathf.Max(.5f, length / 2f)))
+                return;
+
+            if (!Application.isEditor)
+            {
+                Debug.LogError($"AFAREET_UART005_PLAYER_PRIMITIVE_RAIL_FALLBACK_DISABLED segment={segmentIndex} side={side}");
+                return;
+            }
+
+            Cube(root, $"DEV Neon Rail {side}", position + Vector3.up * .35f, new Vector3(.18f, .18f, length), glow, rotation);
         }
 
         private static void CreateRoadRune(Transform root, Vector3 position, Quaternion rotation, int seed, Material primary, Material secondary)
@@ -89,8 +154,25 @@ namespace Afareet.World
 
         private static void CreateLightTotem(Transform root, Vector3 position, Quaternion rotation, Material glow)
         {
-            Cube(root, "Spirit Light Totem", position + Vector3.up * 2.2f, new Vector3(.18f, 4.4f, .18f), Material(new Color(.04f, .025f, .06f), .15f, .45f), rotation);
-            Cube(root, "Spirit Light Blade", position + Vector3.up * 3.8f, new Vector3(.65f, 1.6f, .12f), glow, rotation);
+            if (CairoAuthoredStreetKit.TryCreateLamp(root, position, rotation, glow))
+            {
+                CairoAuthoredStreetKit.TryCreateBarrier(
+                    root,
+                    position - rotation * Vector3.forward * 1.25f,
+                    rotation * Quaternion.Euler(0f, 90f, 0f),
+                    glow,
+                    .9f);
+                return;
+            }
+
+            if (!Application.isEditor)
+            {
+                Debug.LogError("AFAREET_UART005_PLAYER_PRIMITIVE_LAMP_FALLBACK_DISABLED");
+                return;
+            }
+
+            Cube(root, "DEV Spirit Light Totem", position + Vector3.up * 2.2f, new Vector3(.18f, 4.4f, .18f), Material(new Color(.04f, .025f, .06f), .15f, .45f), rotation);
+            Cube(root, "DEV Spirit Light Blade", position + Vector3.up * 3.8f, new Vector3(.65f, 1.6f, .12f), glow, rotation);
         }
 
         private static void CreateBuilding(Transform root, Vector3 position, int seed, Material windowMaterial, Material accentMaterial)
@@ -98,16 +180,54 @@ namespace Afareet.World
             var height = 8f + (seed * 7 % 17);
             var width = 5f + (seed * 3 % 6);
             var rotation = Quaternion.Euler(0f, seed * 31f, 0f);
-            var building = Cube(root, "Cairo Building", position + Vector3.up * height * .5f, new Vector3(width, height, width), Material(new Color(.055f, .038f, .075f), .18f, .38f), rotation);
-            for (var floor = 2; floor < height - 1; floor += 3)
-                Cube(building.transform, "Warm Window", new Vector3(0f, floor - height * .5f, -width * .505f), new Vector3(width * .55f, .5f, .05f), windowMaterial, Quaternion.identity, true);
+            CreateBuildingCollision(root, position, rotation, width, height);
 
-            Cube(root, "Roof Neon Crown", position + Vector3.up * (height + .22f), new Vector3(width * .72f, .18f, width * .72f), accentMaterial, rotation);
+            var facadeMaterial = Material(new Color(.055f, .038f, .075f), .18f, .38f);
+            if (CairoAuthoredStreetKit.TryCreateBuilding(root, position, rotation, width, height, facadeMaterial, accentMaterial))
+                return;
+
+            if (!Application.isEditor)
+            {
+                Debug.LogError($"AFAREET_UART005_PLAYER_PRIMITIVE_BUILDING_FALLBACK_DISABLED seed={seed}");
+                return;
+            }
+
+            CreateDevelopmentBuildingFallback(root, position, seed, windowMaterial, accentMaterial, width, height, rotation);
+        }
+
+        private static void CreateBuildingCollision(Transform root, Vector3 position, Quaternion rotation, float width, float height)
+        {
+            var collision = new GameObject("Cairo Building Collision");
+            collision.transform.SetParent(root, false);
+            collision.transform.SetPositionAndRotation(position + Vector3.up * height * .5f, rotation);
+            var collider = collision.AddComponent<BoxCollider>();
+            collider.size = new Vector3(width, height, width);
+            collider.center = Vector3.zero;
+        }
+
+        private static void CreateDevelopmentBuildingFallback(
+            Transform root,
+            Vector3 position,
+            int seed,
+            Material windowMaterial,
+            Material accentMaterial,
+            float width,
+            float height,
+            Quaternion rotation)
+        {
+            var building = Cube(root, "DEV Cairo Building Blockout", position + Vector3.up * height * .5f, new Vector3(width, height, width), Material(new Color(.055f, .038f, .075f), .18f, .38f), rotation);
+            var collider = building.GetComponent<Collider>();
+            if (collider != null) Object.Destroy(collider);
+
+            for (var floor = 2; floor < height - 1; floor += 3)
+                Cube(building.transform, "DEV Warm Window", new Vector3(0f, floor - height * .5f, -width * .505f), new Vector3(width * .55f, .5f, .05f), windowMaterial, Quaternion.identity, true);
+
+            Cube(root, "DEV Roof Neon Crown", position + Vector3.up * (height + .22f), new Vector3(width * .72f, .18f, width * .72f), accentMaterial, rotation);
             if (seed % 3 == 0)
             {
-                var dome = Sphere(root, "Dome", position + Vector3.up * (height + 1.2f), new Vector3(width * .55f, 2.3f, width * .55f), Material(new Color(.18f, .1f, .16f), .5f, .7f));
+                var dome = Sphere(root, "DEV Dome", position + Vector3.up * (height + 1.2f), new Vector3(width * .55f, 2.3f, width * .55f), Material(new Color(.18f, .1f, .16f), .5f, .7f));
                 dome.transform.SetParent(root);
-                Sphere(root, "Dome Spirit Crown", position + Vector3.up * (height + 2.35f), new Vector3(.42f, .42f, .42f), accentMaterial);
+                Sphere(root, "DEV Dome Spirit Crown", position + Vector3.up * (height + 2.35f), new Vector3(.42f, .42f, .42f), accentMaterial);
             }
         }
 
