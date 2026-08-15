@@ -21,8 +21,7 @@ namespace Afareet.Race
 
         private void Awake()
         {
-            car = GetComponent<ArcadeCarController>();
-            body = GetComponent<Rigidbody>();
+            CacheRuntimeComponents();
         }
 
         public void Configure(IReadOnlyList<Transform> orderedWaypoints, RacerCheckpointTracker checkpointTracker, float lowSpeedKph = 4f, float delaySeconds = 2.5f)
@@ -31,6 +30,10 @@ namespace Afareet.Race
             if (orderedWaypoints.Count < 2) throw new ArgumentException("At least two waypoints are required.", nameof(orderedWaypoints));
             for (var i = 0; i < orderedWaypoints.Count; i++) if (orderedWaypoints[i] == null) throw new ArgumentException($"Waypoint {i} is null.", nameof(orderedWaypoints));
             if (checkpointTracker == null || !checkpointTracker.IsConfigured) throw new ArgumentException("A configured checkpoint tracker is required.", nameof(checkpointTracker));
+
+            CacheRuntimeComponents();
+            if (car == null || body == null) throw new InvalidOperationException("Rival reset requires ArcadeCarController and Rigidbody components.");
+
             waypoints = orderedWaypoints;
             checkpoints = checkpointTracker;
             motionGuard = new RivalMotionGuard(lowSpeedKph, delaySeconds);
@@ -61,6 +64,10 @@ namespace Afareet.Race
 
         private void ResetToLastAcceptedWaypoint()
         {
+            CacheRuntimeComponents();
+            if (car == null || body == null) throw new InvalidOperationException("Rival reset runtime components are unavailable.");
+            if (checkpoints == null || waypoints == null || waypoints.Count == 0) throw new InvalidOperationException("Rival reset controller is not configured.");
+
             var index = Wrap(checkpoints.ExpectedCheckpointIndex - 1, waypoints.Count);
             var target = waypoints[index];
             transform.SetPositionAndRotation(target.position + Vector3.up * .75f, target.rotation);
@@ -70,6 +77,12 @@ namespace Afareet.Race
             LastResetWaypointIndex = index;
             ResetCount++;
             RivalReset?.Invoke(index);
+        }
+
+        private void CacheRuntimeComponents()
+        {
+            if (car == null) car = GetComponent<ArcadeCarController>();
+            if (body == null) body = GetComponent<Rigidbody>();
         }
 
         private static int Wrap(int index, int count)
