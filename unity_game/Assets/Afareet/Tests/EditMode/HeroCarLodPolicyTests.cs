@@ -22,13 +22,13 @@ namespace Afareet.Tests
         [TestCase(0, 274, 476)]
         [TestCase(1, 194, 332)]
         [TestCase(2, 104, 180)]
-        public void AuthoredMeshesMatchExactBudgetContract(int lod, int vertices, int triangles)
+        public void DevelopmentFallbackMeshesMatchExactBudgetContract(int lod, int vertices, int triangles)
         {
             Assert.That(HeroCarLodPolicy.IsWithinBudget(lod, vertices, triangles), Is.True);
         }
 
         [Test]
-        public void WrongOrOverBudgetGeometryIsRejected()
+        public void WrongOrOverBudgetFallbackGeometryIsRejected()
         {
             Assert.That(HeroCarLodPolicy.IsWithinBudget(0, 274, 601), Is.False);
             Assert.That(HeroCarLodPolicy.IsWithinBudget(1, 195, 332), Is.False);
@@ -43,11 +43,15 @@ namespace Afareet.Tests
         }
 
         [Test]
-        public void ProductionPrefabResourcePathIsStable()
+        public void ProductionAndDevelopmentFallbackPathsStayDistinct()
         {
             Assert.That(
-                HeroCarLodPolicy.ResourcePath,
+                HeroCarLodPolicy.ProductionResourcePath,
+                Is.EqualTo("Art/Vehicles/HeroCar/Production/PF_Vehicle_AfareetKing_Production"));
+            Assert.That(
+                HeroCarLodPolicy.DevelopmentFallbackResourcePath,
                 Is.EqualTo("Art/Vehicles/HeroCar/Generated/PF_Vehicle_AfareetKing_Production"));
+            Assert.That(HeroCarLodPolicy.ResourcePath, Is.EqualTo(HeroCarLodPolicy.ProductionResourcePath));
         }
     }
 }
