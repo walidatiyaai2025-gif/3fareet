@@ -152,3 +152,40 @@ The default review bundle **does not include**:
 Before completing the export, every copied text file is scanned and the command fails if the raw ADB serial appears anywhere in the bundle. The exporter also refuses to place its output inside the raw session directory.
 
 If automated crash/ANR red flags exist, the exporter still writes the sanitized bundle for diagnosis but exits non-zero. A clean export still has verdict `MANUAL_REVIEW_REQUIRED`; it **never** approves `UVEH-012`, `URAC-012`, `UPER-006`, `UPER-009`, or `UPER-010` automatically.
+
+### Export integrity metadata
+
+Review-manifest schema v2 adds a deterministic integrity inventory before the bundle leaves the QA workstation:
+
+- every exported evidence file is recorded in `contentFiles` with exact `sizeBytes` and SHA-256;
+- `copiedFiles` must be the exact sorted file set;
+- `contentSetSha256` hashes the canonical `contentFiles` inventory so reviewers can compare one compact bundle fingerprint;
+- `review-manifest.json` itself is intentionally outside the recursive content set, while the evidence payload it describes is fail-closed and content-addressed.
+
+This is integrity/corruption detection, not a cryptographic signature or human approval.
+
+## 5. Verify a transferred review bundle offline
+
+Before reviewing screenshots/metrics or attaching evidence to a release decision, verify the transferred directory from the repository toolchain:
+
+```bash
+python tools/android/verify_device_review_bundle.py \
+  --bundle artifacts/device-review/pixel8-run1 \
+  --expected-git-sha <exact-candidate-40-char-sha> \
+  --expected-apk-sha <exact-candidate-apk-sha256>
+```
+
+The verifier uses only the Python standard library and fails if:
+
+- any screenshot/metric/checkpoint/index file is missing, changed, truncated or replaced;
+- an unexpected file appears in the bundle;
+- a forbidden raw file such as `session.json`, `candidate-manifest.json`, `logcat.txt`, `activity.txt` or `package-dump.txt` is listed as review content;
+- a content path is absolute, traverses directories or is non-canonical;
+- the bundle contains a symlink;
+- `contentSetSha256` no longer matches the exact content inventory;
+- candidate Git/APK SHA differs from the reviewer-supplied expected values;
+- candidate state no longer says `verified=false` / `READY_FOR_PHYSICAL_DEVICE_EVIDENCE`;
+- evidence-index/checkpoint candidate/device bindings disagree;
+- the physical-device/privacy/manual-review contracts are changed.
+
+Successful output still ends with `verified=false` and `MANUAL_REVIEW_REQUIRED`. The verifier proves evidence integrity and candidate binding only; Gameplay/QA/Art reviewers still make the four manual P1 decisions, and `UPER-010` still requires explicit release approval.
