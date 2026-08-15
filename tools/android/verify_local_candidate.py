@@ -80,6 +80,8 @@ def verify_test_mode(mode: Any, label: str) -> dict[str, int | str]:
         raise CandidateError(f"{label} counters are not integers") from exc
     if total <= 0:
         raise CandidateError(f"{label} executed zero tests")
+    if passed <= 0:
+        raise CandidateError(f"{label} contains no passing tests; all-skipped/non-executed evidence is not release eligible")
     if failed != 0:
         raise CandidateError(f"{label} contains failed tests: {failed}")
     if result.lower() not in PASS_RESULTS:
