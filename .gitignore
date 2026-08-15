@@ -39,3 +39,7 @@ unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Ge
 # OS
 .DS_Store
 Thumbs.db
+
+# UART-006 convergence-only staged landmark runtime art
+unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated/
+unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated.meta

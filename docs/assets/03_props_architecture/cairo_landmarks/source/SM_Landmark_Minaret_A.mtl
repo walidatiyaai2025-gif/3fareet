@@ -1,0 +1,8 @@
+# UART-006 surfaced source candidate
+newmtl Minaret_Stone
+Ka 0.090 0.075 0.055
+Kd 0.620 0.500 0.325
+Ks 0.120 0.105 0.080
+Ns 28.0
+illum 2
+map_Kd T_Landmark_Minaret_BC.png
