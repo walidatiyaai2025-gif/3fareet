@@ -9,8 +9,10 @@ SOURCE_ROOT = LANDMARK_ROOT / "source"
 MANIFEST = LANDMARK_ROOT / "ASSET_MANIFEST.json"
 STAGER = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkAssetStager.cs"
 PREPROCESSOR = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkBuildPreprocessor.cs"
+ANDROID_GATE = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkBuildGate.cs"
 ADAPTER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredLandmarkKit.cs"
 RUNTIME_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoLandmarkRuntimePass.cs"
+TRACK_PYRAMID_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoTrackPyramidAuthoredReplacementPass.cs"
 
 
 MODELS = {
@@ -53,6 +55,11 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         self.assertFalse(manifest["runtimeIntegrationVerified"])
         self.assertFalse(manifest["proceduralFallbackAllowedInCandidate"])
         self.assertEqual(4, len(manifest["modules"]))
+        self.assertEqual("replacement-implemented-unverified", manifest["runtimeReplacementStatus"]["trackBuilderPyramids"])
+        self.assertFalse(manifest["runtimeReplacementStatus"]["primitiveTrackPyramidFallbackInPlayer"])
+        for module in manifest["modules"]:
+            self.assertGreater(module["productionMinVertices"], 0)
+            self.assertGreater(module["productionMinTriangles"], 0)
 
     def test_stager_and_build_preprocessor_package_all_tracked_sources(self):
         stager = STAGER.read_text(encoding="utf-8")
@@ -80,6 +87,27 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         self.assertIn("AFAREET_UART006_PLAYER_PRIMITIVE_LANDMARK_FALLBACK_DISABLED", runtime)
         self.assertIn("AFAREET_UART006_PLAYER_AUTHORED_LANDMARK_PASS_ACTIVE", runtime)
         self.assertLess(runtime.index("if (Application.isEditor)"), runtime.index("GameObject.CreatePrimitive"))
+
+    def test_trackbuilder_duplicate_pyramids_have_authored_fail_closed_replacement(self):
+        replacement = TRACK_PYRAMID_PASS.read_text(encoding="utf-8")
+        self.assertNotIn("GameObject.CreatePrimitive", replacement)
+        self.assertIn("SM_Landmark_GizaPyramid_A", replacement)
+        self.assertIn('candidate.name == "Giza Spirit Pyramid"', replacement)
+        self.assertIn('candidate.name == "Pyramid Spirit Crown"', replacement)
+        self.assertIn("AFAREET_UART006_TRACK_PYRAMIDS_REPLACED", replacement)
+        self.assertIn("AFAREET_UART006_PLAYER_PRIMITIVE_TRACK_PYRAMID_FALLBACK_DISABLED", replacement)
+
+    def test_android_gate_is_hard_blocked_until_landmark_production_acceptance(self):
+        gate = ANDROID_GATE.read_text(encoding="utf-8")
+        self.assertIn("IPreprocessBuildWithReport", gate)
+        self.assertIn("BuildTarget.Android", gate)
+        self.assertIn('ProductionReadyState = "PRODUCTION_READY"', gate)
+        self.assertIn('ProductionQuality = "authored-production"', gate)
+        self.assertIn("runtimeIntegrationVerified", gate)
+        self.assertIn("proceduralFallbackAllowedInCandidate", gate)
+        self.assertIn("AFAREET_P1_PRODUCTION_LANDMARK_GATE_BLOCKED", gate)
+        self.assertIn("productionMinVertices", gate)
+        self.assertIn("productionMinTriangles", gate)
 
 
 if __name__ == "__main__":
