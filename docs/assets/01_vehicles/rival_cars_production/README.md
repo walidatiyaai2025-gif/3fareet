@@ -36,7 +36,9 @@ Each prefab must contain exactly three mobile LODs, UV0, authored normals, textu
 
 ## Repository inventory at the current remediation head
 
-The tracked `rival_cars_production` handoff currently contains this README and `RIVAL_DESIGN_PROFILES.json`; it does **not** contain the three externally authored production model files. Likewise, the required Rival production prefabs are not yet present in the Unity Resources path. This is an explicit art-delivery dependency, not a successful visual implementation claim.
+Three distinct static OBJ source **candidates** now exist under `Assets/Afareet/ArtSource/Vehicles/Rivals/`, each carrying LOD0/LOD1/LOD2 geometry, UV0, explicit normals, MTL material mappings and a tracked PNG base-color texture. Their exact source inventory and hashes are recorded in `SOURCE_CANDIDATES.json`.
+
+These source files are **not accepted Production Art yet**. The required Rival production prefabs are still absent, the sources have not been imported/bound by a licensed Unity Editor on the exact candidate, stable Unity source GUID/dependency provenance has not been captured, and no Android runtime visual proof or owner acceptance exists.
 
 ## Acceptance state
 
