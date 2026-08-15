@@ -5,6 +5,13 @@
   "productionPrefabsBound": "0/3",
   "licensedUnityImportVerified": false,
   "runtimeVisualVerified": false,
+  "sourceDeliveryEvidence": {
+    "authoringCommit": "f9d99deb84af61d201303568e94c853eaae801ef",
+    "workflowRun": 31893832208,
+    "staticContractTestsPassed": true,
+    "gitDiffCheckPassed": true,
+    "distinctSourceFiles": 3
+  },
   "sources": [
     {
       "variant": 1,
@@ -12,11 +19,7 @@
       "sourceAssetId": "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
       "material": "Rival_01_WedgeCoupe.mtl",
       "texture": "T_Rival_01_BC.png",
-      "lodTriangles": [
-        2802,
-        996,
-        476
-      ],
+      "lodTriangles": [2802, 996, 476],
       "sha256": "8cb3501bae08fd72d822ef82d2584e592c155e0c59852c9908c781c11084d139",
       "sourceState": "STATIC_SOURCE_CANDIDATE_PENDING_UNITY_IMPORT_BIND_AND_VISUAL_ACCEPTANCE"
     },
@@ -26,11 +29,7 @@
       "sourceAssetId": "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
       "material": "Rival_02_FastbackMuscle.mtl",
       "texture": "T_Rival_02_BC.png",
-      "lodTriangles": [
-        2826,
-        1020,
-        500
-      ],
+      "lodTriangles": [2826, 1020, 500],
       "sha256": "3e5fbe3ae90c383bbc8508be9b85c80b42412232f51cdadaac282d30277e46bc",
       "sourceState": "STATIC_SOURCE_CANDIDATE_PENDING_UNITY_IMPORT_BIND_AND_VISUAL_ACCEPTANCE"
     },
@@ -40,11 +39,7 @@
       "sourceAssetId": "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
       "material": "Rival_03_CompactPrototype.mtl",
       "texture": "T_Rival_03_BC.png",
-      "lodTriangles": [
-        2826,
-        1020,
-        500
-      ],
+      "lodTriangles": [2826, 1020, 500],
       "sha256": "d566705447e2542ea00276fb9bc03c764878cb85787e936349c6ecf3120a8107",
       "sourceState": "STATIC_SOURCE_CANDIDATE_PENDING_UNITY_IMPORT_BIND_AND_VISUAL_ACCEPTANCE"
     }
