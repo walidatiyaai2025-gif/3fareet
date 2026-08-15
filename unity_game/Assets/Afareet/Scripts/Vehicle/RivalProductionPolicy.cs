@@ -13,6 +13,8 @@ namespace Afareet.Vehicle
         [SerializeField] private string sourceAssetId = string.Empty;
         [SerializeField] private string assetVersion = string.Empty;
         [SerializeField] private string sourceFingerprint = string.Empty;
+        [SerializeField] private string sourceGuid = string.Empty;
+        [SerializeField] private string sourceDependencyHash = string.Empty;
 
         public int VariantIndex => variantIndex;
         public bool AuthoredExternalSource => authoredExternalSource;
@@ -22,12 +24,16 @@ namespace Afareet.Vehicle
         public string SourceAssetId => sourceAssetId;
         public string AssetVersion => assetVersion;
         public string SourceFingerprint => sourceFingerprint;
+        public string SourceGuid => sourceGuid;
+        public string SourceDependencyHash => sourceDependencyHash;
 
         public bool DeclaresProductionAuthoring =>
             authoredExternalSource && uv0Authored && normalsAuthored && textureMappedMaterials &&
             RivalProductionPolicy.IsSupportedAuthoredModelSource(sourceAssetId) &&
             !string.IsNullOrWhiteSpace(assetVersion) &&
-            !string.IsNullOrWhiteSpace(sourceFingerprint);
+            !string.IsNullOrWhiteSpace(sourceFingerprint) &&
+            !string.IsNullOrWhiteSpace(sourceGuid) &&
+            !string.IsNullOrWhiteSpace(sourceDependencyHash);
 
         public void Configure(
             int index,
@@ -37,7 +43,9 @@ namespace Afareet.Vehicle
             bool mappedMaterials,
             string sourceId,
             string version,
-            string fingerprint)
+            string fingerprint,
+            string guid,
+            string dependencyHash)
         {
             variantIndex = index;
             authoredExternalSource = externalSource;
@@ -47,6 +55,8 @@ namespace Afareet.Vehicle
             sourceAssetId = sourceId ?? string.Empty;
             assetVersion = version ?? string.Empty;
             sourceFingerprint = fingerprint ?? string.Empty;
+            sourceGuid = guid ?? string.Empty;
+            sourceDependencyHash = dependencyHash ?? string.Empty;
         }
     }
 
@@ -100,6 +110,7 @@ namespace Afareet.Vehicle
             var normalized = sourceAssetId.Replace('\\', '/');
             if (!normalized.StartsWith("Assets/", StringComparison.Ordinal)) return false;
             if (normalized.IndexOf("../", StringComparison.Ordinal) >= 0) return false;
+            if (normalized.IndexOf("/Generated/", StringComparison.OrdinalIgnoreCase) >= 0) return false;
 
             foreach (var suffix in AuthoredModelSuffixes)
             {
@@ -201,7 +212,7 @@ namespace Afareet.Vehicle
                 throw new InvalidOperationException("UART-004 production triangle floors must decrease across LODs.");
         }
 
-        private static Mesh MeshFor(Renderer renderer)
+        public static Mesh MeshFor(Renderer renderer)
         {
             if (renderer is SkinnedMeshRenderer skinned) return skinned.sharedMesh;
             var filter = renderer.GetComponent<MeshFilter>();
