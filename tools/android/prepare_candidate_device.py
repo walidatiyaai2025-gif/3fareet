@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Prepare physical-device evidence only from an integrity-checked local candidate.
+"""Prepare physical-device evidence only from an integrity-checked candidate.
 
-This wrapper bridges ``verify_local_candidate.py`` and ``device_evidence.py``.
-It fails closed if the candidate manifest and the APK bytes do not match, then
-hands the exact APK to the existing ADB evidence collector. It never marks a
-candidate or device gate VERIFIED.
+This wrapper accepts candidate manifests produced by either the licensed-Windows
+local path or the GitHub Unity Production CI artifact-binding path. It fails
+closed if the manifest and APK bytes do not match, then hands the exact APK to
+the existing ADB evidence collector. It never marks a candidate or device gate
+VERIFIED.
 """
 
 from __future__ import annotations
@@ -19,7 +20,10 @@ from typing import Any
 
 EXPECTED_PACKAGE_ID = "com.fiftysolutions.afareetunity3d"
 EXPECTED_ARTIFACT = "afareet-unity3d-debug.apk"
-EXPECTED_CANDIDATE_TYPE = "local-windows-licensed-unity"
+ALLOWED_CANDIDATE_TYPES = {
+    "local-windows-licensed-unity",
+    "github-actions-unity-ci",
+}
 EXPECTED_VERDICT = "READY_FOR_PHYSICAL_DEVICE_EVIDENCE"
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -54,8 +58,9 @@ def resolve_candidate(
     manifest_path: Path,
     apk_override: Path | None = None,
 ) -> dict[str, Any]:
-    if manifest.get("candidateType") != EXPECTED_CANDIDATE_TYPE:
-        raise CandidatePrepareError(f"Unsupported candidateType: {manifest.get('candidateType')!r}")
+    candidate_type = str(manifest.get("candidateType") or "").strip()
+    if candidate_type not in ALLOWED_CANDIDATE_TYPES:
+        raise CandidatePrepareError(f"Unsupported candidateType: {candidate_type!r}")
     if manifest.get("packageId") != EXPECTED_PACKAGE_ID:
         raise CandidatePrepareError(f"Unexpected packageId: {manifest.get('packageId')!r}")
     if manifest.get("releaseEvidenceEligible") is not True:
@@ -118,15 +123,15 @@ def resolve_candidate(
         "sizeBytes": actual_size,
         "gitSha": git_sha,
         "packageId": EXPECTED_PACKAGE_ID,
-        "candidateType": EXPECTED_CANDIDATE_TYPE,
+        "candidateType": candidate_type,
     }
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate an exact local Unity candidate, then prepare its physical-device evidence session."
+        description="Validate an exact local/CI Unity candidate, then prepare its physical-device evidence session."
     )
-    parser.add_argument("--candidate-manifest", required=True, help="Path to local-candidate-manifest.json")
+    parser.add_argument("--candidate-manifest", required=True, help="Path to a local or GitHub-CI candidate manifest")
     parser.add_argument(
         "--apk",
         help="Optional APK path override for a moved evidence bundle. Bytes must still match the manifest exactly.",
@@ -147,7 +152,8 @@ def main(argv: list[str] | None = None) -> int:
 
         print(
             "AFAREET_CANDIDATE_DEVICE_PRECHECK_OK "
-            f"gitSha={candidate['gitSha']} apkSha256={candidate['apkSha256']} apk={candidate['apkPath']}"
+            f"candidateType={candidate['candidateType']} gitSha={candidate['gitSha']} "
+            f"apkSha256={candidate['apkSha256']} apk={candidate['apkPath']}"
         )
 
         import device_evidence  # Imported only after the candidate integrity check passes.
