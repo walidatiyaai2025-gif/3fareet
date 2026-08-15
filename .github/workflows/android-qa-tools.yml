@@ -46,6 +46,7 @@ jobs:
             tools/android/export_device_evidence.py \
             tools/android/verify_device_review_bundle.py \
             tools/android/p1_gate_readiness.py \
+            tools/android/verify_release_publication.py \
             tools/android/verify_local_candidate.py \
             tools/android/verify_ci_candidate.py \
             tools/android/prepare_candidate_device.py \
@@ -61,6 +62,7 @@ jobs:
           python3 tools/android/p1_gate_readiness.py plan >/dev/null
           python3 tools/android/p1_gate_readiness.py validate --help >/dev/null
           python3 tools/android/p1_gate_readiness.py approval-template --help >/dev/null
+          python3 tools/android/verify_release_publication.py --help >/dev/null
           python3 tools/android/verify_local_candidate.py --help >/dev/null
           python3 tools/android/verify_ci_candidate.py --help >/dev/null
           python3 tools/android/prepare_candidate_device.py --help >/dev/null
