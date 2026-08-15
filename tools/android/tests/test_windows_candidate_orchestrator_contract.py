@@ -49,6 +49,28 @@ class WindowsCandidateOrchestratorContractTests(unittest.TestCase):
         self.assertLess(preserve, refusal)
         self.assertLess(refusal, cleanup_call)
 
+    def test_text_normalization_preflight_happens_before_package_and_unity(self):
+        required = (
+            "verify_unity_text_normalization.py",
+            "AFAREET_TEXT_NORMALIZATION_PREFLIGHT_START",
+            "AFAREET_TEXT_NORMALIZATION_PREFLIGHT_OK",
+            'Assert-CleanTree "TEXT_NORMALIZATION_PREFLIGHT"',
+            "AFAREET_PACKAGE_PREFLIGHT_START",
+            '& $testScript @sharedParams',
+            '& $buildScript @sharedParams',
+        )
+        for marker in required:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.text)
+
+        text_ok = self.text.index("AFAREET_TEXT_NORMALIZATION_PREFLIGHT_OK")
+        package_start = self.text.index("AFAREET_PACKAGE_PREFLIGHT_START")
+        test_start = self.text.index("& $testScript @sharedParams")
+        build_start = self.text.index("& $buildScript @sharedParams")
+        self.assertLess(text_ok, package_start)
+        self.assertLess(text_ok, test_start)
+        self.assertLess(text_ok, build_start)
+
     def test_package_preflight_happens_before_unity_execution(self):
         required = (
             "verify_unity_package_lock.py",
