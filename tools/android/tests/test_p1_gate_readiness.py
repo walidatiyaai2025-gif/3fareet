@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import json
 import tempfile
@@ -21,9 +22,27 @@ class P1GateReadinessTests(unittest.TestCase):
         for task_id, gate in self.spec["gates"].items():
             if task_id != "UPER-010":
                 self.labels.extend(gate["requiredCheckpoints"])
+        self.apk_sha = "a" * 64
+        self.git_sha = "c" * 40
+        self.candidate = {
+            "schemaVersion": 1,
+            "candidateType": "local-windows-licensed-unity",
+            "gitSha": self.git_sha,
+            "apkSha256": self.apk_sha,
+            "releaseEvidenceEligible": True,
+            "readyForDeviceEvidence": True,
+            "verified": False,
+            "verdict": "READY_FOR_PHYSICAL_DEVICE_EVIDENCE",
+            "manifest": {
+                "fileName": "candidate-manifest.json",
+                "sourceFileName": "local-candidate-manifest.json",
+                "sha256": "b" * 64,
+            },
+        }
         self.index = {
             "schemaVersion": 1,
-            "apkSha256": "a" * 64,
+            "apkSha256": self.apk_sha,
+            "candidate": dict(self.candidate),
             "device": {"isEmulator": False},
             "automatedRedFlagCount": 0,
             "checkpoints": list(self.labels),
@@ -39,12 +58,30 @@ class P1GateReadinessTests(unittest.TestCase):
             },
         }
 
+    def source_manifest(self):
+        return {
+            "schemaVersion": 1,
+            "candidateType": "local-windows-licensed-unity",
+            "gitSha": self.git_sha,
+            "packageId": "com.fiftysolutions.afareetunity3d",
+            "releaseEvidenceEligible": True,
+            "readyForDeviceEvidence": True,
+            "verified": False,
+            "verdict": "READY_FOR_PHYSICAL_DEVICE_EVIDENCE",
+            "apk": {
+                "fileName": "afareet-unity3d-debug.apk",
+                "sha256": self.apk_sha,
+                "sizeBytes": 123,
+            },
+        }
+
     def test_spec_contains_exactly_five_gates(self):
         self.assertEqual(5, len(self.spec["gates"]))
         self.assertIn("UPER-010", self.spec["gates"])
 
     def test_complete_capture_without_approvals_stays_manual(self):
         result = module.evaluate(self.spec, self.index)
+        self.assertTrue(result["candidateBound"])
         self.assertTrue(result["allEvidenceReady"])
         self.assertFalse(result["releaseReviewReady"])
         self.assertFalse(result["verified"])
@@ -70,21 +107,56 @@ class P1GateReadinessTests(unittest.TestCase):
         self.assertTrue(any("red flags" in item.lower() for item in result["gates"]["UPER-006"]["blockers"]))
 
     def test_approval_sha_must_match_session(self):
-        result = module.evaluate(self.spec, self.index, self.approvals(apk_sha="b" * 64))
+        result = module.evaluate(self.spec, self.index, self.approvals(apk_sha="d" * 64))
         self.assertFalse(result["gates"]["UVEH-012"]["manualApproved"])
         self.assertFalse(result["releaseReviewReady"])
 
+    def test_direct_apk_session_cannot_satisfy_final_gates(self):
+        index = dict(self.index)
+        index.pop("candidate")
+        result = module.evaluate(self.spec, index, self.approvals())
+        self.assertFalse(result["candidateBound"])
+        self.assertFalse(result["allEvidenceReady"])
+        self.assertFalse(result["releaseReviewReady"])
+        blockers = result["gates"]["UPER-010"]["blockers"]
+        self.assertTrue(any("candidate provenance is missing" in item for item in blockers))
+
+    def test_candidate_apk_sha_mismatch_blocks_release_review(self):
+        index = dict(self.index)
+        bad_candidate = dict(self.candidate)
+        bad_candidate["apkSha256"] = "e" * 64
+        index["candidate"] = bad_candidate
+        result = module.evaluate(self.spec, index, self.approvals())
+        self.assertFalse(result["candidateBound"])
+        self.assertFalse(result["releaseReviewReady"])
+        self.assertTrue(any("does not match evidence index" in item for item in result["gates"]["UPER-010"]["blockers"]))
+
     def test_all_explicit_approvals_make_release_review_ready_but_never_verified(self):
         result = module.evaluate(self.spec, self.index, self.approvals())
+        self.assertTrue(result["candidateBound"])
         self.assertTrue(result["allEvidenceReady"])
         self.assertTrue(result["releaseReviewReady"])
         self.assertEqual("READY_FOR_RELEASE_REVIEW", result["gates"]["UPER-010"]["status"])
         self.assertFalse(result["verified"])
 
-    def test_validate_writes_readiness_file(self):
+    def test_validate_writes_readiness_file_from_bound_manifest(self):
         with tempfile.TemporaryDirectory() as temp:
             session = Path(temp)
-            (session / "evidence-index.json").write_text(json.dumps(self.index), encoding="utf-8")
+            source_manifest = self.source_manifest()
+            manifest_path = session / module.BOUND_MANIFEST_FILE
+            manifest_path.write_text(json.dumps(source_manifest, sort_keys=True) + "\n", encoding="utf-8")
+            manifest_sha = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+            candidate = dict(self.candidate)
+            candidate["manifest"] = dict(candidate["manifest"])
+            candidate["manifest"]["sha256"] = manifest_sha
+
+            index_for_file = dict(self.index)
+            index_for_file.pop("candidate")
+            (session / module.INDEX_FILE).write_text(json.dumps(index_for_file), encoding="utf-8")
+            (session / module.SESSION_FILE).write_text(
+                json.dumps({"apk": {"sha256": self.apk_sha}, "candidate": candidate}),
+                encoding="utf-8",
+            )
             approvals_path = session / "approvals.json"
             approvals_path.write_text(json.dumps(self.approvals()), encoding="utf-8")
             output = session / "readiness.json"
@@ -96,8 +168,42 @@ class P1GateReadinessTests(unittest.TestCase):
             })()
             self.assertEqual(0, module.command_validate(args))
             payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertTrue(payload["candidateBound"])
+            self.assertEqual(self.git_sha, payload["candidate"]["gitSha"])
             self.assertTrue(payload["releaseReviewReady"])
             self.assertFalse(payload["verified"])
+
+    def test_tampered_bound_manifest_blocks_release_review(self):
+        with tempfile.TemporaryDirectory() as temp:
+            session = Path(temp)
+            manifest_path = session / module.BOUND_MANIFEST_FILE
+            manifest_path.write_text(json.dumps(self.source_manifest()) + "\n", encoding="utf-8")
+            original_sha = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+            candidate = dict(self.candidate)
+            candidate["manifest"] = dict(candidate["manifest"])
+            candidate["manifest"]["sha256"] = original_sha
+
+            index_for_file = dict(self.index)
+            index_for_file.pop("candidate")
+            (session / module.INDEX_FILE).write_text(json.dumps(index_for_file), encoding="utf-8")
+            (session / module.SESSION_FILE).write_text(
+                json.dumps({"apk": {"sha256": self.apk_sha}, "candidate": candidate}),
+                encoding="utf-8",
+            )
+            manifest_path.write_text('{"tampered": true}\n', encoding="utf-8")
+            approvals_path = session / "approvals.json"
+            approvals_path.write_text(json.dumps(self.approvals()), encoding="utf-8")
+            output = session / "readiness.json"
+            args = type("Args", (), {
+                "spec": str(SPEC_PATH),
+                "session": str(session),
+                "approvals": str(approvals_path),
+                "output": str(output),
+            })()
+            self.assertEqual(2, module.command_validate(args))
+            payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertFalse(payload["candidateBound"])
+            self.assertFalse(payload["releaseReviewReady"])
 
 
 if __name__ == "__main__":
