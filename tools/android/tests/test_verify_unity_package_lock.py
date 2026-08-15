@@ -26,7 +26,7 @@ class VerifyUnityPackageLockTests(unittest.TestCase):
         self.manifest_payload = {
             "dependencies": {
                 "com.unity.inputsystem": "1.19.0",
-                "com.unity.ugui": "2.0.0",
+                "com.unity.ugui": "2.5.0",
                 "com.unity.modules.vehicles": "1.0.0",
             }
         }
@@ -39,12 +39,15 @@ class VerifyUnityPackageLockTests(unittest.TestCase):
                     "dependencies": {"com.unity.modules.uielements": "1.0.0"},
                 },
                 "com.unity.ugui": {
-                    "version": "2.0.0",
+                    "version": "2.5.0",
                     "depth": 0,
                     "source": "builtin",
                     "dependencies": {
                         "com.unity.modules.ui": "1.0.0",
                         "com.unity.modules.imgui": "1.0.0",
+                        "com.unity.modules.audio": "1.0.0",
+                        "com.unity.modules.physics2d": "1.0.0",
+                        "com.unity.modules.physics": "1.0.0",
                     },
                 },
                 "com.unity.modules.vehicles": {
@@ -52,6 +55,42 @@ class VerifyUnityPackageLockTests(unittest.TestCase):
                     "depth": 0,
                     "source": "builtin",
                     "dependencies": {"com.unity.modules.physics": "1.0.0"},
+                },
+                "com.unity.modules.uielements": {
+                    "version": "1.0.0",
+                    "depth": 1,
+                    "source": "builtin",
+                    "dependencies": {},
+                },
+                "com.unity.modules.ui": {
+                    "version": "1.0.0",
+                    "depth": 1,
+                    "source": "builtin",
+                    "dependencies": {},
+                },
+                "com.unity.modules.imgui": {
+                    "version": "1.0.0",
+                    "depth": 1,
+                    "source": "builtin",
+                    "dependencies": {},
+                },
+                "com.unity.modules.audio": {
+                    "version": "1.0.0",
+                    "depth": 1,
+                    "source": "builtin",
+                    "dependencies": {},
+                },
+                "com.unity.modules.physics2d": {
+                    "version": "1.0.0",
+                    "depth": 1,
+                    "source": "builtin",
+                    "dependencies": {"com.unity.modules.physicscore2d": "1.0.0"},
+                },
+                "com.unity.modules.physics": {
+                    "version": "1.0.0",
+                    "depth": 1,
+                    "source": "builtin",
+                    "dependencies": {},
                 },
             }
         }
@@ -91,6 +130,16 @@ class VerifyUnityPackageLockTests(unittest.TestCase):
             "com.unity.modules.ui": "1.0.0"
         }
         with self.assertRaisesRegex(MODULE.PackageLockError, "known dependency contract mismatch"):
+            self.verify()
+
+    def test_missing_resolved_child_dependency_is_rejected(self):
+        del self.lock_payload["dependencies"]["com.unity.modules.physics2d"]
+        with self.assertRaisesRegex(MODULE.PackageLockError, "resolved child dependency missing"):
+            self.verify()
+
+    def test_resolved_child_version_mismatch_is_rejected(self):
+        self.lock_payload["dependencies"]["com.unity.modules.audio"]["version"] = "9.9.9"
+        with self.assertRaisesRegex(MODULE.PackageLockError, "resolved child dependency version mismatch"):
             self.verify()
 
 
