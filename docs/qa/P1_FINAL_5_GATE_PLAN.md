@@ -33,24 +33,17 @@ Secrets must never be committed to Git.
 
 ### Licensed-Windows fallback
 
-On an already licensed Unity `6000.5.8f1` Windows workstation, from the same clean exact commit:
+On an already licensed Unity `6000.5.8f1` Windows workstation, from the same clean exact commit, use the canonical fail-closed orchestrator:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools/android/test_current_windows.ps1
-powershell -ExecutionPolicy Bypass -File tools/android/build_current_windows.ps1
+powershell -ExecutionPolicy Bypass -File tools/android/run_local_candidate_windows.ps1
 ```
 
-Then require the machine-checked same-candidate integrity gate:
+The orchestrator runs EditMode + PlayMode, the Android build and candidate integrity gate in order. It requires a clean Git tree before Unity starts and rechecks the tree after tests, after build and after candidate verification. If Unity/UPM changes package/source content, the candidate flow fails and must restart from a reconciled clean exact head.
 
-```bash
-python3 tools/android/verify_local_candidate.py \
-  --test-metadata artifacts/unity-local-tests/test-metadata.json \
-  --build-metadata artifacts/android-local/artifact-metadata.json \
-  --apk artifacts/android-local/afareet-unity3d-debug.apk \
-  --output artifacts/local-candidate-manifest.json
-```
+A successful local run emits `AFAREET_LOCAL_CANDIDATE_OK` and produces `artifacts/local-candidate-manifest.json`. The manifest must say `readyForDeviceEvidence: true` and still says `verified: false`. It proves clean same-SHA test/build/APK integrity only.
 
-A successful local manifest must say `readyForDeviceEvidence: true` and still says `verified: false`. It proves clean same-SHA test/build/APK integrity only.
+The individual `test_current_windows.ps1`, `build_current_windows.ps1` and `verify_local_candidate.py` commands remain diagnostic building blocks; do not use their independent success as a substitute for the orchestrated release-candidate path.
 
 ## Prepare physical-device evidence
 
