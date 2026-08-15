@@ -10,7 +10,13 @@ namespace Afareet.Editor
         private const string SourceRoot = "docs/assets/02_tracks_environments/cairo_track_dressing/source";
         private const string GeneratedAssetRoot = "Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated";
         private const string ResourceRoot = "Art/TracksEnvironments/CairoTrackDressing/Generated";
-        private static readonly string[] Models = { "SM_Track_FinishGate_A.obj", "SM_Track_SpiritRune_A.obj" };
+        private static readonly string[] Models =
+        {
+            "SM_Track_FinishGate_A.obj",
+            "SM_Track_SpiritRune_A.obj",
+            "SM_Track_DesertGround_A.obj",
+            "SM_Track_SectorBeacon_A.obj"
+        };
 
         [MenuItem("Afareet/P1/Stage Cairo Track Dressing Sources")]
         public static void StageMenu() => StageTrackedSourcesOrThrow();
@@ -47,7 +53,7 @@ namespace Afareet.Editor
                 var path = $"{ResourceRoot}/{Path.GetFileNameWithoutExtension(model)}";
                 if (Resources.Load<GameObject>(path) == null) throw new InvalidOperationException($"UART-007 Unity import failed: {path}");
             }
-            Debug.Log("AFAREET_UART007_STAGE_OK models=2 source=tracked-obj");
+            Debug.Log($"AFAREET_UART007_STAGE_OK models={Models.Length} source=tracked-obj");
         }
 
         private static bool Same(byte[] a, byte[] b)
