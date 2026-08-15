@@ -8,6 +8,7 @@ on:
       - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
       - 'docs/qa/UNITY_CI_UNBLOCK.md'
       - '.gitignore'
+      - '.gitattributes'
       - '.github/workflows/android-qa-tools.yml'
   push:
     branches:
@@ -18,6 +19,7 @@ on:
       - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
       - 'docs/qa/UNITY_CI_UNBLOCK.md'
       - '.gitignore'
+      - '.gitattributes'
       - '.github/workflows/android-qa-tools.yml'
   workflow_dispatch:
 
@@ -72,6 +74,33 @@ jobs:
             exit 1
           fi
           echo 'Generated evidence ignore contract OK.'
+
+      - name: Validate Unity metadata LF contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=(
+            'unity_game/ProjectSettings/ProjectAuditorSettings.asset'
+            'unity_game/ProjectSettings/TimeManager.asset'
+            'unity_game/ProjectSettings/ProjectVersion.txt'
+            'unity_game/Packages/manifest.json'
+            'unity_game/Packages/packages-lock.json'
+          )
+          for path in "${paths[@]}"; do
+            text_attr="$(git check-attr text -- "$path")"
+            eol_attr="$(git check-attr eol -- "$path")"
+            echo "$text_attr"
+            echo "$eol_attr"
+            if [[ "$text_attr" != "$path: text: set" ]]; then
+              echo "::error::Unity metadata path must be explicitly text-normalized: $path"
+              exit 1
+            fi
+            if [[ "$eol_attr" != "$path: eol: lf" ]]; then
+              echo "::error::Unity metadata path must be pinned to LF: $path"
+              exit 1
+            fi
+          done
+          echo 'Unity metadata LF contract OK.'
 
       - name: Validate Windows local Unity fallback contracts
         shell: pwsh
