@@ -9,6 +9,7 @@ on:
       - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
       - 'tools/android/verify_unity_test_results.py'
       - 'tools/android/verify_ci_candidate.py'
+      - 'tools/android/verify_unity_package_lock.py'
       - '.github/workflows/unity-ci.yml'
       - '.github/scripts/verify-unity-android-apk.sh'
   push:
@@ -21,6 +22,7 @@ on:
       - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
       - 'tools/android/verify_unity_test_results.py'
       - 'tools/android/verify_ci_candidate.py'
+      - 'tools/android/verify_unity_package_lock.py'
       - '.github/workflows/unity-ci.yml'
       - '.github/scripts/verify-unity-android-apk.sh'
   workflow_dispatch:
@@ -55,9 +57,12 @@ jobs:
           bash -n .github/scripts/verify-unity-android-apk.sh
           python3 -m py_compile \
             tools/android/verify_unity_test_results.py \
-            tools/android/verify_ci_candidate.py
+            tools/android/verify_ci_candidate.py \
+            tools/android/verify_unity_package_lock.py
           python3 tools/android/verify_unity_test_results.py --help >/dev/null
           python3 tools/android/verify_ci_candidate.py --help >/dev/null
+          python3 tools/android/verify_unity_package_lock.py --help >/dev/null
+          python3 tools/android/verify_unity_package_lock.py
           grep -Fq 'public static void BuildAndroid()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'com.fiftysolutions.afareetunity3d' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'AndroidArchitecture.ARM64' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
