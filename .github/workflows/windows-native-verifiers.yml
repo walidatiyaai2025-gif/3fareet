@@ -26,6 +26,7 @@ jobs:
         shell: pwsh
         run: |
           $scripts = @(
+            'tools/android/materialize_unity_lf_windows.ps1',
             'tools/android/verify_unity_text_normalization_windows.ps1',
             'tools/android/verify_unity_package_lock_windows.ps1',
             'tools/android/verify_local_candidate_windows.ps1',
@@ -45,6 +46,53 @@ jobs:
             }
           }
           Write-Host 'AFAREET_WINDOWS_NATIVE_PARSE_OK'
+
+      - name: Reproduce and repair stale CRLF checkout
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repoRoot = (Resolve-Path '.').Path
+          $target = 'unity_game/Packages/manifest.json'
+          $targetPath = Join-Path $repoRoot $target
+
+          $text = [System.IO.File]::ReadAllText($targetPath)
+          $text = $text.Replace("`r`n", "`n").Replace("`r", "`n").Replace("`n", "`r`n")
+          [System.IO.File]::WriteAllText(
+            $targetPath,
+            $text,
+            [System.Text.UTF8Encoding]::new($false)
+          )
+
+          $statusBefore = @(& git status --porcelain -- $target)
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect CRLF fixture Git status.' }
+          if ($statusBefore.Count -gt 0) {
+            throw "CRLF fixture should remain Git-clean under text/eol=lf, got: $($statusBefore -join '; ')"
+          }
+
+          $strictRejected = $false
+          try {
+            & ./tools/android/verify_unity_text_normalization_windows.ps1 -RepoRoot $repoRoot
+          } catch {
+            if ($_.Exception.Message -match 'working-tree content contains CRLF bytes') {
+              $strictRejected = $true
+            } else {
+              throw
+            }
+          }
+          if (-not $strictRejected) {
+            throw 'Strict LF verifier did not reproduce the stale-CRLF checkout failure.'
+          }
+
+          & ./tools/android/materialize_unity_lf_windows.ps1 -RepoRoot $repoRoot
+
+          $statusAfter = @(& git status --porcelain)
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect Git status after LF materialization.' }
+          if ($statusAfter.Count -gt 0) {
+            throw "LF materialization must preserve a clean Git tree, got: $($statusAfter -join '; ')"
+          }
+
+          & ./tools/android/verify_unity_text_normalization_windows.ps1 -RepoRoot $repoRoot
+          Write-Host 'AFAREET_WINDOWS_STALE_CRLF_REPAIR_OK'
 
       - name: Verify Unity LF normalization natively
         shell: pwsh
