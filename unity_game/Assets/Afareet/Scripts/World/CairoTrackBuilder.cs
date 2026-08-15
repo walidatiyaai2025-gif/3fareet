@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,8 +15,8 @@ namespace Afareet.World
     public static class CairoTrackBuilder
     {
         private const int SegmentCount = 72;
-        private const float RadiusX = 92f;
-        private const float RadiusZ = 58f;
+        private const float EditorFallbackRadiusX = 92f;
+        private const float EditorFallbackRadiusZ = 58f;
         private const float RoadWidth = 14f;
 
         public static TrackRuntime Build(Transform parent)
@@ -25,6 +26,7 @@ namespace Afareet.World
             root.SetParent(parent);
             CreateGround(root);
 
+            var route = ResolveRoute();
             var asphalt = Material(new Color(.022f, .028f, .052f), .18f, .58f);
             var curbStone = Material(new Color(.11f, .075f, .09f), .12f, .46f);
             var cyan = Emissive(new Color(0f, .72f, 1f), 4.2f);
@@ -34,10 +36,8 @@ namespace Afareet.World
 
             for (var i = 0; i < SegmentCount; i++)
             {
-                var t = i / (float)SegmentCount * Mathf.PI * 2f;
-                var nextT = (i + 1) / (float)SegmentCount * Mathf.PI * 2f;
-                var p = Point(t);
-                var next = Point(nextT);
+                var p = route[i];
+                var next = route[(i + 1) % SegmentCount];
                 var direction = (next - p).normalized;
                 var length = Vector3.Distance(p, next) + .3f;
                 var rotation = Quaternion.LookRotation(direction);
@@ -74,7 +74,34 @@ namespace Afareet.World
             return track;
         }
 
-        private static Vector3 Point(float t) => new(RadiusX * Mathf.Cos(t), 0f, RadiusZ * Mathf.Sin(t));
+        private static Vector3[] ResolveRoute()
+        {
+            if (CairoVerticalSliceLayout.TryLoadSampledPositions(SegmentCount, out var route, out var reason))
+            {
+                Debug.Log(
+                    $"AFAREET_URAC011_AUTHORED_LAYOUT_ACTIVE layout={CairoVerticalSliceLayout.LayoutId} " +
+                    $"controlPoints={CairoVerticalSliceLayout.RequiredControlPoints} runtimeSegments={route.Length}");
+                return route;
+            }
+
+            if (!Application.isEditor)
+                throw new InvalidOperationException(
+                    $"AFAREET_URAC011_PLAYER_LAYOUT_REQUIRED reason={reason} ellipse-fallback-disabled");
+
+            Debug.LogWarning(
+                $"AFAREET_URAC011_EDITOR_ELLIPSE_FALLBACK_ACTIVE reason={reason} production=false");
+
+            var fallback = new Vector3[SegmentCount];
+            for (var i = 0; i < SegmentCount; i++)
+            {
+                var t = i / (float)SegmentCount * Mathf.PI * 2f;
+                fallback[i] = EditorFallbackPoint(t);
+            }
+            return fallback;
+        }
+
+        private static Vector3 EditorFallbackPoint(float t) =>
+            new(EditorFallbackRadiusX * Mathf.Cos(t), 0f, EditorFallbackRadiusZ * Mathf.Sin(t));
 
         private static void CreateGround(Transform root)
         {
