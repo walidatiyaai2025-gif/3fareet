@@ -12,6 +12,8 @@ MANIFEST = LANDMARK_ROOT / "ASSET_MANIFEST.json"
 STAGER = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkAssetStager.cs"
 PREPROCESSOR = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkBuildPreprocessor.cs"
 ANDROID_GATE = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkBuildGate.cs"
+MATERIAL_POLICY = REPO_ROOT / "unity_game/Assets/Afareet/Editor/ObjProductionMaterialDependencyPolicy.cs"
+MATERIAL_GATE = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkMaterialDependencyGate.cs"
 ADAPTER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredLandmarkKit.cs"
 RUNTIME_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoLandmarkRuntimePass.cs"
 TRACK_PYRAMID_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoTrackPyramidAuthoredReplacementPass.cs"
@@ -97,10 +99,6 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         self.assertIn("var width = 5f + (seed * 3 % 6);", track_builder)
         self.assertIn("seed * 31f", track_builder)
 
-        # Dome gate is anchored at waypoint 36. The same waypoint satisfies i%4==0,
-        # so TrackBuilder places the +right building there at 14+8=22m. Seed 36
-        # gives width=5m; use the square half-diagonal as a conservative projection
-        # regardless of its exact world-vs-anchor rotation.
         building_center = 14.0 + 8.0
         building_width = 5.0 + ((36 * 3) % 6)
         building_half_diagonal = building_width * math.sqrt(2.0) / 2.0
@@ -178,6 +176,37 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
             "material.mainTexture",
             "authored-surface rejected",
             "imported production surface rejected",
+        ):
+            self.assertIn(required, gate)
+
+    def test_landmark_production_materials_require_tracked_obj_mtl_texture_chain(self):
+        policy = MATERIAL_POLICY.read_text(encoding="utf-8")
+        for required in (
+            'line.StartsWith("mtllib ", StringComparison.Ordinal)',
+            'line.StartsWith("usemtl ", StringComparison.Ordinal)',
+            'line.StartsWith("newmtl ", StringComparison.Ordinal)',
+            "Production OBJ has no mtllib declaration",
+            "Production OBJ has no usemtl assignments",
+            "OBJ usemtl is not defined by tracked MTL files",
+            "OBJ production material has no tracked texture map",
+            "Path.IsPathRooted(reference)",
+            "dependency escapes tracked source root",
+            "Tracked material dependency is missing",
+            "Tracked texture dependency is missing",
+        ):
+            self.assertIn(required, policy)
+
+        gate = MATERIAL_GATE.read_text(encoding="utf-8")
+        for required in (
+            "IPreprocessBuildWithReport",
+            "BuildTarget.Android",
+            '"PRODUCTION_READY"',
+            '"authored-production"',
+            "ObjProductionMaterialDependencyPolicy.ValidateOrThrow",
+            "AFAREET_UART006_MATERIAL_DEPENDENCY_GATE_BLOCKED",
+            "AFAREET_UART006_MATERIAL_DEPENDENCY_GATE_OK",
+            "obj-mtllib-usemtl-tracked-textures",
+            "rootBound=true",
         ):
             self.assertIn(required, gate)
 
