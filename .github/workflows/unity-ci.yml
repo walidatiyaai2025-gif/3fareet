@@ -63,6 +63,26 @@ jobs:
           grep -Fq 'AndroidArchitecture.ARM64' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'afareet-unity3d-debug.apk' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'github-actions-unity-production-ci' .github/scripts/verify-unity-android-apk.sh
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('unity_game/Assets/Afareet/Tests/PlayMode/Afareet.PlayModeTests.asmdef')
+          payload = json.loads(path.read_text(encoding='utf-8'))
+          if payload.get('name') != 'Afareet.PlayModeTests':
+              raise SystemExit(f'::error::Unexpected PlayMode assembly name: {payload.get("name")!r}')
+          if payload.get('includePlatforms') != []:
+              raise SystemExit(
+                  '::error::Afareet.PlayModeTests must not be Editor-only; '
+                  f'includePlatforms={payload.get("includePlatforms")!r}'
+              )
+          optional = payload.get('optionalUnityReferences')
+          if not isinstance(optional, list) or 'TestAssemblies' not in optional:
+              raise SystemExit('::error::Afareet.PlayModeTests must retain TestAssemblies optionalUnityReferences.')
+          if payload.get('autoReferenced') is not False:
+              raise SystemExit('::error::Afareet.PlayModeTests must remain autoReferenced=false.')
+          print('Unity PlayMode test assembly classification contract is present.')
+          PY
           echo 'Unity Android CI static contract is present.'
 
   license-preflight:
