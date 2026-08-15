@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Afareet.Vehicle;
 using UnityEditor;
 using UnityEditor.Build;
@@ -12,6 +13,7 @@ namespace Afareet.Editor
     /// production assets from code/design profiles at build time. Three externally authored
     /// model-backed prefabs must already exist, pass production validation and remain bound
     /// to the exact imported source model GUID/dependency hash used by every LOD mesh.
+    /// Each rival must also use a distinct authored model source.
     /// </summary>
     public sealed class RivalProductionBuildGate : IPreprocessBuildWithReport
     {
@@ -22,6 +24,7 @@ namespace Afareet.Editor
             if (report.summary.platform != BuildTarget.Android) return;
 
             RivalProductionPolicy.ValidateContract();
+            var usedSourceGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             for (var variant = 0; variant < RivalProductionPolicy.VariantCount; variant++)
             {
@@ -33,15 +36,20 @@ namespace Afareet.Editor
                 if (!RivalProductionPolicy.ValidateProductionPrefab(prefab, variant, out var reason))
                     Fail(variant, $"reason={reason} path={path}");
 
-                ValidateExternalSourceProvenanceOrThrow(prefab, variant, path);
+                var sourceGuid = ValidateExternalSourceProvenanceOrThrow(prefab, variant, path);
+                if (!usedSourceGuids.Add(sourceGuid))
+                    Fail(
+                        variant,
+                        $"reason=duplicate-authored-source-guid guid={sourceGuid} path={path} " +
+                        "expected=three-distinct-rival-model-sources");
             }
 
             Debug.Log(
                 "AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK variants=3 source=external-authored-3d " +
-                "importedSources=3 guidHashBound=true meshSourceBound=true primitiveFallback=false");
+                "importedSources=3 distinctSources=3 guidHashBound=true meshSourceBound=true primitiveFallback=false");
         }
 
-        private static void ValidateExternalSourceProvenanceOrThrow(GameObject prefab, int variant, string prefabPath)
+        private static string ValidateExternalSourceProvenanceOrThrow(GameObject prefab, int variant, string prefabPath)
         {
             var metadata = prefab.GetComponent<RivalProductionAssetMetadata>();
             if (metadata == null)
@@ -100,6 +108,8 @@ namespace Afareet.Editor
                             $"reason=lod{lod}-mesh-not-backed-by-source mesh={meshPath} source={sourcePath} prefab={prefabPath}");
                 }
             }
+
+            return currentGuid;
         }
 
         private static void Fail(int variant, string detail)
