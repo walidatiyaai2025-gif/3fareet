@@ -16,6 +16,7 @@ namespace Afareet.Vehicle
         public const float PostRecoveryInputLockSeconds = 0.35f;
         public const float RecoveryForwardOffsetMeters = 2.4f;
         public const float RecoveryUpOffsetMeters = 1.05f;
+        public const int MaxForwardCheckpointAdvance = 4;
 
         public static float AdvanceStuckTimer(
             float currentSeconds,
@@ -39,6 +40,24 @@ namespace Afareet.Vehicle
         public static bool ShouldAutoRecover(float stuckSeconds)
         {
             return stuckSeconds >= StuckSecondsBeforeAutoRecovery;
+        }
+
+        public static bool IsRecoveryCheckpointAdvanceAllowed(
+            int lastCheckpointIndex,
+            int candidateCheckpointIndex,
+            int checkpointCount)
+        {
+            if (checkpointCount <= 0)
+                throw new ArgumentOutOfRangeException(nameof(checkpointCount));
+            if (candidateCheckpointIndex < 0 || candidateCheckpointIndex >= checkpointCount)
+                throw new ArgumentOutOfRangeException(nameof(candidateCheckpointIndex));
+            if (lastCheckpointIndex < 0)
+                return true;
+            if (lastCheckpointIndex >= checkpointCount)
+                throw new ArgumentOutOfRangeException(nameof(lastCheckpointIndex));
+
+            var forwardDelta = (candidateCheckpointIndex - lastCheckpointIndex + checkpointCount) % checkpointCount;
+            return forwardDelta <= MaxForwardCheckpointAdvance;
         }
 
         public static Vector3 SafeRecoveryPosition(Vector3 centerlinePosition, Quaternion trackRotation)
