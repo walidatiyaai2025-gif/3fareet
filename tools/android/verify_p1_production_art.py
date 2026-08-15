@@ -8,7 +8,9 @@ or blockout fallback as the production path.
 
 Every reviewed source, runtime asset and screenshot/video is SHA-256 pinned so
 changing bytes after review invalidates the manifest even when the path stays
-unchanged. It never marks an APK VERIFIED.
+unchanged. Repository source/runtime artifacts are additionally proven to be
+tracked by, and byte-identical to, the exact candidate Git commit. It never
+marks an APK VERIFIED.
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -42,6 +45,10 @@ def read_json(path: Path) -> dict[str, Any]:
         payload = json.load(handle)
     _require(isinstance(payload, dict), f"JSON root must be an object: {path}")
     return payload
+
+
+def _sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _sha256_file(path: Path) -> str:
@@ -104,6 +111,49 @@ def _reject_forbidden_source_segments(path: Path, repo_root: Path, forbidden_seg
         )
 
 
+def _git(repo_root: Path, *args: str, text: bool = True) -> subprocess.CompletedProcess[Any]:
+    try:
+        return subprocess.run(
+            ["git", "-C", str(repo_root), *args],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=text,
+        )
+    except OSError as exc:
+        raise ProductionArtGateError(f"Git is required for candidate repository provenance: {exc}") from exc
+
+
+def _verify_git_candidate_binding(
+    repo_root: Path,
+    git_sha: str,
+    artifacts: list[tuple[Path, str, str]],
+) -> int:
+    top = _git(repo_root, "rev-parse", "--show-toplevel")
+    _require(top.returncode == 0, "repository root is not a Git worktree")
+    top_path = Path(str(top.stdout).strip()).resolve()
+    _require(top_path == repo_root, "--repo-root must be the exact Git worktree root")
+
+    head = _git(repo_root, "rev-parse", "HEAD")
+    _require(head.returncode == 0, "cannot resolve repository HEAD")
+    actual_head = str(head.stdout).strip().lower()
+    _require(actual_head == git_sha, "repository HEAD does not match production-art candidate Git SHA")
+
+    verified = 0
+    for path, expected_sha256, label in artifacts:
+        relative = path.relative_to(repo_root).as_posix()
+        tracked = _git(repo_root, "ls-files", "--error-unmatch", "--", relative)
+        _require(tracked.returncode == 0, f"{label} is not tracked by candidate Git commit: {relative}")
+
+        blob = _git(repo_root, "show", f"{git_sha}:{relative}", text=False)
+        _require(blob.returncode == 0, f"{label} is missing from candidate Git commit: {relative}")
+        blob_sha256 = _sha256_bytes(bytes(blob.stdout))
+        _require(blob_sha256 == expected_sha256, f"{label} working-tree bytes do not match candidate Git blob")
+        verified += 1
+
+    return verified
+
+
 def verify_art_manifest(
     *,
     manifest_path: Path,
@@ -149,6 +199,7 @@ def verify_art_manifest(
     accepted: list[str] = []
     evidence_count = 0
     fingerprint_count = 0
+    repo_artifacts: list[tuple[Path, str, str]] = []
     manifest_dir = manifest_path.parent
     allowed_visual_evidence = set(spec.get("allowedVisualEvidenceKinds", ["screenshot", "video"]))
     allowed_source_suffixes = {str(x).lower() for x in spec.get("allowedAuthored3DSuffixes", [])}
@@ -177,8 +228,9 @@ def verify_art_manifest(
             label = f"{task_id} sourceFiles[{index}]"
             item = _require_hashed_file_record(raw, label)
             path = _safe_repo_file(repo_root, str(item["path"]), label)
-            _verify_file_fingerprint(path, item.get("sha256"), label)
+            digest = _verify_file_fingerprint(path, item.get("sha256"), label)
             _reject_forbidden_source_segments(path, repo_root, forbidden_source_segments, label)
+            repo_artifacts.append((path, digest, label))
             fingerprint_count += 1
             if path.suffix.lower() in allowed_source_suffixes:
                 authored_source_seen = True
@@ -188,7 +240,8 @@ def verify_art_manifest(
             label = f"{task_id} runtimeAssets[{index}]"
             item = _require_hashed_file_record(raw, label)
             path = _safe_repo_file(repo_root, str(item["path"]), label)
-            _verify_file_fingerprint(path, item.get("sha256"), label)
+            digest = _verify_file_fingerprint(path, item.get("sha256"), label)
+            repo_artifacts.append((path, digest, label))
             fingerprint_count += 1
 
         visual_evidence_seen = False
@@ -208,6 +261,7 @@ def verify_art_manifest(
         accepted.append(task_id)
 
     _require(set(accepted) == set(required_tasks), "not all required production-art tasks were accepted")
+    git_artifact_count = _verify_git_candidate_binding(repo_root, git_sha, repo_artifacts)
 
     return {
         "schemaVersion": 2,
@@ -219,6 +273,9 @@ def verify_art_manifest(
         "evidenceCount": evidence_count,
         "artifactFingerprintCount": fingerprint_count,
         "artifactFingerprintsVerified": True,
+        "gitCandidateHeadVerified": True,
+        "gitTrackedArtifactCount": git_artifact_count,
+        "gitTrackedArtifactsVerified": True,
         "proceduralFallbackAccepted": False,
     }
 
@@ -226,7 +283,7 @@ def verify_art_manifest(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Verify exact-candidate P1 production-art acceptance without self-asserting VERIFIED state.")
     parser.add_argument("--manifest", required=True, help="Production-art acceptance manifest produced for one exact candidate.")
-    parser.add_argument("--repo-root", default=".", help="Repository root used to resolve tracked source/runtime asset paths.")
+    parser.add_argument("--repo-root", default=".", help="Exact candidate Git worktree root used to resolve and prove tracked source/runtime assets.")
     parser.add_argument("--spec", default=str(DEFAULT_SPEC), help="Production-art gate specification JSON.")
     parser.add_argument("--expected-git-sha", help="Optional exact 40-hex candidate Git SHA binding.")
     parser.add_argument("--expected-apk-sha", help="Optional exact 64-hex APK SHA-256 binding.")
@@ -255,7 +312,8 @@ def main(argv: list[str] | None = None) -> int:
             "AFAREET_PRODUCTION_ART_GATE_OK "
             f"gitSha={result['candidate']['gitSha']} apkSha256={result['candidate']['apkSha256']} "
             f"tasks={len(result['acceptedTasks'])} evidence={result['evidenceCount']} "
-            f"fingerprints={result['artifactFingerprintCount']} verdict={result['verdict']} verified=false"
+            f"fingerprints={result['artifactFingerprintCount']} gitTracked={result['gitTrackedArtifactCount']} "
+            f"verdict={result['verdict']} verified=false"
             + (f" output={output}" if output else "")
         )
         return 0
