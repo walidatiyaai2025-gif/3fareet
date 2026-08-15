@@ -1,0 +1,60 @@
+{
+  "version": "UART004-RIVAL-PACK-1",
+  "reviewState": "BLOCKED_PENDING_UNITY_APK_VISUAL_PROOF",
+  "variants": [
+    {
+      "id": "rival-01-wedge-coupe",
+      "displayName": "Wedge Coupe",
+      "length": 4.65,
+      "width": 1.96,
+      "bodyHeight": 0.74,
+      "roofHeight": 0.70,
+      "roofWidthFactor": 0.67,
+      "rearWingWidth": 1.65,
+      "haunchFlare": 0.13,
+      "wheelRadius": 0.42,
+      "primary": "#C41464",
+      "secondary": "#27AEEB"
+    },
+    {
+      "id": "rival-02-fastback-muscle",
+      "displayName": "Fastback Muscle",
+      "length": 4.82,
+      "width": 2.02,
+      "bodyHeight": 0.82,
+      "roofHeight": 0.78,
+      "roofWidthFactor": 0.72,
+      "rearWingWidth": 1.80,
+      "haunchFlare": 0.18,
+      "wheelRadius": 0.42,
+      "primary": "#E26B0A",
+      "secondary": "#7D23D6"
+    },
+    {
+      "id": "rival-03-compact-prototype",
+      "displayName": "Compact Prototype",
+      "length": 4.42,
+      "width": 1.91,
+      "bodyHeight": 0.69,
+      "roofHeight": 0.62,
+      "roofWidthFactor": 0.61,
+      "rearWingWidth": 1.55,
+      "haunchFlare": 0.09,
+      "wheelRadius": 0.39,
+      "primary": "#18B866",
+      "secondary": "#F27A0B"
+    }
+  ],
+  "lodTopology": [
+    { "lod": 0, "longitudinalSegments": 58, "bodyRadialSegments": 18, "wheelSegments": 18 },
+    { "lod": 1, "longitudinalSegments": 26, "bodyRadialSegments": 12, "wheelSegments": 12 },
+    { "lod": 2, "longitudinalSegments": 12, "bodyRadialSegments": 8, "wheelSegments": 8 }
+  ],
+  "productionIntent": {
+    "preserveExistingPhysics": true,
+    "replacePrimitivePresentationOnly": true,
+    "playerPrimitiveFallbackAllowed": false,
+    "requiresLicensedUnityRenderProof": true,
+    "requiresAndroidApkVisualProof": true
+  }
+}

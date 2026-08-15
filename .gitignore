@@ -13,6 +13,10 @@ coverage/
 .vscode/
 *.iml
 
+# UART-004 production Rival resources are intentionally tracked.
+# They must originate from external authored 3D sources and are required by
+# RivalProductionBuildGate; ignoring this tree would make accepted art impossible to commit.
+
 # Android generated/local
 android/.gradle/
 android/local.properties
