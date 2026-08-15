@@ -13,6 +13,8 @@ namespace Afareet.Editor
     public static class P1ProductionWorldBuildGate
     {
         private const string ManifestRelativePath = "docs/assets/02_tracks_environments/cairo_street_kit/ASSET_MANIFEST.json";
+        private const string GeneratedAssetRoot = "Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit/Generated";
+        private const string GeneratedResourceRoot = "Art/TracksEnvironments/CairoStreetKit/Generated";
         private const string ProductionReadyState = "PRODUCTION_READY";
         private const string ProductionQuality = "authored-production";
 
@@ -33,7 +35,6 @@ namespace Afareet.Editor
         private sealed class Module
         {
             public string model;
-            public string prefab;
             public int productionMinVertices;
             public int productionMinTriangles;
         }
@@ -78,12 +79,12 @@ namespace Afareet.Editor
             foreach (var module in manifest.modules)
                 ValidateModule(repositoryRoot, manifest, module);
 
-            Debug.Log($"AFAREET_P1_PRODUCTION_WORLD_GATE_OK task=UART-005 modules={manifest.modules.Length}");
+            Debug.Log($"AFAREET_P1_PRODUCTION_WORLD_GATE_OK task=UART-005 modules={manifest.modules.Length} runtime=staged-authored-resources");
         }
 
         private static void ValidateModule(string repositoryRoot, Manifest manifest, Module module)
         {
-            if (module == null || string.IsNullOrWhiteSpace(module.model) || string.IsNullOrWhiteSpace(module.prefab))
+            if (module == null || string.IsNullOrWhiteSpace(module.model))
                 Fail("UART-005 contains an incomplete module record.");
             if (module.productionMinVertices <= 0 || module.productionMinTriangles <= 0)
                 Fail($"UART-005 {module.model} is missing positive anti-blockout geometry floors.");
@@ -93,39 +94,49 @@ namespace Afareet.Editor
             if (!File.Exists(sourceAbsolute))
                 Fail($"UART-005 authored source is missing: {sourceRelative}");
 
-            var stats = ReadObjStats(sourceAbsolute);
-            if (stats.Vertices < module.productionMinVertices || stats.Triangles < module.productionMinTriangles)
+            var sourceStats = ReadObjStats(sourceAbsolute);
+            if (sourceStats.Vertices < module.productionMinVertices || sourceStats.Triangles < module.productionMinTriangles)
                 Fail(
-                    $"UART-005 blockout rejected: {module.model} has {stats.Vertices} vertices/{stats.Triangles} triangles; " +
+                    $"UART-005 blockout rejected: {module.model} has {sourceStats.Vertices} vertices/{sourceStats.Triangles} triangles; " +
                     $"requires at least {module.productionMinVertices}/{module.productionMinTriangles}."
                 );
 
-            var prefabPath = CombineForwardSlashes(manifest.targetRuntimePath, "Prefabs", module.prefab);
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-            if (prefab == null)
-                Fail($"UART-005 runtime prefab is missing: {prefabPath}");
+            var stagedAssetPath = CombineForwardSlashes(GeneratedAssetRoot, module.model);
+            var imported = AssetDatabase.LoadAssetAtPath<GameObject>(stagedAssetPath);
+            if (imported == null)
+                Fail($"UART-005 staged Unity model is missing or failed import: {stagedAssetPath}");
 
-            var filters = prefab.GetComponentsInChildren<MeshFilter>(true);
+            var filters = imported.GetComponentsInChildren<MeshFilter>(true);
             if (filters == null || filters.Length == 0)
-                Fail($"UART-005 runtime prefab has no authored mesh: {prefabPath}");
+                Fail($"UART-005 staged Unity model has no MeshFilter: {stagedAssetPath}");
 
-            var hasPackagedAuthoredMesh = false;
+            var importedVertices = 0;
+            var importedTriangles = 0;
+            var packagedMeshCount = 0;
             foreach (var filter in filters)
             {
                 if (filter == null || filter.sharedMesh == null) continue;
                 var meshAssetPath = AssetDatabase.GetAssetPath(filter.sharedMesh);
-                if (string.IsNullOrWhiteSpace(meshAssetPath))
-                    continue; // Built-in Unity primitive meshes resolve to no project asset path.
+                if (!string.Equals(meshAssetPath, stagedAssetPath, StringComparison.Ordinal))
+                    continue;
 
-                if (meshAssetPath.StartsWith("Assets/", StringComparison.Ordinal))
-                {
-                    hasPackagedAuthoredMesh = true;
-                    break;
-                }
+                packagedMeshCount++;
+                importedVertices += filter.sharedMesh.vertexCount;
+                for (var sub = 0; sub < filter.sharedMesh.subMeshCount; sub++)
+                    importedTriangles += (int)filter.sharedMesh.GetIndexCount(sub) / 3;
             }
 
-            if (!hasPackagedAuthoredMesh)
-                Fail($"UART-005 blockout rejected: {prefabPath} still resolves only to Unity built-in/primitive mesh data.");
+            if (packagedMeshCount == 0)
+                Fail($"UART-005 imported resource does not resolve to packaged authored mesh data: {stagedAssetPath}");
+            if (importedVertices < module.productionMinVertices || importedTriangles < module.productionMinTriangles)
+                Fail(
+                    $"UART-005 Unity import degraded below the production floor: {module.model} " +
+                    $"imported={importedVertices}v/{importedTriangles}t required={module.productionMinVertices}v/{module.productionMinTriangles}t."
+                );
+
+            var resourcePath = CombineForwardSlashes(GeneratedResourceRoot, Path.GetFileNameWithoutExtension(module.model));
+            if (Resources.Load<GameObject>(resourcePath) == null)
+                Fail($"UART-005 authored model is not addressable through Resources: {resourcePath}");
         }
 
         private static ObjStats ReadObjStats(string path)
