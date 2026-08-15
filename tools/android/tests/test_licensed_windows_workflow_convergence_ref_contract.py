@@ -30,8 +30,19 @@ class LicensedWindowsWorkflowConvergenceRefContractTests(unittest.TestCase):
 
         self.assertNotIn("ref: agent/unblock-final-5", text)
         self.assertNotIn("ref: ${{ inputs.candidate_ref }}", text)
-        self.assertEqual(2, text.count("'agent/p1-remediation-convergence'"))
-        self.assertEqual(2, text.count("'agent/unblock-final-5'"))
+
+        lines = text.splitlines()
+        options_index = next(i for i, line in enumerate(lines) if line.strip() == "options:")
+        expected_index = next(i for i, line in enumerate(lines) if line.strip() == "expected_sha:")
+        option_values = [
+            line.strip()[2:].strip().strip("'\"")
+            for line in lines[options_index + 1 : expected_index]
+            if line.strip().startswith("- ")
+        ]
+        self.assertEqual(
+            ["agent/p1-remediation-convergence", "agent/unblock-final-5"],
+            option_values,
+        )
 
     def test_ref_allowlist_guard_occurs_before_checkout(self):
         text = WORKFLOW.read_text(encoding="utf-8")
