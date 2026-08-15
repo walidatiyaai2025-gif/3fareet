@@ -23,7 +23,7 @@ namespace Afareet.Tests
         }
 
         [Test]
-        public void AuthoredSourceMustBeAUnityProjectModelAssetPath()
+        public void AuthoredSourceMustBeAUnityProjectModelAssetPathAndNotGenerated()
         {
             Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01.fbx"), Is.True);
             Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02.OBJ"), Is.True);
@@ -31,6 +31,8 @@ namespace Afareet.Tests
             Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("../Rival_01.fbx"), Is.False);
             Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("docs/assets/Rival_01.fbx"), Is.False);
             Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("Assets/Afareet/Rival_01.prefab"), Is.False);
+            Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("Assets/Afareet/Generated/Rival_01.fbx"), Is.False);
+            Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("Assets/Afareet/ArtSource/Generated/Rival_03.glb"), Is.False);
         }
 
         [Test]
