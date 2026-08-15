@@ -35,7 +35,7 @@ namespace Afareet.Tests
         }
 
         [Test]
-        public void ResetToSpawn_ClearsLatchedPlayerInputs()
+        public void ResetToSpawn_ClearsLatchedPlayerInputsAndLocksImmediateReapply()
         {
             var carObject = new GameObject("mobile-recovery-test");
             try
@@ -49,6 +49,12 @@ namespace Afareet.Tests
                 Assert.That(controller.CurrentThrottleInput, Is.EqualTo(0f));
                 Assert.That(controller.CurrentSteerInput, Is.EqualTo(0f));
                 Assert.That(controller.CurrentBrakeInput, Is.False);
+                Assert.That(controller.RecoveryInputLockRemaining,
+                    Is.EqualTo(VehicleRecoveryPolicy.PostRecoveryInputLockSeconds).Within(0.0001f));
+
+                controller.SetPlayerInput(1f, 1f, true, true, false);
+                Assert.That(controller.CurrentThrottleInput, Is.EqualTo(0f));
+                Assert.That(controller.CurrentSteerInput, Is.EqualTo(0f));
             }
             finally
             {

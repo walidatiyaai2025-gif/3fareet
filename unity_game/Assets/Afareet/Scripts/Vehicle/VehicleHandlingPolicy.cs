@@ -26,6 +26,9 @@ namespace Afareet.Vehicle
 
     public static class VehicleHandlingPolicy
     {
+        public const float LowSpeedSteerFactor = 0.68f;
+        public const float FullSteerSpeedMetersPerSecond = 14f;
+
         public static float LimitDriveForTraction(
             float requestedDrive,
             float lateralSlipMetersPerSecond,
@@ -46,6 +49,13 @@ namespace Afareet.Vehicle
                 1f);
             var reduction = Clamp(tractionStrength, 0f, 1f) * progress;
             return drive * (1f - reduction);
+        }
+
+        public static float SteeringSpeedFactor(float forwardSpeedMetersPerSecond)
+        {
+            var speed = Math.Abs(forwardSpeedMetersPerSecond);
+            var progress = Clamp(speed / FullSteerSpeedMetersPerSecond, 0f, 1f);
+            return LowSpeedSteerFactor + ((1f - LowSpeedSteerFactor) * progress);
         }
 
         public static float DriftBlend(
