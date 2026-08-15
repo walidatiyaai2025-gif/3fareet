@@ -26,9 +26,14 @@ from typing import Any
 PACKAGE_ID = "com.fiftysolutions.afareetunity3d"
 SESSION_FILE = "session.json"
 INDEX_FILE = "evidence-index.json"
+BOUND_CANDIDATE_MANIFEST_FILE = "candidate-manifest.json"
 REVIEW_MANIFEST_FILE = "review-manifest.json"
 EXPECTED_CANDIDATE_VERDICT = "READY_FOR_PHYSICAL_DEVICE_EVIDENCE"
 EXPECTED_REVIEW_VERDICT = "MANUAL_REVIEW_REQUIRED"
+ALLOWED_CANDIDATE_TYPES = {
+    "local-windows-licensed-unity",
+    "github-actions-unity-ci",
+}
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 SAFE_LABEL_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -44,9 +49,10 @@ SAFE_CHECKPOINT_FILES = (
     "thermalservice.txt",
     "battery.txt",
 )
+SAFE_CHECKPOINT_PAYLOAD_FILES = tuple(name for name in SAFE_CHECKPOINT_FILES if name != "checkpoint.json")
 EXCLUDED_BY_POLICY = (
     SESSION_FILE,
-    "candidate-manifest.json",
+    BOUND_CANDIDATE_MANIFEST_FILE,
     "package-dump.txt",
     "checkpoints/*/logcat.txt",
     "checkpoints/*/activity.txt",
@@ -73,6 +79,14 @@ def read_json(path: Path) -> dict[str, Any]:
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def serial_sha256(serial: str) -> str:
@@ -108,7 +122,7 @@ def _is_nested(path: Path, parent: Path) -> bool:
         return False
 
 
-def _validate_candidate(session: dict[str, Any], apk_sha: str) -> dict[str, Any]:
+def _validate_candidate(session: dict[str, Any], session_dir: Path, apk_sha: str) -> dict[str, Any]:
     candidate = session.get("candidate")
     if not isinstance(candidate, dict):
         raise EvidenceExportError(
@@ -131,20 +145,28 @@ def _validate_candidate(session: dict[str, Any], apk_sha: str) -> dict[str, Any]
     if candidate.get("verdict") != EXPECTED_CANDIDATE_VERDICT:
         raise EvidenceExportError(f"Unexpected candidate verdict: {candidate.get('verdict')!r}")
 
+    candidate_type = str(candidate.get("candidateType") or "").strip()
+    if candidate_type not in ALLOWED_CANDIDATE_TYPES:
+        raise EvidenceExportError(f"Unsupported candidateType in device session: {candidate_type!r}")
+
     manifest = candidate.get("manifest")
     if not isinstance(manifest, dict):
         raise EvidenceExportError("Candidate binding is missing manifest integrity metadata")
     manifest_sha = require_sha256(manifest.get("sha256"), "session.candidate.manifest.sha256")
-
-    candidate_type = str(candidate.get("candidateType") or "").strip()
-    if not candidate_type:
-        raise EvidenceExportError("Candidate binding is missing candidateType")
+    bound_manifest = session_dir / BOUND_CANDIDATE_MANIFEST_FILE
+    if not bound_manifest.is_file() or bound_manifest.stat().st_size <= 0:
+        raise EvidenceExportError(f"Bound candidate manifest is missing or empty: {bound_manifest}")
+    actual_manifest_sha = sha256_file(bound_manifest)
+    if actual_manifest_sha != manifest_sha:
+        raise EvidenceExportError(
+            f"Bound candidate manifest SHA mismatch: session={manifest_sha} actual={actual_manifest_sha}"
+        )
 
     return {
         "candidateType": candidate_type,
         "gitSha": git_sha,
         "apkSha256": candidate_apk_sha,
-        "candidateManifestSha256": manifest_sha,
+        "candidateManifestSha256": actual_manifest_sha,
         "releaseEvidenceEligible": True,
         "readyForDeviceEvidence": True,
         "verified": False,
@@ -153,7 +175,7 @@ def _validate_candidate(session: dict[str, Any], apk_sha: str) -> dict[str, Any]
 
 
 def _validate_session_and_index(
-    session: dict[str, Any], index: dict[str, Any]
+    session: dict[str, Any], index: dict[str, Any], session_dir: Path
 ) -> tuple[str, str, dict[str, Any], dict[str, Any], list[str]]:
     if session.get("packageId") != PACKAGE_ID or index.get("packageId") != PACKAGE_ID:
         raise EvidenceExportError("Session/index packageId does not match the production Android package")
@@ -201,7 +223,7 @@ def _validate_session_and_index(
             f"checkpointCount mismatch: declared={index.get('checkpointCount')!r} actual={len(labels)}"
         )
 
-    candidate_summary = _validate_candidate(session, session_apk_sha)
+    candidate_summary = _validate_candidate(session, session_dir, session_apk_sha)
     return raw_serial, actual_serial_hash, index_device, candidate_summary, labels
 
 
@@ -231,6 +253,14 @@ def _validate_checkpoint(
     return metadata
 
 
+def _sanitize_checkpoint_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    sanitized = dict(metadata)
+    sanitized["files"] = list(SAFE_CHECKPOINT_PAYLOAD_FILES)
+    sanitized["excludedByPolicy"] = ["logcat.txt", "activity.txt"]
+    sanitized["manualReviewRequired"] = True
+    return sanitized
+
+
 def _assert_text_does_not_contain_serial(path: Path, raw_serial: str) -> None:
     if path.suffix.lower() not in TEXT_SUFFIXES:
         return
@@ -249,7 +279,9 @@ def export_bundle(session_dir: Path, output_dir: Path, *, force: bool = False) -
 
     session = read_json(session_dir / SESSION_FILE)
     index = read_json(session_dir / INDEX_FILE)
-    raw_serial, serial_hash, index_device, candidate, labels = _validate_session_and_index(session, index)
+    raw_serial, serial_hash, index_device, candidate, labels = _validate_session_and_index(
+        session, index, session_dir
+    )
     apk_sha = candidate["apkSha256"]
 
     checkpoint_metadata: dict[str, dict[str, Any]] = {}
@@ -282,9 +314,11 @@ def export_bundle(session_dir: Path, output_dir: Path, *, force: bool = False) -
         target_dir = output_dir / "checkpoints" / label
         target_dir.mkdir(parents=True)
         for name in SAFE_CHECKPOINT_FILES:
-            source = source_dir / name
             target = target_dir / name
-            shutil.copy2(source, target)
+            if name == "checkpoint.json":
+                write_json(target, _sanitize_checkpoint_metadata(checkpoint_metadata[label]))
+            else:
+                shutil.copy2(source_dir / name, target)
             relative = target.relative_to(output_dir).as_posix()
             copied_files.append(relative)
             _assert_text_does_not_contain_serial(target, raw_serial)
