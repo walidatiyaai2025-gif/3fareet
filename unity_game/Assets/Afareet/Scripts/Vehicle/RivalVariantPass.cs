@@ -5,23 +5,18 @@ namespace Afareet.Vehicle
 {
     /// <summary>
     /// UART-004 runtime installer. Player builds accept only authored production rival prefabs.
-    /// The historical primitive/material variant treatment remains Editor-only for gameplay work.
+    /// Historical primitive/material treatment remains Editor-only for gameplay work.
     /// </summary>
     public sealed class RivalVariantPass : MonoBehaviour
     {
 #if UNITY_EDITOR
         private static readonly Color[] Primary =
         {
-            new(1f, .12f, .52f),
-            new(1f, .52f, .04f),
-            new(.08f, .9f, .42f)
+            new(1f, .12f, .52f), new(1f, .52f, .04f), new(.08f, .9f, .42f)
         };
-
         private static readonly Color[] Secondary =
         {
-            new(.18f, .72f, 1f),
-            new(.6f, .06f, 1f),
-            new(1f, .48f, .04f)
+            new(.18f, .72f, 1f), new(.6f, .06f, 1f), new(1f, .48f, .04f)
         };
 #endif
 
@@ -40,34 +35,24 @@ namespace Afareet.Vehicle
         private void Update()
         {
             if (built) return;
-
             var ready = 0;
             for (var i = 0; i < RivalProductionPolicy.VariantCount; i++)
             {
-                if (processed[i])
-                {
-                    ready++;
-                    continue;
-                }
-
+                if (processed[i]) { ready++; continue; }
                 var rival = GameObject.Find($"RIVAL {i + 1}");
                 if (rival == null) continue;
-
                 InstallProductionOrFallback(rival.transform, i);
                 processed[i] = true;
                 ready++;
             }
-
             built = ready == RivalProductionPolicy.VariantCount;
-            if (built)
-                Debug.Log("AFAREET_UART004_RIVAL_PRODUCTION_PASS_COMPLETE");
+            if (built) Debug.Log("AFAREET_UART004_RIVAL_PRODUCTION_PASS_COMPLETE variants=3");
         }
 
         private static void InstallProductionOrFallback(Transform rival, int index)
         {
             var primitiveRenderers = rival.GetComponentsInChildren<MeshRenderer>(true);
-            foreach (var renderer in primitiveRenderers)
-                renderer.enabled = false;
+            foreach (var renderer in primitiveRenderers) renderer.enabled = false;
 
             var path = RivalProductionPolicy.ResourcePath(index);
             var prefab = Resources.Load<GameObject>(path);
@@ -79,26 +64,23 @@ namespace Afareet.Vehicle
                 instance.transform.localPosition = Vector3.zero;
                 instance.transform.localRotation = Quaternion.identity;
                 instance.transform.localScale = Vector3.one;
-
                 Debug.Log(
-                    $"AFAREET_UART004_AUTHORED_RIVAL_ACTIVE variant={index + 1} " +
-                    $"source={metadata.SourceAssetId} path={path} hiddenBlockoutRenderers={primitiveRenderers.Length}");
+                    $"AFAREET_UART004_AUTHORED_RIVAL_ACTIVE variant={index + 1} source={metadata.SourceAssetId} " +
+                    $"version={metadata.AssetVersion} fingerprint={metadata.SourceFingerprint} path={path} " +
+                    $"hiddenBlockoutRenderers={primitiveRenderers.Length} physicsRootPreserved=true");
                 return;
             }
 
-            if (prefab == null)
-                reason = "missing-production-prefab";
-
+            if (prefab == null) reason = "missing-production-prefab";
 #if UNITY_EDITOR
             foreach (var renderer in primitiveRenderers)
                 if (renderer != null) renderer.enabled = true;
             ApplyEditorBlockoutVariant(rival, index);
-            Debug.LogWarning(
-                $"AFAREET_UART004_EDITOR_BLOCKOUT_RIVAL_ACTIVE variant={index + 1} reason={reason} production=false");
+            Debug.LogWarning($"AFAREET_UART004_EDITOR_BLOCKOUT_RIVAL_ACTIVE variant={index + 1} reason={reason} production=false");
 #else
             Debug.LogError(
                 $"AFAREET_UART004_PRODUCTION_RIVAL_REQUIRED variant={index + 1} reason={reason} " +
-                "primitive-fallback-disabled");
+                "primitive-fallback-disabled physicsRootPreserved=true");
 #endif
         }
 
@@ -106,18 +88,15 @@ namespace Afareet.Vehicle
         private static void ApplyEditorBlockoutVariant(Transform rival, int index)
         {
             if (rival.Find("Rival Variant Stripe") != null) return;
-
             var primary = Primary[index % Primary.Length];
             var secondary = Secondary[index % Secondary.Length];
             var bodyMaterial = RuntimeMaterials.Lit(primary, .55f, .82f);
             var spiritMaterial = RuntimeMaterials.Lit(secondary, .18f, .92f, 2.8f);
-
             foreach (var renderer in rival.GetComponentsInChildren<Renderer>())
             {
                 if (renderer.gameObject.name == "Body") renderer.material = bodyMaterial;
                 else if (renderer.gameObject.name == "Spirit Hood") renderer.material = spiritMaterial;
             }
-
             var underglow = rival.Find("Spirit Underglow")?.GetComponent<Light>();
             if (underglow != null) underglow.color = secondary;
 
