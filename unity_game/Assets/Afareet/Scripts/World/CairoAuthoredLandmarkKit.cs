@@ -15,6 +15,7 @@ namespace Afareet.World
         private const string MinaretPath = ResourceRoot + "/SM_Landmark_Minaret_A";
         private const string DomeGatePath = ResourceRoot + "/SM_Landmark_DomeGate_A";
         private const string BridgePath = ResourceRoot + "/SM_Landmark_BridgeGantry_A";
+        private const float DomeGateLateralOffset = 35f;
         private static bool activationLogged;
         private static bool editorMaterialOverrideLogged;
 
@@ -35,7 +36,12 @@ namespace Afareet.World
         {
             var source = Resources.Load<GameObject>(DomeGatePath);
             if (source == null) return Missing(DomeGatePath);
-            var root = Root("AUTHORED Neon Dome Gate", anchor, anchor.right * 24f);
+
+            // Waypoint 36 also owns the +right roadside-building slot in CairoTrackBuilder.
+            // The authored gate spans X=+-6.5m, so the former +24m root intersected that
+            // building's conservative rotated footprint. Keep the landmark readable but
+            // move its complete authored silhouette beyond the roadside-building envelope.
+            var root = Root("AUTHORED Neon Dome Gate", anchor, anchor.right * DomeGateLateralOffset);
             Create(source, root, "Authored Dome Gate", Vector3.zero, Vector3.one, dark, purple, gold, cyan);
             LogActivation();
             return true;
@@ -133,7 +139,7 @@ namespace Afareet.World
         {
             if (activationLogged) return;
             activationLogged = true;
-            Debug.Log("AFAREET_UART006_AUTHORED_LANDMARKS_ACTIVE geometry=tracked-obj resources=staged playerMaterials=source-authored");
+            Debug.Log($"AFAREET_UART006_AUTHORED_LANDMARKS_ACTIVE geometry=tracked-obj resources=staged playerMaterials=source-authored domeGateOffset={DomeGateLateralOffset:F1}");
         }
     }
 }
