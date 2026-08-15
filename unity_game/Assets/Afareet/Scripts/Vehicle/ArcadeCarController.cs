@@ -241,7 +241,12 @@ namespace Afareet.Vehicle
 
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
-            if (config != null && (nitroWasActive || nitroInput))
+            throttleInput = 0f;
+            steerInput = 0f;
+            driftInput = false;
+            nitroInput = false;
+            brakeInput = false;
+            if (config != null && nitroWasActive)
                 nitroCooldownRemaining = Mathf.Max(nitroCooldownRemaining, config.nitroCooldownSeconds);
             nitroWasActive = false;
             DriftChargeActive = false;
