@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "visualGate": "UPER-009",
   "requiredTasks": [
     "UART-003",
@@ -22,6 +22,11 @@
     ".blend",
     ".glb",
     ".gltf"
+  ],
+  "forbiddenAuthoredSourcePathSegments": [
+    "generated",
+    "preview",
+    "blockout"
   ],
   "allowedVisualEvidenceKinds": [
     "screenshot",
