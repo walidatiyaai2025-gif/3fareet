@@ -1,4 +1,6 @@
 import json
+import math
+import re
 import unittest
 from pathlib import Path
 
@@ -13,6 +15,7 @@ ANDROID_GATE = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionLandmar
 ADAPTER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredLandmarkKit.cs"
 RUNTIME_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoLandmarkRuntimePass.cs"
 TRACK_PYRAMID_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoTrackPyramidAuthoredReplacementPass.cs"
+TRACK_BUILDER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoTrackBuilder.cs"
 
 
 MODELS = {
@@ -38,6 +41,23 @@ def triangle_count(path: Path) -> int:
     return total
 
 
+def obj_vertex_bounds(path: Path):
+    vertices = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line.startswith("v "):
+            continue
+        fields = line.split()
+        vertices.append(tuple(float(value) for value in fields[1:4]))
+    if not vertices:
+        raise AssertionError(f"OBJ has no vertices: {path}")
+    return (
+        min(v[0] for v in vertices), max(v[0] for v in vertices),
+        min(v[1] for v in vertices), max(v[1] for v in vertices),
+        min(v[2] for v in vertices), max(v[2] for v in vertices),
+    )
+
+
 class CairoAuthoredLandmarkContractTests(unittest.TestCase):
     def test_all_four_landmark_sources_are_authored_nontrivial_meshes(self):
         for name, minimum_vertices in MODELS.items():
@@ -60,6 +80,37 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         for module in manifest["modules"]:
             self.assertGreater(module["productionMinVertices"], 0)
             self.assertGreater(module["productionMinTriangles"], 0)
+
+    def test_dome_gate_clears_waypoint_36_right_building_footprint(self):
+        bounds = obj_vertex_bounds(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj")
+        dome_half_width = max(abs(bounds[0]), abs(bounds[1]))
+        self.assertAlmostEqual(6.5, dome_half_width, places=3)
+
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        track_builder = TRACK_BUILDER.read_text(encoding="utf-8")
+        match = re.search(r"DomeGateLateralOffset\s*=\s*([0-9.]+)f", adapter)
+        self.assertIsNotNone(match)
+        dome_offset = float(match.group(1))
+
+        self.assertIn("RoadWidth = 14f", track_builder)
+        self.assertIn("RoadWidth + 8f", track_builder)
+        self.assertIn("var width = 5f + (seed * 3 % 6);", track_builder)
+        self.assertIn("seed * 31f", track_builder)
+
+        # Dome gate is anchored at waypoint 36. The same waypoint satisfies i%4==0,
+        # so TrackBuilder places the +right building there at 14+8=22m. Seed 36
+        # gives width=5m; use the square half-diagonal as a conservative projection
+        # regardless of its exact world-vs-anchor rotation.
+        building_center = 14.0 + 8.0
+        building_width = 5.0 + ((36 * 3) % 6)
+        building_half_diagonal = building_width * math.sqrt(2.0) / 2.0
+        building_outer_edge = building_center + building_half_diagonal
+        dome_inner_edge = dome_offset - dome_half_width
+        clearance = dome_inner_edge - building_outer_edge
+
+        self.assertGreaterEqual(clearance, 2.0)
+        self.assertIn("anchor.right * DomeGateLateralOffset", adapter)
+        self.assertNotIn("Root(\"AUTHORED Neon Dome Gate\", anchor, anchor.right * 24f)", adapter)
 
     def test_stager_and_build_preprocessor_package_source_and_material_dependencies(self):
         stager = STAGER.read_text(encoding="utf-8")
