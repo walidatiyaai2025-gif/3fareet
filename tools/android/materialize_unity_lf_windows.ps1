@@ -36,12 +36,23 @@ if ($paths.Count -eq 0) {
     Fail "no tracked Unity metadata files matched the LF materialization contract"
 }
 
-# A long-lived Windows clone can retain pre-.gitattributes CRLF bytes even when
-# git status is clean. Git normalizes those bytes when comparing to the index,
-# so reset --hard is not guaranteed to rewrite the physical working-tree copy.
-# Before Unity starts, rematerialize only the files that are explicitly governed
-# by text/eol=lf. The orchestrator immediately asserts that the repository is
-# still clean after this byte-only repair.
+function Test-ContainsCrLf([string]$FilePath) {
+    $bytes = [System.IO.File]::ReadAllBytes($FilePath)
+    for ($i = 0; $i -lt ($bytes.Length - 1); $i++) {
+        if ($bytes[$i] -eq 13 -and $bytes[$i + 1] -eq 10) {
+            return $true
+        }
+    }
+    return $false
+}
+
+# A long-lived Windows clone can retain stale physical CRLF bytes from before
+# .gitattributes pinned these Unity metadata files to LF. Do not rewrite those
+# bytes directly: on some Windows Git configurations that can leave the
+# working tree/index stat state disagreeing even though the canonical blob is
+# already LF. After validating text/eol=lf, ask Git itself to force the path
+# back out of the current index. This preserves HEAD/index content and applies
+# Git's own working-tree conversion rules.
 $rewritten = 0
 foreach ($relativePath in $paths) {
     $attrLines = @(& $git.Source -C $RepoRoot check-attr text eol -- $relativePath 2>$null)
@@ -60,7 +71,7 @@ foreach ($relativePath in $paths) {
     }
 
     if ($textValue -ne 'set' -or $eolValue -ne 'lf') {
-        Fail "${relativePath}: refusing to rewrite because attributes are text='$textValue' eol='$eolValue', expected text='set' eol='lf'"
+        Fail "${relativePath}: refusing to rematerialize because attributes are text='$textValue' eol='$eolValue', expected text='set' eol='lf'"
     }
 
     $filePath = Join-Path $RepoRoot $relativePath
@@ -68,30 +79,23 @@ foreach ($relativePath in $paths) {
         Fail "${relativePath}: tracked working-tree file is missing"
     }
 
-    $bytes = [System.IO.File]::ReadAllBytes($filePath)
-    $containsCrLf = $false
-    for ($i = 0; $i -lt ($bytes.Length - 1); $i++) {
-        if ($bytes[$i] -eq 13 -and $bytes[$i + 1] -eq 10) {
-            $containsCrLf = $true
-            break
-        }
-    }
-    if (-not $containsCrLf) {
+    if (-not (Test-ContainsCrLf -FilePath $filePath)) {
         continue
     }
 
-    $normalized = New-Object System.Collections.Generic.List[byte]
-    for ($i = 0; $i -lt $bytes.Length; $i++) {
-        if ($bytes[$i] -eq 13 -and ($i + 1) -lt $bytes.Length -and $bytes[$i + 1] -eq 10) {
-            $normalized.Add([byte]10)
-            $i++
-        } else {
-            $normalized.Add($bytes[$i])
-        }
+    & $git.Source -C $RepoRoot checkout-index --force -- $relativePath 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Fail "${relativePath}: git checkout-index --force failed with exit code $LASTEXITCODE"
     }
 
-    [System.IO.File]::WriteAllBytes($filePath, $normalized.ToArray())
+    if (-not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+        Fail "${relativePath}: file disappeared during git rematerialization"
+    }
+    if (Test-ContainsCrLf -FilePath $filePath) {
+        Fail "${relativePath}: Git rematerialization still produced CRLF despite text eol=lf"
+    }
+
     $rewritten++
 }
 
-Write-Host "AFAREET_UNITY_LF_MATERIALIZED files=$($paths.Count) rewritten=$rewritten eol=lf"
+Write-Host "AFAREET_UNITY_LF_MATERIALIZED files=$($paths.Count) rewritten=$rewritten eol=lf source=git-index"
