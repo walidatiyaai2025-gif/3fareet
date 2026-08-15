@@ -64,19 +64,42 @@ function Preserve-DirtyTreeEvidence([string]$Phase, [string[]]$Changes) {
 
     $statusPath = Join-Path $evidenceDir "git-dirty-$phaseKey.status.txt"
     $patchPath = Join-Path $evidenceDir "git-dirty-$phaseKey.patch"
+    $stderrPath = Join-Path $evidenceDir "git-dirty-$phaseKey.stderr.txt"
 
     $Changes | Set-Content -Encoding UTF8 $statusPath
+    Remove-Item -Force $patchPath, $stderrPath -ErrorAction SilentlyContinue
 
-    $patch = @(& git -C $RepoRoot diff --binary HEAD -- 2>&1)
-    $patchExitCode = $LASTEXITCODE
+    # Capture `git diff --binary HEAD --` through redirected native-process
+    # streams. Windows PowerShell can surface harmless Git stderr warnings
+    # (for example LF/CRLF conversion notices) as NativeCommandError when
+    # stderr is merged with stdout under ErrorActionPreference=Stop. Keeping
+    # stderr separate preserves the warning without corrupting or aborting the
+    # binary patch evidence.
+    $gitArgs = @(
+        '-C', ('"{0}"' -f $RepoRoot),
+        'diff', '--binary', 'HEAD', '--'
+    )
+    $gitProcess = Start-Process `
+        -FilePath $git.Source `
+        -ArgumentList $gitArgs `
+        -Wait `
+        -PassThru `
+        -RedirectStandardOutput $patchPath `
+        -RedirectStandardError $stderrPath
+    $patchExitCode = $gitProcess.ExitCode
+
     if ($patchExitCode -ne 0) {
-        "Unable to capture git diff. exitCode=$patchExitCode" | Set-Content -Encoding UTF8 $patchPath
-        Write-Warning "Unable to capture tracked dirty-tree patch for phase $Phase. exitCode=$patchExitCode"
-    } else {
-        $patch | Set-Content -Encoding UTF8 $patchPath
+        $stderr = ""
+        if (Test-Path $stderrPath) {
+            $stderr = (Get-Content -Raw $stderrPath -ErrorAction SilentlyContinue).Trim()
+        }
+        "Unable to capture git diff. exitCode=$patchExitCode stderr=$stderr" | Set-Content -Encoding UTF8 $patchPath
+        Write-Warning "Unable to capture tracked dirty-tree patch for phase $Phase. exitCode=$patchExitCode stderr=$stderrPath"
+    } elseif ((Test-Path $stderrPath) -and (Get-Item $stderrPath).Length -gt 0) {
+        Write-Warning "Git emitted non-fatal stderr while preserving dirty-tree evidence for phase $Phase. See $stderrPath"
     }
 
-    Write-Host "AFAREET_DIRTY_TREE_EVIDENCE phase=$Phase status=$statusPath patch=$patchPath"
+    Write-Host "AFAREET_DIRTY_TREE_EVIDENCE phase=$Phase status=$statusPath patch=$patchPath stderr=$stderrPath"
 }
 
 function Assert-CleanTree([string]$Phase) {
