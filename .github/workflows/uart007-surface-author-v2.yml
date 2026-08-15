@@ -1,0 +1,70 @@
+name: UART007 Surface Author V2
+
+on:
+  push:
+    branches:
+      - agent/uart-007-authored-track-dressing
+    paths:
+      - .github/workflows/uart007-surface-author-v2.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: uart007-surface-author-v2
+  cancel-in-progress: false
+
+jobs:
+  author:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/uart-007-authored-track-dressing
+          fetch-depth: 0
+
+      - name: Reuse validated authoring run with safe test assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/uart007-surface-author.yml').read_text(encoding='utf-8').splitlines()
+          start = next(i for i, line in enumerate(workflow) if line.strip() == '- name: Repair malformed finish gate and surface four sources')
+          run_line = next(i for i in range(start, len(workflow)) if workflow[i].strip() == 'run: |')
+          end = next(i for i in range(run_line + 1, len(workflow)) if workflow[i].startswith('      - name: Commit repair and authored surface chains'))
+          body = []
+          for line in workflow[run_line + 1:end]:
+              if line.startswith('          '):
+                  body.append(line[10:])
+              elif not line.strip():
+                  body.append('')
+              else:
+                  raise SystemExit(f'unexpected indentation while extracting authoring run: {line!r}')
+          script = '\n'.join(body) + '\n'
+          old_vt = 'self.assertIn("\\nvt ","\\n"+obj)'
+          old_vn = 'self.assertIn("\\nvn ","\\n"+obj)'
+          new_vt = 'self.assertTrue(any(line.startswith("vt ") for line in obj.splitlines()), model)'
+          new_vn = 'self.assertTrue(any(line.startswith("vn ") for line in obj.splitlines()), model)'
+          if old_vt not in script or old_vn not in script:
+              raise SystemExit('expected escaping-sensitive assertions were not found; refusing blind patch')
+          script = script.replace(old_vt, new_vt).replace(old_vn, new_vn)
+          Path('/tmp/uart007_author.sh').write_text(script, encoding='utf-8')
+          PY
+          bash -n /tmp/uart007_author.sh
+          bash /tmp/uart007_author.sh
+
+      - name: Commit repaired geometry and four surfaced source chains
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "3Fareet UART-007 Agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/uart007-surface-author.yml .github/workflows/uart007-surface-author-v2.yml
+          git add docs/assets/02_tracks_environments/cairo_track_dressing tools/android/tests/test_cairo_authored_track_dressing_contract.py
+          git status --short
+          git diff --cached --check
+          git commit -m "UART-007: repair finish gate and surface track dressing"
+          git push origin HEAD:agent/uart-007-authored-track-dressing
