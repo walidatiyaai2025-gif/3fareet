@@ -54,8 +54,8 @@ class Uart005AwningSurfaceCandidateTests(unittest.TestCase):
         self.assertAlmostEqual(1.5, max(zs), places=4)
 
     def test_package_is_still_not_fully_surfaced(self):
-        facade = self._read("SM_Env_CairoFacade_A.obj")
-        self.assertNotIn("\nvn ", "\n" + facade)
+        lamp = self._read("SM_Prop_CairoLamp_A.obj")
+        self.assertNotIn("\nvn ", "\n" + lamp)
         manifest = (SOURCE_ROOT.parent / "ASSET_MANIFEST.json").read_text(encoding="utf-8")
         self.assertIn('"reviewState": "BLOCKED"', manifest)
         self.assertIn('"runtimeIntegrationVerified": false', manifest)

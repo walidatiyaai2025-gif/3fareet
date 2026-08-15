@@ -45,7 +45,7 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
                 self.assertTrue(indices[1], token)
                 self.assertTrue(indices[2], token)
 
-    def test_road_and_curb_now_have_tracked_surface_authoring(self):
+    def test_road_curb_awning_and_facade_have_tracked_surface_authoring(self):
         self._assert_surface_chain(
             "SM_Track_CairoRoad_A.obj",
             "SM_Track_CairoRoad_A.mtl",
@@ -57,6 +57,18 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
             "SM_Track_CairoCurb_A.mtl",
             "Curb_Surface",
             "T_Track_CairoCurb_Surface_BC.png",
+        )
+        self._assert_surface_chain(
+            "SM_Env_CairoAwning_A.obj",
+            "SM_Env_CairoAwning_A.mtl",
+            "Awning_Surface",
+            "T_Env_CairoAwning_Surface_BC.png",
+        )
+        self._assert_surface_chain(
+            "SM_Env_CairoFacade_A.obj",
+            "SM_Env_CairoFacade_A.mtl",
+            "Facade_Surface",
+            "T_Env_CairoFacade_Surface_BC.png",
         )
 
     def test_road_and_curb_stay_inside_manifest_geometry_envelopes(self):
@@ -79,14 +91,14 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         self.assertAlmostEqual(-5.0, curb[4], places=4)
         self.assertAlmostEqual(5.0, curb[5], places=4)
 
-    def test_remaining_facade_source_still_blocks_full_surface_promotion(self):
-        facade = self._read(
-            "docs/assets/02_tracks_environments/cairo_street_kit/source/SM_Env_CairoFacade_A.obj"
+    def test_remaining_lamp_source_still_blocks_full_surface_promotion(self):
+        lamp = self._read(
+            "docs/assets/02_tracks_environments/cairo_street_kit/source/SM_Prop_CairoLamp_A.obj"
         )
-        self.assertIn("v ", facade)
-        self.assertIn("f ", facade)
-        self.assertNotIn("\nvn ", "\n" + facade)
-        self.assertNotIn("\nmtllib ", "\n" + facade)
+        self.assertIn("v ", lamp)
+        self.assertIn("f ", lamp)
+        self.assertNotIn("\nvn ", "\n" + lamp)
+        self.assertNotIn("\nmtllib ", "\n" + lamp)
 
     def test_authored_awning_projects_outward_from_front_facade_and_stays_centered(self):
         awning_path = "docs/assets/02_tracks_environments/cairo_street_kit/source/SM_Env_CairoAwning_A.obj"
