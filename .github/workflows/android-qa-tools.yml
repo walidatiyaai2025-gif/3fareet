@@ -102,6 +102,9 @@ jobs:
             'Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru',
             '$unityProcess.ExitCode',
             'AFAREET_BUILD_SUCCESS target=Android',
+            'AFAREET_STALE_BUILD_EVIDENCE_CLEARED',
+            '$ArtifactMetadataPath = Join-Path $ArtifactDir "artifact-metadata.json"',
+            '$ArtifactApkPath = Join-Path $ArtifactDir "afareet-unity3d-debug.apk"',
             'git is required for SHA-pinned build evidence',
             'releaseEvidenceEligible'
           )
@@ -121,6 +124,8 @@ jobs:
           $testRequired = @(
             'Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru',
             '$unityProcess.ExitCode',
+            'AFAREET_STALE_TEST_METADATA_CLEARED',
+            '$MetadataPath = Join-Path $ArtifactDir "test-metadata.json"',
             'git is required for SHA-pinned test evidence',
             'releaseEvidenceEligible',
             "Invoke-UnityTests 'EditMode'",
