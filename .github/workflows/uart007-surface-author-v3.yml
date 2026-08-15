@@ -1,0 +1,80 @@
+name: UART007 Surface Author V3
+
+on:
+  push:
+    branches:
+      - agent/uart-007-authored-track-dressing
+    paths:
+      - .github/workflows/uart007-surface-author-v3.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: uart007-surface-author-v3
+  cancel-in-progress: false
+
+jobs:
+  author:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/uart-007-authored-track-dressing
+          fetch-depth: 0
+
+      - name: Reuse validated authoring run with escape-free assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/uart007-surface-author.yml').read_text(encoding='utf-8').splitlines()
+          start = next(i for i, line in enumerate(workflow) if line.strip() == '- name: Repair malformed finish gate and surface four sources')
+          run_line = next(i for i in range(start, len(workflow)) if workflow[i].strip() == 'run: |')
+          end = next(i for i in range(run_line + 1, len(workflow)) if workflow[i].startswith('      - name: Commit repair and authored surface chains'))
+          body = []
+          for line in workflow[run_line + 1:end]:
+              if line.startswith('          '):
+                  body.append(line[10:])
+              elif not line.strip():
+                  body.append('')
+              else:
+                  raise SystemExit(f'unexpected indentation while extracting authoring run: {line!r}')
+          script = '\n'.join(body) + '\n'
+
+          replacements = {
+              'self.assertIn("\\nvt ","\\n"+obj)':
+                  'self.assertTrue(any(line.startswith("vt ") for line in obj.splitlines()), model)',
+              'self.assertIn("\\nvn ","\\n"+obj)':
+                  'self.assertTrue(any(line.startswith("vn ") for line in obj.splitlines()), model)',
+              'self.assertTrue((SOURCE_ROOT/texture).read_bytes().startswith(b"\\x89PNG\\r\\n\\x1a\\n"))':
+                  'self.assertEqual(bytes((137,80,78,71,13,10,26,10)), (SOURCE_ROOT/texture).read_bytes()[:8], texture)',
+          }
+          for old, new in replacements.items():
+              if old not in script:
+                  raise SystemExit(f'expected assertion was not found; refusing blind patch: {old}')
+              script = script.replace(old, new)
+
+          Path('/tmp/uart007_author.sh').write_text(script, encoding='utf-8')
+          PY
+          bash -n /tmp/uart007_author.sh
+          bash /tmp/uart007_author.sh
+
+      - name: Commit repaired geometry and four surfaced source chains
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "3Fareet UART-007 Agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm \
+            .github/workflows/uart007-surface-author.yml \
+            .github/workflows/uart007-surface-author-v2.yml \
+            .github/workflows/uart007-surface-author-v3.yml
+          git add docs/assets/02_tracks_environments/cairo_track_dressing tools/android/tests/test_cairo_authored_track_dressing_contract.py
+          git status --short
+          git diff --cached --check
+          git commit -m "UART-007: repair finish gate and surface track dressing"
+          git push origin HEAD:agent/uart-007-authored-track-dressing
