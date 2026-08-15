@@ -1,0 +1,191 @@
+name: UART006 Surface Author
+
+on:
+  push:
+    branches:
+      - agent/uart-006-authored-landmarks
+    paths:
+      - .github/workflows/uart006-surface-author.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: uart006-surface-author
+  cancel-in-progress: false
+
+jobs:
+  author:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/uart-006-authored-landmarks
+          fetch-depth: 0
+
+      - name: Surface remaining authored landmark sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/uart-006-authored-landmarks
+          git reset --hard origin/agent/uart-006-authored-landmarks
+
+          ROOT="docs/assets/03_props_architecture/cairo_landmarks/source"
+          TOOL="tools/android/surface_obj_candidate.py"
+
+          if ! grep -q '^mtllib SM_Landmark_DomeGate_A.mtl$' "$ROOT/SM_Landmark_DomeGate_A.obj"; then
+            python "$TOOL" "$ROOT/SM_Landmark_DomeGate_A.obj" \
+              --material-file SM_Landmark_DomeGate_A.mtl \
+              --material DomeGate_Stone \
+              --write
+          fi
+
+          if ! grep -q '^mtllib SM_Landmark_BridgeGantry_A.mtl$' "$ROOT/SM_Landmark_BridgeGantry_A.obj"; then
+            python "$TOOL" "$ROOT/SM_Landmark_BridgeGantry_A.obj" \
+              --material-file SM_Landmark_BridgeGantry_A.mtl \
+              --material BridgeGantry_Metal \
+              --write
+          fi
+
+          cat > "$ROOT/SM_Landmark_DomeGate_A.mtl" <<'EOF'
+          # UART-006 authored-source candidate material
+          newmtl DomeGate_Stone
+          Ka 0.180000 0.145000 0.110000
+          Kd 0.690000 0.525000 0.355000
+          Ks 0.110000 0.090000 0.075000
+          Ns 24.000000
+          illum 2
+          map_Kd T_Landmark_DomeGate_BC.png
+          EOF
+
+          cat > "$ROOT/SM_Landmark_BridgeGantry_A.mtl" <<'EOF'
+          # UART-006 authored-source candidate material
+          newmtl BridgeGantry_Metal
+          Ka 0.070000 0.080000 0.090000
+          Kd 0.315000 0.365000 0.410000
+          Ks 0.420000 0.460000 0.500000
+          Ns 72.000000
+          illum 2
+          map_Kd T_Landmark_BridgeGantry_BC.png
+          EOF
+
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import struct
+          import zlib
+          from pathlib import Path
+
+          root = Path('docs/assets/03_props_architecture/cairo_landmarks/source')
+
+          def chunk(kind: bytes, data: bytes) -> bytes:
+              return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+
+          def write_pattern_png(path: Path, base: tuple[int, int, int], accent: tuple[int, int, int]) -> None:
+              width = height = 64
+              rows = bytearray()
+              for y in range(height):
+                  rows.append(0)
+                  for x in range(width):
+                      mortar = (x % 16 in (0, 1)) or (y % 12 in (0, 1))
+                      checker = ((x // 8) + (y // 8)) % 2
+                      src = accent if mortar else tuple(min(255, c + (10 if checker else 0)) for c in base)
+                      rows.extend(src)
+              payload = (
+                  b'\x89PNG\r\n\x1a\n'
+                  + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+                  + chunk(b'IDAT', zlib.compress(bytes(rows), 9))
+                  + chunk(b'IEND', b'')
+              )
+              path.write_bytes(payload)
+
+          write_pattern_png(root / 'T_Landmark_DomeGate_BC.png', (164, 116, 72), (76, 56, 44))
+          write_pattern_png(root / 'T_Landmark_BridgeGantry_BC.png', (76, 92, 104), (32, 42, 50))
+
+          manifest_path = Path('docs/assets/03_props_architecture/cairo_landmarks/ASSET_MANIFEST.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          surfaced = {'SM_Landmark_DomeGate_A.obj', 'SM_Landmark_BridgeGantry_A.obj'}
+          for module in manifest['modules']:
+              if module['model'] in surfaced:
+                  module['surfaceAuthoring'] = 'tracked-uv-normal-mtl-texture-candidate'
+          manifest['acceptancePending'] = [
+              item for item in manifest['acceptancePending']
+              if item != 'surface authoring for dome gate and bridge gantry'
+          ]
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+
+          test_path = Path('tools/android/tests/test_cairo_authored_landmark_contract.py')
+          text = test_path.read_text(encoding='utf-8')
+          old_surface = '''SURFACED = (
+              ("SM_Landmark_GizaPyramid_A.obj", "SM_Landmark_GizaPyramid_A.mtl", "Giza_Stone", "T_Landmark_GizaPyramid_BC.png"),
+              ("SM_Landmark_Minaret_A.obj", "SM_Landmark_Minaret_A.mtl", "Minaret_Stone", "T_Landmark_Minaret_BC.png"),
+          )'''
+          new_surface = '''SURFACED = (
+              ("SM_Landmark_GizaPyramid_A.obj", "SM_Landmark_GizaPyramid_A.mtl", "Giza_Stone", "T_Landmark_GizaPyramid_BC.png"),
+              ("SM_Landmark_Minaret_A.obj", "SM_Landmark_Minaret_A.mtl", "Minaret_Stone", "T_Landmark_Minaret_BC.png"),
+              ("SM_Landmark_DomeGate_A.obj", "SM_Landmark_DomeGate_A.mtl", "DomeGate_Stone", "T_Landmark_DomeGate_BC.png"),
+              ("SM_Landmark_BridgeGantry_A.obj", "SM_Landmark_BridgeGantry_A.mtl", "BridgeGantry_Metal", "T_Landmark_BridgeGantry_BC.png"),
+          )'''
+          if old_surface in text:
+              text = text.replace(old_surface, new_surface)
+          elif 'SM_Landmark_BridgeGantry_A.mtl' not in text:
+              raise SystemExit('SURFACED tuple changed unexpectedly; refusing blind rewrite')
+
+          text = text.replace(
+              'def test_giza_and_minaret_have_tracked_surface_chains_but_package_is_two_of_four(self):',
+              'def test_all_four_landmarks_have_tracked_surface_chains(self):'
+          )
+          old_dome_guard = '''
+                  dome = (SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj").read_text(encoding="utf-8")
+                  self.assertNotIn("\\nmtllib ", "\\n" + dome)
+                  self.assertNotIn("\\nvn ", "\\n" + dome)
+          '''
+          text = text.replace(old_dome_guard, '''
+                  self.assertEqual(497, vertex_count(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj"))
+                  self.assertEqual(696, triangle_count(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj"))
+                  self.assertEqual(248, vertex_count(SOURCE_ROOT / "SM_Landmark_BridgeGantry_A.obj"))
+                  self.assertEqual(328, triangle_count(SOURCE_ROOT / "SM_Landmark_BridgeGantry_A.obj"))
+          ''')
+          text = text.replace(
+              'self.assertEqual(2, sum(module.get("surfaceAuthoring") == "tracked-uv-normal-mtl-texture-candidate" for module in manifest["modules"]))',
+              'self.assertEqual(4, sum(module.get("surfaceAuthoring") == "tracked-uv-normal-mtl-texture-candidate" for module in manifest["modules"]))'
+          )
+          text = text.replace(
+              'self.assertEqual(2, sum(module.get("surfaceAuthoring") == "pending" for module in manifest["modules"]))',
+              'self.assertEqual(0, sum(module.get("surfaceAuthoring") == "pending" for module in manifest["modules"]))'
+          )
+          test_path.write_text(text, encoding='utf-8', newline='\n')
+          PY
+
+          python "$TOOL" "$ROOT/SM_Landmark_DomeGate_A.obj" \
+            --material-file SM_Landmark_DomeGate_A.mtl \
+            --material DomeGate_Stone \
+            --check
+          python "$TOOL" "$ROOT/SM_Landmark_BridgeGantry_A.obj" \
+            --material-file SM_Landmark_BridgeGantry_A.mtl \
+            --material BridgeGantry_Metal \
+            --check
+          python -m py_compile "$TOOL" tools/android/tests/test_surface_obj_candidate.py tools/android/tests/test_cairo_authored_landmark_contract.py
+          python -m unittest tools.android.tests.test_surface_obj_candidate tools.android.tests.test_cairo_authored_landmark_contract
+          git diff --check
+
+      - name: Commit authored surface chains and remove bootstrap workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "3Fareet UART-006 Agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/uart006-surface-author.yml
+          git add \
+            docs/assets/03_props_architecture/cairo_landmarks/ASSET_MANIFEST.json \
+            docs/assets/03_props_architecture/cairo_landmarks/source/SM_Landmark_DomeGate_A.obj \
+            docs/assets/03_props_architecture/cairo_landmarks/source/SM_Landmark_DomeGate_A.mtl \
+            docs/assets/03_props_architecture/cairo_landmarks/source/T_Landmark_DomeGate_BC.png \
+            docs/assets/03_props_architecture/cairo_landmarks/source/SM_Landmark_BridgeGantry_A.obj \
+            docs/assets/03_props_architecture/cairo_landmarks/source/SM_Landmark_BridgeGantry_A.mtl \
+            docs/assets/03_props_architecture/cairo_landmarks/source/T_Landmark_BridgeGantry_BC.png \
+            tools/android/tests/test_cairo_authored_landmark_contract.py
+          git status --short
+          git commit -m "UART-006: surface Dome Gate and Bridge Gantry"
+          git push origin HEAD:agent/uart-006-authored-landmarks
