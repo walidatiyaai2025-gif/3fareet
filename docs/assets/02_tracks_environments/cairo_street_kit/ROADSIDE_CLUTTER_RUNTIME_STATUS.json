@@ -21,7 +21,7 @@
   "acceptancePending": [
     "licensed Unity compile/import/render verification of all three clutter Resources",
     "exact runtime proof that authored buildings are decorated once with deterministic source-backed clutter",
-    "mobile LOD authoring for repeated clutter where performance review requires it",
+    "physical-device performance review of clutter LOD transitions and scene density",
     "exact Android in-race screenshots/video",
     "owner/Art Director Visual Gate acceptance"
   ]
