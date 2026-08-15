@@ -22,6 +22,8 @@ android/local.properties
 unity_game/Builds/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated.meta
+unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/
+unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production.meta
 
 # Local CI / QA evidence outputs (generated, never source-of-truth)
 /artifacts/
