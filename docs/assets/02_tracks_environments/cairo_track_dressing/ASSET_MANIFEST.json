@@ -15,6 +15,22 @@
   "runtimeAdapter": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressing.cs",
   "runtimePass": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressingRuntimePass.cs",
   "androidGate": "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingBuildGate.cs",
+  "sourceSurfaceProgress": "4/4",
+  "sourceSurfaceEvidence": {
+    "authoringCommit": "5fc102fd2c2348c618229eefb4e4b1ec0c8d8e88",
+    "workflowRun": 31893618123,
+    "trackedObjMtlTextureChains": 4,
+    "faceIndexIntegrityVerified": true,
+    "surfaceContractTestsPassed": true,
+    "gitDiffCheckPassed": true
+  },
+  "finishGateTopologyRepair": {
+    "reason": "original source had 235 vertices but face references reached 251 after a truncated Arch section",
+    "method": "preserved pylon/trim v1-v160; rebuilt malformed Arch/Crest/Spirit/Gold tail",
+    "resultVertices": 286,
+    "resultTriangles": 396,
+    "faceIndexIntegrityVerified": true
+  },
   "modules": [
     {
       "model": "SM_Track_FinishGate_A.obj",
@@ -78,7 +94,5 @@
     "additional track signage/decals/roadside dressing",
     "exact Android in-race screenshot/video proof",
     "owner/Art Director Visual Gate acceptance"
-  ],
-  "sourceSurfaceProgress": "4/4",
-  "finishGateTopologyRepair": "malformed-arch-rebuilt-pylon-trim-preserved"
+  ]
 }
