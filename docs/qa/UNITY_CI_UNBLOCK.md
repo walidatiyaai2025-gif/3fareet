@@ -37,7 +37,38 @@ Prerequisites:
 1. Unity `6000.5.8f1` installed and licensed locally.
 2. Android Build Support installed for the APK build step.
 3. Git CLI installed and the repository checked out at the exact production candidate commit.
-4. Clean Git working tree for release-eligible evidence.
+4. Python 3 available as `python` or `py -3`.
+5. Clean Git working tree for release-eligible evidence.
+
+### Canonical fail-closed candidate command
+
+For release-candidate evidence, use the orchestrator rather than running the three local stages independently:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/android/run_local_candidate_windows.ps1
+```
+
+If Unity is installed in a non-default path:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/android/run_local_candidate_windows.ps1 `
+  -UnityPath 'D:\Unity\6000.5.8f1\Editor\Unity.exe'
+```
+
+The orchestrator:
+
+- requires a clean Git tree before Unity starts;
+- runs exact-head EditMode + PlayMode through `test_current_windows.ps1`;
+- immediately rechecks Git and fails if Unity/UPM changed tracked or untracked repository content during tests;
+- runs the Android build/inspection through `build_current_windows.ps1` only if the post-test tree is still clean;
+- rechecks Git after the build;
+- runs `verify_local_candidate.py` against the exact test metadata, build metadata and APK bytes;
+- rechecks Git again after candidate verification;
+- emits `AFAREET_LOCAL_CANDIDATE_OK` only after every stage succeeds without source/package mutation.
+
+If Unity/UPM writes package/source changes at any stage, reconcile and commit those changes first, then restart from a clean exact head. Do not promote the previous run as release evidence.
+
+The individual steps below remain useful for diagnosis, but the orchestrator is the required local release-evidence path.
 
 ### 1. Run EditMode + PlayMode tests
 
@@ -71,7 +102,7 @@ Successful output contains:
 
 `AFAREET_LOCAL_UNITY_TESTS_OK`
 
-This is exact-head local automated-test evidence. It does **not** make the GitHub `Unity Production CI` workflow Green and does not substitute for CI provenance where CI provenance is explicitly required.
+This standalone step is diagnostic/test evidence. For local release-candidate evidence, the orchestrator must also prove the working tree remains clean after Unity tests.
 
 ### 2. Build and inspect Android APK
 
@@ -102,6 +133,7 @@ The build script:
 - verifies package `com.fiftysolutions.afareetunity3d`;
 - verifies minSdk API 26;
 - verifies ARM64-only native payload and `libunity.so`;
+- detects post-build Git mutation and makes such output non-release-eligible;
 - generates SHA-256 and JSON artifact metadata pinned to the Git commit;
 - copies the inspected APK/evidence to `artifacts/android-local/`.
 
@@ -175,7 +207,7 @@ It then invokes the existing `device_evidence.py prepare` flow against those exa
 
 ## Evidence consistency rule
 
-For local release review, the Unity test metadata, APK metadata and actual APK bytes must pass `verify_local_candidate.py`, and the resulting manifest must be consumed by `prepare_candidate_device.py` before physical-device collection. A dirty-tree run must never be promoted to release evidence.
+For local release review, use `run_local_candidate_windows.ps1` so the tree is checked before Unity, after tests, after build, and after candidate verification. The resulting manifest must then be consumed by `prepare_candidate_device.py` before physical-device collection. A dirty-tree or Unity/UPM-mutated run must never be promoted to release evidence.
 
 The safest GitHub-hosted path remains a fully Green `Unity Production CI` run after a complete licensing secret set is configured. The local path exists to make exact-head test/build execution possible on an already licensed workstation without weakening the physical-device or manual review gates.
 
