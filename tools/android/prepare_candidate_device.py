@@ -4,8 +4,10 @@
 This wrapper accepts candidate manifests produced by either the licensed-Windows
 local path or the GitHub Unity Production CI artifact-binding path. It fails
 closed if candidate provenance or APK bytes do not match the supported contract,
-then hands the exact APK to the existing ADB evidence collector. It never marks
-a candidate or device gate VERIFIED.
+then hands the exact APK to the existing ADB evidence collector. After ADB
+prepare succeeds it persists the validated candidate provenance and an exact
+copy of the source manifest into the evidence session. It never marks a
+candidate or device gate VERIFIED.
 """
 
 from __future__ import annotations
@@ -27,6 +29,8 @@ EXPECTED_CI_REPOSITORY = "walidatiyaai2025-gif/3fareet"
 EXPECTED_CI_WORKFLOW = "Unity Production CI"
 ALLOWED_CI_EVENTS = {"pull_request", "push", "workflow_dispatch"}
 EXPECTED_VERDICT = "READY_FOR_PHYSICAL_DEVICE_EVIDENCE"
+SESSION_FILE = "session.json"
+BOUND_MANIFEST_FILE = "candidate-manifest.json"
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DIGITS_RE = re.compile(r"^[1-9][0-9]*$")
@@ -168,6 +172,68 @@ def resolve_candidate(
     }
 
 
+def build_session_candidate_context(candidate: dict[str, Any], manifest_path: Path) -> dict[str, Any]:
+    context: dict[str, Any] = {
+        "schemaVersion": 1,
+        "candidateType": candidate["candidateType"],
+        "gitSha": candidate["gitSha"],
+        "apkSha256": candidate["apkSha256"],
+        "releaseEvidenceEligible": True,
+        "readyForDeviceEvidence": True,
+        "verified": False,
+        "verdict": EXPECTED_VERDICT,
+        "manifest": {
+            "fileName": BOUND_MANIFEST_FILE,
+            "sourceFileName": manifest_path.name,
+            "sha256": sha256_file(manifest_path),
+        },
+    }
+    if candidate.get("githubRun") is not None:
+        context["githubRun"] = dict(candidate["githubRun"])
+    return context
+
+
+def bind_candidate_to_session(
+    candidate: dict[str, Any],
+    manifest_path: Path,
+    output_dir: Path,
+    device_evidence: Any,
+) -> dict[str, Any]:
+    session_path = output_dir / SESSION_FILE
+    if not session_path.is_file():
+        raise CandidatePrepareError(f"Device evidence prepare did not produce {session_path}")
+    try:
+        session = json.loads(session_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CandidatePrepareError(f"Device evidence session is not valid JSON: {session_path}: {exc}") from exc
+    if not isinstance(session, dict):
+        raise CandidatePrepareError("Device evidence session root must be a JSON object")
+    if session.get("packageId") != EXPECTED_PACKAGE_ID:
+        raise CandidatePrepareError(f"Prepared session packageId mismatch: {session.get('packageId')!r}")
+    session_apk = session.get("apk")
+    if not isinstance(session_apk, dict):
+        raise CandidatePrepareError("Prepared session is missing APK metadata")
+    if str(session_apk.get("sha256") or "").strip().lower() != candidate["apkSha256"]:
+        raise CandidatePrepareError("Prepared session APK SHA-256 does not match validated candidate")
+    try:
+        session_size = int(session_apk.get("sizeBytes", -1))
+    except (TypeError, ValueError) as exc:
+        raise CandidatePrepareError("Prepared session APK sizeBytes is invalid") from exc
+    if session_size != candidate["sizeBytes"]:
+        raise CandidatePrepareError("Prepared session APK size does not match validated candidate")
+
+    manifest_bytes = manifest_path.read_bytes()
+    bound_manifest = output_dir / BOUND_MANIFEST_FILE
+    bound_manifest.write_bytes(manifest_bytes)
+    context = build_session_candidate_context(candidate, manifest_path)
+    if sha256_file(bound_manifest) != context["manifest"]["sha256"]:
+        raise CandidatePrepareError("Copied candidate manifest SHA-256 does not match source manifest")
+
+    session["candidate"] = context
+    device_evidence.write_json(session_path, session)
+    return context
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Validate an exact local/CI Unity candidate, then prepare its physical-device evidence session."
@@ -212,7 +278,19 @@ def main(argv: list[str] | None = None) -> int:
             child_args.append("--allow-emulator")
         if args.force:
             child_args.append("--force")
-        return int(device_evidence.main(child_args))
+        prepare_code = int(device_evidence.main(child_args))
+        if prepare_code != 0:
+            return prepare_code
+
+        output_dir = Path(args.output).expanduser().resolve()
+        context = bind_candidate_to_session(candidate, manifest_path, output_dir, device_evidence)
+        print(
+            "AFAREET_CANDIDATE_SESSION_BOUND "
+            f"candidateType={context['candidateType']} gitSha={context['gitSha']} "
+            f"apkSha256={context['apkSha256']} manifestSha256={context['manifest']['sha256']} "
+            f"session={output_dir}"
+        )
+        return 0
     except (CandidatePrepareError, OSError, ValueError) as exc:
         print(f"AFAREET_CANDIDATE_DEVICE_PREPARE_ERROR: {exc}", file=sys.stderr)
         return 2
