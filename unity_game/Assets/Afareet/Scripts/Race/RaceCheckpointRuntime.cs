@@ -20,7 +20,7 @@ namespace Afareet.Race
         public void Configure(int checkpointCount, int firstExpectedCheckpointIndex = 0)
         {
             validator = new OrderedCheckpointValidator(checkpointCount, firstExpectedCheckpointIndex);
-            GetComponent<LastCheckpointTracker>()?.ResetValidatedRaceProgress();
+            GetComponent<LastCheckpointTracker>()?.ResetValidatedRaceProgress(firstExpectedCheckpointIndex);
         }
 
         public CheckpointValidationResult TryPassCheckpoint(int checkpointIndex)
@@ -43,7 +43,7 @@ namespace Afareet.Race
                 throw new InvalidOperationException("Checkpoint tracker must be configured before use.");
 
             validator.Reset(firstExpectedCheckpointIndex);
-            GetComponent<LastCheckpointTracker>()?.ResetValidatedRaceProgress();
+            GetComponent<LastCheckpointTracker>()?.ResetValidatedRaceProgress(firstExpectedCheckpointIndex);
         }
     }
 
