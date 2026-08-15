@@ -4,7 +4,8 @@
 Designed for GameCI artifact folders where the exact XML filename may vary.
 The verifier recursively finds XML files, accepts only NUnit <test-run> roots,
 and fails closed unless at least one report exists and every discovered report
-contains at least one passing test, zero failures, and a passing result state.
+contains real passing evidence, zero failures/inconclusive tests, and fully
+accounted result counters.
 """
 
 from __future__ import annotations
@@ -45,6 +46,7 @@ def verify_report(path: Path) -> dict[str, int | str]:
     passed = _as_int(root.attrib.get("passed"), "passed", path)
     failed = _as_int(root.attrib.get("failed"), "failed", path)
     skipped = _as_int(root.attrib.get("skipped"), "skipped", path)
+    inconclusive = _as_int(root.attrib.get("inconclusive"), "inconclusive", path)
     result = (root.attrib.get("result") or "").strip()
 
     if total <= 0:
@@ -53,11 +55,18 @@ def verify_report(path: Path) -> dict[str, int | str]:
         raise TestEvidenceError(f"{path}: contains no passing tests; all-skipped evidence is not release eligible")
     if failed != 0:
         raise TestEvidenceError(f"{path}: contains failed tests: {failed}")
+    if inconclusive != 0:
+        raise TestEvidenceError(f"{path}: contains inconclusive tests: {inconclusive}")
     if result.lower() not in PASS_RESULTS:
         raise TestEvidenceError(f"{path}: result is not passing: {result!r}")
-    if passed < 0 or skipped < 0 or passed + failed + skipped > total:
+    if min(passed, failed, skipped, inconclusive) < 0:
         raise TestEvidenceError(
-            f"{path}: inconsistent counters total={total} passed={passed} failed={failed} skipped={skipped}"
+            f"{path}: counters cannot be negative: total={total} passed={passed} failed={failed} skipped={skipped} inconclusive={inconclusive}"
+        )
+    accounted = passed + failed + skipped + inconclusive
+    if accounted != total:
+        raise TestEvidenceError(
+            f"{path}: counters do not account for every test: total={total} accounted={accounted} passed={passed} failed={failed} skipped={skipped} inconclusive={inconclusive}"
         )
 
     return {
@@ -67,6 +76,7 @@ def verify_report(path: Path) -> dict[str, int | str]:
         "passed": passed,
         "failed": failed,
         "skipped": skipped,
+        "inconclusive": inconclusive,
     }
 
 
