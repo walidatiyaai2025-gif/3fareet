@@ -29,15 +29,42 @@ namespace Afareet.World
             var cyan = RuntimeMaterials.Lit(new Color(.02f, .78f, 1f), .16f, .88f, 3.6f);
             var gold = RuntimeMaterials.Lit(new Color(1f, .5f, .05f), .22f, .88f, 3f);
 
-            BuildSectorBeacon(w0, "ROYAL START", gold, purple, dark);
-            BuildMinarets(w18, dark, purple, cyan, gold);
-            BuildSectorBeacon(w18, "NEON CITY", cyan, purple, dark);
-            BuildDomeGate(w36, dark, purple, cyan, gold);
-            BuildSectorBeacon(w36, "GIZA GOLD", gold, cyan, dark);
-            BuildPyramidPair(w54, dark, purple, gold);
-            BuildSectorBeacon(w54, "SPIRIT RETURN", purple, cyan, dark);
-            BuildBridgeGantry(w66, dark, purple, cyan, gold);
+            var minarets = CairoAuthoredLandmarkKit.TryBuildMinarets(w18, dark, purple, cyan, gold);
+            var dome = CairoAuthoredLandmarkKit.TryBuildDomeGate(w36, dark, purple, cyan, gold);
+            var pyramids = CairoAuthoredLandmarkKit.TryBuildPyramidPair(w54, dark, purple, gold);
+            var bridge = CairoAuthoredLandmarkKit.TryBuildBridgeGantry(w66, dark, purple, cyan, gold);
+
+            if (Application.isEditor)
+            {
+                if (!minarets) BuildMinarets(w18, dark, purple, cyan, gold);
+                if (!dome) BuildDomeGate(w36, dark, purple, cyan, gold);
+                if (!pyramids) BuildPyramidPair(w54, dark, purple, gold);
+                if (!bridge) BuildBridgeGantry(w66, dark, purple, cyan, gold);
+
+                // Sector beacons are retained only as explicit Editor dressing placeholders.
+                BuildSectorBeacon(w0, "ROYAL START", gold, purple, dark);
+                BuildSectorBeacon(w18, "NEON CITY", cyan, purple, dark);
+                BuildSectorBeacon(w36, "GIZA GOLD", gold, cyan, dark);
+                BuildSectorBeacon(w54, "SPIRIT RETURN", purple, cyan, dark);
+            }
+            else
+            {
+                if (!minarets) PlayerAuthoredMissing("minaret-cluster");
+                if (!dome) PlayerAuthoredMissing("dome-gate");
+                if (!pyramids) PlayerAuthoredMissing("pyramid-pair");
+                if (!bridge) PlayerAuthoredMissing("bridge-gantry");
+                Debug.LogWarning("AFAREET_UART007_SECTOR_BEACONS_PENDING_AUTHORED_ART primitive-player-path-disabled");
+            }
+
+            if (minarets && dome && pyramids && bridge)
+                Debug.Log("AFAREET_UART006_PLAYER_AUTHORED_LANDMARK_PASS_ACTIVE sources=4 primitive-landmark-fallback=false");
+
             built = true;
+        }
+
+        private static void PlayerAuthoredMissing(string landmark)
+        {
+            Debug.LogError($"AFAREET_UART006_PLAYER_PRIMITIVE_LANDMARK_FALLBACK_DISABLED landmark={landmark}");
         }
 
         private static Transform FindWaypoint(int index)
@@ -46,9 +73,11 @@ namespace Afareet.World
             return waypoint == null ? null : waypoint.transform;
         }
 
+        // Everything below this line is Editor-only fallback geometry for development.
+        // Player builds never call these helpers.
         private static void BuildMinarets(Transform anchor, Material dark, Material purple, Material cyan, Material gold)
         {
-            var root = Root("Spirit Minaret Cluster", anchor, -anchor.right * 26f + Vector3.up * .2f);
+            var root = Root("DEV Spirit Minaret Cluster", anchor, -anchor.right * 26f + Vector3.up * .2f);
             Tower(root, new Vector3(-6f, 0f, 0f), 11f, dark, purple, gold);
             Tower(root, Vector3.zero, 15f, dark, cyan, gold);
             Tower(root, new Vector3(6f, 0f, 0f), 9f, dark, purple, gold);
@@ -64,7 +93,7 @@ namespace Afareet.World
 
         private static void BuildDomeGate(Transform anchor, Material dark, Material purple, Material cyan, Material gold)
         {
-            var root = Root("Neon Dome Gate", anchor, anchor.right * 24f);
+            var root = Root("DEV Neon Dome Gate", anchor, anchor.right * 24f);
             Part(root, "Gate Left", PrimitiveType.Cube, new Vector3(-5.5f, 3.6f, 0f), new Vector3(1.2f, 7.2f, 1.2f), dark);
             Part(root, "Gate Right", PrimitiveType.Cube, new Vector3(5.5f, 3.6f, 0f), new Vector3(1.2f, 7.2f, 1.2f), dark);
             Part(root, "Gate Beam", PrimitiveType.Cube, new Vector3(0f, 7f, 0f), new Vector3(12f, .7f, 1.2f), gold);
@@ -76,7 +105,7 @@ namespace Afareet.World
 
         private static void BuildPyramidPair(Transform anchor, Material dark, Material purple, Material gold)
         {
-            var root = Root("Pyramid Horizon Pair", anchor, -anchor.right * 40f);
+            var root = Root("DEV Pyramid Horizon Pair", anchor, -anchor.right * 40f);
             Pyramid(root, new Vector3(-9f, 0f, 1.5f), 12f, dark, purple, gold);
             Pyramid(root, new Vector3(8f, 0f, -2f), 8.5f, dark, purple, gold);
         }
@@ -97,7 +126,7 @@ namespace Afareet.World
 
         private static void BuildBridgeGantry(Transform anchor, Material dark, Material purple, Material cyan, Material gold)
         {
-            var root = Root("Cairo Bridge Gantry", anchor, Vector3.zero);
+            var root = Root("DEV Cairo Bridge Gantry", anchor, Vector3.zero);
             Part(root, "Left Tower", PrimitiveType.Cube, new Vector3(-7f, 3.8f, 0f), new Vector3(1.1f, 7.6f, 1.1f), dark);
             Part(root, "Right Tower", PrimitiveType.Cube, new Vector3(7f, 3.8f, 0f), new Vector3(1.1f, 7.6f, 1.1f), dark);
             Part(root, "Bridge Beam", PrimitiveType.Cube, new Vector3(0f, 7f, 0f), new Vector3(15f, .8f, 1.1f), dark);
@@ -108,7 +137,7 @@ namespace Afareet.World
 
         private static void BuildSectorBeacon(Transform anchor, string label, Material primary, Material secondary, Material dark)
         {
-            var root = Root($"Sector Beacon // {label}", anchor, anchor.right * 18f);
+            var root = Root($"DEV Sector Beacon // {label}", anchor, anchor.right * 18f);
             Part(root, "Sector Mast", PrimitiveType.Cube, new Vector3(0f, 2.4f, 0f), new Vector3(.32f, 4.8f, .32f), dark);
             Part(root, "Primary Blade", PrimitiveType.Cube, new Vector3(-.55f, 4f, 0f), new Vector3(.16f, 2.4f, .42f), primary, Quaternion.Euler(0f, 0f, -11f));
             Part(root, "Secondary Blade", PrimitiveType.Cube, new Vector3(.55f, 4f, 0f), new Vector3(.16f, 2.4f, .42f), secondary, Quaternion.Euler(0f, 0f, 11f));
