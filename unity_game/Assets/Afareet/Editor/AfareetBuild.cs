@@ -59,6 +59,8 @@ namespace Afareet.Editor
         internal static void PrepareProject()
         {
             AfareetAssetSetup.EnsureConfigAssets();
+            P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow();
+
             PlayerSettings.companyName = "Afareet Studio";
             PlayerSettings.productName = "Afareet Asphalt Unity3D";
             PlayerSettings.SetApplicationIdentifier(
