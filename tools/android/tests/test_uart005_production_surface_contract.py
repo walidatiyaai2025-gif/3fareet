@@ -242,9 +242,9 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
             "AFAREET_UART005_PLAYER_PRIMITIVE_RAIL_FALLBACK_DISABLED",
             "AFAREET_UART005_PLAYER_PRIMITIVE_BUILDING_FALLBACK_DISABLED",
             "AFAREET_UART005_PLAYER_PRIMITIVE_LAMP_FALLBACK_DISABLED",
+            "if (!Application.isEditor)",
         ):
             self.assertIn(required, text)
-        self.assertIn("#if UNITY_EDITOR", text)
 
     def test_manifest_stays_blocked_after_ten_source_surface_completion(self):
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
