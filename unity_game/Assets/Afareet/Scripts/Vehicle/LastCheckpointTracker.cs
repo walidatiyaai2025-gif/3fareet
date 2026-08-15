@@ -10,9 +10,11 @@ namespace Afareet.Vehicle
 
         private readonly List<Transform> waypoints = new();
         private Transform lastCheckpoint;
+        private int lastCheckpointIndex = -1;
         private float nextSample;
 
         public bool HasCheckpoint => lastCheckpoint != null;
+        public int LastCheckpointIndex => lastCheckpointIndex;
         public Vector3 Position => lastCheckpoint == null ? transform.position : lastCheckpoint.position;
         public Quaternion Rotation => lastCheckpoint == null ? transform.rotation : lastCheckpoint.rotation;
         public Vector3 RecoveryPosition => lastCheckpoint == null
@@ -36,20 +38,32 @@ namespace Afareet.Vehicle
             if (Vector3.Dot(transform.up, Vector3.up) < .55f) return;
 
             Transform nearest = null;
+            var nearestIndex = -1;
             var nearestDistance = float.MaxValue;
-            foreach (var waypoint in waypoints)
+            for (var index = 0; index < waypoints.Count; index++)
             {
+                if (!VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(
+                        lastCheckpointIndex,
+                        index,
+                        waypoints.Count))
+                    continue;
+
+                var waypoint = waypoints[index];
                 if (Vector3.Dot(transform.forward, waypoint.forward) < MinimumForwardAlignment)
                     continue;
 
                 var distance = (waypoint.position - transform.position).sqrMagnitude;
                 if (distance >= nearestDistance) continue;
                 nearest = waypoint;
+                nearestIndex = index;
                 nearestDistance = distance;
             }
 
             if (nearest != null && nearestDistance <= MaximumCaptureDistanceSqr)
+            {
                 lastCheckpoint = nearest;
+                lastCheckpointIndex = nearestIndex;
+            }
         }
 
         private void DiscoverWaypoints()
