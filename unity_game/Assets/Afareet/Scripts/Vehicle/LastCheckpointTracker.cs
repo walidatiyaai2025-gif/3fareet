@@ -12,9 +12,11 @@ namespace Afareet.Vehicle
         private Transform lastCheckpoint;
         private int lastCheckpointIndex = -1;
         private float nextSample;
+        private bool hasValidatedRaceCheckpointFeed;
 
         public bool HasCheckpoint => lastCheckpoint != null;
         public int LastCheckpointIndex => lastCheckpointIndex;
+        public bool HasValidatedRaceCheckpointFeed => hasValidatedRaceCheckpointFeed;
         public Vector3 Position => lastCheckpoint == null ? transform.position : lastCheckpoint.position;
         public Quaternion Rotation => lastCheckpoint == null ? transform.rotation : lastCheckpoint.rotation;
         public Vector3 RecoveryPosition => lastCheckpoint == null
@@ -30,8 +32,33 @@ namespace Afareet.Vehicle
             host.AddComponent<Installer>();
         }
 
+        public void AcceptValidatedRaceCheckpoint(int checkpointIndex, Transform checkpoint)
+        {
+            if (checkpointIndex < 0)
+                throw new System.ArgumentOutOfRangeException(nameof(checkpointIndex));
+            if (checkpoint == null)
+                throw new System.ArgumentNullException(nameof(checkpoint));
+
+            lastCheckpoint = checkpoint;
+            lastCheckpointIndex = checkpointIndex;
+            hasValidatedRaceCheckpointFeed = true;
+        }
+
+        public void ResetValidatedRaceProgress()
+        {
+            lastCheckpoint = null;
+            lastCheckpointIndex = -1;
+            hasValidatedRaceCheckpointFeed = false;
+            nextSample = 0f;
+        }
+
         private void Update()
         {
+            // Once the ordered Race checkpoint system has supplied a checkpoint, it is the
+            // authoritative recovery source. Nearest-waypoint sampling remains only a startup
+            // fallback before the first accepted checkpoint (and after a race restart reset).
+            if (hasValidatedRaceCheckpointFeed) return;
+
             if (waypoints.Count == 0) DiscoverWaypoints();
             if (waypoints.Count == 0 || Time.time < nextSample) return;
             nextSample = Time.time + .25f;
