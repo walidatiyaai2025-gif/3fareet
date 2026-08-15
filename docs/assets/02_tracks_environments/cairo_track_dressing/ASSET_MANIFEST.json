@@ -13,12 +13,16 @@
   "targetRuntimePath": "unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated",
   "stagingAdapter": "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingAssetStager.cs",
   "runtimeAdapter": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressing.cs",
+  "runtimePass": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressingRuntimePass.cs",
+  "androidGate": "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingBuildGate.cs",
   "modules": [
     {
       "model": "SM_Track_FinishGate_A.obj",
       "resourcePath": "Art/TracksEnvironments/CairoTrackDressing/Generated/SM_Track_FinishGate_A",
       "role": "authored start/finish landmark",
-      "status": "authored-source-candidate"
+      "status": "authored-source-candidate",
+      "productionMinVertices": 100,
+      "productionMinTriangles": 150
     },
     {
       "model": "SM_Track_SpiritRune_A.obj",
@@ -26,22 +30,46 @@
       "role": "authored asphalt spirit rune",
       "status": "authored-source-candidate",
       "currentVertices": 34,
-      "currentTriangles": 64
+      "currentTriangles": 64,
+      "productionMinVertices": 30,
+      "productionMinTriangles": 50
+    },
+    {
+      "model": "SM_Track_DesertGround_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoTrackDressing/Generated/SM_Track_DesertGround_A",
+      "role": "authored desert ground surface and dune silhouettes",
+      "status": "authored-source-candidate",
+      "currentVertices": 163,
+      "currentTriangles": 256,
+      "productionMinVertices": 140,
+      "productionMinTriangles": 220
+    },
+    {
+      "model": "SM_Track_SectorBeacon_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoTrackDressing/Generated/SM_Track_SectorBeacon_A",
+      "role": "authored neon sector beacon / track landmark dressing",
+      "status": "authored-source-candidate",
+      "currentVertices": 92,
+      "currentTriangles": 156,
+      "productionMinVertices": 80,
+      "productionMinTriangles": 130
     }
   ],
   "runtimeReplacementStatus": {
+    "authoredGround": "implemented-unverified",
     "authoredFinishGate": "implemented-unverified",
     "authoredRoadRunes": "implemented-unverified",
+    "authoredSectorBeacons": "implemented-unverified",
+    "primitiveGroundFallbackInPlayer": false,
     "primitiveFinishFallbackInPlayer": false,
     "primitiveRuneFallbackInPlayer": false,
-    "trackLevelProceduralPyramidsInPlayer": false,
-    "sectorBeaconsPendingAuthoredReplacement": true
+    "primitiveSectorBeaconFallbackInPlayer": false,
+    "trackLevelProceduralPyramidsInPlayer": false
   },
   "acceptancePending": [
-    "licensed Unity compile/import proof",
+    "licensed Unity compile/import/render proof for all four dressing Resources",
     "final material/UV/texture pass",
-    "authored sector-beacon replacement",
-    "additional track dressing/signage/decals",
+    "additional track signage/decals/roadside dressing",
     "exact Android in-race screenshot/video proof",
     "owner/Art Director Visual Gate acceptance"
   ]
