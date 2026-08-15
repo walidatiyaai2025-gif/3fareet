@@ -32,6 +32,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         self.assertIn("RivalProductionPolicy.VariantCount", text)
         self.assertIn("RivalProductionPolicy.AssetPath", text)
         self.assertIn("ValidateProductionPrefab", text)
+        self.assertIn("missing-external-authored-prefab", text)
         self.assertIn("AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED", text)
         self.assertIn("AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK", text)
         self.assertIn("external-authored-3d", text)
@@ -60,7 +61,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
 
-    def test_tracked_design_pack_has_three_distinct_non_blockout_profiles(self):
+    def test_tracked_design_pack_is_brief_not_production_provenance(self):
         path = REPO_ROOT / "docs/assets/01_vehicles/rival_cars_production/RIVAL_DESIGN_PROFILES.json"
         pack = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(pack["reviewState"], "BLOCKED_PENDING_UNITY_APK_VISUAL_PROOF")
@@ -70,32 +71,18 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         self.assertEqual(len(pack["lodTopology"]), 3)
         self.assertTrue(pack["productionIntent"]["preserveExistingPhysics"])
         self.assertFalse(pack["productionIntent"]["playerPrimitiveFallbackAllowed"])
-        for variant in pack["variants"]:
-            self.assertGreater(variant["length"], 4.0)
-            self.assertGreater(variant["width"], 1.7)
-            self.assertGreater(variant["bodyHeight"], 0.5)
 
-    def test_builder_creates_real_mesh_domains_but_is_not_external_model_provenance(self):
-        text = self._read("unity_game/Assets/Afareet/Editor/RivalProductionAssetBuilder.cs")
-        for required in (
-            "BuildBody",
-            "BuildCabin",
-            "BuildWheels",
-            "BuildAeroAndIdentity",
-            "SetUVs",
-            "SetNormals",
-            "CreateTextureMap",
-            "PrefabUtility.SaveAsPrefabAsset",
-            "RIVAL_DESIGN_PROFILES.json",
-        ):
-            self.assertIn(required, text)
-        self.assertNotIn("GameObject.CreatePrimitive", text)
+        readme = self._read("docs/assets/01_vehicles/rival_cars_production/README.md")
+        self.assertIn("design/LOD-budget brief", readme)
+        self.assertIn("not production provenance", readme)
+        self.assertIn("externally authored model", readme)
+        self.assertIn("does **not** synthesize production art", readme)
 
-        policy = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
-        self.assertIn("IsSupportedAuthoredModelSource(sourceAssetId)", policy)
-        # The generator supplies a profile id / JSON fingerprint, not an FBX/OBJ/BLEND/GLB/GLTF path.
-        # It can remain a useful geometry preview/candidate but cannot self-qualify as accepted production provenance.
-        self.assertIn("profile.id", text)
+    def test_code_generated_production_builder_is_not_present(self):
+        self.assertFalse(
+            (REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionAssetBuilder.cs").exists(),
+            "UART-004 must not ship a code-generated mesh builder as production provenance",
+        )
 
     def test_generated_rival_resources_are_ignored_not_committed_as_stale_truth(self):
         ignore = self._read(".gitignore")
