@@ -40,6 +40,19 @@ namespace Afareet.Tests
         }
 
         [Test]
+        public void RecoveryCheckpointProgress_AllowsOnlyShortForwardWindowIncludingLapWrap()
+        {
+            const int checkpointCount = 72;
+
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(-1, 41, checkpointCount), Is.True);
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(10, 10, checkpointCount), Is.True);
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(10, 14, checkpointCount), Is.True);
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(10, 15, checkpointCount), Is.False);
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(70, 1, checkpointCount), Is.True);
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(70, 8, checkpointCount), Is.False);
+        }
+
+        [Test]
         public void SafeRecoveryPosition_AddsCenterlineClearanceInTrackFrame()
         {
             var center = new Vector3(10f, 0f, 20f);
