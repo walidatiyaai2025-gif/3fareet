@@ -23,6 +23,17 @@ namespace Afareet.Tests
         }
 
         [Test]
+        public void AuthoredSourceMustBeAUnityProjectModelAssetPath()
+        {
+            Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01.fbx"), Is.True);
+            Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02.OBJ"), Is.True);
+            Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("Rival_01.fbx"), Is.False);
+            Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("../Rival_01.fbx"), Is.False);
+            Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("docs/assets/Rival_01.fbx"), Is.False);
+            Assert.That(RivalProductionPolicy.IsSupportedAuthoredModelSource("Assets/Afareet/Rival_01.prefab"), Is.False);
+        }
+
+        [Test]
         public void SurfaceAuthoringIsMandatoryEvenAtValidTriangleCount()
         {
             Assert.That(RivalProductionPolicy.MeetsProductionFloor(0, 4000, false, true, true), Is.False);
