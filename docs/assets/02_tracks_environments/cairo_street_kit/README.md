@@ -1,11 +1,25 @@
 # Cairo Modular Street Kit — UART-005
 
-Small P1 street-kit handoff following UART-001 conventions.
+## Current status: BLOCKED
 
-- `source/`: editable meter-scale OBJ blockouts with snap/contact pivot at the origin.
-- runtime target: `unity_game/Assets/Afareet/Art/TracksEnvironments/CairoStreetKit/`.
-- shared atlas: four 128×128 logical tiles inside one 256×256 base-color texture.
-- modules: facade, awning, lamp and barrier.
-- all assets are original project-generated work.
+The committed `source/` OBJ files are **blockout geometry only**. They exist for scale, snapping, collision/layout prototyping and must not be presented as production Cairo art.
 
-Promotion remains `IN REVIEW` until Unity import and Android Visual Gate evidence exist.
+Owner visual rejection #128 supersedes the former `IN REVIEW` promotion. The current facade is an 8-vertex rectangular box; the other modules are similarly minimal blockouts. The existing runtime prefabs also use built-in Unity primitive meshes rather than accepted authored production geometry.
+
+## Production replacement contract
+
+The replacement pack must preserve meter scale and snap/contact pivots while supplying real authored 3D for:
+
+- asphalt road, curb, edge and barrier modules;
+- multiple Cairo facade/building/storefront variants;
+- awnings, lamps, signs and roadside props;
+- authored material detail appropriate to the final visual direction;
+- mobile LODs/collision and deterministic Unity prefab packaging.
+
+`ASSET_MANIFEST.json` defines minimum anti-blockout geometry floors and semantic detail requirements. Those automated floors are **necessary but not sufficient**: polygon counts cannot prove visual quality. `UPER-009` still requires exact-build screenshot/video review and explicit owner/Art Director acceptance.
+
+## Candidate policy
+
+- Procedural/blockout Cairo is allowed only for Editor/development iteration.
+- A candidate/release Android build must fail closed while this manifest remains `BLOCKED`, while source geometry is under the anti-blockout floors, or while runtime prefabs still reference Unity built-in meshes.
+- `UART-005` cannot return to `IN REVIEW` until real authored production source is committed and used by the runtime world.
