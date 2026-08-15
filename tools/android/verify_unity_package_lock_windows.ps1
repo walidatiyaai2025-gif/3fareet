@@ -46,11 +46,16 @@ function Get-PropertyValue($Object, [string]$Name) {
     return $property.Value
 }
 
+function Get-PropertyCount($Object) {
+    if ($null -eq $Object) { return 0 }
+    return @($Object.PSObject.Properties).Count
+}
+
 function Convert-ObjectMap($Object) {
     $map = @{}
     if ($null -eq $Object) { return $map }
-    foreach ($property in $Object.PSObject.Properties) {
-        $map[$property.Name] = [string]$property.Value
+    foreach ($property in @($Object.PSObject.Properties)) {
+        $map[[string]$property.Name] = [string]$property.Value
     }
     return $map
 }
@@ -75,15 +80,17 @@ $manifest = Read-JsonObject -Path $ManifestPath -Label 'manifest'
 $lock = Read-JsonObject -Path $LockPath -Label 'package lock'
 $manifestDeps = Get-PropertyValue $manifest 'dependencies'
 $lockDeps = Get-PropertyValue $lock 'dependencies'
-if ($null -eq $manifestDeps -or $manifestDeps.PSObject.Properties.Count -eq 0) {
+$manifestDependencyCount = Get-PropertyCount $manifestDeps
+$lockDependencyCount = Get-PropertyCount $lockDeps
+if ($manifestDependencyCount -eq 0) {
     Fail "manifest dependencies must be a non-empty object"
 }
-if ($null -eq $lockDeps -or $lockDeps.PSObject.Properties.Count -eq 0) {
+if ($lockDependencyCount -eq 0) {
     Fail "package lock dependencies must be a non-empty object"
 }
 
 $checked = New-Object System.Collections.Generic.List[string]
-foreach ($manifestProperty in $manifestDeps.PSObject.Properties) {
+foreach ($manifestProperty in @($manifestDeps.PSObject.Properties)) {
     $package = [string]$manifestProperty.Name
     $expectedVersion = [string]$manifestProperty.Value
     $entry = Get-PropertyValue $lockDeps $package
@@ -107,7 +114,8 @@ foreach ($manifestProperty in $manifestDeps.PSObject.Properties) {
         if ($actualChildren.Count -ne $expectedChildren.Count) {
             Fail "known dependency contract mismatch for ${package}: expectedChildren=$($expectedChildren.Count) actualChildren=$($actualChildren.Count)"
         }
-        foreach ($childPackage in $expectedChildren.Keys) {
+        foreach ($childPackage in @($expectedChildren.Keys)) {
+            $childPackage = [string]$childPackage
             $childVersion = [string]$expectedChildren[$childPackage]
             if (-not $actualChildren.ContainsKey($childPackage) -or $actualChildren[$childPackage] -ne $childVersion) {
                 $actualChildVersion = if ($actualChildren.ContainsKey($childPackage)) { $actualChildren[$childPackage] } else { '<missing>' }
@@ -128,4 +136,4 @@ foreach ($manifestProperty in $manifestDeps.PSObject.Properties) {
     $checked.Add($package)
 }
 
-Write-Host "AFAREET_UNITY_PACKAGE_LOCK_OK directDependencies=$($checked.Count) packages=$($checked -join ',') verifier=windows-powershell"
+Write-Host "AFAREET_UNITY_PACKAGE_LOCK_OK directDependencies=$($checked.Count) lockEntries=$lockDependencyCount packages=$($checked -join ',') verifier=windows-powershell"
