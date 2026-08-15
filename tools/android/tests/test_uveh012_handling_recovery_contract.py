@@ -34,7 +34,7 @@ class Uveh012HandlingRecoveryContractTests(unittest.TestCase):
         self.assertIn("VehicleRecoveryPolicy.AdvanceStuckTimer", controller)
         self.assertIn("VehicleRecoveryPolicy.ShouldAutoRecover", controller)
         self.assertIn('RecoverToTrack("auto-stuck")', controller)
-        self.assertIn("else\n            {\n                // Never carry a partially accumulated stuck timer", controller)
+        self.assertIn("Never carry a partially accumulated stuck timer", controller)
         self.assertIn("stuckDriveSeconds = 0f;", controller)
 
     def test_recovery_checkpoint_cannot_jump_to_unrelated_track_sector(self):
@@ -47,6 +47,23 @@ class Uveh012HandlingRecoveryContractTests(unittest.TestCase):
         self.assertIn("VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed", checkpoint)
         self.assertIn("lastCheckpointIndex = nearestIndex", checkpoint)
         self.assertNotIn("foreach (var waypoint in waypoints)", checkpoint)
+
+    def test_ordered_race_checkpoint_feed_becomes_authoritative_for_recovery(self):
+        checkpoint = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/LastCheckpointTracker.cs")
+        race_runtime = self._read("unity_game/Assets/Afareet/Scripts/Race/RaceCheckpointRuntime.cs")
+        race_asmdef = self._read("unity_game/Assets/Afareet/Scripts/Race/Afareet.Race.asmdef")
+
+        self.assertIn('"Afareet.Vehicle"', race_asmdef)
+        self.assertIn("AcceptValidatedRaceCheckpoint", checkpoint)
+        self.assertIn("ResetValidatedRaceProgress", checkpoint)
+        self.assertIn("hasValidatedRaceCheckpointFeed", checkpoint)
+        self.assertIn("if (hasValidatedRaceCheckpointFeed) return;", checkpoint)
+
+        self.assertIn("using Afareet.Vehicle;", race_runtime)
+        self.assertIn("var result = tracker.TryPassCheckpoint(checkpointIndex);", race_runtime)
+        self.assertIn("result != CheckpointValidationResult.Accepted", race_runtime)
+        self.assertIn("recovery.AcceptValidatedRaceCheckpoint(checkpointIndex, transform);", race_runtime)
+        self.assertIn("GetComponent<LastCheckpointTracker>()?.ResetValidatedRaceProgress();", race_runtime)
 
     def test_recovery_uses_safe_checkpoint_clearance_input_lock_and_rigidbody_pose(self):
         recovery = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/VehicleRecoveryPolicy.cs")
