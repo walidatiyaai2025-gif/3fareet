@@ -69,6 +69,7 @@ import sys
 out, package_id, abi, sha256, size_bytes = sys.argv[1:]
 payload = {
     "schemaVersion": 1,
+    "source": "github-actions-unity-production-ci",
     "artifact": "afareet-unity3d-debug.apk",
     "packageId": package_id,
     "minSdk": 26,
@@ -78,10 +79,14 @@ payload = {
     "gitSha": os.environ.get("GITHUB_SHA", ""),
     "runId": os.environ.get("GITHUB_RUN_ID", ""),
     "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
+    "repository": os.environ.get("GITHUB_REPOSITORY", ""),
+    "workflow": os.environ.get("GITHUB_WORKFLOW", ""),
+    "eventName": os.environ.get("GITHUB_EVENT_NAME", ""),
+    "ref": os.environ.get("GITHUB_REF", ""),
 }
 with open(out, "w", encoding="utf-8") as fh:
     json.dump(payload, fh, indent=2, sort_keys=True)
     fh.write("\n")
 PY
 
-echo "AFAREET_ANDROID_ARTIFACT_OK package=$EXPECTED_PACKAGE abi=$EXPECTED_ABI sha256=$SHA256 size=$SIZE_BYTES"
+echo "AFAREET_ANDROID_ARTIFACT_OK source=github-actions-unity-production-ci package=$EXPECTED_PACKAGE abi=$EXPECTED_ABI sha256=$SHA256 size=$SIZE_BYTES"
