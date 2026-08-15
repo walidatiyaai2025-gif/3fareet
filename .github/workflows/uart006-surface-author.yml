@@ -34,19 +34,14 @@ jobs:
           ROOT="docs/assets/03_props_architecture/cairo_landmarks/source"
           TOOL="tools/android/surface_obj_candidate.py"
 
-          if ! grep -q '^mtllib SM_Landmark_DomeGate_A.mtl$' "$ROOT/SM_Landmark_DomeGate_A.obj"; then
-            python "$TOOL" "$ROOT/SM_Landmark_DomeGate_A.obj" \
-              --material-file SM_Landmark_DomeGate_A.mtl \
-              --material DomeGate_Stone \
-              --write
-          fi
-
-          if ! grep -q '^mtllib SM_Landmark_BridgeGantry_A.mtl$' "$ROOT/SM_Landmark_BridgeGantry_A.obj"; then
-            python "$TOOL" "$ROOT/SM_Landmark_BridgeGantry_A.obj" \
-              --material-file SM_Landmark_BridgeGantry_A.mtl \
-              --material BridgeGantry_Metal \
-              --write
-          fi
+          python "$TOOL" "$ROOT/SM_Landmark_DomeGate_A.obj" \
+            --material-file SM_Landmark_DomeGate_A.mtl \
+            --material DomeGate_Stone \
+            --write
+          python "$TOOL" "$ROOT/SM_Landmark_BridgeGantry_A.obj" \
+            --material-file SM_Landmark_BridgeGantry_A.mtl \
+            --material BridgeGantry_Metal \
+            --write
 
           cat > "$ROOT/SM_Landmark_DomeGate_A.mtl" <<'EOF'
           # UART-006 authored-source candidate material
@@ -105,9 +100,14 @@ jobs:
 
           manifest_path = Path('docs/assets/03_props_architecture/cairo_landmarks/ASSET_MANIFEST.json')
           manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-          surfaced = {'SM_Landmark_DomeGate_A.obj', 'SM_Landmark_BridgeGantry_A.obj'}
           for module in manifest['modules']:
-              if module['model'] in surfaced:
+              if module['model'] == 'SM_Landmark_DomeGate_A.obj':
+                  module['currentVertices'] = 474
+                  module['currentTriangles'] = 738
+                  module['surfaceAuthoring'] = 'tracked-uv-normal-mtl-texture-candidate'
+              elif module['model'] == 'SM_Landmark_BridgeGantry_A.obj':
+                  module['currentVertices'] = 248
+                  module['currentTriangles'] = 328
                   module['surfaceAuthoring'] = 'tracked-uv-normal-mtl-texture-candidate'
           manifest['acceptancePending'] = [
               item for item in manifest['acceptancePending']
@@ -115,8 +115,8 @@ jobs:
           ]
           manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 
-          test_path = Path('tools/android/tests/test_cairo_authored_landmark_contract.py')
-          text = test_path.read_text(encoding='utf-8')
+          contract_path = Path('tools/android/tests/test_cairo_authored_landmark_contract.py')
+          text = contract_path.read_text(encoding='utf-8')
           old_surface = '''SURFACED = (
               ("SM_Landmark_GizaPyramid_A.obj", "SM_Landmark_GizaPyramid_A.mtl", "Giza_Stone", "T_Landmark_GizaPyramid_BC.png"),
               ("SM_Landmark_Minaret_A.obj", "SM_Landmark_Minaret_A.mtl", "Minaret_Stone", "T_Landmark_Minaret_BC.png"),
@@ -127,11 +127,9 @@ jobs:
               ("SM_Landmark_DomeGate_A.obj", "SM_Landmark_DomeGate_A.mtl", "DomeGate_Stone", "T_Landmark_DomeGate_BC.png"),
               ("SM_Landmark_BridgeGantry_A.obj", "SM_Landmark_BridgeGantry_A.mtl", "BridgeGantry_Metal", "T_Landmark_BridgeGantry_BC.png"),
           )'''
-          if old_surface in text:
-              text = text.replace(old_surface, new_surface)
-          elif 'SM_Landmark_BridgeGantry_A.mtl' not in text:
+          if old_surface not in text:
               raise SystemExit('SURFACED tuple changed unexpectedly; refusing blind rewrite')
-
+          text = text.replace(old_surface, new_surface)
           text = text.replace(
               'def test_giza_and_minaret_have_tracked_surface_chains_but_package_is_two_of_four(self):',
               'def test_all_four_landmarks_have_tracked_surface_chains(self):'
@@ -141,12 +139,15 @@ jobs:
                   self.assertNotIn("\\nmtllib ", "\\n" + dome)
                   self.assertNotIn("\\nvn ", "\\n" + dome)
           '''
-          text = text.replace(old_dome_guard, '''
-                  self.assertEqual(497, vertex_count(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj"))
-                  self.assertEqual(696, triangle_count(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj"))
+          new_dome_assertions = '''
+                  self.assertEqual(474, vertex_count(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj"))
+                  self.assertEqual(738, triangle_count(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj"))
                   self.assertEqual(248, vertex_count(SOURCE_ROOT / "SM_Landmark_BridgeGantry_A.obj"))
                   self.assertEqual(328, triangle_count(SOURCE_ROOT / "SM_Landmark_BridgeGantry_A.obj"))
-          ''')
+          '''
+          if old_dome_guard not in text:
+              raise SystemExit('Dome unsurfaced guard changed unexpectedly; refusing blind rewrite')
+          text = text.replace(old_dome_guard, new_dome_assertions)
           text = text.replace(
               'self.assertEqual(2, sum(module.get("surfaceAuthoring") == "tracked-uv-normal-mtl-texture-candidate" for module in manifest["modules"]))',
               'self.assertEqual(4, sum(module.get("surfaceAuthoring") == "tracked-uv-normal-mtl-texture-candidate" for module in manifest["modules"]))'
@@ -155,7 +156,37 @@ jobs:
               'self.assertEqual(2, sum(module.get("surfaceAuthoring") == "pending" for module in manifest["modules"]))',
               'self.assertEqual(0, sum(module.get("surfaceAuthoring") == "pending" for module in manifest["modules"]))'
           )
-          test_path.write_text(text, encoding='utf-8', newline='\n')
+          contract_path.write_text(text, encoding='utf-8', newline='\n')
+
+          helper_test_path = Path('tools/android/tests/test_surface_obj_candidate.py')
+          helper = helper_test_path.read_text(encoding='utf-8')
+          old_helper = '''    def test_current_dome_and_bridge_are_detected_as_unsurfaced_not_promoted(self):
+                  source_root = REPO_ROOT / "docs/assets/03_props_architecture/cairo_landmarks/source"
+                  for name in ("SM_Landmark_DomeGate_A.obj", "SM_Landmark_BridgeGantry_A.obj"):
+                      text = (source_root / name).read_text(encoding="utf-8")
+                      geometry = TOOL.parse_obj(text)
+                      self.assertGreater(len(geometry.vertices), 0)
+                      self.assertGreater(TOOL.triangle_count(geometry.faces), 50)
+                      self.assertFalse(any(line.startswith("vt ") for line in text.splitlines()), name)
+                      self.assertFalse(any(line.startswith("vn ") for line in text.splitlines()), name)
+          '''
+          new_helper = '''    def test_current_dome_and_bridge_are_surfaced_without_topology_loss(self):
+                  source_root = REPO_ROOT / "docs/assets/03_props_architecture/cairo_landmarks/source"
+                  cases = (
+                      ("SM_Landmark_DomeGate_A.obj", "SM_Landmark_DomeGate_A.mtl", "DomeGate_Stone", 474, 738),
+                      ("SM_Landmark_BridgeGantry_A.obj", "SM_Landmark_BridgeGantry_A.mtl", "BridgeGantry_Metal", 248, 328),
+                  )
+                  for name, mtl_file, material, expected_vertices, expected_triangles in cases:
+                      text = (source_root / name).read_text(encoding="utf-8")
+                      TOOL.assert_surface_contract(text, material_file=mtl_file, material_name=material)
+                      geometry = TOOL.parse_obj(text)
+                      self.assertEqual(expected_vertices, len(geometry.vertices), name)
+                      self.assertEqual(expected_triangles, TOOL.triangle_count(geometry.faces), name)
+          '''
+          if old_helper not in helper:
+              raise SystemExit('surface helper repository-state test changed unexpectedly; refusing blind rewrite')
+          helper = helper.replace(old_helper, new_helper)
+          helper_test_path.write_text(helper, encoding='utf-8', newline='\n')
           PY
 
           python "$TOOL" "$ROOT/SM_Landmark_DomeGate_A.obj" \
@@ -185,7 +216,8 @@ jobs:
             docs/assets/03_props_architecture/cairo_landmarks/source/SM_Landmark_BridgeGantry_A.obj \
             docs/assets/03_props_architecture/cairo_landmarks/source/SM_Landmark_BridgeGantry_A.mtl \
             docs/assets/03_props_architecture/cairo_landmarks/source/T_Landmark_BridgeGantry_BC.png \
-            tools/android/tests/test_cairo_authored_landmark_contract.py
+            tools/android/tests/test_cairo_authored_landmark_contract.py \
+            tools/android/tests/test_surface_obj_candidate.py
           git status --short
           git commit -m "UART-006: surface Dome Gate and Bridge Gantry"
           git push origin HEAD:agent/uart-006-authored-landmarks
