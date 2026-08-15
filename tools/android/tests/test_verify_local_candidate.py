@@ -30,6 +30,7 @@ def base_test_metadata():
             "passed": 12,
             "failed": 0,
             "skipped": 0,
+            "inconclusive": 0,
         },
         "playMode": {
             "result": "Passed",
@@ -37,6 +38,7 @@ def base_test_metadata():
             "passed": 5,
             "failed": 0,
             "skipped": 0,
+            "inconclusive": 0,
         },
     }
 
@@ -125,6 +127,23 @@ class VerifyLocalCandidateTests(unittest.TestCase):
             tests["playMode"]["skipped"] = tests["playMode"]["total"]
             tests["playMode"]["result"] = "Passed"
             with self.assertRaisesRegex(CandidateError, "no passing tests"):
+                verify_candidate(tests, build_metadata_for(apk), apk)
+
+    def test_rejects_inconclusive_unity_test_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = self.make_apk(tmp)
+            tests = base_test_metadata()
+            tests["playMode"]["passed"] = 4
+            tests["playMode"]["inconclusive"] = 1
+            with self.assertRaisesRegex(CandidateError, "inconclusive tests"):
+                verify_candidate(tests, build_metadata_for(apk), apk)
+
+    def test_rejects_unaccounted_unity_test_counter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = self.make_apk(tmp)
+            tests = base_test_metadata()
+            tests["editMode"]["passed"] = 11
+            with self.assertRaisesRegex(CandidateError, "do not account for every test"):
                 verify_candidate(tests, build_metadata_for(apk), apk)
 
 
