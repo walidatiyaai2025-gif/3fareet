@@ -24,7 +24,8 @@
     "surfaceContractTestsPassed": true,
     "gitDiffCheckPassed": true
   },
-  "finishGateTopologyRepair": {
+  "finishGateTopologyRepair": "malformed-arch-rebuilt-pylon-trim-preserved",
+  "finishGateTopologyRepairEvidence": {
     "reason": "original source had 235 vertices but face references reached 251 after a truncated Arch section",
     "method": "preserved pylon/trim v1-v160; rebuilt malformed Arch/Crest/Spirit/Gold tail",
     "resultVertices": 286,
