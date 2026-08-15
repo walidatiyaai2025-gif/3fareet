@@ -11,8 +11,18 @@ namespace Afareet.World
     public static class CairoAuthoredStreetKit
     {
         private const string ResourceRoot = "Art/TracksEnvironments/CairoStreetKit/Generated";
-        private const string FacadePath = ResourceRoot + "/SM_Env_CairoFacade_A";
-        private const string AwningPath = ResourceRoot + "/SM_Env_CairoAwning_A";
+        private static readonly string[] FacadePaths =
+        {
+            ResourceRoot + "/SM_Env_CairoFacade_A",
+            ResourceRoot + "/SM_Env_CairoFacade_B",
+            ResourceRoot + "/SM_Env_CairoFacade_C"
+        };
+        private static readonly string[] AwningPaths =
+        {
+            ResourceRoot + "/SM_Env_CairoAwning_A",
+            ResourceRoot + "/SM_Env_CairoAwning_B"
+        };
+        private const string SignPath = ResourceRoot + "/SM_Prop_CairoSign_A";
         private const string LampPath = ResourceRoot + "/SM_Prop_CairoLamp_A";
         private const string BarrierPath = ResourceRoot + "/SM_Prop_CairoBarrier_A";
         private const string RoadPath = ResourceRoot + "/SM_Track_CairoRoad_A";
@@ -21,6 +31,7 @@ namespace Afareet.World
 
         private static bool activationLogged;
         private static bool roadActivationLogged;
+        private static bool buildingVariantActivationLogged;
         private static bool editorMaterialOverrideLogged;
 
         public static bool TryCreateRoadSegment(
@@ -89,14 +100,23 @@ namespace Afareet.World
             Material facadeMaterial,
             Material accentMaterial)
         {
-            var facade = Resources.Load<GameObject>(FacadePath);
-            if (facade == null)
+            var facadeVariant = StableVariantIndex(groundPosition, width, height, FacadePaths.Length, 17);
+            var awningVariant = StableVariantIndex(groundPosition, width, height, AwningPaths.Length, 31);
+            var facadePath = FacadePaths[facadeVariant];
+            var awningPath = AwningPaths[awningVariant];
+
+            var facade = Resources.Load<GameObject>(facadePath);
+            var awning = Resources.Load<GameObject>(awningPath);
+            var sign = Resources.Load<GameObject>(SignPath);
+            if (facade == null || awning == null || sign == null)
             {
-                Missing(FacadePath);
+                if (facade == null) Missing(facadePath);
+                if (awning == null) Missing(awningPath);
+                if (sign == null) Missing(SignPath);
                 return false;
             }
 
-            var root = new GameObject("AUTHORED CAIRO BUILDING").transform;
+            var root = new GameObject($"AUTHORED CAIRO BUILDING F{facadeVariant + 1} A{awningVariant + 1}").transform;
             root.SetParent(parent, false);
             root.SetPositionAndRotation(groundPosition, rotation);
 
@@ -108,24 +128,19 @@ namespace Afareet.World
                 if (tierHeight <= .1f) break;
 
                 var scaleY = tierHeight / 5f;
-                CreateFacade(facade, root, "Facade Front", new Vector3(-width * .5f, tierBase, -width * .5f), Quaternion.identity, new Vector3(width / 6f, scaleY, 1f), facadeMaterial);
-                CreateFacade(facade, root, "Facade Back", new Vector3(width * .5f, tierBase, width * .5f), Quaternion.Euler(0f, 180f, 0f), new Vector3(width / 6f, scaleY, 1f), facadeMaterial);
-                CreateFacade(facade, root, "Facade Left", new Vector3(-width * .5f, tierBase, width * .5f), Quaternion.Euler(0f, -90f, 0f), new Vector3(width / 6f, scaleY, 1f), facadeMaterial);
-                CreateFacade(facade, root, "Facade Right", new Vector3(width * .5f, tierBase, -width * .5f), Quaternion.Euler(0f, 90f, 0f), new Vector3(width / 6f, scaleY, 1f), facadeMaterial);
+                CreateFacade(facade, root, $"Facade Front V{facadeVariant + 1}", new Vector3(-width * .5f, tierBase, -width * .5f), Quaternion.identity, new Vector3(width / 6f, scaleY, 1f), facadeMaterial);
+                CreateFacade(facade, root, $"Facade Back V{facadeVariant + 1}", new Vector3(width * .5f, tierBase, width * .5f), Quaternion.Euler(0f, 180f, 0f), new Vector3(width / 6f, scaleY, 1f), facadeMaterial);
+                CreateFacade(facade, root, $"Facade Left V{facadeVariant + 1}", new Vector3(-width * .5f, tierBase, width * .5f), Quaternion.Euler(0f, -90f, 0f), new Vector3(width / 6f, scaleY, 1f), facadeMaterial);
+                CreateFacade(facade, root, $"Facade Right V{facadeVariant + 1}", new Vector3(width * .5f, tierBase, -width * .5f), Quaternion.Euler(0f, 90f, 0f), new Vector3(width / 6f, scaleY, 1f), facadeMaterial);
             }
 
-            var awning = Resources.Load<GameObject>(AwningPath);
-            if (awning != null && width >= 5f)
+            if (width >= 5f)
             {
                 var canopy = Object.Instantiate(awning, root, false);
-                canopy.name = "Authored Cairo Awning";
+                canopy.name = $"Authored Cairo Awning V{awningVariant + 1}";
                 var awningScaleX = Mathf.Min(1f, width / 6f);
                 var placedAwningWidth = AuthoredAwningWidth * awningScaleX;
 
-                // The authored awning is modeled from Z=0 toward +Z. The front facade's
-                // street-facing detail projects toward -Z, so rotate 180 degrees and place
-                // the authored X=0 pivot at +half-width. This keeps the canopy centered and
-                // projects its full depth outside the building instead of into the interior.
                 canopy.transform.localPosition = new Vector3(
                     placedAwningWidth * .5f,
                     1.55f,
@@ -135,7 +150,28 @@ namespace Afareet.World
                 ApplyMaterialForEditorPreview(canopy, accentMaterial);
             }
 
+            if (width >= 5.5f && height >= 3.25f)
+            {
+                var hangingSign = Object.Instantiate(sign, root, false);
+                hangingSign.name = "Authored Cairo Hanging Sign";
+                var signScale = Mathf.Clamp(width / 7f, .72f, 1.08f);
+                hangingSign.transform.localPosition = new Vector3(
+                    -width * .23f,
+                    Mathf.Clamp(height * .42f, 2.35f, 3.65f),
+                    -width * .5f - .08f);
+                hangingSign.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                hangingSign.transform.localScale = Vector3.one * signScale;
+                ApplyMaterialForEditorPreview(hangingSign, accentMaterial);
+            }
+
             LogActivation();
+            if (!buildingVariantActivationLogged)
+            {
+                buildingVariantActivationLogged = true;
+                Debug.Log(
+                    "AFAREET_UART005_BUILDING_VARIANTS_ACTIVE facades=3 awnings=2 signs=1 " +
+                    "selection=stable-position-hash playerMaterials=source-authored");
+            }
             return true;
         }
 
@@ -186,6 +222,20 @@ namespace Afareet.World
             ApplyMaterialForEditorPreview(barrier, material);
             LogActivation();
             return true;
+        }
+
+        private static int StableVariantIndex(Vector3 position, float width, float height, int count, int salt)
+        {
+            if (count <= 1) return 0;
+            unchecked
+            {
+                var x = Mathf.RoundToInt(position.x * 2f);
+                var z = Mathf.RoundToInt(position.z * 2f);
+                var w = Mathf.RoundToInt(width * 10f);
+                var h = Mathf.RoundToInt(height * 10f);
+                var hash = (x * 73856093) ^ (z * 19349663) ^ (w * 83492791) ^ (h * 297121507) ^ salt;
+                return (hash & int.MaxValue) % count;
+            }
         }
 
         private static void CreateFacade(
