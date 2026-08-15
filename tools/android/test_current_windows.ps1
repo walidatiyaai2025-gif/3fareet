@@ -70,7 +70,7 @@ $ArtifactDir = Join-Path $RepoRoot "artifacts\unity-local-tests"
 $LogDir = Join-Path $RepoRoot "artifacts\logs"
 New-Item -ItemType Directory -Force -Path $ArtifactDir, $LogDir | Out-Null
 
-function Write-TestCaseDiagnostics([xml]$ResultXml, [string]$Mode) {
+function Write-TestCaseDiagnostics([xml]$ResultXml, [string]$Mode, [string]$ResultPath) {
     $problemCases = @($ResultXml.SelectNodes("//test-case[@result='Failed' or @result='Inconclusive']"))
     if ($problemCases.Count -eq 0) {
         return
@@ -80,15 +80,17 @@ function Write-TestCaseDiagnostics([xml]$ResultXml, [string]$Mode) {
     $limit = [Math]::Min($problemCases.Count, 25)
     for ($i = 0; $i -lt $limit; $i++) {
         $case = $problemCases[$i]
-        $name = [string]$case.'full-name'
-        if ([string]::IsNullOrWhiteSpace($name)) { $name = [string]$case.name }
-        $result = [string]$case.result
+        $name = $case.GetAttribute('fullname')
+        if ([string]::IsNullOrWhiteSpace($name)) { $name = $case.GetAttribute('name') }
+        $result = $case.GetAttribute('result')
+
         $message = ""
         $stack = ""
-        if ($null -ne $case.failure) {
-            if ($null -ne $case.failure.message) { $message = [string]$case.failure.message }
-            if ($null -ne $case.failure.'stack-trace') { $stack = [string]$case.failure.'stack-trace' }
-        }
+        $messageNode = $case.SelectSingleNode('failure/message')
+        $stackNode = $case.SelectSingleNode('failure/stack-trace')
+        if ($null -ne $messageNode) { $message = [string]$messageNode.InnerText }
+        if ($null -ne $stackNode) { $stack = [string]$stackNode.InnerText }
+
         $message = ($message -replace "\r?\n", " | ").Trim()
         $stackFirst = (($stack -split "\r?\n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1)
         Write-Host "AFAREET_TEST_CASE result=$result name=$name"
@@ -163,7 +165,7 @@ function Invoke-UnityTests([string]$Mode) {
     $result = [string]$testRun.result
     $accounted = $passed + $failed + $skipped + $inconclusive
 
-    Write-TestCaseDiagnostics -ResultXml $resultXml -Mode $Mode
+    Write-TestCaseDiagnostics -ResultXml $resultXml -Mode $Mode -ResultPath $ResultPath
 
     if ($total -le 0) {
         Fail "Unity $Mode executed zero tests; refusing empty test evidence. exitCode=$unityExitCode"
