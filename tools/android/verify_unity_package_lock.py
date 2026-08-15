@@ -14,6 +14,9 @@ KNOWN_DIRECT_DEPENDENCIES: dict[str, dict[str, str]] = {
     "com.unity.ugui": {
         "com.unity.modules.ui": "1.0.0",
         "com.unity.modules.imgui": "1.0.0",
+        "com.unity.modules.audio": "1.0.0",
+        "com.unity.modules.physics2d": "1.0.0",
+        "com.unity.modules.physics": "1.0.0",
     },
     "com.unity.modules.vehicles": {"com.unity.modules.physics": "1.0.0"},
 }
@@ -76,6 +79,17 @@ def verify(manifest_path: Path, lock_path: Path) -> list[str]:
                     f"known dependency contract mismatch for {package}: "
                     f"expected={expected_children!r} actual={actual_children!r}"
                 )
+            for child_package, child_version in expected_children.items():
+                child_entry = lock_deps.get(child_package)
+                if not isinstance(child_entry, dict):
+                    raise PackageLockError(
+                        f"resolved child dependency missing from lock: {package} -> {child_package}"
+                    )
+                if child_entry.get("version") != child_version:
+                    raise PackageLockError(
+                        f"resolved child dependency version mismatch for {package} -> {child_package}: "
+                        f"expected={child_version!r} actual={child_entry.get('version')!r}"
+                    )
 
         checked.append(package)
 
