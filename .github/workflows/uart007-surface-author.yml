@@ -8,257 +8,41 @@ on:
       - .github/workflows/uart007-surface-author.yml
 
 permissions:
-  contents: write
-
-concurrency:
-  group: uart007-surface-author
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  author:
+  diagnose:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: agent/uart-007-authored-track-dressing
-          fetch-depth: 0
-
-      - name: Surface all four authored track dressing sources
+      - name: Enumerate finish gate geometry and invalid face references
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin agent/uart-007-authored-track-dressing
-          git reset --hard origin/agent/uart-007-authored-track-dressing
-
-          # Reuse the already-reviewed topology-preserving helper from UART-006
-          # without adding a duplicate helper file to this stacked branch.
-          git fetch origin 5cf93078004fd511c84534a5a1af3c27e3849462
-          git show 5cf93078004fd511c84534a5a1af3c27e3849462:tools/android/surface_obj_candidate.py > /tmp/surface_obj_candidate.py
-
-          ROOT="docs/assets/02_tracks_environments/cairo_track_dressing/source"
-          TOOL="/tmp/surface_obj_candidate.py"
-
-          python "$TOOL" "$ROOT/SM_Track_FinishGate_A.obj" \
-            --material-file SM_Track_FinishGate_A.mtl \
-            --material FinishGate_Metal \
-            --write
-          python "$TOOL" "$ROOT/SM_Track_SpiritRune_A.obj" \
-            --material-file SM_Track_SpiritRune_A.mtl \
-            --material SpiritRune_Surface \
-            --write
-          python "$TOOL" "$ROOT/SM_Track_DesertGround_A.obj" \
-            --material-file SM_Track_DesertGround_A.mtl \
-            --material DesertGround_Sand \
-            --write
-          python "$TOOL" "$ROOT/SM_Track_SectorBeacon_A.obj" \
-            --material-file SM_Track_SectorBeacon_A.mtl \
-            --material SectorBeacon_Metal \
-            --write
-
-          cat > "$ROOT/SM_Track_FinishGate_A.mtl" <<'EOF'
-          # UART-007 authored-source candidate material
-          newmtl FinishGate_Metal
-          Ka 0.070000 0.055000 0.045000
-          Kd 0.330000 0.245000 0.175000
-          Ks 0.480000 0.390000 0.280000
-          Ns 80.000000
-          illum 2
-          map_Kd T_Track_FinishGate_BC.png
-          EOF
-
-          cat > "$ROOT/SM_Track_SpiritRune_A.mtl" <<'EOF'
-          # UART-007 authored-source candidate material
-          newmtl SpiritRune_Surface
-          Ka 0.030000 0.025000 0.050000
-          Kd 0.220000 0.120000 0.410000
-          Ks 0.210000 0.190000 0.300000
-          Ns 36.000000
-          illum 2
-          map_Kd T_Track_SpiritRune_BC.png
-          EOF
-
-          cat > "$ROOT/SM_Track_DesertGround_A.mtl" <<'EOF'
-          # UART-007 authored-source candidate material
-          newmtl DesertGround_Sand
-          Ka 0.120000 0.090000 0.055000
-          Kd 0.560000 0.390000 0.210000
-          Ks 0.050000 0.040000 0.030000
-          Ns 8.000000
-          illum 2
-          map_Kd T_Track_DesertGround_BC.png
-          EOF
-
-          cat > "$ROOT/SM_Track_SectorBeacon_A.mtl" <<'EOF'
-          # UART-007 authored-source candidate material
-          newmtl SectorBeacon_Metal
-          Ka 0.030000 0.055000 0.070000
-          Kd 0.100000 0.390000 0.460000
-          Ks 0.280000 0.530000 0.590000
-          Ns 68.000000
-          illum 2
-          map_Kd T_Track_SectorBeacon_BC.png
-          EOF
-
           python - <<'PY'
-          from __future__ import annotations
-          import json
-          import struct
-          import zlib
           from pathlib import Path
-
-          root = Path('docs/assets/02_tracks_environments/cairo_track_dressing/source')
-
-          def chunk(kind: bytes, data: bytes) -> bytes:
-              return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
-
-          def write_pattern_png(path: Path, base: tuple[int, int, int], accent: tuple[int, int, int], mode: str) -> None:
-              width = height = 64
-              rows = bytearray()
-              for y in range(height):
-                  rows.append(0)
-                  for x in range(width):
-                      if mode == 'sand':
-                          mark = ((x * 13 + y * 7) % 23) < 2
-                      elif mode == 'rune':
-                          mark = abs(x - y) <= 1 or abs((63 - x) - y) <= 1 or (x % 16 == 0)
-                      elif mode == 'metal':
-                          mark = (x % 16 in (0, 1)) or (y % 16 in (0, 1))
-                      else:
-                          mark = (x % 12 in (0, 1)) or (y % 18 in (0, 1))
-                      checker = ((x // 8) + (y // 8)) % 2
-                      src = accent if mark else tuple(min(255, c + (8 if checker else 0)) for c in base)
-                      rows.extend(src)
-              payload = (
-                  b'\x89PNG\r\n\x1a\n'
-                  + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
-                  + chunk(b'IDAT', zlib.compress(bytes(rows), 9))
-                  + chunk(b'IEND', b'')
-              )
-              path.write_bytes(payload)
-
-          write_pattern_png(root / 'T_Track_FinishGate_BC.png', (92, 70, 52), (190, 136, 64), 'metal')
-          write_pattern_png(root / 'T_Track_SpiritRune_BC.png', (38, 28, 62), (150, 66, 220), 'rune')
-          write_pattern_png(root / 'T_Track_DesertGround_BC.png', (142, 102, 55), (176, 132, 73), 'sand')
-          write_pattern_png(root / 'T_Track_SectorBeacon_BC.png', (30, 94, 108), (58, 205, 224), 'beacon')
-
-          def stats(path: Path) -> tuple[int, int]:
-              vertices = triangles = 0
-              for raw in path.read_text(encoding='utf-8').splitlines():
-                  line = raw.strip()
-                  if line.startswith('v '):
-                      vertices += 1
-                  elif line.startswith('f '):
-                      triangles += max(0, len(line.split()) - 3)
-              return vertices, triangles
-
-          manifest_path = Path('docs/assets/02_tracks_environments/cairo_track_dressing/ASSET_MANIFEST.json')
-          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-          for module in manifest['modules']:
-              vertices, triangles = stats(root / module['model'])
-              module['currentVertices'] = vertices
-              module['currentTriangles'] = triangles
-              module['surfaceAuthoring'] = 'tracked-uv-normal-mtl-texture-candidate'
-          manifest['sourceSurfaceProgress'] = '4/4'
-          manifest['acceptancePending'] = [
-              'licensed Unity compile/import/render proof for all four dressing Resources',
-              'final visual material/texture refinement after licensed Unity render review',
-              'additional track signage/decals/roadside dressing',
-              'exact Android in-race screenshot/video proof',
-              'owner/Art Director Visual Gate acceptance'
-          ]
-          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
-
-          test_path = Path('tools/android/tests/test_cairo_authored_track_dressing_contract.py')
-          text = test_path.read_text(encoding='utf-8')
-          marker = '''EXPECTED_MODELS = {
-              "SM_Track_FinishGate_A.obj",
-              "SM_Track_SpiritRune_A.obj",
-              "SM_Track_DesertGround_A.obj",
-              "SM_Track_SectorBeacon_A.obj",
-          }
-          '''
-          replacement = marker + '''
-          SURFACED = (
-              ("SM_Track_FinishGate_A.obj", "SM_Track_FinishGate_A.mtl", "FinishGate_Metal", "T_Track_FinishGate_BC.png"),
-              ("SM_Track_SpiritRune_A.obj", "SM_Track_SpiritRune_A.mtl", "SpiritRune_Surface", "T_Track_SpiritRune_BC.png"),
-              ("SM_Track_DesertGround_A.obj", "SM_Track_DesertGround_A.mtl", "DesertGround_Sand", "T_Track_DesertGround_BC.png"),
-              ("SM_Track_SectorBeacon_A.obj", "SM_Track_SectorBeacon_A.mtl", "SectorBeacon_Metal", "T_Track_SectorBeacon_BC.png"),
-          )
-          '''
-          if marker not in text:
-              raise SystemExit('EXPECTED_MODELS block changed unexpectedly; refusing blind rewrite')
-          text = text.replace(marker, replacement, 1)
-
-          insertion = '''    def test_sources_clear_manifest_anti_blockout_floors(self):
-          '''
-          surface_test = '''    def _assert_surface_chain(self, model, mtl_file, material, texture):
-                  obj = (SOURCE_ROOT / model).read_text(encoding="utf-8")
-                  mtl = (SOURCE_ROOT / mtl_file).read_text(encoding="utf-8")
-                  self.assertIn(f"mtllib {mtl_file}", obj)
-                  self.assertIn(f"usemtl {material}", obj)
-                  self.assertIn("\nvt ", "\n" + obj)
-                  self.assertIn("\nvn ", "\n" + obj)
-                  self.assertIn(f"newmtl {material}", mtl)
-                  self.assertIn(f"map_Kd {texture}", mtl)
-                  payload = (SOURCE_ROOT / texture).read_bytes()
-                  self.assertGreater(len(payload), 32)
-                  self.assertTrue(payload.startswith(b"\x89PNG\r\n\x1a\n"), texture)
-                  for face in (line for line in obj.splitlines() if line.startswith("f ")):
-                      for token in face.split()[1:]:
-                          fields = token.split("/")
-                          self.assertEqual(3, len(fields), token)
-                          self.assertTrue(fields[1] and fields[2], token)
-
-              def test_all_four_sources_have_tracked_surface_chains(self):
-                  manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-                  self.assertEqual("4/4", manifest["sourceSurfaceProgress"])
-                  modules = {module["model"]: module for module in manifest["modules"]}
-                  self.assertEqual(4, sum(module.get("surfaceAuthoring") == "tracked-uv-normal-mtl-texture-candidate" for module in modules.values()))
-                  for surface in SURFACED:
-                      with self.subTest(model=surface[0]):
-                          self._assert_surface_chain(*surface)
-                          vertices, triangles = obj_stats(SOURCE_ROOT / surface[0])
-                          self.assertEqual(vertices, modules[surface[0]]["currentVertices"])
-                          self.assertEqual(triangles, modules[surface[0]]["currentTriangles"])
-
-          ''' + insertion
-          if insertion not in text:
-              raise SystemExit('source-floor test insertion point changed unexpectedly; refusing blind rewrite')
-          text = text.replace(insertion, surface_test, 1)
-          test_path.write_text(text, encoding='utf-8', newline='\n')
+          p = Path('docs/assets/02_tracks_environments/cairo_track_dressing/source/SM_Track_FinishGate_A.obj')
+          lines = p.read_text(encoding='utf-8').splitlines()
+          vertices=[]
+          faces=[]
+          current_group=''
+          for line_no, raw in enumerate(lines, 1):
+              line=raw.strip()
+              if line.startswith('g '):
+                  current_group=line[2:].strip()
+              elif line.startswith('v '):
+                  vertices.append((len(vertices)+1, line_no, current_group, line))
+              elif line.startswith('f '):
+                  refs=[int(tok.split('/')[0]) for tok in line.split()[1:]]
+                  faces.append((line_no,current_group,refs,line))
+          print(f'VERTEX_COUNT={len(vertices)} FACE_COUNT={len(faces)} MAX_FACE_REF={max(max(x[2]) for x in faces)}')
+          print('LAST_VERTICES')
+          for item in vertices[-60:]:
+              print(item)
+          print('INVALID_FACES')
+          for item in faces:
+              if any(i < 1 or i > len(vertices) for i in item[2]):
+                  print(item)
           PY
-
-          python "$TOOL" "$ROOT/SM_Track_FinishGate_A.obj" --material-file SM_Track_FinishGate_A.mtl --material FinishGate_Metal --check
-          python "$TOOL" "$ROOT/SM_Track_SpiritRune_A.obj" --material-file SM_Track_SpiritRune_A.mtl --material SpiritRune_Surface --check
-          python "$TOOL" "$ROOT/SM_Track_DesertGround_A.obj" --material-file SM_Track_DesertGround_A.mtl --material DesertGround_Sand --check
-          python "$TOOL" "$ROOT/SM_Track_SectorBeacon_A.obj" --material-file SM_Track_SectorBeacon_A.mtl --material SectorBeacon_Metal --check
-          python -m py_compile tools/android/tests/test_cairo_authored_track_dressing_contract.py
-          python -m unittest tools.android.tests.test_cairo_authored_track_dressing_contract
-          git diff --check
-
-      - name: Commit authored surface chains and remove bootstrap workflow
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "3Fareet UART-007 Agent"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/uart007-surface-author.yml
-          git add \
-            docs/assets/02_tracks_environments/cairo_track_dressing/ASSET_MANIFEST.json \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/SM_Track_FinishGate_A.obj \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/SM_Track_FinishGate_A.mtl \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/T_Track_FinishGate_BC.png \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/SM_Track_SpiritRune_A.obj \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/SM_Track_SpiritRune_A.mtl \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/T_Track_SpiritRune_BC.png \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/SM_Track_DesertGround_A.obj \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/SM_Track_DesertGround_A.mtl \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/T_Track_DesertGround_BC.png \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/SM_Track_SectorBeacon_A.obj \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/SM_Track_SectorBeacon_A.mtl \
-            docs/assets/02_tracks_environments/cairo_track_dressing/source/T_Track_SectorBeacon_BC.png \
-            tools/android/tests/test_cairo_authored_track_dressing_contract.py
-          git status --short
-          git commit -m "UART-007: surface four track dressing sources"
-          git push origin HEAD:agent/uart-007-authored-track-dressing
