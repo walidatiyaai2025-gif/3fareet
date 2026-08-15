@@ -21,7 +21,8 @@ $buildScript = Join-Path $RepoRoot "tools\android\build_current_windows.ps1"
 $verifyScript = Join-Path $RepoRoot "tools\android\verify_local_candidate_windows.ps1"
 $packageVerifyScript = Join-Path $RepoRoot "tools\android\verify_unity_package_lock_windows.ps1"
 $textNormalizeScript = Join-Path $RepoRoot "tools\android\verify_unity_text_normalization_windows.ps1"
-foreach ($required in @($testScript, $buildScript, $verifyScript, $packageVerifyScript, $textNormalizeScript)) {
+$lfMaterializeScript = Join-Path $RepoRoot "tools\android\materialize_unity_lf_windows.ps1"
+foreach ($required in @($testScript, $buildScript, $verifyScript, $packageVerifyScript, $textNormalizeScript, $lfMaterializeScript)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         Fail "Required candidate step is missing: $required"
     }
@@ -129,6 +130,16 @@ Assert-CleanTree "STALE_EVIDENCE_PURGE"
 # verifiers remain available for hosted CI/Linux parity, but the Windows
 # workstation uses native PowerShell equivalents and needs no Python install.
 Write-Host "AFAREET_WINDOWS_NATIVE_VERIFIERS_OK pythonRequired=False"
+
+# Long-lived Windows clones can retain CRLF bytes from before .gitattributes
+# pinned these Unity metadata files to LF. Git can still report such a tree as
+# clean because line-ending normalization happens during comparison. Repair only
+# the explicitly text/eol=lf governed files, then fail closed unless Git remains
+# clean before running the strict byte verifier or Unity.
+Write-Host "AFAREET_WORKTREE_LF_MATERIALIZE_START gitSha=$gitSha"
+& $lfMaterializeScript -RepoRoot $RepoRoot
+Assert-CleanTree "WORKTREE_LF_MATERIALIZE"
+Write-Host "AFAREET_WORKTREE_LF_MATERIALIZE_OK gitSha=$gitSha"
 
 Write-Host "AFAREET_TEXT_NORMALIZATION_PREFLIGHT_START gitSha=$gitSha"
 & $textNormalizeScript -RepoRoot $RepoRoot
