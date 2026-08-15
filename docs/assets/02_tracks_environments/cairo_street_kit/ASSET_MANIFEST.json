@@ -163,6 +163,8 @@
     "authoredBarriers": "implemented-unverified",
     "authoredRoad": "implemented-unverified",
     "authoredCurbs": "implemented-unverified",
+    "authoredRoadsideClutter": "implemented-unverified",
+    "mobileLod13ModulePath": "implemented-unverified",
     "primitiveBuildingFallbackInPlayer": false,
     "primitiveLampFallbackInPlayer": false,
     "primitiveRoadFallbackInPlayer": false,
@@ -171,8 +173,6 @@
     "landmarksStillProcedural": true
   },
   "requiredProductionExpansion": [
-    "additional roadside clutter beyond lamp/barrier/hanging-sign coverage",
-    "mobile LOD setup for repeated visual modules; runtime road/building collision remains separate simplified colliders",
     "upgrade candidate base-color maps with authored normal/ORM or equivalent material detail where visually required",
     "authored landmark and skyline replacement coordinated with UART-006/UART-007"
   ],
@@ -186,9 +186,10 @@
   },
   "pivotRule": "Production source pivot must preserve modular snap/contact convention at the placement origin.",
   "acceptancePending": [
-    "licensed Unity compile/import proof for all ten surfaced authored Resources models",
-    "runtime integration verification for deterministic facade/awning variation and hanging signs on the exact candidate",
-    "mobile LOD and final material/texture refinement",
+    "licensed Unity compile/import/render proof for all ten surfaced authored Resources models, three clutter Resources and all 26 secondary LOD sources",
+    "runtime integration verification for deterministic facade/awning variation, hanging signs, roadside clutter and all expected LODGroups on the exact candidate",
+    "physical-device performance and LOD transition review",
+    "final material/texture refinement where licensed render review requires it",
     "authored landmark replacement coordinated with UART-006/UART-007",
     "exact Android in-race visual evidence",
     "owner/Art Director Visual Gate acceptance"
