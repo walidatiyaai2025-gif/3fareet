@@ -25,6 +25,7 @@ unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated.meta
 
 # Local CI / QA evidence outputs (generated, never source-of-truth)
 /artifacts/
+/evidence/
 
 *.jks
 *.keystore
