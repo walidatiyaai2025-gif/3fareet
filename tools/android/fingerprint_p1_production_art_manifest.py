@@ -2,9 +2,10 @@
 """Populate schema-v2 P1 production-art artifact SHA-256 fingerprints.
 
 The input manifest remains untouched. The output must live beside the input so
-relative screenshot/video paths keep the same evidence root. This helper does
-not grant acceptance, publish, or mark any candidate VERIFIED; it only binds
-already-declared paths to their current bytes for later fail-closed review.
+relative screenshot/video paths keep the same evidence root. Repository source
+and runtime artifacts must already be tracked by, and byte-identical to, the
+manifest's exact candidate Git commit. This helper does not grant acceptance,
+publish, or mark any candidate VERIFIED.
 """
 
 from __future__ import annotations
@@ -57,6 +58,11 @@ def fingerprint_manifest(
     _require(manifest.get("schemaVersion") == spec.get("schemaVersion") == 2, "production-art schemaVersion must be 2")
     _require(manifest.get("verified") is False, "fingerprinter refuses manifests that self-assert VERIFIED")
 
+    candidate = manifest.get("candidate")
+    _require(isinstance(candidate, dict), "candidate fingerprint is missing")
+    git_sha = str(candidate.get("gitSha") or "").strip().lower()
+    _require(bool(gate.SHA40_RE.fullmatch(git_sha)), "candidate Git SHA must be a full 40-hex SHA")
+
     required_tasks = spec.get("requiredTasks")
     _require(isinstance(required_tasks, list) and required_tasks, "production-art spec has no requiredTasks")
     assets = manifest.get("assets")
@@ -66,6 +72,7 @@ def fingerprint_manifest(
     result_assets = result["assets"]
     fingerprint_count = 0
     manifest_dir = manifest_path.parent
+    repo_artifacts: list[tuple[Path, str, str]] = []
 
     for task_id in required_tasks:
         task = result_assets.get(task_id)
@@ -82,14 +89,18 @@ def fingerprint_manifest(
             label = f"{task_id} sourceFiles[{index}]"
             item = _path_record(raw, label)
             path = gate._safe_repo_file(repo_root, str(item["path"]), label)
-            item["sha256"] = gate._sha256_file(path)
+            digest = gate._sha256_file(path)
+            item["sha256"] = digest
+            repo_artifacts.append((path, digest, label))
             fingerprint_count += 1
 
         for index, raw in enumerate(runtime_assets):
             label = f"{task_id} runtimeAssets[{index}]"
             item = _path_record(raw, label)
             path = gate._safe_repo_file(repo_root, str(item["path"]), label)
-            item["sha256"] = gate._sha256_file(path)
+            digest = gate._sha256_file(path)
+            item["sha256"] = digest
+            repo_artifacts.append((path, digest, label))
             fingerprint_count += 1
 
         for index, raw in enumerate(evidence):
@@ -99,6 +110,7 @@ def fingerprint_manifest(
             item["sha256"] = gate._sha256_file(path)
             fingerprint_count += 1
 
+    gate._verify_git_candidate_binding(repo_root, git_sha, repo_artifacts)
     return result, fingerprint_count
 
 
@@ -114,10 +126,10 @@ def write_fingerprinted_manifest(*, input_path: Path, output_path: Path, payload
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Populate exact SHA-256 fingerprints for schema-v2 P1 production-art source/runtime/evidence paths."
+        description="Populate exact SHA-256 fingerprints for schema-v2 P1 production-art paths from the exact candidate Git worktree."
     )
     parser.add_argument("--manifest", required=True, help="Unfingerprinted schema-v2 production-art manifest template.")
-    parser.add_argument("--repo-root", default=".", help="Repository root used to resolve source/runtime asset paths.")
+    parser.add_argument("--repo-root", default=".", help="Exact candidate Git worktree root used to resolve source/runtime asset paths.")
     parser.add_argument("--spec", default=str(gate.DEFAULT_SPEC), help="Production-art gate specification JSON.")
     parser.add_argument("--output", required=True, help="New fingerprinted manifest path beside the input manifest.")
     return parser
@@ -139,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(
             "AFAREET_PRODUCTION_ART_FINGERPRINT_OK "
-            f"artifacts={count} schemaVersion=2 verified=false output={output}"
+            f"artifacts={count} gitCandidateBound=true schemaVersion=2 verified=false output={output}"
         )
         return 0
     except (
