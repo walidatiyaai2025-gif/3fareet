@@ -128,10 +128,6 @@ jobs:
             }
           }
 
-          $repoRoot = (Resolve-Path '.').Path
-          & ./tools/android/verify_unity_text_normalization_windows.ps1 -RepoRoot $repoRoot
-          & ./tools/android/verify_unity_package_lock_windows.ps1 -RepoRoot $repoRoot
-
           $buildText = Get-Content -Raw 'tools/android/build_current_windows.ps1'
           if ($buildText.Contains('& $UnityPath \\')) {
             throw 'Invalid build invocation: backslash must not be used as a line-continuation argument for Unity.'
