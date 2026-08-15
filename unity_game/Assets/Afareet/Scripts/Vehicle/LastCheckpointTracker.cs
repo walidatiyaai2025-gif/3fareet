@@ -5,6 +5,9 @@ namespace Afareet.Vehicle
 {
     public sealed class LastCheckpointTracker : MonoBehaviour
     {
+        private const float MaximumCaptureDistanceSqr = 196f;
+        private const float MinimumForwardAlignment = 0.15f;
+
         private readonly List<Transform> waypoints = new();
         private Transform lastCheckpoint;
         private float nextSample;
@@ -12,6 +15,9 @@ namespace Afareet.Vehicle
         public bool HasCheckpoint => lastCheckpoint != null;
         public Vector3 Position => lastCheckpoint == null ? transform.position : lastCheckpoint.position;
         public Quaternion Rotation => lastCheckpoint == null ? transform.rotation : lastCheckpoint.rotation;
+        public Vector3 RecoveryPosition => lastCheckpoint == null
+            ? transform.position + Vector3.up * VehicleRecoveryPolicy.RecoveryUpOffsetMeters
+            : VehicleRecoveryPolicy.SafeRecoveryPosition(lastCheckpoint.position, lastCheckpoint.rotation);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Install()
@@ -33,13 +39,16 @@ namespace Afareet.Vehicle
             var nearestDistance = float.MaxValue;
             foreach (var waypoint in waypoints)
             {
+                if (Vector3.Dot(transform.forward, waypoint.forward) < MinimumForwardAlignment)
+                    continue;
+
                 var distance = (waypoint.position - transform.position).sqrMagnitude;
                 if (distance >= nearestDistance) continue;
                 nearest = waypoint;
                 nearestDistance = distance;
             }
 
-            if (nearest != null && nearestDistance <= 324f)
+            if (nearest != null && nearestDistance <= MaximumCaptureDistanceSqr)
                 lastCheckpoint = nearest;
         }
 
