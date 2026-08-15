@@ -115,11 +115,6 @@ function Resolve-Python3([string]$RequestedPath) {
     Fail "A usable Python 3 interpreter was not found. Windows Store App Execution Alias python.exe is not sufficient. Install Python 3/py launcher or pass -PythonPath 'C:\path\to\python.exe'."
 }
 
-$python = Resolve-Python3 -RequestedPath $PythonPath
-$pythonExecutable = [string]$python.Executable
-$pythonArgs = @($python.Args)
-Write-Host "AFAREET_PYTHON_RESOLVED executable=$pythonExecutable args=$($pythonArgs -join ' ') version=$($python.Version)"
-
 $gitSha = (& git -C $RepoRoot rev-parse HEAD 2>$null).Trim()
 if ($LASTEXITCODE -ne 0 -or $gitSha -notmatch '^[0-9a-fA-F]{40}$') {
     Fail "Unable to resolve a full 40-character Git SHA."
@@ -210,6 +205,14 @@ if ($initialDirty.Count -gt 0) {
 
 Clear-StaleCandidateEvidence
 Assert-CleanTree "STALE_EVIDENCE_PURGE"
+
+# Resolve Python only after the initial dirty tree has been preserved/refused and
+# stale release-looking evidence has been purged. A missing/broken interpreter
+# must never preempt INITIAL_TREE evidence capture from a previous Windows run.
+$python = Resolve-Python3 -RequestedPath $PythonPath
+$pythonExecutable = [string]$python.Executable
+$pythonArgs = @($python.Args)
+Write-Host "AFAREET_PYTHON_RESOLVED executable=$pythonExecutable args=$($pythonArgs -join ' ') version=$($python.Version)"
 
 $textNormalizeArgs = @(
     $textNormalizeScript,
