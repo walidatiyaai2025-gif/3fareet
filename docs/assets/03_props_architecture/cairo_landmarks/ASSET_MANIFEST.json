@@ -33,11 +33,13 @@
     {
       "model": "SM_Landmark_Minaret_A.obj",
       "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_Minaret_A",
-      "role": "multi-stage minaret silhouette",
+      "role": "multi-stage minaret silhouette with balcony, crown and spire",
       "status": "authored-source-candidate",
+      "currentVertices": 146,
+      "currentTriangles": 288,
       "productionMinVertices": 100,
       "productionMinTriangles": 50,
-      "surfaceAuthoring": "pending"
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
     },
     {
       "model": "SM_Landmark_DomeGate_A.obj",
@@ -73,7 +75,7 @@
     "sectorBeaconsStillNeedAuthoredReplacement": true
   },
   "acceptancePending": [
-    "surface authoring for minaret, dome gate and bridge gantry",
+    "surface authoring for dome gate and bridge gantry",
     "licensed Unity compile/import proof",
     "runtime render proof for all four authored landmark modules",
     "final material/texture refinement where visually required",
