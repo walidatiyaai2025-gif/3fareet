@@ -8,6 +8,7 @@ on:
       - 'docs/assets/02_tracks_environments/**'
       - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
       - 'tools/android/verify_unity_test_results.py'
+      - 'tools/android/verify_ci_candidate.py'
       - '.github/workflows/unity-ci.yml'
       - '.github/scripts/verify-unity-android-apk.sh'
   push:
@@ -19,6 +20,7 @@ on:
       - 'docs/assets/02_tracks_environments/**'
       - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
       - 'tools/android/verify_unity_test_results.py'
+      - 'tools/android/verify_ci_candidate.py'
       - '.github/workflows/unity-ci.yml'
       - '.github/scripts/verify-unity-android-apk.sh'
   workflow_dispatch:
@@ -51,12 +53,16 @@ jobs:
         run: |
           set -euo pipefail
           bash -n .github/scripts/verify-unity-android-apk.sh
-          python3 -m py_compile tools/android/verify_unity_test_results.py
+          python3 -m py_compile \
+            tools/android/verify_unity_test_results.py \
+            tools/android/verify_ci_candidate.py
           python3 tools/android/verify_unity_test_results.py --help >/dev/null
+          python3 tools/android/verify_ci_candidate.py --help >/dev/null
           grep -Fq 'public static void BuildAndroid()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'com.fiftysolutions.afareetunity3d' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'AndroidArchitecture.ARM64' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'afareet-unity3d-debug.apk' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'github-actions-unity-production-ci' .github/scripts/verify-unity-android-apk.sh
           echo 'Unity Android CI static contract is present.'
 
   license-preflight:
@@ -218,9 +224,19 @@ jobs:
       - name: Verify APK identity, ARM64 payload and SHA-256
         shell: bash
         run: |
+          set -euo pipefail
           bash .github/scripts/verify-unity-android-apk.sh \
             unity_game/Builds/Android/afareet-unity3d-debug.apk \
             artifacts/android
+
+      - name: Bind verified CI metadata to exact APK candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android/verify_ci_candidate.py \
+            --artifact-metadata artifacts/android/artifact-metadata.json \
+            --apk unity_game/Builds/Android/afareet-unity3d-debug.apk \
+            --output artifacts/android/ci-candidate-manifest.json
 
       - name: Upload Android APK and inspection evidence
         uses: actions/upload-artifact@v6
