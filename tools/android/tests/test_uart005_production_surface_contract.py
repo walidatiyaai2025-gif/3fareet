@@ -39,12 +39,10 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         awning = self._obj_bounds(awning_path)
         facade = self._obj_bounds(facade_path)
 
-        # Source convention: awning attachment is at Z=0 and canopy projects +Z.
         self.assertAlmostEqual(0.0, awning[4], places=4)
         self.assertAlmostEqual(1.5, awning[5], places=4)
         self.assertAlmostEqual(0.0, awning[0], places=4)
         self.assertAlmostEqual(3.0, awning[1], places=4)
-        # Front-facade authored detail already establishes street-facing direction as -Z.
         self.assertLess(facade[4], 0.0)
 
         runtime = self._read("unity_game/Assets/Afareet/Scripts/World/CairoAuthoredStreetKit.cs")
@@ -84,6 +82,41 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
             "companions=mtl-textures",
         ):
             self.assertIn(required, stager)
+
+    def test_production_obj_material_dependencies_are_tracked_and_root_bound(self):
+        policy = self._read("unity_game/Assets/Afareet/Editor/ObjProductionMaterialDependencyPolicy.cs")
+        for required in (
+            'line.StartsWith("mtllib ", StringComparison.Ordinal)',
+            'line.StartsWith("usemtl ", StringComparison.Ordinal)',
+            'line.StartsWith("newmtl ", StringComparison.Ordinal)',
+            "Production OBJ has no mtllib declaration",
+            "Production OBJ has no usemtl assignments",
+            "OBJ usemtl is not defined by tracked MTL files",
+            "OBJ production material has no tracked texture map",
+            "Path.IsPathRooted(reference)",
+            "Material dependency escapes tracked source root",
+            "Texture dependency escapes tracked source root",
+            "Tracked material dependency is missing",
+            "Tracked texture dependency is missing",
+            'case ".png"',
+            'case ".jpg"',
+            'case ".tga"',
+        ):
+            self.assertIn(required, policy)
+
+    def test_android_build_pipeline_runs_material_dependency_gate_for_production_promotion(self):
+        gate = self._read("unity_game/Assets/Afareet/Editor/P1ProductionWorldMaterialDependencyGate.cs")
+        for required in (
+            "IPreprocessBuildWithReport",
+            "BuildTarget.Android",
+            '"PRODUCTION_READY"',
+            '"authored-production"',
+            "ObjProductionMaterialDependencyPolicy.ValidateOrThrow",
+            "AFAREET_UART005_MATERIAL_DEPENDENCY_GATE_BLOCKED",
+            "AFAREET_UART005_MATERIAL_DEPENDENCY_GATE_OK",
+            "obj-mtllib-usemtl-tracked-textures",
+        ):
+            self.assertIn(required, gate)
 
     def test_player_preserves_imported_source_materials(self):
         runtime = self._read("unity_game/Assets/Afareet/Scripts/World/CairoAuthoredStreetKit.cs")
