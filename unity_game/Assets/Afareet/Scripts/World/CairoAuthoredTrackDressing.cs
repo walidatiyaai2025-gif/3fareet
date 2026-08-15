@@ -11,6 +11,7 @@ namespace Afareet.World
         private const string GroundPath = ResourceRoot + "/SM_Track_DesertGround_A";
         private const string SectorBeaconPath = ResourceRoot + "/SM_Track_SectorBeacon_A";
         private static bool activationLogged;
+        private static bool editorMaterialOverrideLogged;
 
         public static bool TryCreateGround(Transform parent, Material ground, Material accent)
         {
@@ -21,7 +22,7 @@ namespace Afareet.World
             instance.transform.localPosition = new Vector3(0f, -.15f, 0f);
             instance.transform.localRotation = Quaternion.identity;
             instance.transform.localScale = Vector3.one;
-            ApplyByName(instance, ground, accent, accent, accent);
+            ApplyByNameForEditorPreview(instance, ground, accent, accent, accent);
             LogActivation();
             return true;
         }
@@ -34,7 +35,7 @@ namespace Afareet.World
             instance.name = "AUTHORED Asphalt Spirit Rune";
             instance.transform.SetPositionAndRotation(position, rotation);
             instance.transform.localScale = Vector3.one;
-            ApplyByName(instance, primary, secondary, secondary, primary);
+            ApplyByNameForEditorPreview(instance, primary, secondary, secondary, primary);
             LogActivation();
             return true;
         }
@@ -47,7 +48,7 @@ namespace Afareet.World
             instance.name = "AUTHORED Cairo Finish Gate";
             instance.transform.SetPositionAndRotation(start.position, start.rotation);
             instance.transform.localScale = Vector3.one;
-            ApplyByName(instance, cyan, purple, gold, cyan);
+            ApplyByNameForEditorPreview(instance, cyan, purple, gold, cyan);
             LogActivation();
             return true;
         }
@@ -66,7 +67,23 @@ namespace Afareet.World
             instance.name = "AUTHORED Cairo Sector Beacon";
             instance.transform.SetPositionAndRotation(anchor.position + anchor.right * 18f, anchor.rotation);
             instance.transform.localScale = Vector3.one;
+            ApplySectorBeaconMaterialsForEditorPreview(instance, primary, secondary, dark, gold);
 
+            LogActivation();
+            return true;
+        }
+
+        private static void ApplySectorBeaconMaterialsForEditorPreview(
+            GameObject instance,
+            Material primary,
+            Material secondary,
+            Material dark,
+            Material gold)
+        {
+            if (!Application.isEditor)
+                return;
+
+            LogEditorMaterialOverride();
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
                 if (renderer == null) continue;
@@ -78,13 +95,14 @@ namespace Afareet.World
                 else if (Contains(name, "Crown") || Contains(name, "Lantern")) selected = primary ?? dark;
                 SetAllMaterials(renderer, selected);
             }
-
-            LogActivation();
-            return true;
         }
 
-        private static void ApplyByName(GameObject instance, Material baseMaterial, Material spirit, Material gold, Material cyan)
+        private static void ApplyByNameForEditorPreview(GameObject instance, Material baseMaterial, Material spirit, Material gold, Material cyan)
         {
+            if (!Application.isEditor)
+                return;
+
+            LogEditorMaterialOverride();
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
                 if (renderer == null) continue;
@@ -106,6 +124,13 @@ namespace Afareet.World
             renderer.sharedMaterials = materials;
         }
 
+        private static void LogEditorMaterialOverride()
+        {
+            if (editorMaterialOverrideLogged) return;
+            editorMaterialOverrideLogged = true;
+            Debug.Log("AFAREET_UART007_EDITOR_PREVIEW_MATERIAL_OVERRIDE production=false player-preserves-source-materials=true");
+        }
+
         private static bool Contains(string value, string token) => value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
 
         private static bool Missing(string path)
@@ -118,7 +143,7 @@ namespace Afareet.World
         {
             if (activationLogged) return;
             activationLogged = true;
-            Debug.Log("AFAREET_UART007_AUTHORED_TRACK_DRESSING_ACTIVE geometry=tracked-obj resources=staged");
+            Debug.Log("AFAREET_UART007_AUTHORED_TRACK_DRESSING_ACTIVE geometry=tracked-obj resources=staged playerMaterials=source-authored");
         }
     }
 }
