@@ -33,6 +33,7 @@ namespace Afareet.UI
         private bool driftInput;
         private bool nitroInput;
         private bool brakeInput;
+        private bool brakeReverseInput;
 
         public void Configure(ArcadeCarController playerCar, RaceDirector director)
         {
@@ -72,11 +73,26 @@ namespace Afareet.UI
             {
                 var touch = Input.GetTouch(i);
                 if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled) continue;
-                ApplyPointer(ToCanvas(touch.position));
+
+                var point = ToCanvas(touch.position);
+                if (touch.phase == TouchPhase.Began && RecoverRect().Contains(point))
+                {
+                    RecoverPlayer();
+                    continue;
+                }
+
+                ApplyPointer(point);
             }
 #if UNITY_EDITOR || UNITY_STANDALONE
-            if (Input.GetMouseButton(0)) ApplyPointer(ToCanvas(Input.mousePosition));
+            var mousePoint = ToCanvas(Input.mousePosition);
+            if (Input.GetMouseButtonDown(0) && RecoverRect().Contains(mousePoint))
+                RecoverPlayer();
+            else if (Input.GetMouseButton(0))
+                ApplyPointer(mousePoint);
 #endif
+            if (brakeReverseInput)
+                MobileDriveInputPolicy.ResolveBrakeReverse(player.SpeedKph, out throttleInput, out brakeInput);
+
             player.SetPlayerInput(throttleInput, steerInput, driftInput, nitroInput, brakeInput);
         }
 
@@ -107,8 +123,7 @@ namespace Afareet.UI
             var landscapeLeft = Screen.orientation != ScreenOrientation.LandscapeRight;
             var steeringTilt = landscapeLeft ? -acceleration.y : acceleration.y;
             var forwardTilt = landscapeLeft ? -acceleration.x : acceleration.x;
-            const float deadZone = .08f;
-            steerInput = Mathf.Abs(steeringTilt) <= deadZone ? 0f : Mathf.Clamp(steeringTilt * 2.4f, -1f, 1f);
+            steerInput = MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt);
             throttleInput = 0f;
             nitroInput = forwardTilt > .32f;
             brakeInput = forwardTilt < -.32f;
@@ -182,6 +197,8 @@ namespace Afareet.UI
         {
             GUI.Box(LeftRect(), "<", steerInput < 0f ? activeButton : button);
             GUI.Box(RightRect(), ">", steerInput > 0f ? activeButton : button);
+            GUI.Box(BrakeReverseRect(), "BRAKE / REV", brakeReverseInput ? activeButton : button);
+            GUI.Box(RecoverRect(), "RECOVER", button);
             GUI.Box(DriftRect(), "DRIFT", driftInput ? activeButton : button);
             GUI.Box(NitroRect(), "SPIRIT", nitroInput ? activeButton : button);
             GUI.Box(ThrottleRect(), "GO", throttleInput > 0f ? activeButton : button);
@@ -189,11 +206,19 @@ namespace Afareet.UI
 
         private void ApplyPointer(Vector2 point)
         {
-            if (LeftRect().Contains(point)) steerInput = -1f;
-            if (RightRect().Contains(point)) steerInput = 1f;
+            if (LeftRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(-1f);
+            if (RightRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(1f);
+            if (BrakeReverseRect().Contains(point)) brakeReverseInput = true;
             if (DriftRect().Contains(point)) driftInput = true;
             if (NitroRect().Contains(point)) nitroInput = true;
             if (ThrottleRect().Contains(point)) throttleInput = 1f;
+        }
+
+        private void RecoverPlayer()
+        {
+            ResetInput();
+            player.SetPlayerInput(0f, 0f, false, false, false);
+            player.ResetToSpawn();
         }
 
         private void ResetInput()
@@ -203,6 +228,7 @@ namespace Afareet.UI
             driftInput = false;
             nitroInput = false;
             brakeInput = false;
+            brakeReverseInput = false;
         }
 
         private Vector2 ToCanvas(Vector2 screenPoint) => new(screenPoint.x / canvasScale, (Screen.height - screenPoint.y) / canvasScale);
@@ -222,6 +248,8 @@ namespace Afareet.UI
 
         private Rect LeftRect() => new(safeLeft + 24, canvasHeight - safeBottom - 96, 92, 76);
         private Rect RightRect() => new(safeLeft + 128, canvasHeight - safeBottom - 96, 92, 76);
+        private Rect BrakeReverseRect() => new(safeLeft + 232, canvasHeight - safeBottom - 96, 132, 76);
+        private Rect RecoverRect() => new(safeLeft + 376, canvasHeight - safeBottom - 96, 132, 76);
         private Rect DriftRect() => new(canvasWidth - safeRight - 420, canvasHeight - safeBottom - 96, 112, 76);
         private Rect NitroRect() => new(canvasWidth - safeRight - 296, canvasHeight - safeBottom - 96, 112, 76);
         private Rect ThrottleRect() => new(canvasWidth - safeRight - 172, canvasHeight - safeBottom - 96, 148, 76);
