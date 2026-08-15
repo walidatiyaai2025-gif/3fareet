@@ -65,6 +65,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "Rival 1 Source",
             "Rival 2 Source",
             "Rival 3 Source",
+            "internal static void BindSource",
             "RivalProductionPolicy.IsSupportedAuthoredModelSource",
             "EnsureSourceIsUniqueAcrossOtherVariants",
             "AssetDatabase.AssetPathToGUID",
@@ -81,6 +82,51 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             self.assertIn(required, text)
         self.assertIn("cannot reuse rival", text)
         self.assertNotIn("GameObject.CreatePrimitive", text)
+
+    def test_prefab_stager_only_assembles_imported_source_meshes_and_delegates_binding(self):
+        path = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs"
+        self.assertTrue(path.is_file())
+        self.assertTrue(path.with_suffix(path.suffix + ".meta").is_file())
+        text = path.read_text(encoding="utf-8")
+
+        for source in (
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
+        ):
+            self.assertIn(source, text)
+
+        for required in (
+            "Stage + Bind All Rival Prefabs",
+            "AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath)",
+            "PrefabUtility.InstantiatePrefab(sourceModel)",
+            "GetComponentsInChildren<Renderer>(true)",
+            "ResolveLod",
+            'EndsWith($"_LOD{lod}"',
+            "RivalProductionPolicy.MeshFor(renderer)",
+            "AssetDatabase.GetAssetPath(mesh)",
+            "mesh.uv",
+            "mesh.normals",
+            "material.mainTexture",
+            "new LOD(",
+            "group.SetLODs(lods)",
+            "PrefabUtility.SaveAsPrefabAsset",
+            "RivalProductionSourceBinder.BindSource",
+            "RivalProductionPolicy.ValidateProductionPrefab",
+            "AFAREET_UART004_PREFAB_STAGE_OK",
+            "geometryGenerated=false",
+            "primitiveCreated=false",
+        ):
+            self.assertIn(required, text)
+
+        for forbidden in (
+            "GameObject.CreatePrimitive",
+            "new Mesh(",
+            "new Mesh {",
+            "MeshFilter.mesh =",
+            "MeshFilter.sharedMesh = new",
+        ):
+            self.assertNotIn(forbidden, text)
 
     def test_rival_quality_contract_requires_surface_authoring_identity_and_external_model_source(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
