@@ -16,6 +16,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 PASS_RESULTS = {"passed", "success"}
+MAX_DIAGNOSTIC_CASES = 25
 
 
 class TestEvidenceError(RuntimeError):
@@ -33,6 +34,53 @@ def _as_int(value: str | None, field: str, path: Path) -> int:
         raise TestEvidenceError(f"{path}: {field} is not an integer: {value!r}") from exc
 
 
+def _compact_text(value: str | None, limit: int) -> str:
+    text = " | ".join(part.strip() for part in (value or "").splitlines() if part.strip())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)] + "..."
+
+
+def _child_text(element: ET.Element | None, child_name: str) -> str:
+    if element is None:
+        return ""
+    for child in element:
+        if _local_name(child.tag) == child_name:
+            return "".join(child.itertext())
+    return ""
+
+
+def _problem_case_diagnostics(root: ET.Element) -> str:
+    problem_cases = [
+        case
+        for case in root.iter()
+        if _local_name(case.tag) == "test-case"
+        and (case.attrib.get("result") or "").strip().lower() in {"failed", "inconclusive"}
+    ]
+    if not problem_cases:
+        return ""
+
+    details: list[str] = []
+    for case in problem_cases[:MAX_DIAGNOSTIC_CASES]:
+        result = (case.attrib.get("result") or "Unknown").strip()
+        name = _compact_text(case.attrib.get("fullname") or case.attrib.get("full-name") or case.attrib.get("name"), 240)
+        failure = next((child for child in case if _local_name(child.tag) == "failure"), None)
+        message = _compact_text(_child_text(failure, "message"), 500)
+        stack = _compact_text(_child_text(failure, "stack-trace"), 300)
+        parts = [f"[{result}] {name or '<unnamed test>'}"]
+        if message:
+            parts.append(f"message={message}")
+        if stack:
+            parts.append(f"stack={stack}")
+        details.append(" :: ".join(parts))
+
+    remaining = len(problem_cases) - len(details)
+    suffix = " | ".join(details)
+    if remaining > 0:
+        suffix += f" | ... {remaining} more problem test case(s)"
+    return suffix
+
+
 def verify_report(path: Path) -> dict[str, int | str]:
     try:
         root = ET.parse(path).getroot()
@@ -48,17 +96,21 @@ def verify_report(path: Path) -> dict[str, int | str]:
     skipped = _as_int(root.attrib.get("skipped"), "skipped", path)
     inconclusive = _as_int(root.attrib.get("inconclusive"), "inconclusive", path)
     result = (root.attrib.get("result") or "").strip()
+    diagnostics = _problem_case_diagnostics(root)
+    diagnostic_suffix = f"; cases: {diagnostics}" if diagnostics else ""
 
     if total <= 0:
         raise TestEvidenceError(f"{path}: executed zero tests")
     if passed <= 0:
-        raise TestEvidenceError(f"{path}: contains no passing tests; all-skipped evidence is not release eligible")
+        raise TestEvidenceError(
+            f"{path}: contains no passing tests; all-skipped evidence is not release eligible{diagnostic_suffix}"
+        )
     if failed != 0:
-        raise TestEvidenceError(f"{path}: contains failed tests: {failed}")
+        raise TestEvidenceError(f"{path}: contains failed tests: {failed}{diagnostic_suffix}")
     if inconclusive != 0:
-        raise TestEvidenceError(f"{path}: contains inconclusive tests: {inconclusive}")
+        raise TestEvidenceError(f"{path}: contains inconclusive tests: {inconclusive}{diagnostic_suffix}")
     if result.lower() not in PASS_RESULTS:
-        raise TestEvidenceError(f"{path}: result is not passing: {result!r}")
+        raise TestEvidenceError(f"{path}: result is not passing: {result!r}{diagnostic_suffix}")
     if min(passed, failed, skipped, inconclusive) < 0:
         raise TestEvidenceError(
             f"{path}: counters cannot be negative: total={total} passed={passed} failed={failed} skipped={skipped} inconclusive={inconclusive}"
