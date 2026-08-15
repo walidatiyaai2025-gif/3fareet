@@ -16,18 +16,24 @@
   "stagingAdapter": "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkAssetStager.cs",
   "runtimeAdapter": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredLandmarkKit.cs",
   "runtimePass": "unity_game/Assets/Afareet/Scripts/World/CairoLandmarkRuntimePass.cs",
+  "trackPyramidReplacementPass": "unity_game/Assets/Afareet/Scripts/World/CairoTrackPyramidAuthoredReplacementPass.cs",
+  "androidGate": "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkBuildGate.cs",
   "modules": [
     {
       "model": "SM_Landmark_GizaPyramid_A.obj",
       "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_GizaPyramid_A",
       "role": "Giza-inspired stepped pyramid silhouette",
-      "status": "authored-source-candidate"
+      "status": "authored-source-candidate",
+      "productionMinVertices": 40,
+      "productionMinTriangles": 50
     },
     {
       "model": "SM_Landmark_Minaret_A.obj",
       "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_Minaret_A",
       "role": "multi-stage minaret silhouette",
-      "status": "authored-source-candidate"
+      "status": "authored-source-candidate",
+      "productionMinVertices": 100,
+      "productionMinTriangles": 50
     },
     {
       "model": "SM_Landmark_DomeGate_A.obj",
@@ -35,7 +41,9 @@
       "role": "arched dome gateway with spire",
       "status": "authored-source-candidate",
       "currentVertices": 497,
-      "currentTriangles": 696
+      "currentTriangles": 696,
+      "productionMinVertices": 450,
+      "productionMinTriangles": 600
     },
     {
       "model": "SM_Landmark_BridgeGantry_A.obj",
@@ -43,7 +51,9 @@
       "role": "Cairo fantasy bridge/gantry landmark",
       "status": "authored-source-candidate",
       "currentVertices": 248,
-      "currentTriangles": 328
+      "currentTriangles": 328,
+      "productionMinVertices": 200,
+      "productionMinTriangles": 250
     }
   ],
   "runtimeReplacementStatus": {
@@ -51,7 +61,9 @@
     "authoredDomeGate": "implemented-unverified",
     "authoredPyramids": "implemented-unverified",
     "authoredBridgeGantry": "implemented-unverified",
+    "trackBuilderPyramids": "replacement-implemented-unverified",
     "primitiveLandmarkFallbackInPlayer": false,
+    "primitiveTrackPyramidFallbackInPlayer": false,
     "sectorBeaconsStillNeedAuthoredReplacement": true
   },
   "acceptancePending": [
