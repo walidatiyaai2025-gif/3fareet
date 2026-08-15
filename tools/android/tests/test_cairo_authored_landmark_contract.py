@@ -28,6 +28,8 @@ MODELS = {
 SURFACED = (
     ("SM_Landmark_GizaPyramid_A.obj", "SM_Landmark_GizaPyramid_A.mtl", "Giza_Stone", "T_Landmark_GizaPyramid_BC.png"),
     ("SM_Landmark_Minaret_A.obj", "SM_Landmark_Minaret_A.mtl", "Minaret_Stone", "T_Landmark_Minaret_BC.png"),
+    ("SM_Landmark_DomeGate_A.obj", "SM_Landmark_DomeGate_A.mtl", "DomeGate_Stone", "T_Landmark_DomeGate_BC.png"),
+    ("SM_Landmark_BridgeGantry_A.obj", "SM_Landmark_BridgeGantry_A.mtl", "BridgeGantry_Metal", "T_Landmark_BridgeGantry_BC.png"),
 )
 
 
@@ -87,7 +89,7 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
             self.assertGreaterEqual(vertex_count(path), minimum_vertices, name)
             self.assertGreater(triangle_count(path), 50, name)
 
-    def test_giza_and_minaret_have_tracked_surface_chains_but_package_is_two_of_four(self):
+    def test_all_four_landmarks_have_tracked_surface_chains(self):
         for module in SURFACED:
             with self.subTest(model=module[0]):
                 self._assert_surface_chain(*module)
@@ -100,9 +102,10 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         self.assertAlmostEqual(0.0, minaret_bounds[2], places=4)
         self.assertAlmostEqual(15.0, minaret_bounds[3], places=4)
 
-        dome = (SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj").read_text(encoding="utf-8")
-        self.assertNotIn("\nmtllib ", "\n" + dome)
-        self.assertNotIn("\nvn ", "\n" + dome)
+        self.assertEqual(474, vertex_count(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj"))
+        self.assertEqual(738, triangle_count(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj"))
+        self.assertEqual(248, vertex_count(SOURCE_ROOT / "SM_Landmark_BridgeGantry_A.obj"))
+        self.assertEqual(328, triangle_count(SOURCE_ROOT / "SM_Landmark_BridgeGantry_A.obj"))
 
     def test_manifest_stays_blocked_until_render_and_owner_acceptance(self):
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
@@ -115,8 +118,8 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         self.assertEqual(4, len(manifest["modules"]))
         self.assertEqual("replacement-implemented-unverified", manifest["runtimeReplacementStatus"]["trackBuilderPyramids"])
         self.assertFalse(manifest["runtimeReplacementStatus"]["primitiveTrackPyramidFallbackInPlayer"])
-        self.assertEqual(2, sum(module.get("surfaceAuthoring") == "tracked-uv-normal-mtl-texture-candidate" for module in manifest["modules"]))
-        self.assertEqual(2, sum(module.get("surfaceAuthoring") == "pending" for module in manifest["modules"]))
+        self.assertEqual(4, sum(module.get("surfaceAuthoring") == "tracked-uv-normal-mtl-texture-candidate" for module in manifest["modules"]))
+        self.assertEqual(0, sum(module.get("surfaceAuthoring") == "pending" for module in manifest["modules"]))
         for module in manifest["modules"]:
             self.assertGreater(module["productionMinVertices"], 0)
             self.assertGreater(module["productionMinTriangles"], 0)

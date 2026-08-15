@@ -102,15 +102,18 @@ class SurfaceObjCandidateTests(unittest.TestCase):
             )
             self.assertEqual(0, result)
 
-    def test_current_dome_and_bridge_are_detected_as_unsurfaced_not_promoted(self):
+    def test_current_dome_and_bridge_are_surfaced_without_topology_loss(self):
         source_root = REPO_ROOT / "docs/assets/03_props_architecture/cairo_landmarks/source"
-        for name in ("SM_Landmark_DomeGate_A.obj", "SM_Landmark_BridgeGantry_A.obj"):
+        cases = (
+            ("SM_Landmark_DomeGate_A.obj", "SM_Landmark_DomeGate_A.mtl", "DomeGate_Stone", 474, 738),
+            ("SM_Landmark_BridgeGantry_A.obj", "SM_Landmark_BridgeGantry_A.mtl", "BridgeGantry_Metal", 248, 328),
+        )
+        for name, mtl_file, material, expected_vertices, expected_triangles in cases:
             text = (source_root / name).read_text(encoding="utf-8")
+            TOOL.assert_surface_contract(text, material_file=mtl_file, material_name=material)
             geometry = TOOL.parse_obj(text)
-            self.assertGreater(len(geometry.vertices), 0)
-            self.assertGreater(TOOL.triangle_count(geometry.faces), 50)
-            self.assertFalse(any(line.startswith("vt ") for line in text.splitlines()), name)
-            self.assertFalse(any(line.startswith("vn ") for line in text.splitlines()), name)
+            self.assertEqual(expected_vertices, len(geometry.vertices), name)
+            self.assertEqual(expected_triangles, TOOL.triangle_count(geometry.faces), name)
 
 
 if __name__ == "__main__":

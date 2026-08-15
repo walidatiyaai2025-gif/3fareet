@@ -46,11 +46,11 @@
       "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_DomeGate_A",
       "role": "arched dome gateway with spire",
       "status": "authored-source-candidate",
-      "currentVertices": 497,
-      "currentTriangles": 696,
+      "currentVertices": 474,
+      "currentTriangles": 738,
       "productionMinVertices": 450,
       "productionMinTriangles": 600,
-      "surfaceAuthoring": "pending"
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
     },
     {
       "model": "SM_Landmark_BridgeGantry_A.obj",
@@ -61,7 +61,7 @@
       "currentTriangles": 328,
       "productionMinVertices": 200,
       "productionMinTriangles": 250,
-      "surfaceAuthoring": "pending"
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
     }
   ],
   "runtimeReplacementStatus": {
@@ -75,7 +75,6 @@
     "sectorBeaconsStillNeedAuthoredReplacement": true
   },
   "acceptancePending": [
-    "surface authoring for dome gate and bridge gantry",
     "licensed Unity compile/import proof",
     "runtime render proof for all four authored landmark modules",
     "final material/texture refinement where visually required",
