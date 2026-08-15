@@ -1,3 +1,4 @@
+using System;
 using Afareet.Vehicle;
 using UnityEditor;
 using UnityEditor.Build;
@@ -9,8 +10,8 @@ namespace Afareet.Editor
     /// <summary>
     /// Fail-closed UART-004 Android gate. Production builds may never synthesize rival
     /// production assets from code/design profiles at build time. Three externally authored
-    /// model-backed prefabs must already exist and pass the runtime production validator.
-    /// Their metadata must also resolve to real imported Unity model assets.
+    /// model-backed prefabs must already exist, pass production validation and remain bound
+    /// to the exact imported source model GUID/dependency hash used by every LOD mesh.
     /// </summary>
     public sealed class RivalProductionBuildGate : IPreprocessBuildWithReport
     {
@@ -27,34 +28,85 @@ namespace Afareet.Editor
                 var path = RivalProductionPolicy.AssetPath(variant);
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (prefab == null)
-                    throw new BuildFailedException(
-                        $"AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED variant={variant + 1} " +
-                        $"reason=missing-external-authored-prefab path={path} " +
-                        "handoff=docs/assets/01_vehicles/rival_cars_production/README.md");
+                    Fail(variant, $"missing-external-authored-prefab path={path}");
 
                 if (!RivalProductionPolicy.ValidateProductionPrefab(prefab, variant, out var reason))
-                    throw new BuildFailedException(
-                        $"AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED variant={variant + 1} reason={reason} path={path}");
+                    Fail(variant, $"reason={reason} path={path}");
 
-                var metadata = prefab.GetComponent<RivalProductionAssetMetadata>();
-                var sourcePath = metadata == null ? string.Empty : metadata.SourceAssetId;
-                var importedSource = string.IsNullOrWhiteSpace(sourcePath)
-                    ? null
-                    : AssetDatabase.LoadMainAssetAtPath(sourcePath);
-                if (importedSource == null)
-                    throw new BuildFailedException(
-                        $"AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED variant={variant + 1} " +
-                        $"reason=missing-imported-authored-source source={sourcePath} prefab={path} " +
-                        "expected=tracked-Unity-Assets-model(.fbx|.obj|.blend|.glb|.gltf)");
-
-                var importedPath = AssetDatabase.GetAssetPath(importedSource);
-                if (importedPath != sourcePath)
-                    throw new BuildFailedException(
-                        $"AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED variant={variant + 1} " +
-                        $"reason=authored-source-path-mismatch metadata={sourcePath} imported={importedPath} prefab={path}");
+                ValidateExternalSourceProvenanceOrThrow(prefab, variant, path);
             }
 
-            Debug.Log("AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK variants=3 source=external-authored-3d importedSources=3 primitiveFallback=false");
+            Debug.Log(
+                "AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK variants=3 source=external-authored-3d " +
+                "importedSources=3 guidHashBound=true meshSourceBound=true primitiveFallback=false");
+        }
+
+        private static void ValidateExternalSourceProvenanceOrThrow(GameObject prefab, int variant, string prefabPath)
+        {
+            var metadata = prefab.GetComponent<RivalProductionAssetMetadata>();
+            if (metadata == null)
+                Fail(variant, $"reason=missing-production-metadata prefab={prefabPath}");
+
+            var sourcePath = (metadata.SourceAssetId ?? string.Empty).Replace('\\', '/');
+            if (!RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath))
+                Fail(variant, $"reason=unsupported-authored-model-source source={sourcePath} prefab={prefabPath}");
+
+            var importedSource = AssetDatabase.LoadMainAssetAtPath(sourcePath);
+            if (importedSource == null || AssetImporter.GetAtPath(sourcePath) == null)
+                Fail(
+                    variant,
+                    $"reason=missing-imported-authored-source source={sourcePath} prefab={prefabPath} " +
+                    "expected=tracked-Unity-Assets-model(.fbx|.obj|.blend|.glb|.gltf)");
+
+            var importedPath = AssetDatabase.GetAssetPath(importedSource).Replace('\\', '/');
+            if (!string.Equals(importedPath, sourcePath, StringComparison.Ordinal))
+                Fail(variant, $"reason=authored-source-path-mismatch metadata={sourcePath} imported={importedPath} prefab={prefabPath}");
+
+            var currentGuid = AssetDatabase.AssetPathToGUID(sourcePath);
+            if (string.IsNullOrWhiteSpace(currentGuid) ||
+                !string.Equals(currentGuid, metadata.SourceGuid, StringComparison.OrdinalIgnoreCase))
+                Fail(
+                    variant,
+                    $"reason=source-guid-mismatch expected={metadata.SourceGuid} actual={currentGuid} source={sourcePath} prefab={prefabPath}");
+
+            var currentDependencyHash = AssetDatabase.GetAssetDependencyHash(sourcePath).ToString();
+            if (string.IsNullOrWhiteSpace(currentDependencyHash) ||
+                !string.Equals(currentDependencyHash, metadata.SourceDependencyHash, StringComparison.OrdinalIgnoreCase))
+                Fail(
+                    variant,
+                    $"reason=source-dependency-hash-mismatch expected={metadata.SourceDependencyHash} " +
+                    $"actual={currentDependencyHash} source={sourcePath} prefab={prefabPath}");
+
+            var group = prefab.GetComponent<LODGroup>();
+            if (group == null)
+                Fail(variant, $"reason=missing-lod-group prefab={prefabPath}");
+
+            var lods = group.GetLODs();
+            for (var lod = 0; lod < lods.Length; lod++)
+            {
+                foreach (var renderer in lods[lod].renderers)
+                {
+                    if (renderer == null)
+                        Fail(variant, $"reason=lod{lod}-null-renderer prefab={prefabPath}");
+
+                    var mesh = RivalProductionPolicy.MeshFor(renderer);
+                    if (mesh == null)
+                        Fail(variant, $"reason=lod{lod}-missing-source-mesh prefab={prefabPath}");
+
+                    var meshPath = AssetDatabase.GetAssetPath(mesh).Replace('\\', '/');
+                    if (!string.Equals(meshPath, sourcePath, StringComparison.Ordinal))
+                        Fail(
+                            variant,
+                            $"reason=lod{lod}-mesh-not-backed-by-source mesh={meshPath} source={sourcePath} prefab={prefabPath}");
+                }
+            }
+        }
+
+        private static void Fail(int variant, string detail)
+        {
+            throw new BuildFailedException(
+                $"AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED variant={variant + 1} {detail} " +
+                "handoff=docs/assets/01_vehicles/rival_cars_production/README.md");
         }
     }
 }
