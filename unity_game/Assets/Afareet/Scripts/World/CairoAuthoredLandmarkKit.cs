@@ -5,7 +5,8 @@ namespace Afareet.World
 {
     /// <summary>
     /// Runtime adapter for tracked UART-006 authored Cairo landmark OBJ sources.
-    /// No mesh is procedurally constructed here.
+    /// No mesh is procedurally constructed here. Editor preview may use temporary identity
+    /// materials; Player builds preserve imported authored source materials and textures.
     /// </summary>
     public static class CairoAuthoredLandmarkKit
     {
@@ -15,6 +16,7 @@ namespace Afareet.World
         private const string DomeGatePath = ResourceRoot + "/SM_Landmark_DomeGate_A";
         private const string BridgePath = ResourceRoot + "/SM_Landmark_BridgeGantry_A";
         private static bool activationLogged;
+        private static bool editorMaterialOverrideLogged;
 
         public static bool TryBuildMinarets(Transform anchor, Material dark, Material purple, Material cyan, Material gold)
         {
@@ -84,11 +86,20 @@ namespace Afareet.World
             instance.transform.localPosition = localPosition;
             instance.transform.localRotation = Quaternion.identity;
             instance.transform.localScale = localScale;
-            ApplyMaterials(instance, baseMaterial, spiritMaterial, goldMaterial, cyanMaterial);
+            ApplyMaterialsForEditorPreview(instance, baseMaterial, spiritMaterial, goldMaterial, cyanMaterial);
         }
 
-        private static void ApplyMaterials(GameObject instance, Material baseMaterial, Material spiritMaterial, Material goldMaterial, Material cyanMaterial)
+        private static void ApplyMaterialsForEditorPreview(GameObject instance, Material baseMaterial, Material spiritMaterial, Material goldMaterial, Material cyanMaterial)
         {
+            if (!Application.isEditor)
+                return;
+
+            if (!editorMaterialOverrideLogged)
+            {
+                editorMaterialOverrideLogged = true;
+                Debug.Log("AFAREET_UART006_EDITOR_PREVIEW_MATERIAL_OVERRIDE production=false player-preserves-source-materials=true");
+            }
+
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
                 if (renderer == null) continue;
@@ -122,7 +133,7 @@ namespace Afareet.World
         {
             if (activationLogged) return;
             activationLogged = true;
-            Debug.Log("AFAREET_UART006_AUTHORED_LANDMARKS_ACTIVE geometry=tracked-obj resources=staged");
+            Debug.Log("AFAREET_UART006_AUTHORED_LANDMARKS_ACTIVE geometry=tracked-obj resources=staged playerMaterials=source-authored");
         }
     }
 }
