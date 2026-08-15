@@ -33,8 +33,21 @@ namespace Afareet.Vehicle
 
             if (!HeroCarProductionVisual.TryAttach(hero.transform))
             {
-                foreach (var renderer in proceduralRenderers)
-                    if (renderer != null) renderer.enabled = true;
+                // The primitive CarFactory body remains useful for Editor physics work only.
+                // Android/player builds must fail visually rather than silently presenting the
+                // rejected blockout as if it were the P1 production Hero.
+                if (Application.isEditor)
+                {
+                    foreach (var renderer in proceduralRenderers)
+                        if (renderer != null) renderer.enabled = true;
+                    Debug.LogWarning("AFAREET_HERO_EDITOR_BLOCKOUT_FALLBACK_ACTIVE");
+                }
+                else
+                {
+                    Debug.LogError("AFAREET_HERO_PRODUCTION_REQUIRED blockout-fallback-disabled");
+                }
+
+                complete = true;
                 return;
             }
 
