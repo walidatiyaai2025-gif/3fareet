@@ -60,7 +60,10 @@ foreach ($relativePath in $paths) {
         $failures.Add("${relativePath}: eol='$eolValue', expected 'lf'")
     }
 
-    $filePath = Join-Path $RepoRoot ($relativePath -replace '/', '\')
+    # Git reports repository-relative paths with forward slashes. PowerShell/.NET
+    # accepts that form on Windows and Linux, so keep it intact instead of
+    # manufacturing platform-specific separators before Join-Path.
+    $filePath = Join-Path $RepoRoot $relativePath
     if (-not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
         $failures.Add("${relativePath}: tracked working-tree file is missing")
         continue
