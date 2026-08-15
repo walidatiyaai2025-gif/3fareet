@@ -40,11 +40,14 @@ namespace Afareet.Tests
         }
 
         [Test]
-        public void RecoveryCheckpointProgress_AllowsOnlyShortForwardWindowIncludingLapWrap()
+        public void RecoveryCheckpointProgress_RequiresBaselineAndAllowsOnlyShortForwardWindowIncludingLapWrap()
         {
             const int checkpointCount = 72;
 
-            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(-1, 41, checkpointCount), Is.True);
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(-1, 41, checkpointCount), Is.False);
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(0, 0, checkpointCount), Is.True);
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(0, 4, checkpointCount), Is.True);
+            Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(0, 5, checkpointCount), Is.False);
             Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(10, 10, checkpointCount), Is.True);
             Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(10, 14, checkpointCount), Is.True);
             Assert.That(VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed(10, 15, checkpointCount), Is.False);
