@@ -26,7 +26,7 @@
       "productionMinTriangles": 200,
       "currentVertices": 136,
       "currentTriangles": 204,
-      "surfaceAuthoring": "pending",
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
       "requiredDetails": ["window recesses", "door/storefront opening", "cornice/parapet silhouette", "non-flat facade depth"]
     },
     {
@@ -106,7 +106,7 @@
     "landmarksStillProcedural": true
   },
   "requiredProductionExpansion": [
-    "surface-author facade, lamp and barrier source candidates",
+    "surface-author lamp and barrier source candidates",
     "at least three facade/building variants",
     "storefront/sign/awning variants",
     "street props including lamps, barriers and roadside clutter",
@@ -124,7 +124,7 @@
   },
   "pivotRule": "Production source pivot must preserve modular snap/contact convention at the placement origin.",
   "acceptancePending": [
-    "surface authoring for facade, lamp and barrier",
+    "surface authoring for lamp and barrier",
     "licensed Unity compile/import proof for all six authored Resources models",
     "runtime integration verification on the exact production candidate",
     "authored landmark replacement",
