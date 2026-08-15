@@ -18,7 +18,7 @@ namespace Afareet.Editor
         [MenuItem(MenuPath, true)]
         private static bool CanBind()
         {
-            var sourcePath = AssetDatabase.GetAssetPath(Selection.activeObject).Replace('\\', '/');
+            var sourcePath = SelectedSourcePath();
             return HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath) &&
                    AssetDatabase.LoadAssetAtPath<GameObject>(HeroCarLodPolicy.ProductionAssetPath) != null;
         }
@@ -26,7 +26,16 @@ namespace Afareet.Editor
         [MenuItem(MenuPath)]
         private static void BindSelectedSource()
         {
-            var sourcePath = AssetDatabase.GetAssetPath(Selection.activeObject).Replace('\\', '/');
+            BindSource(SelectedSourcePath());
+        }
+
+        /// <summary>
+        /// Shared fail-closed entry for the explicit menu flow and the UART-003 prefab stager.
+        /// This method only records/verifies provenance; it never synthesizes production geometry.
+        /// </summary>
+        internal static void BindSource(string sourcePath)
+        {
+            sourcePath = (sourcePath ?? string.Empty).Replace('\\', '/');
             if (!HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath))
                 throw new InvalidOperationException($"UART-003 selected asset is not a supported external 3D model: {sourcePath}");
             if (sourcePath.IndexOf("/Generated/", StringComparison.OrdinalIgnoreCase) >= 0)
@@ -124,6 +133,11 @@ namespace Afareet.Editor
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
+        }
+
+        private static string SelectedSourcePath()
+        {
+            return (AssetDatabase.GetAssetPath(Selection.activeObject) ?? string.Empty).Replace('\\', '/');
         }
     }
 }
