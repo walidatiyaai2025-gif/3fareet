@@ -6,6 +6,8 @@ namespace Afareet.Race
 
     public sealed class RaceRoundFlowState
     {
+        private const float CountdownEpsilonSeconds = 0.0001f;
+
         public RaceRoundPhase Phase { get; private set; } = RaceRoundPhase.Ready;
         public float CountdownRemaining { get; private set; }
         public float FinishTime { get; private set; } = -1f;
@@ -23,8 +25,11 @@ namespace Afareet.Race
         {
             if (deltaTime < 0f) throw new ArgumentOutOfRangeException(nameof(deltaTime));
             if (Phase != RaceRoundPhase.Countdown) return false;
+
             CountdownRemaining = Math.Max(0f, CountdownRemaining - deltaTime);
-            if (CountdownRemaining > 0f) return false;
+            if (CountdownRemaining > CountdownEpsilonSeconds) return false;
+
+            CountdownRemaining = 0f;
             Phase = RaceRoundPhase.Racing;
             return true;
         }
