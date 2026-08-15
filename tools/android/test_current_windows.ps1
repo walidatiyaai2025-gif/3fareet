@@ -129,6 +129,9 @@ function Invoke-UnityTests([string]$Mode) {
     if ($total -le 0) {
         Fail "Unity $Mode executed zero tests; refusing empty test evidence."
     }
+    if ($passed -le 0) {
+        Fail "Unity $Mode produced no passing tests; all-skipped/non-executed evidence is not release eligible. total=$total passed=$passed failed=$failed skipped=$skipped"
+    }
     if ($failed -gt 0 -or $result -notin @('Passed', 'Success')) {
         Fail "Unity $Mode tests did not pass. result=$result total=$total passed=$passed failed=$failed skipped=$skipped"
     }
