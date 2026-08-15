@@ -43,6 +43,8 @@ jobs:
           set -euo pipefail
           python3 -m py_compile \
             tools/android/device_evidence.py \
+            tools/android/export_device_evidence.py \
+            tools/android/verify_device_review_bundle.py \
             tools/android/p1_gate_readiness.py \
             tools/android/verify_local_candidate.py \
             tools/android/verify_ci_candidate.py \
@@ -53,8 +55,12 @@ jobs:
           python3 tools/android/device_evidence.py prepare --help >/dev/null
           python3 tools/android/device_evidence.py capture --help >/dev/null
           python3 tools/android/device_evidence.py finish --help >/dev/null
+          python3 tools/android/export_device_evidence.py --help >/dev/null
+          python3 tools/android/verify_device_review_bundle.py --help >/dev/null
           python3 tools/android/p1_gate_readiness.py --help >/dev/null
           python3 tools/android/p1_gate_readiness.py plan >/dev/null
+          python3 tools/android/p1_gate_readiness.py validate --help >/dev/null
+          python3 tools/android/p1_gate_readiness.py approval-template --help >/dev/null
           python3 tools/android/verify_local_candidate.py --help >/dev/null
           python3 tools/android/verify_ci_candidate.py --help >/dev/null
           python3 tools/android/prepare_candidate_device.py --help >/dev/null
