@@ -70,6 +70,36 @@ $ArtifactDir = Join-Path $RepoRoot "artifacts\unity-local-tests"
 $LogDir = Join-Path $RepoRoot "artifacts\logs"
 New-Item -ItemType Directory -Force -Path $ArtifactDir, $LogDir | Out-Null
 
+function Write-TestCaseDiagnostics([xml]$ResultXml, [string]$Mode) {
+    $problemCases = @($ResultXml.SelectNodes("//test-case[@result='Failed' or @result='Inconclusive']"))
+    if ($problemCases.Count -eq 0) {
+        return
+    }
+
+    Write-Host "AFAREET_LOCAL_TEST_DIAGNOSTICS mode=$Mode count=$($problemCases.Count)"
+    $limit = [Math]::Min($problemCases.Count, 25)
+    for ($i = 0; $i -lt $limit; $i++) {
+        $case = $problemCases[$i]
+        $name = [string]$case.'full-name'
+        if ([string]::IsNullOrWhiteSpace($name)) { $name = [string]$case.name }
+        $result = [string]$case.result
+        $message = ""
+        $stack = ""
+        if ($null -ne $case.failure) {
+            if ($null -ne $case.failure.message) { $message = [string]$case.failure.message }
+            if ($null -ne $case.failure.'stack-trace') { $stack = [string]$case.failure.'stack-trace' }
+        }
+        $message = ($message -replace "\r?\n", " | ").Trim()
+        $stackFirst = (($stack -split "\r?\n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1)
+        Write-Host "AFAREET_TEST_CASE result=$result name=$name"
+        if (-not [string]::IsNullOrWhiteSpace($message)) { Write-Host "  message=$message" }
+        if (-not [string]::IsNullOrWhiteSpace($stackFirst)) { Write-Host "  stack=$stackFirst" }
+    }
+    if ($problemCases.Count -gt $limit) {
+        Write-Host "AFAREET_TEST_CASE_MORE remaining=$($problemCases.Count - $limit) xml=$ResultPath"
+    }
+}
+
 function Invoke-UnityTests([string]$Mode) {
     $modeKey = $Mode.ToLowerInvariant()
     $ResultPath = Join-Path $ArtifactDir "$modeKey-results.xml"
@@ -95,28 +125,29 @@ function Invoke-UnityTests([string]$Mode) {
     $unityProcess = Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru
     $unityExitCode = $unityProcess.ExitCode
 
-    if ($unityExitCode -ne 0) {
-        Get-Content $LogPath -Tail 160 -ErrorAction SilentlyContinue | Write-Host
-        Fail "Unity $Mode tests exited with code $unityExitCode. See $LogPath"
-    }
-
+    # Unity Test Framework commonly uses non-zero exit codes for a completed
+    # test run that contains failed/inconclusive tests. If NUnit XML exists,
+    # parse it first so the operator sees the exact failing test names/messages
+    # instead of only a generic process exit code.
     if (-not (Test-Path $ResultPath)) {
         Get-Content $LogPath -Tail 160 -ErrorAction SilentlyContinue | Write-Host
-        Fail "Unity $Mode tests returned success but did not create $ResultPath"
+        Fail "Unity $Mode tests exited with code $unityExitCode and did not create $ResultPath"
     }
     if ((Get-Item $ResultPath).Length -le 0) {
-        Fail "Unity $Mode test result exists but is empty: $ResultPath"
+        Get-Content $LogPath -Tail 160 -ErrorAction SilentlyContinue | Write-Host
+        Fail "Unity $Mode test result exists but is empty. exitCode=$unityExitCode path=$ResultPath"
     }
 
     try {
         [xml]$resultXml = Get-Content -Raw $ResultPath
     } catch {
-        Fail "Unity $Mode result is not valid XML: $($_.Exception.Message)"
+        Get-Content $LogPath -Tail 160 -ErrorAction SilentlyContinue | Write-Host
+        Fail "Unity $Mode result is not valid XML. exitCode=$unityExitCode error=$($_.Exception.Message)"
     }
 
     $testRun = $resultXml.'test-run'
     if ($null -eq $testRun) {
-        Fail "Unity $Mode result is missing the NUnit test-run root."
+        Fail "Unity $Mode result is missing the NUnit test-run root. exitCode=$unityExitCode"
     }
 
     $total = 0
@@ -132,23 +163,28 @@ function Invoke-UnityTests([string]$Mode) {
     $result = [string]$testRun.result
     $accounted = $passed + $failed + $skipped + $inconclusive
 
+    Write-TestCaseDiagnostics -ResultXml $resultXml -Mode $Mode
+
     if ($total -le 0) {
-        Fail "Unity $Mode executed zero tests; refusing empty test evidence."
+        Fail "Unity $Mode executed zero tests; refusing empty test evidence. exitCode=$unityExitCode"
     }
     if ($passed -le 0) {
-        Fail "Unity $Mode produced no passing tests; all-skipped/non-executed evidence is not release eligible. total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
+        Fail "Unity $Mode produced no passing tests; all-skipped/non-executed evidence is not release eligible. exitCode=$unityExitCode total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
     }
     if ($failed -gt 0) {
-        Fail "Unity $Mode tests contain failures. total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
+        Fail "Unity $Mode tests contain failures. exitCode=$unityExitCode total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive xml=$ResultPath"
     }
     if ($inconclusive -gt 0) {
-        Fail "Unity $Mode tests contain inconclusive results. total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
+        Fail "Unity $Mode tests contain inconclusive results. exitCode=$unityExitCode total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive xml=$ResultPath"
     }
     if ($accounted -ne $total) {
-        Fail "Unity $Mode test counters do not account for every test. total=$total accounted=$accounted passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
+        Fail "Unity $Mode test counters do not account for every test. exitCode=$unityExitCode total=$total accounted=$accounted passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
     }
     if ($result -notin @('Passed', 'Success')) {
-        Fail "Unity $Mode tests did not pass. result=$result total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
+        Fail "Unity $Mode tests did not pass. exitCode=$unityExitCode result=$result total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
+    }
+    if ($unityExitCode -ne 0) {
+        Fail "Unity $Mode NUnit XML reports a passing run but Unity exited non-zero. exitCode=$unityExitCode total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
     }
 
     Write-Host "AFAREET_LOCAL_TEST_OK mode=$Mode total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
