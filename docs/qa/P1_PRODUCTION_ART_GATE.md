@@ -19,6 +19,20 @@ One exact candidate must provide accepted production-art evidence for all six ex
 
 Defects #127 and #128 remain the current owner rejection records. This gate does not create task 66/67.
 
+## Artifact fingerprint requirement
+
+Schema v2 binds the review not only to the candidate Git SHA and APK SHA-256, but also to the **exact bytes** reviewed for every declared source file, packaged runtime asset and screenshot/video.
+
+Every `sourceFiles`, `runtimeAssets` and `evidence` entry must therefore carry a 64-hex `sha256`. The verifier recomputes each digest from disk and fails if bytes changed after the review manifest was created, even when the path is unchanged.
+
+The gate also rejects:
+
+- authored source paths containing `Generated`, `Preview` or `Blockout` path segments;
+- reuse of the same screenshot/video file across multiple required production-art tasks;
+- legacy schema-v1 manifests that do not pin artifact bytes.
+
+This prevents a reviewed manifest from becoming a transferable approval token for different source/runtime/evidence bytes.
+
 ## What the verifier rejects
 
 `tools/android/verify_p1_production_art.py` rejects the evidence manifest when any of these are true:
@@ -28,7 +42,10 @@ Defects #127 and #128 remain the current owner rejection records. This gate does
 - any required task is missing or not `ACCEPTED`;
 - any required task is still marked `blockout`/non-production;
 - authored 3D source or packaged runtime asset paths are missing;
+- any source/runtime/evidence SHA-256 is missing, malformed or mismatched;
+- an authored source is under a generated/preview/blockout path segment;
 - no screenshot/video evidence exists for a required task;
+- one visual evidence file is reused across tasks;
 - Hero, rivals, track, Cairo world or landmarks still use a procedural fallback;
 - the evidence manifest attempts to self-assert `verified:true`.
 
@@ -40,11 +57,11 @@ The structural pass result is only:
 
 The real manifest is produced for one exact post-art Android candidate and should live with that candidate's review evidence, not as a permanent pre-approved repository file.
 
-Minimal shape:
+Minimal schema-v2 shape:
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "visualGate": "UPER-009",
   "verified": false,
   "ownerAccepted": true,
@@ -67,15 +84,21 @@ Minimal shape:
       "runtimeActive": true,
       "proceduralFallbackActive": false,
       "ownerAccepted": true,
-      "sourceFiles": ["docs/assets/.../source/hero.fbx"],
-      "runtimeAssets": ["unity_game/Assets/.../PF_Hero.prefab"],
-      "evidence": [{"kind": "screenshot", "path": "visual-hero.png"}]
+      "sourceFiles": [
+        {"path": "unity_game/Assets/.../hero.fbx", "sha256": "<64-hex>"}
+      ],
+      "runtimeAssets": [
+        {"path": "unity_game/Assets/.../PF_Hero.prefab", "sha256": "<64-hex>"}
+      ],
+      "evidence": [
+        {"kind": "screenshot", "path": "visual-hero.png", "sha256": "<64-hex>"}
+      ]
     }
   }
 }
 ```
 
-All required task records follow the same contract.
+All required task records follow the same contract, and each visual evidence path must be unique across tasks.
 
 ## Command
 
@@ -90,14 +113,12 @@ python tools/android/verify_p1_production_art.py \
 
 Expected success marker:
 
-`AFAREET_PRODUCTION_ART_GATE_OK ... verdict=PRODUCTION_ART_GATE_PASSED verified=false`
+`AFAREET_PRODUCTION_ART_GATE_OK ... fingerprints=<N> verdict=PRODUCTION_ART_GATE_PASSED verified=false`
 
 ## Current repository truth
 
-The current integration line does **not** satisfy this gate:
+The convergence line contains the engineering/source remediation for the Cairo world, dressing, landmarks, rivals, route, handling and smoke gates, plus the fail-closed external-source Hero staging/binding path. That engineering convergence is still **BLOCKED/unverified**.
 
-- Hero source is intentionally tiny/textureless low-poly and has been rejected by owner visual review (#127).
-- Cairo street-kit sources are blockout modules and do not replace the procedural runtime world.
-- `CairoTrackBuilder`, `CairoLandmarkRuntimePass`, and rival variant code still supply primitive/procedural presentation on the current integration head.
+The repository still does not contain the owner-accepted real Afareet King production model required by `UART-003`, and the converged art stack has not yet been imported/rendered/built under licensed Unity or accepted on an exact Android candidate by the owner/Art Director.
 
-Therefore no current APK should have a production-art acceptance manifest that passes this verifier. The next valid manifest can only be created after real authored production 3D is integrated and captured in-race on a new exact candidate.
+Therefore no current APK should have a production-art acceptance manifest that passes this verifier. A valid schema-v2 manifest can only be created after the real authored production assets are integrated, their exact bytes are fingerprinted, and fresh in-race evidence is captured and accepted on one exact candidate.
