@@ -1,6 +1,12 @@
 # P1 Final Five Gate Plan
 
-This document turns the five remaining U-P1 blockers into one deterministic candidate/device evidence and human-review flow. It does **not** remove the need for a current exact-head APK, a physical Android device, or explicit human approvals.
+This document turns the five remaining U-P1 blockers into one exact-candidate, physical-device, content-addressed evidence and human-review flow.
+
+It does **not** remove the need for:
+- licensed Unity execution on the exact current production SHA;
+- a physical Android device;
+- explicit human Gameplay/QA/Art approvals;
+- explicit release-owner approval for publication.
 
 ## Current ledger
 
@@ -9,100 +15,85 @@ This document turns the five remaining U-P1 blockers into one deterministic cand
 Remaining blockers:
 
 1. `UVEH-012` — real-device driving feel.
-2. `URAC-012` — ordered lap/results/restart device verification.
+2. `URAC-012` — ordered lap / Results / restart device verification.
 3. `UPER-006` — Android smoke/performance matrix.
 4. `UPER-009` — P1 Visual Gate.
 5. `UPER-010` — Verified APK publication gate.
 
-`U3D-012` is `IN REVIEW`, not one of the final five. GitHub-hosted Unity execution still depends on Issue #98 licensing.
+No script in this flow is allowed to mark an APK VERIFIED automatically.
 
-## Prerequisite — exact current candidate
+## 1. Produce one exact current candidate
 
-Do not reuse an older APK from another commit/ancestry as final evidence. Produce one candidate through either the fully Green hosted path or the canonical licensed-Windows path.
+Do not reuse an older APK from another SHA.
 
-### Hosted GitHub path
+Accepted candidate types:
+- `github-actions-unity-ci`;
+- `local-windows-licensed-unity`.
 
-Configure one complete Unity credential set:
+The candidate must contain:
+- full 40-character Git SHA;
+- exact APK filename, size and SHA-256;
+- production package `com.fiftysolutions.afareetunity3d`;
+- `releaseEvidenceEligible: true`;
+- `readyForDeviceEvidence: true`;
+- `verified: false`;
+- verdict `READY_FOR_PHYSICAL_DEVICE_EVIDENCE`.
 
-- Personal/file-license: `UNITY_LICENSE + UNITY_EMAIL + UNITY_PASSWORD`; or
-- Professional: `UNITY_SERIAL + UNITY_EMAIL + UNITY_PASSWORD`.
+### Hosted GitHub Unity path
 
-Never commit secrets.
-
-A valid hosted candidate requires the then-current `Unity Production CI` to execute and pass:
-
+`Unity Production CI` must be completely Green on the exact SHA:
 1. static/package contract;
-2. license preflight;
+2. Unity license preflight;
 3. EditMode + PlayMode with real passing NUnit evidence;
 4. Android build;
-5. package/minSdk/ARM64/libunity/APK SHA inspection;
-6. `verify_ci_candidate.py` candidate binding.
+5. package/minSdk/ARM64/libunity/APK inspection;
+6. `verify_ci_candidate.py`.
 
-The resulting `artifacts/android/ci-candidate-manifest.json` remains `verified: false`.
+Never commit Unity credentials.
 
-### Licensed-Windows fallback
+### Licensed Windows path
 
-On licensed Unity `6000.5.8f1` Windows, start from the exact current branch head:
+Preferred repository-traceable fallback:
+
+**GitHub → Actions → Unity Licensed Windows Candidate → Run workflow**
+
+Enter the then-current reviewed full SHA of `agent/unblock-final-5`.
+
+The self-hosted job is fail-closed:
+- checkout is fixed to `agent/unblock-final-5`;
+- `persist-credentials: false`;
+- no hard-coded SHA default;
+- branch movement causes SHA mismatch before Unity starts;
+- runner must be Windows x64 with licensed Unity `6000.5.8f1` and Android support.
+
+Local equivalent:
 
 ```powershell
 git fetch origin
 git reset --hard origin/agent/unblock-final-5
 git clean -fd
+
 powershell -ExecutionPolicy Bypass -File tools/android/run_local_candidate_windows.ps1 `
   -UnityPath 'C:\Program Files\Unity\Hub\Editor\6000.5.8f1\Editor\Unity.exe'
 ```
 
-The release-evidence orchestrator is mandatory. Its sequence is:
+The orchestrator must complete:
+1. clean-tree check;
+2. stale evidence purge;
+3. LF/text-normalization preflight;
+4. Unity package graph preflight;
+5. EditMode + PlayMode;
+6. clean-tree check after tests;
+7. Android ARM64 debug APK build + inspection;
+8. clean-tree check after build;
+9. exact-SHA/APK candidate verification;
+10. candidate manifest generation.
 
-1. initial clean-tree check;
-2. stale candidate-evidence purge;
-3. **Unity text-normalization preflight**;
-4. clean-tree recheck;
-5. **Unity package manifest/lock preflight**;
-6. clean-tree recheck;
-7. EditMode + PlayMode;
-8. clean-tree recheck;
-9. Android build + inspection;
-10. clean-tree recheck;
-11. local candidate integrity verification;
-12. final clean-tree recheck.
+The resulting candidate remains `verified: false`.
 
-Required preflight markers before Unity is allowed to start:
+## 2. Bind the candidate to a physical-device session
 
-```text
-AFAREET_TEXT_NORMALIZATION_PREFLIGHT_START
-AFAREET_UNITY_TEXT_NORMALIZATION_OK
-AFAREET_TEXT_NORMALIZATION_PREFLIGHT_OK
-AFAREET_PACKAGE_PREFLIGHT_START
-AFAREET_UNITY_PACKAGE_LOCK_OK
-AFAREET_PACKAGE_PREFLIGHT_OK
-```
-
-Text normalization validates every tracked Unity ProjectSettings/package metadata file covered by the repository contract for explicit text normalization, `eol=lf`, working-tree presence and absence of CRLF bytes. Package verification validates manifest/lock versions/depth plus known resolved child packages.
-
-A failure in either preflight is a candidate failure and must be fixed **before** running Unity. Do not bypass the preflights or downgrade them to warnings.
-
-After Unity runs, any tracked drift also fails the candidate. Exact status/binary patch/stderr evidence is retained under ignored `artifacts/logs/`; reconcile only legitimate generated/source changes and restart from a clean exact head.
-
-Successful local orchestration emits:
-
-```text
-AFAREET_LOCAL_CANDIDATE_OK
-```
-
-and produces:
-
-```text
-artifacts/local-candidate-manifest.json
-```
-
-That manifest must be release-evidence eligible, `readyForDeviceEvidence: true`, and `verified: false`.
-
-Independent success of `test_current_windows.ps1`, `build_current_windows.ps1` or `verify_local_candidate.py` is diagnostic evidence only; it is not a substitute for the orchestrated same-SHA clean candidate chain.
-
-## Prepare physical-device evidence
-
-### Local candidate
+For a local candidate:
 
 ```bash
 python3 tools/android/prepare_candidate_device.py \
@@ -110,7 +101,7 @@ python3 tools/android/prepare_candidate_device.py \
   --output evidence/p1-device
 ```
 
-If the candidate bundle moved to another workstation, also provide the exact APK:
+If the bundle moved to another workstation:
 
 ```bash
 python3 tools/android/prepare_candidate_device.py \
@@ -119,48 +110,17 @@ python3 tools/android/prepare_candidate_device.py \
   --output evidence/p1-device
 ```
 
-### Fully Green hosted candidate
+For a fully Green hosted candidate, use its `ci-candidate-manifest.json` and exact APK.
 
-Download the exact Android artifact bundle from the fully Green `Unity Production CI` run, then use both its candidate manifest and exact APK:
+The wrapper revalidates candidate type, Git SHA, APK SHA/size, package id, release/device-evidence flags and hosted provenance when applicable.
 
-```bash
-python3 tools/android/prepare_candidate_device.py \
-  --candidate-manifest /path/to/ci-candidate-manifest.json \
-  --apk /path/to/afareet-unity3d-debug.apk \
-  --output evidence/p1-device
-```
+An arbitrary direct-APK session cannot satisfy the final-five gates.
 
-Do **not** pass a downloaded or local APK directly to `device_evidence.py prepare` for final-five evidence.
+## 3. Capture the exact required checkpoints
 
-Before ADB installation, the candidate-aware wrapper revalidates:
+The declarative source of truth is:
 
-- supported candidate type;
-- production package id;
-- `READY_FOR_PHYSICAL_DEVICE_EVIDENCE` verdict;
-- `releaseEvidenceEligible: true`;
-- `readyForDeviceEvidence: true`;
-- `verified: false`;
-- full Git SHA;
-- exact APK filename, size and SHA-256;
-- hosted repository/workflow/event/ref/run provenance when applicable.
-
-Expected marker:
-
-```text
-AFAREET_CANDIDATE_DEVICE_PRECHECK_OK
-```
-
-After prepare, the session retains a copied `candidate-manifest.json`, candidate-manifest SHA, candidate type, Git SHA and APK SHA. Expected binding marker:
-
-```text
-AFAREET_CANDIDATE_SESSION_BOUND
-```
-
-An unbound direct-APK session is not eligible for the final-five gates.
-
-## Required captures
-
-Use the exact labels below.
+`tools/android/p1_gate_spec.json`
 
 ### UVEH-012 — driving feel
 
@@ -172,7 +132,7 @@ python3 tools/android/device_evidence.py capture --session evidence/p1-device --
 python3 tools/android/device_evidence.py capture --session evidence/p1-device --label reset-recovery
 ```
 
-Manual review must approve steering, braking, reverse, drift, Nitro and recovery feel on a physical device.
+Human review: steering, braking, reverse, drift entry/recovery, Nitro, collision/recovery feel.
 
 ### URAC-012 — race lifecycle
 
@@ -183,7 +143,7 @@ python3 tools/android/device_evidence.py capture --session evidence/p1-device --
 python3 tools/android/device_evidence.py capture --session evidence/p1-device --label race-restart
 ```
 
-Manual review must complete the ordered lap, see Results, restart, and confirm the second countdown/race lifecycle.
+Human review: ordered lap, no early finish, Results, plausible time/position, Restart and second countdown.
 
 ### UPER-006 — smoke/performance
 
@@ -193,7 +153,7 @@ python3 tools/android/device_evidence.py capture --session evidence/p1-device --
 python3 tools/android/device_evidence.py capture --session evidence/p1-device --label smoke-after-restarts
 ```
 
-Review logcat, memory, gfxinfo, thermal and battery evidence. Any automated crash/ANR/native-fatal red flag blocks every final gate.
+Review logcat red flags, memory, gfxinfo, thermal and battery evidence against the approved device matrix.
 
 ### UPER-009 — Visual Gate
 
@@ -204,74 +164,156 @@ python3 tools/android/device_evidence.py capture --session evidence/p1-device --
 python3 tools/android/device_evidence.py capture --session evidence/p1-device --label visual-arabic
 ```
 
-Art/owner review must approve Hero readability, Cairo identity, HUD/SafeArea readability and Arabic presentation.
+Human review: Hero Car identity/LOD, Cairo readability, HUD/SafeArea, contrast and Arabic presentation.
 
-## Finish collection
+Any automated Fatal/ANR/native-fatal red flag blocks the final gates.
 
-```bash
-python3 tools/android/device_evidence.py finish --session evidence/p1-device
-```
-
-The harness deliberately returns `MANUAL_REVIEW_REQUIRED`.
-
-## Evaluate readiness
+## 4. Finish collection
 
 ```bash
-python3 tools/android/p1_gate_readiness.py plan
-python3 tools/android/p1_gate_readiness.py validate --session evidence/p1-device
+python3 tools/android/device_evidence.py finish \
+  --session evidence/p1-device
 ```
 
-Before evaluating captures or approvals, readiness fails closed unless the session remains candidate-bound and consistent with the copied manifest:
+The result deliberately remains:
 
-- supported candidate type;
-- full Git SHA;
-- candidate APK SHA equals evidence-index APK SHA;
-- copied manifest SHA equals the value stored in `session.json`;
-- candidate type/Git SHA/APK SHA/release-evidence state all match;
-- hosted candidates retain valid GitHub provenance;
-- candidate remains `verified: false` and `READY_FOR_PHYSICAL_DEVICE_EVIDENCE`.
+`MANUAL_REVIEW_REQUIRED`
 
-With a valid candidate binding, all required captures present and no automated red flags, the first four gates may become `EVIDENCE_READY_FOR_MANUAL_REVIEW`. That is not approval.
+## 5. Export the privacy-safe content-addressed review bundle
 
-## Manual approvals
+```bash
+python3 tools/android/export_device_evidence.py \
+  --session evidence/p1-device \
+  --output evidence/p1-review
+```
 
-Create approvals pinned to the exact APK SHA. Never fabricate reviewer names or approval state.
+The exported bundle excludes by policy:
+- raw `session.json`;
+- copied candidate source manifest;
+- package dump;
+- raw logcat;
+- raw activity dump.
+
+It also:
+- rejects emulator evidence;
+- validates raw ADB serial against the stored serial hashes;
+- scans exported text for the raw serial;
+- validates candidate manifest bytes/type/SHA;
+- regenerates sanitized checkpoint metadata;
+- records exact SHA-256 + byte size for every review file;
+- emits deterministic `contentSetSha256`.
+
+A clean export is still **not approval**.
+
+## 6. Verify the transferred bundle before review
+
+On the review workstation:
+
+```bash
+python3 tools/android/verify_device_review_bundle.py \
+  --bundle evidence/p1-review \
+  --expected-git-sha <exact-candidate-git-sha> \
+  --expected-apk-sha <exact-candidate-apk-sha256>
+```
+
+The verifier fails on:
+- changed/truncated/replaced screenshot or metrics;
+- missing or unexpected files;
+- raw forbidden files;
+- symlinks/path traversal/non-canonical paths;
+- content-set fingerprint mismatch;
+- candidate Git/APK mismatch;
+- evidence-index/checkpoint device/APK mismatch;
+- changed privacy/manual-review contracts.
+
+Successful verification still reports:
+
+`verified=false` and `MANUAL_REVIEW_REQUIRED`.
+
+## 7. Record schema-v2 manual approvals
+
+**Schema v1 approvals are intentionally rejected.**
+
+A human approval must be pinned to the exact evidence the reviewer saw:
+- candidate Git SHA;
+- candidate APK SHA-256;
+- verified review bundle `contentSetSha256`.
+
+Example:
 
 ```json
 {
-  "schemaVersion": 1,
-  "apkSha256": "<exact sha256 from evidence-index.json>",
+  "schemaVersion": 2,
+  "gitSha": "<exact 40-character candidate Git SHA>",
+  "apkSha256": "<exact candidate APK SHA-256>",
+  "reviewContentSetSha256": "<contentSetSha256 from verified review-manifest.json>",
   "approvals": {
-    "UVEH-012": {"approved": true, "reviewer": "<name>"},
-    "URAC-012": {"approved": true, "reviewer": "<name>"},
-    "UPER-006": {"approved": true, "reviewer": "<name>"},
-    "UPER-009": {"approved": true, "reviewer": "<name>"},
+    "UVEH-012": {"approved": true, "reviewer": "<gameplay reviewer>"},
+    "URAC-012": {"approved": true, "reviewer": "<QA reviewer>"},
+    "UPER-006": {"approved": true, "reviewer": "<performance/QA reviewer>"},
+    "UPER-009": {"approved": true, "reviewer": "<art/visual reviewer>"},
     "UPER-010": {"approved": true, "reviewer": "<release owner>"}
   }
 }
 ```
 
-Then:
+Never fabricate reviewer names or approval state.
+
+If the bundle changes, its `contentSetSha256` changes and the previous approval file no longer applies.
+
+If the candidate SHA or APK SHA changes, the previous approval file no longer applies.
+
+## 8. Evaluate final-five readiness
+
+Evidence-only check:
+
+```bash
+python3 tools/android/p1_gate_readiness.py validate \
+  --session evidence/p1-device
+```
+
+Evidence + exact review bundle + approvals:
 
 ```bash
 python3 tools/android/p1_gate_readiness.py validate \
   --session evidence/p1-device \
+  --review-bundle evidence/p1-review \
   --approvals /path/to/manual-approvals.json
 ```
 
-`UPER-010` can only reach `READY_FOR_RELEASE_REVIEW` when:
+The evaluator independently invokes the offline review-bundle verifier before accepting any approval.
 
-- the APK came from an accepted exact-head candidate path;
-- candidate binding remains valid;
-- the session is physical-device evidence, not emulator evidence;
-- all required checkpoints exist;
-- automated crash/ANR/native-fatal flags are zero;
-- `UVEH-012`, `URAC-012`, `UPER-006`, and `UPER-009` each have explicit human approval;
-- approvals are pinned to the same APK SHA;
-- `UPER-010` has explicit release-owner approval.
+The first four gates can become `MANUALLY_APPROVED` only when:
+- candidate binding is valid;
+- physical-device checkpoints are complete;
+- automated red flags are zero;
+- the review bundle verifies for the same Git/APK candidate;
+- approval schema is v2;
+- approval Git SHA matches;
+- approval APK SHA matches;
+- approval `reviewContentSetSha256` matches the verified review bundle;
+- the task has `approved: true` and a non-empty reviewer.
 
-Even then the evaluator emits `verified: false`. Publication and `Last Verified APK` promotion remain an explicit release-policy decision.
+`UPER-010` can become `READY_FOR_RELEASE_REVIEW` only after all four dependent approvals and its own explicit release-owner approval are bound to that same candidate/evidence fingerprint.
 
-## External blocker
+Even then:
 
-Issue #98 remains open while GitHub-hosted Unity lacks a complete credential triple. The licensed-Windows path can produce exact-head test/build evidence, but it does not make hosted `Unity Production CI` Green and does not replace the physical-device/manual gates.
+- `p1_gate_readiness.py` emits `verified: false`;
+- no script publishes a release automatically;
+- `Last Verified APK` promotion remains an explicit release-policy action.
+
+## Human-only blocker
+
+The implementation/tooling path can prepare and verify evidence, but it cannot perform subjective driving/visual review or physically connect a device.
+
+Smallest remaining human sequence:
+1. dispatch/run licensed Unity on the then-current exact production SHA;
+2. connect an authorized physical Android device;
+3. capture all required checkpoints;
+4. export and verify the content-addressed review bundle;
+5. Gameplay/QA/Art reviewers inspect that exact bundle;
+6. record schema-v2 approvals;
+7. release owner approves `UPER-010`;
+8. run readiness evaluator and then follow release policy.
+
+No final task is promoted before that evidence exists.
