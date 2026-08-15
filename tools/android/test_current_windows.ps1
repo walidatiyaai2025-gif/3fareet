@@ -120,23 +120,35 @@ function Invoke-UnityTests([string]$Mode) {
     $passed = 0
     $failed = 0
     $skipped = 0
+    $inconclusive = 0
     if ($null -ne $testRun.total) { $total = [int]$testRun.total }
     if ($null -ne $testRun.passed) { $passed = [int]$testRun.passed }
     if ($null -ne $testRun.failed) { $failed = [int]$testRun.failed }
     if ($null -ne $testRun.skipped) { $skipped = [int]$testRun.skipped }
+    if ($null -ne $testRun.inconclusive) { $inconclusive = [int]$testRun.inconclusive }
     $result = [string]$testRun.result
+    $accounted = $passed + $failed + $skipped + $inconclusive
 
     if ($total -le 0) {
         Fail "Unity $Mode executed zero tests; refusing empty test evidence."
     }
     if ($passed -le 0) {
-        Fail "Unity $Mode produced no passing tests; all-skipped/non-executed evidence is not release eligible. total=$total passed=$passed failed=$failed skipped=$skipped"
+        Fail "Unity $Mode produced no passing tests; all-skipped/non-executed evidence is not release eligible. total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
     }
-    if ($failed -gt 0 -or $result -notin @('Passed', 'Success')) {
-        Fail "Unity $Mode tests did not pass. result=$result total=$total passed=$passed failed=$failed skipped=$skipped"
+    if ($failed -gt 0) {
+        Fail "Unity $Mode tests contain failures. total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
+    }
+    if ($inconclusive -gt 0) {
+        Fail "Unity $Mode tests contain inconclusive results. total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
+    }
+    if ($accounted -ne $total) {
+        Fail "Unity $Mode test counters do not account for every test. total=$total accounted=$accounted passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
+    }
+    if ($result -notin @('Passed', 'Success')) {
+        Fail "Unity $Mode tests did not pass. result=$result total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
     }
 
-    Write-Host "AFAREET_LOCAL_TEST_OK mode=$Mode total=$total passed=$passed failed=$failed skipped=$skipped"
+    Write-Host "AFAREET_LOCAL_TEST_OK mode=$Mode total=$total passed=$passed failed=$failed skipped=$skipped inconclusive=$inconclusive"
 
     return [ordered]@{
         mode = $Mode
@@ -145,6 +157,7 @@ function Invoke-UnityTests([string]$Mode) {
         passed = $passed
         failed = $failed
         skipped = $skipped
+        inconclusive = $inconclusive
         resultXml = $ResultPath
         unityLog = $LogPath
     }
