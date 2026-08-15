@@ -26,21 +26,29 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         self.assertIn("GameObject.CreatePrimitive(PrimitiveType.Cube)", text)
         self.assertIn("AFAREET_UART004_EDITOR_BLOCKOUT_RIVAL_ACTIVE", text)
 
-    def test_android_gate_requires_preexisting_external_authored_prefabs_and_real_sources(self):
+    def test_android_gate_requires_preexisting_external_authored_prefabs_and_verifiable_sources(self):
         text = self._read("unity_game/Assets/Afareet/Editor/RivalProductionBuildGate.cs")
         self.assertNotIn("RivalProductionAssetBuilder.BuildOrThrow", text)
-        self.assertIn("RivalProductionPolicy.VariantCount", text)
-        self.assertIn("RivalProductionPolicy.AssetPath", text)
-        self.assertIn("ValidateProductionPrefab", text)
-        self.assertIn("missing-external-authored-prefab", text)
-        self.assertIn("AssetDatabase.LoadMainAssetAtPath", text)
-        self.assertIn("metadata.SourceAssetId", text)
-        self.assertIn("missing-imported-authored-source", text)
-        self.assertIn("authored-source-path-mismatch", text)
-        self.assertIn("AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED", text)
-        self.assertIn("AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK", text)
-        self.assertIn("external-authored-3d", text)
-        self.assertIn("importedSources=3", text)
+        for required in (
+            "RivalProductionPolicy.VariantCount",
+            "RivalProductionPolicy.AssetPath",
+            "ValidateProductionPrefab",
+            "missing-external-authored-prefab",
+            "AssetDatabase.LoadMainAssetAtPath",
+            "AssetImporter.GetAtPath",
+            "AssetDatabase.AssetPathToGUID",
+            "AssetDatabase.GetAssetDependencyHash",
+            "RivalProductionPolicy.MeshFor(renderer)",
+            "AssetDatabase.GetAssetPath(mesh)",
+            "source-guid-mismatch",
+            "source-dependency-hash-mismatch",
+            "mesh-not-backed-by-source",
+            "AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED",
+            "AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK",
+            "guidHashBound=true",
+            "meshSourceBound=true",
+        ):
+            self.assertIn(required, text)
 
     def test_rival_quality_contract_requires_surface_authoring_identity_and_external_model_source(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
@@ -54,11 +62,14 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "textureMappedMaterials",
             "assetVersion",
             "sourceFingerprint",
+            "sourceGuid",
+            "sourceDependencyHash",
             "mesh.uv",
             "mesh.normals",
             "material.mainTexture",
             "IsSupportedAuthoredModelSource",
             'StartsWith("Assets/"',
+            'IndexOf("/Generated/"',
             '".fbx"',
             '".obj"',
             '".blend"',
