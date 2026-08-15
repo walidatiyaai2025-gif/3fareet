@@ -10,6 +10,7 @@ namespace Afareet.World
         private const string RunePath = ResourceRoot + "/SM_Track_SpiritRune_A";
         private const string GroundPath = ResourceRoot + "/SM_Track_DesertGround_A";
         private const string SectorBeaconPath = ResourceRoot + "/SM_Track_SectorBeacon_A";
+        private const float SectorBeaconLateralOffset = 15f;
         private static bool activationLogged;
         private static bool editorMaterialOverrideLogged;
 
@@ -65,7 +66,14 @@ namespace Afareet.World
             if (source == null) return Missing(SectorBeaconPath);
             var instance = UnityEngine.Object.Instantiate(source, parent, false);
             instance.name = "AUTHORED Cairo Sector Beacon";
-            instance.transform.SetPositionAndRotation(anchor.position + anchor.right * 18f, anchor.rotation);
+
+            // Keep the 2.45m-wide authored beacon outside the 14m road/rail envelope while
+            // retaining safe clearance from CairoTrackBuilder's +right roadside buildings,
+            // whose closest centers are 22m from the racing line. The former 18m placement
+            // could overlap a rotated 5m building footprint at waypoint 36.
+            instance.transform.SetPositionAndRotation(
+                anchor.position + anchor.right * SectorBeaconLateralOffset,
+                anchor.rotation);
             instance.transform.localScale = Vector3.one;
             ApplySectorBeaconMaterialsForEditorPreview(instance, primary, secondary, dark, gold);
 
@@ -143,7 +151,9 @@ namespace Afareet.World
         {
             if (activationLogged) return;
             activationLogged = true;
-            Debug.Log("AFAREET_UART007_AUTHORED_TRACK_DRESSING_ACTIVE geometry=tracked-obj resources=staged playerMaterials=source-authored");
+            Debug.Log(
+                $"AFAREET_UART007_AUTHORED_TRACK_DRESSING_ACTIVE geometry=tracked-obj resources=staged " +
+                $"playerMaterials=source-authored sectorBeaconOffset={SectorBeaconLateralOffset:F1}");
         }
     }
 }
