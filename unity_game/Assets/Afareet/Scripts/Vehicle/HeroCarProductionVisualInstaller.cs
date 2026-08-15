@@ -21,24 +21,35 @@ namespace Afareet.Vehicle
             var hero = GameObject.Find("PLAYER HERO — AFAREET");
             if (hero == null || hero.GetComponent<ArcadeCarController>() == null) return;
 
-            if (hero.GetComponentInChildren<HeroCarProductionVisual>(true) != null)
-            {
-                complete = true;
-                return;
-            }
-
             var proceduralRenderers = hero.GetComponentsInChildren<MeshRenderer>(true);
             foreach (var renderer in proceduralRenderers)
                 renderer.enabled = false;
 
-            if (!HeroCarProductionVisual.TryAttach(hero.transform))
+            if (HeroCarProductionVisual.TryAttach(hero.transform))
             {
-                foreach (var renderer in proceduralRenderers)
-                    if (renderer != null) renderer.enabled = true;
+                Debug.Log($"AFAREET_HERO_PRODUCTION_VISUAL_ACTIVE hiddenProceduralRenderers={proceduralRenderers.Length}");
+                complete = true;
                 return;
             }
 
-            Debug.Log($"AFAREET_HERO_PRODUCTION_VISUAL_ACTIVE hiddenProceduralRenderers={proceduralRenderers.Length}");
+            if (Application.isEditor && HeroCarProductionVisual.TryAttachGeneratedPreview(hero.transform))
+            {
+                Debug.Log($"AFAREET_HERO_EDITOR_GENERATED_PREVIEW_ACTIVE hiddenProceduralRenderers={proceduralRenderers.Length} production=false");
+                complete = true;
+                return;
+            }
+
+            if (Application.isEditor)
+            {
+                foreach (var renderer in proceduralRenderers)
+                    if (renderer != null) renderer.enabled = true;
+                Debug.LogWarning("AFAREET_HERO_EDITOR_BLOCKOUT_FALLBACK_ACTIVE");
+            }
+            else
+            {
+                Debug.LogError("AFAREET_HERO_PRODUCTION_REQUIRED blockout-fallback-disabled");
+            }
+
             complete = true;
         }
     }
