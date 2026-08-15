@@ -126,7 +126,9 @@ jobs:
             '$resultXml.''test-run''',
             '$total -le 0',
             '$passed -le 0',
-            '$failed -gt 0'
+            '$failed -gt 0',
+            '$inconclusive -gt 0',
+            '$accounted -ne $total'
           )
           foreach ($required in $testRequired) {
             if (-not $testText.Contains($required)) {
