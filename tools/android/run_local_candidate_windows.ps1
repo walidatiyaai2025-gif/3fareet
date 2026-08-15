@@ -44,14 +44,37 @@ if ($initialDirty.Count -gt 0) {
     Fail "Candidate orchestration requires a clean Git working tree before Unity starts."
 }
 
+function Preserve-DirtyTreeEvidence([string]$Phase, [string[]]$Changes) {
+    $phaseKey = ($Phase.ToLowerInvariant() -replace '[^a-z0-9_-]', '-')
+    $evidenceDir = Join-Path $RepoRoot "artifacts\logs"
+    New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
+
+    $statusPath = Join-Path $evidenceDir "git-dirty-$phaseKey.status.txt"
+    $patchPath = Join-Path $evidenceDir "git-dirty-$phaseKey.patch"
+
+    $Changes | Set-Content -Encoding UTF8 $statusPath
+
+    $patch = @(& git -C $RepoRoot diff --binary HEAD -- 2>&1)
+    $patchExitCode = $LASTEXITCODE
+    if ($patchExitCode -ne 0) {
+        "Unable to capture git diff. exitCode=$patchExitCode" | Set-Content -Encoding UTF8 $patchPath
+        Write-Warning "Unable to capture tracked dirty-tree patch for phase $Phase. exitCode=$patchExitCode"
+    } else {
+        $patch | Set-Content -Encoding UTF8 $patchPath
+    }
+
+    Write-Host "AFAREET_DIRTY_TREE_EVIDENCE phase=$Phase status=$statusPath patch=$patchPath"
+}
+
 function Assert-CleanTree([string]$Phase) {
     $changes = @(& git -C $RepoRoot status --porcelain 2>$null)
     if ($LASTEXITCODE -ne 0) {
         Fail "Unable to inspect Git state after $Phase."
     }
     if ($changes.Count -gt 0) {
+        Preserve-DirtyTreeEvidence -Phase $Phase -Changes $changes
         $changes | ForEach-Object { Write-Warning "${Phase}_DIRTY $_" }
-        Fail "Unity/UPM changed repository content during $Phase. Reconcile and commit package/source changes, then restart from a clean exact head."
+        Fail "Unity/UPM changed repository content during $Phase. Exact status/patch evidence was preserved under artifacts/logs. Reconcile and commit package/source changes, then restart from a clean exact head."
     }
 }
 
