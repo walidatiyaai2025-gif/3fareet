@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,13 +22,23 @@ FINGERPRINT = _load("fingerprint_p1_production_art_manifest", "fingerprint_p1_pr
 GATE = FINGERPRINT.gate
 
 
+def _git(repo: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
 class P1ProductionArtFingerprintTests(unittest.TestCase):
     def _fixture(self, root: Path):
         repo = root / "repo"
         repo.mkdir()
         evidence = root / "evidence"
         evidence.mkdir()
-        git_sha = "a" * 40
         apk_sha = "b" * 64
 
         required = json.loads((TOOLS_DIR / "p1_production_art_spec.json").read_text(encoding="utf-8"))["requiredTasks"]
@@ -52,6 +63,13 @@ class P1ProductionArtFingerprintTests(unittest.TestCase):
                 "runtimeAssets": [{"path": runtime.relative_to(repo).as_posix()}],
                 "evidence": [{"kind": "screenshot", "path": shot.name}],
             }
+
+        _git(repo, "init")
+        _git(repo, "config", "user.name", "AFAREET Test")
+        _git(repo, "config", "user.email", "afareet-test@example.invalid")
+        _git(repo, "add", "Assets", "unity_game")
+        _git(repo, "commit", "-m", "fingerprint fixture")
+        git_sha = _git(repo, "rev-parse", "HEAD").lower()
 
         manifest = {
             "schemaVersion": 2,
@@ -93,6 +111,8 @@ class P1ProductionArtFingerprintTests(unittest.TestCase):
             )
             self.assertTrue(result["artifactFingerprintsVerified"])
             self.assertEqual(18, result["artifactFingerprintCount"])
+            self.assertTrue(result["gitCandidateHeadVerified"])
+            self.assertEqual(12, result["gitTrackedArtifactCount"])
 
     def test_tamper_after_fingerprinting_is_rejected_by_gate(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -125,6 +145,24 @@ class P1ProductionArtFingerprintTests(unittest.TestCase):
             manifest["verified"] = True
             path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(FINGERPRINT.FingerprintManifestError, "self-assert VERIFIED"):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_fingerprinter_rejects_wrong_candidate_head(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            manifest["candidate"]["gitSha"] = "c" * 40
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "repository HEAD does not match"):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_fingerprinter_rejects_untracked_repo_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            extra = repo / "Assets/UART-003/source/untracked.obj"
+            extra.write_bytes(b"untracked")
+            manifest["assets"]["UART-003"]["sourceFiles"] = [{"path": extra.relative_to(repo).as_posix()}]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "is not tracked by candidate Git commit"):
                 FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
 
     def test_output_must_stay_beside_input_and_never_overwrite(self):
