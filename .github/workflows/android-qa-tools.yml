@@ -123,6 +123,7 @@ jobs:
             "'-testResults'",
             '$resultXml.''test-run''',
             '$total -le 0',
+            '$passed -le 0',
             '$failed -gt 0'
           )
           foreach ($required in $testRequired) {
