@@ -1,0 +1,77 @@
+name: Windows Native Candidate Verifiers
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/*_windows.ps1'
+      - 'tools/android/run_local_candidate_windows.ps1'
+      - 'unity_game/Packages/**'
+      - 'unity_game/ProjectSettings/**'
+      - '.gitattributes'
+      - '.github/workflows/windows-native-verifiers.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-verifiers:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Parse native PowerShell scripts
+        shell: pwsh
+        run: |
+          $scripts = @(
+            'tools/android/verify_unity_text_normalization_windows.ps1',
+            'tools/android/verify_unity_package_lock_windows.ps1',
+            'tools/android/verify_local_candidate_windows.ps1',
+            'tools/android/run_local_candidate_windows.ps1'
+          )
+          foreach ($relativePath in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $relativePath),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "${relativePath}: $($_.Message)" }
+              exit 1
+            }
+          }
+          Write-Host 'AFAREET_WINDOWS_NATIVE_PARSE_OK'
+
+      - name: Verify Unity LF normalization natively
+        shell: pwsh
+        run: |
+          & ./tools/android/verify_unity_text_normalization_windows.ps1 -RepoRoot (Resolve-Path '.').Path
+
+      - name: Verify Unity package graph natively
+        shell: pwsh
+        run: |
+          & ./tools/android/verify_unity_package_lock_windows.ps1 -RepoRoot (Resolve-Path '.').Path
+
+      - name: Verify native candidate contract parity
+        shell: pwsh
+        run: |
+          $text = Get-Content -Raw 'tools/android/verify_local_candidate_windows.ps1'
+          foreach ($required in @(
+            'local-windows-licensed-unity-tests',
+            'local-windows-licensed-unity',
+            '6000.5.8f1',
+            'com.fiftysolutions.afareetunity3d',
+            'arm64-v8a',
+            'READY_FOR_PHYSICAL_DEVICE_EVIDENCE',
+            'verified = $false',
+            'Get-FileHash'
+          )) {
+            if (-not $text.Contains($required)) {
+              throw "Native candidate verifier missing contract marker: $required"
+            }
+          }
+          Write-Host 'AFAREET_WINDOWS_NATIVE_CANDIDATE_CONTRACT_OK'
