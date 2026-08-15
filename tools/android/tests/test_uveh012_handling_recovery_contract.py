@@ -34,8 +34,21 @@ class Uveh012HandlingRecoveryContractTests(unittest.TestCase):
         self.assertIn("VehicleRecoveryPolicy.AdvanceStuckTimer", controller)
         self.assertIn("VehicleRecoveryPolicy.ShouldAutoRecover", controller)
         self.assertIn('RecoverToTrack("auto-stuck")', controller)
+        self.assertIn("else\n            {\n                // Never carry a partially accumulated stuck timer", controller)
+        self.assertIn("stuckDriveSeconds = 0f;", controller)
 
-    def test_recovery_uses_safe_checkpoint_clearance_and_input_lock(self):
+    def test_recovery_checkpoint_cannot_jump_to_unrelated_track_sector(self):
+        recovery = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/VehicleRecoveryPolicy.cs")
+        checkpoint = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/LastCheckpointTracker.cs")
+        self.assertIn("MaxForwardCheckpointAdvance = 4", recovery)
+        self.assertIn("IsRecoveryCheckpointAdvanceAllowed", recovery)
+        self.assertIn("lastCheckpointIndex", checkpoint)
+        self.assertIn("LastCheckpointIndex", checkpoint)
+        self.assertIn("VehicleRecoveryPolicy.IsRecoveryCheckpointAdvanceAllowed", checkpoint)
+        self.assertIn("lastCheckpointIndex = nearestIndex", checkpoint)
+        self.assertNotIn("foreach (var waypoint in waypoints)", checkpoint)
+
+    def test_recovery_uses_safe_checkpoint_clearance_input_lock_and_rigidbody_pose(self):
         recovery = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/VehicleRecoveryPolicy.cs")
         checkpoint = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/LastCheckpointTracker.cs")
         controller = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeCarController.cs")
@@ -46,6 +59,9 @@ class Uveh012HandlingRecoveryContractTests(unittest.TestCase):
         self.assertIn("MinimumForwardAlignment = 0.15f", checkpoint)
         self.assertIn("checkpoint.RecoveryPosition", controller)
         self.assertIn("recoveryInputLockRemaining", controller)
+        self.assertIn("body.position = targetPosition", controller)
+        self.assertIn("body.rotation = targetRotation", controller)
+        self.assertNotIn("transform.SetPositionAndRotation(targetPosition, targetRotation)", controller)
         self.assertIn("AFAREET_UVEH012_RECOVERY", controller)
 
     def test_existing_mobile_brake_reverse_and_visible_recover_controls_remain(self):
