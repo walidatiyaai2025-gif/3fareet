@@ -3,10 +3,8 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
-using UnityEditor.SceneManagement;
 using UnityEditor.Android;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Afareet.Editor
 {
@@ -104,10 +102,14 @@ namespace Afareet.Editor
             );
 #pragma warning restore CS0618
 
-            Directory.CreateDirectory("Assets/Scenes");
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            scene.name = "Afareet Prototype";
-            EditorSceneManager.SaveScene(scene, ScenePath);
+            // The tracked prototype scene is production source input. A build must
+            // never regenerate or resave it: doing so makes an otherwise successful
+            // exact-SHA build dirty and invalidates release evidence. Treat a missing
+            // or invalid scene as a hard configuration error instead.
+            var prototypeScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath);
+            if (prototypeScene == null)
+                throw new InvalidOperationException($"Build scene is missing or invalid at {ScenePath}");
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
         }
