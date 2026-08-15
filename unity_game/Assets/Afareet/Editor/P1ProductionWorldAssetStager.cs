@@ -6,9 +6,9 @@ using UnityEngine;
 namespace Afareet.Editor
 {
     /// <summary>
-    /// Copies the tracked authored UART-005 OBJ sources into an ignored Unity Resources
-    /// staging directory. This keeps exact-SHA source trees clean while allowing Unity's
-    /// native model importer to package the tracked geometry into editor/player builds.
+    /// Copies tracked UART-005 model sources plus material/texture companions into an
+    /// ignored Unity Resources staging directory. Production source remains under docs;
+    /// staged files are only Unity-importable packaging of that exact tracked source set.
     /// </summary>
     public static class P1ProductionWorldAssetStager
     {
@@ -62,16 +62,23 @@ namespace Afareet.Editor
             if (!Directory.Exists(sourceRoot))
                 throw new InvalidOperationException($"UART-005 source root is missing: {SourceRoot}");
 
-            Directory.CreateDirectory(generatedAbsolute);
-            var changed = 0;
-
             foreach (var model in Models)
             {
-                var source = Path.Combine(sourceRoot, model);
-                var destination = Path.Combine(generatedAbsolute, model);
-                if (!File.Exists(source))
+                if (!File.Exists(Path.Combine(sourceRoot, model)))
                     throw new InvalidOperationException($"UART-005 tracked source is missing: {SourceRoot}/{model}");
+            }
 
+            Directory.CreateDirectory(generatedAbsolute);
+            RemoveStaleStageableFiles(sourceRoot, generatedAbsolute);
+
+            var changed = 0;
+            var staged = 0;
+            foreach (var source in Directory.GetFiles(sourceRoot, "*", SearchOption.TopDirectoryOnly))
+            {
+                if (!IsStageable(Path.GetExtension(source))) continue;
+                staged++;
+
+                var destination = Path.Combine(generatedAbsolute, Path.GetFileName(source));
                 var sourceBytes = File.ReadAllBytes(source);
                 if (!File.Exists(destination) || !BytesEqual(sourceBytes, File.ReadAllBytes(destination)))
                 {
@@ -91,7 +98,39 @@ namespace Afareet.Editor
                     throw new InvalidOperationException($"UART-005 staged model failed Unity import: {resourcePath}");
             }
 
-            Debug.Log($"AFAREET_UART005_STAGE_OK models={Models.Length} changed={changed} source=tracked-docs generated=ignored-resources");
+            Debug.Log(
+                $"AFAREET_UART005_STAGE_OK models={Models.Length} stagedFiles={staged} changed={changed} " +
+                "companions=mtl-textures source=tracked-docs generated=ignored-resources");
+        }
+
+        private static void RemoveStaleStageableFiles(string sourceRoot, string generatedRoot)
+        {
+            foreach (var destination in Directory.GetFiles(generatedRoot, "*", SearchOption.TopDirectoryOnly))
+            {
+                var extension = Path.GetExtension(destination);
+                if (!IsStageable(extension)) continue;
+                var source = Path.Combine(sourceRoot, Path.GetFileName(destination));
+                if (!File.Exists(source)) File.Delete(destination);
+            }
+        }
+
+        private static bool IsStageable(string extension)
+        {
+            switch ((extension ?? string.Empty).ToLowerInvariant())
+            {
+                case ".obj":
+                case ".mtl":
+                case ".png":
+                case ".jpg":
+                case ".jpeg":
+                case ".tga":
+                case ".bmp":
+                case ".exr":
+                case ".psd":
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private static bool BytesEqual(byte[] a, byte[] b)
