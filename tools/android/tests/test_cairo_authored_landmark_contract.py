@@ -4,7 +4,6 @@ import re
 import unittest
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 LANDMARK_ROOT = REPO_ROOT / "docs/assets/03_props_architecture/cairo_landmarks"
 SOURCE_ROOT = LANDMARK_ROOT / "source"
@@ -19,7 +18,6 @@ RUNTIME_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoLandmar
 TRACK_PYRAMID_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoTrackPyramidAuthoredReplacementPass.cs"
 TRACK_BUILDER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoTrackBuilder.cs"
 
-
 MODELS = {
     "SM_Landmark_GizaPyramid_A.obj": 40,
     "SM_Landmark_Minaret_A.obj": 100,
@@ -27,19 +25,21 @@ MODELS = {
     "SM_Landmark_BridgeGantry_A.obj": 200,
 }
 
+SURFACED = (
+    ("SM_Landmark_GizaPyramid_A.obj", "SM_Landmark_GizaPyramid_A.mtl", "Giza_Stone", "T_Landmark_GizaPyramid_BC.png"),
+    ("SM_Landmark_Minaret_A.obj", "SM_Landmark_Minaret_A.mtl", "Minaret_Stone", "T_Landmark_Minaret_BC.png"),
+)
+
 
 def vertex_count(path: Path) -> int:
-    return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("v "))
+    return sum(line.startswith("v ") for line in path.read_text(encoding="utf-8").splitlines())
 
 
 def triangle_count(path: Path) -> int:
     total = 0
     for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.startswith("f "):
-            continue
-        corners = len(line.split()) - 1
-        if corners >= 3:
-            total += corners - 2
+        if line.startswith("f "):
+            total += max(0, len(line.split()) - 3)
     return total
 
 
@@ -47,10 +47,9 @@ def obj_vertex_bounds(path: Path):
     vertices = []
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
-        if not line.startswith("v "):
-            continue
-        fields = line.split()
-        vertices.append(tuple(float(value) for value in fields[1:4]))
+        if line.startswith("v "):
+            fields = line.split()
+            vertices.append(tuple(float(value) for value in fields[1:4]))
     if not vertices:
         raise AssertionError(f"OBJ has no vertices: {path}")
     return (
@@ -61,6 +60,26 @@ def obj_vertex_bounds(path: Path):
 
 
 class CairoAuthoredLandmarkContractTests(unittest.TestCase):
+    def _assert_surface_chain(self, model, mtl_file, material, texture):
+        obj = (SOURCE_ROOT / model).read_text(encoding="utf-8")
+        mtl = (SOURCE_ROOT / mtl_file).read_text(encoding="utf-8")
+        self.assertIn(f"mtllib {mtl_file}", obj)
+        self.assertIn(f"usemtl {material}", obj)
+        self.assertIn("\nvt ", "\n" + obj)
+        self.assertIn("\nvn ", "\n" + obj)
+        self.assertIn(f"newmtl {material}", mtl)
+        self.assertIn(f"map_Kd {texture}", mtl)
+        payload = (SOURCE_ROOT / texture).read_bytes()
+        self.assertGreater(len(payload), 32)
+        self.assertTrue(payload.startswith(b"\x89PNG\r\n\x1a\n"), texture)
+        faces = [line for line in obj.splitlines() if line.startswith("f ")]
+        self.assertTrue(faces, model)
+        for face in faces:
+            for token in face.split()[1:]:
+                fields = token.split("/")
+                self.assertEqual(3, len(fields), token)
+                self.assertTrue(fields[1] and fields[2], token)
+
     def test_all_four_landmark_sources_are_authored_nontrivial_meshes(self):
         for name, minimum_vertices in MODELS.items():
             path = SOURCE_ROOT / name
@@ -68,32 +87,22 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
             self.assertGreaterEqual(vertex_count(path), minimum_vertices, name)
             self.assertGreater(triangle_count(path), 50, name)
 
-    def test_giza_has_tracked_surface_chain_but_package_is_only_one_of_four_surfaced(self):
-        obj = (SOURCE_ROOT / "SM_Landmark_GizaPyramid_A.obj").read_text(encoding="utf-8")
-        mtl = (SOURCE_ROOT / "SM_Landmark_GizaPyramid_A.mtl").read_text(encoding="utf-8")
-        texture = SOURCE_ROOT / "T_Landmark_GizaPyramid_BC.png"
-        self.assertIn("mtllib SM_Landmark_GizaPyramid_A.mtl", obj)
-        self.assertIn("usemtl Giza_Stone", obj)
-        self.assertIn("\nvt ", "\n" + obj)
-        self.assertIn("\nvn ", "\n" + obj)
-        self.assertIn("newmtl Giza_Stone", mtl)
-        self.assertIn("map_Kd T_Landmark_GizaPyramid_BC.png", mtl)
-        payload = texture.read_bytes()
-        self.assertGreater(len(payload), 32)
-        self.assertTrue(payload.startswith(b"\x89PNG\r\n\x1a\n"))
-        faces = [line for line in obj.splitlines() if line.startswith("f ")]
-        self.assertTrue(faces)
-        for face in faces:
-            for token in face.split()[1:]:
-                fields = token.split("/")
-                self.assertEqual(3, len(fields), token)
-                self.assertTrue(fields[1] and fields[2], token)
+    def test_giza_and_minaret_have_tracked_surface_chains_but_package_is_two_of_four(self):
+        for module in SURFACED:
+            with self.subTest(model=module[0]):
+                self._assert_surface_chain(*module)
         self.assertEqual(42, vertex_count(SOURCE_ROOT / "SM_Landmark_GizaPyramid_A.obj"))
         self.assertEqual(80, triangle_count(SOURCE_ROOT / "SM_Landmark_GizaPyramid_A.obj"))
+        self.assertEqual(146, vertex_count(SOURCE_ROOT / "SM_Landmark_Minaret_A.obj"))
+        self.assertEqual(288, triangle_count(SOURCE_ROOT / "SM_Landmark_Minaret_A.obj"))
+        minaret_bounds = obj_vertex_bounds(SOURCE_ROOT / "SM_Landmark_Minaret_A.obj")
+        self.assertLessEqual(max(abs(minaret_bounds[0]), abs(minaret_bounds[1])), 1.28)
+        self.assertAlmostEqual(0.0, minaret_bounds[2], places=4)
+        self.assertAlmostEqual(15.0, minaret_bounds[3], places=4)
 
-        minaret = (SOURCE_ROOT / "SM_Landmark_Minaret_A.obj").read_text(encoding="utf-8")
-        self.assertNotIn("\nmtllib ", "\n" + minaret)
-        self.assertNotIn("\nvn ", "\n" + minaret)
+        dome = (SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj").read_text(encoding="utf-8")
+        self.assertNotIn("\nmtllib ", "\n" + dome)
+        self.assertNotIn("\nvn ", "\n" + dome)
 
     def test_manifest_stays_blocked_until_render_and_owner_acceptance(self):
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
@@ -106,8 +115,8 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         self.assertEqual(4, len(manifest["modules"]))
         self.assertEqual("replacement-implemented-unverified", manifest["runtimeReplacementStatus"]["trackBuilderPyramids"])
         self.assertFalse(manifest["runtimeReplacementStatus"]["primitiveTrackPyramidFallbackInPlayer"])
-        self.assertEqual("tracked-uv-normal-mtl-texture-candidate", manifest["modules"][0]["surfaceAuthoring"])
-        self.assertEqual(3, sum(module.get("surfaceAuthoring") == "pending" for module in manifest["modules"]))
+        self.assertEqual(2, sum(module.get("surfaceAuthoring") == "tracked-uv-normal-mtl-texture-candidate" for module in manifest["modules"]))
+        self.assertEqual(2, sum(module.get("surfaceAuthoring") == "pending" for module in manifest["modules"]))
         for module in manifest["modules"]:
             self.assertGreater(module["productionMinVertices"], 0)
             self.assertGreater(module["productionMinTriangles"], 0)
@@ -116,25 +125,19 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         bounds = obj_vertex_bounds(SOURCE_ROOT / "SM_Landmark_DomeGate_A.obj")
         dome_half_width = max(abs(bounds[0]), abs(bounds[1]))
         self.assertAlmostEqual(6.5, dome_half_width, places=3)
-
         adapter = ADAPTER.read_text(encoding="utf-8")
         track_builder = TRACK_BUILDER.read_text(encoding="utf-8")
         match = re.search(r"DomeGateLateralOffset\s*=\s*([0-9.]+)f", adapter)
         self.assertIsNotNone(match)
         dome_offset = float(match.group(1))
-
         self.assertIn("RoadWidth = 14f", track_builder)
         self.assertIn("RoadWidth + 8f", track_builder)
         self.assertIn("var width = 5f + (seed * 3 % 6);", track_builder)
         self.assertIn("seed * 31f", track_builder)
-
-        building_center = 14.0 + 8.0
+        building_center = 22.0
         building_width = 5.0 + ((36 * 3) % 6)
-        building_half_diagonal = building_width * math.sqrt(2.0) / 2.0
-        building_outer_edge = building_center + building_half_diagonal
-        dome_inner_edge = dome_offset - dome_half_width
-        clearance = dome_inner_edge - building_outer_edge
-
+        building_outer_edge = building_center + building_width * math.sqrt(2.0) / 2.0
+        clearance = (dome_offset - dome_half_width) - building_outer_edge
         self.assertGreaterEqual(clearance, 2.0)
         self.assertIn("anchor.right * DomeGateLateralOffset", adapter)
         self.assertNotIn("Root(\"AUTHORED Neon Dome Gate\", anchor, anchor.right * 24f)", adapter)
@@ -147,7 +150,6 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
             self.assertIn(required, stager)
         self.assertIn("Resources.Load<GameObject>(resourcePath)", stager)
         self.assertIn("companions=mtl-textures", stager)
-
         preprocessor = PREPROCESSOR.read_text(encoding="utf-8")
         self.assertIn("IPreprocessBuildWithReport", preprocessor)
         self.assertIn("P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow();", preprocessor)
@@ -165,10 +167,8 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
 
     def test_player_path_is_fail_closed_and_primitives_are_editor_fallback_only(self):
         runtime = RUNTIME_PASS.read_text(encoding="utf-8")
-        self.assertIn("CairoAuthoredLandmarkKit.TryBuildMinarets", runtime)
-        self.assertIn("CairoAuthoredLandmarkKit.TryBuildDomeGate", runtime)
-        self.assertIn("CairoAuthoredLandmarkKit.TryBuildPyramidPair", runtime)
-        self.assertIn("CairoAuthoredLandmarkKit.TryBuildBridgeGantry", runtime)
+        for call in ("TryBuildMinarets", "TryBuildDomeGate", "TryBuildPyramidPair", "TryBuildBridgeGantry"):
+            self.assertIn(f"CairoAuthoredLandmarkKit.{call}", runtime)
         self.assertIn("if (Application.isEditor)", runtime)
         self.assertIn("AFAREET_UART006_PLAYER_PRIMITIVE_LANDMARK_FALLBACK_DISABLED", runtime)
         self.assertIn("AFAREET_UART006_PLAYER_AUTHORED_LANDMARK_PASS_ACTIVE", runtime)
@@ -186,13 +186,12 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
     def test_android_gate_requires_production_state_geometry_and_real_surface_authoring(self):
         gate = ANDROID_GATE.read_text(encoding="utf-8")
         for required in (
-            "IPreprocessBuildWithReport", "BuildTarget.Android",
-            'ProductionReadyState = "PRODUCTION_READY"', 'ProductionQuality = "authored-production"',
-            "runtimeIntegrationVerified", "proceduralFallbackAllowedInCandidate",
+            "IPreprocessBuildWithReport", "BuildTarget.Android", 'ProductionReadyState = "PRODUCTION_READY"',
+            'ProductionQuality = "authored-production"', "runtimeIntegrationVerified", "proceduralFallbackAllowedInCandidate",
             "AFAREET_P1_PRODUCTION_LANDMARK_GATE_BLOCKED", "productionMinVertices", "productionMinTriangles",
-            "TextureCoordinates", "Normals", "FacesWithUvAndNormal",
-            'line.StartsWith("vt ", StringComparison.Ordinal)', 'line.StartsWith("vn ", StringComparison.Ordinal)',
-            "mesh.uv", "mesh.normals", "material.mainTexture", "authored-surface rejected", "imported production surface rejected",
+            "TextureCoordinates", "Normals", "FacesWithUvAndNormal", 'line.StartsWith("vt ", StringComparison.Ordinal)',
+            'line.StartsWith("vn ", StringComparison.Ordinal)', "mesh.uv", "mesh.normals", "material.mainTexture",
+            "authored-surface rejected", "imported production surface rejected",
         ):
             self.assertIn(required, gate)
 
@@ -206,7 +205,6 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
             "dependency escapes tracked source root", "Tracked material dependency is missing", "Tracked texture dependency is missing",
         ):
             self.assertIn(required, policy)
-
         gate = MATERIAL_GATE.read_text(encoding="utf-8")
         for required in (
             "IPreprocessBuildWithReport", "BuildTarget.Android", '"PRODUCTION_READY"', '"authored-production"',
