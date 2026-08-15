@@ -21,6 +21,7 @@ TIER_BUDGETS = {
     "high": {"p95Ms": 16.7, "p99Ms": 20.0, "steadyPssMiB": 1100.0, "restartGrowthPct": 5.0},
 }
 SEVERE_THERMAL_STATUS = 3
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$", flags=re.IGNORECASE)
 
 
 def read_text(path: Path) -> str:
@@ -34,6 +35,10 @@ def read_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise RuntimeError(f"JSON root must be an object: {path}")
     return value
+
+
+def is_sha256(value: Any) -> bool:
+    return bool(SHA256_PATTERN.fullmatch(str(value or "").strip()))
 
 
 def parse_total_pss_kib(text: str) -> int | None:
@@ -82,11 +87,20 @@ def summarize_checkpoint(checkpoint_dir: Path) -> dict[str, Any]:
     pss_kib = parse_total_pss_kib(read_text(checkpoint_dir / "meminfo.txt"))
     gfx = read_text(checkpoint_dir / "gfxinfo.txt")
     thermal = read_text(checkpoint_dir / "thermalservice.txt")
+
+    red_flag_present = "automatedRedFlagCount" in metadata
+    try:
+        red_flag_count = int(metadata.get("automatedRedFlagCount", 0) or 0)
+    except (TypeError, ValueError):
+        red_flag_count = -1
+
     return {
-        "label": metadata.get("label", checkpoint_dir.name),
-        "apkSha256": str(metadata.get("apkSha256") or ""),
-        "deviceSerialSha256": str(metadata.get("deviceSerialSha256") or ""),
-        "automatedRedFlagCount": int(metadata.get("automatedRedFlagCount", 0) or 0),
+        "label": str(metadata.get("label") or ""),
+        "labelPresent": "label" in metadata and bool(str(metadata.get("label") or "").strip()),
+        "apkSha256": str(metadata.get("apkSha256") or "").strip(),
+        "deviceSerialSha256": str(metadata.get("deviceSerialSha256") or "").strip(),
+        "automatedRedFlagCount": red_flag_count,
+        "automatedRedFlagCountPresent": red_flag_present,
         "pssMiB": None if pss_kib is None else round(pss_kib / 1024.0, 3),
         "frameP95Ms": parse_percentile_ms(gfx, 95),
         "frameP99Ms": parse_percentile_ms(gfx, 99),
@@ -106,15 +120,42 @@ def analyze(session_dir: Path, tier: str) -> dict[str, Any]:
     checkpoints: dict[str, dict[str, Any]] = {}
     blockers: list[str] = []
 
+    apk_sha = str(session.get("apk", {}).get("sha256") or "").strip() if isinstance(session.get("apk"), dict) else ""
+    device_sha = str(session.get("device", {}).get("serialSha256") or "").strip() if isinstance(session.get("device"), dict) else ""
+    if not is_sha256(apk_sha):
+        blockers.append("session: missing or invalid APK SHA-256 fingerprint")
+    if not is_sha256(device_sha):
+        blockers.append("session: missing or invalid device serial SHA-256 fingerprint")
+
     for label in REQUIRED_LABELS:
         checkpoint_dir = checkpoints_root / label
         if not checkpoint_dir.is_dir():
             blockers.append(f"missing required smoke checkpoint: {label}")
             continue
+
         record = summarize_checkpoint(checkpoint_dir)
         checkpoints[label] = record
-        if record["automatedRedFlagCount"] > 0:
+
+        if not record["labelPresent"]:
+            blockers.append(f"{label}: checkpoint metadata label is missing")
+        elif record["label"] != label:
+            blockers.append(f"{label}: checkpoint metadata label mismatch ({record['label']})")
+
+        if not is_sha256(record["apkSha256"]):
+            blockers.append(f"{label}: missing or invalid checkpoint APK SHA-256 fingerprint")
+        elif is_sha256(apk_sha) and record["apkSha256"].lower() != apk_sha.lower():
+            blockers.append(f"{label}: checkpoint APK SHA does not match session")
+
+        if not is_sha256(record["deviceSerialSha256"]):
+            blockers.append(f"{label}: missing or invalid checkpoint device SHA-256 fingerprint")
+        elif is_sha256(device_sha) and record["deviceSerialSha256"].lower() != device_sha.lower():
+            blockers.append(f"{label}: checkpoint device does not match session")
+
+        if not record["automatedRedFlagCountPresent"] or record["automatedRedFlagCount"] < 0:
+            blockers.append(f"{label}: automated red-flag count is missing or invalid")
+        elif record["automatedRedFlagCount"] > 0:
             blockers.append(f"{label}: crash/ANR/native-fatal red flags present")
+
         if record["thermalStatusMax"] is not None and record["thermalStatusMax"] >= SEVERE_THERMAL_STATUS:
             blockers.append(f"{label}: Android thermal status reached SEVERE or worse ({record['thermalStatusMax']})")
 
@@ -145,16 +186,10 @@ def analyze(session_dir: Path, tier: str) -> dict[str, Any]:
                 blockers.append(
                     f"restart PSS growth {restart_growth:.2f}% exceeds {budget['restartGrowthPct']:.1f}% budget"
                 )
+        else:
+            blockers.append("smoke-warm-race: process PSS baseline must be greater than zero")
     elif warm or restarted:
         blockers.append("restart memory growth could not be calculated")
-
-    apk_sha = str(session.get("apk", {}).get("sha256") or "") if isinstance(session.get("apk"), dict) else ""
-    device_sha = str(session.get("device", {}).get("serialSha256") or "") if isinstance(session.get("device"), dict) else ""
-    for label, record in checkpoints.items():
-        if apk_sha and record["apkSha256"] != apk_sha:
-            blockers.append(f"{label}: checkpoint APK SHA does not match session")
-        if device_sha and record["deviceSerialSha256"] != device_sha:
-            blockers.append(f"{label}: checkpoint device does not match session")
 
     return {
         "schemaVersion": 1,
