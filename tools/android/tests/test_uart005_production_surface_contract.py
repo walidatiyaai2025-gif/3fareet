@@ -152,8 +152,18 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         expansion = "\n".join(manifest["requiredProductionExpansion"])
         self.assertNotIn("at least three facade/building variants", expansion)
         self.assertNotIn("storefront/sign/awning variants", expansion)
-        self.assertIn("mobile LOD", expansion)
-        self.assertIn("additional roadside clutter", expansion)
+        self.assertNotIn("additional roadside clutter", expansion)
+        self.assertNotIn("mobile LOD setup", expansion)
+        self.assertIn("normal/ORM", expansion)
+        self.assertIn("landmark and skyline replacement", expansion)
+        self.assertEqual(
+            "implemented-unverified",
+            manifest["runtimeReplacementStatus"]["authoredRoadsideClutter"],
+        )
+        self.assertEqual(
+            "implemented-unverified",
+            manifest["runtimeReplacementStatus"]["mobileLod13ModulePath"],
+        )
 
     def test_runtime_adapter_uses_all_authored_sources_and_stable_building_variation(self):
         runtime = self._read("unity_game/Assets/Afareet/Scripts/World/CairoAuthoredStreetKit.cs")
