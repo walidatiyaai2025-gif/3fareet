@@ -51,14 +51,14 @@ jobs:
           grep -Fq "type: choice" "$workflow"
           grep -Fq -- "- 'agent/p1-remediation-convergence'" "$workflow"
           grep -Fq -- "- 'agent/unblock-final-5'" "$workflow"
-          grep -Fq 'ref: ${{ steps.scope.outputs.candidate_ref }}' "$workflow"
+          grep -Fq 'steps.scope.outputs.candidate_ref' "$workflow"
           grep -Fq "runs-on: [self-hosted, Windows, X64]" "$workflow"
           grep -Fq "expected_sha" "$workflow"
           grep -Fq "run_local_candidate_windows.ps1" "$workflow"
           grep -Fq "persist-credentials: false" "$workflow"
           grep -Fq "actions/upload-artifact@v6" "$workflow"
           grep -Fq 'Validate requested candidate ref before checkout' "$workflow"
-          if grep -Fq 'ref: agent/unblock-final-5' "$workflow"; then
+          if grep -Eq '^[[:space:]]+ref:[[:space:]]+agent/unblock-final-5[[:space:]]*$' "$workflow"; then
             echo '::error::Licensed proof must not be hard-wired to integration; convergence must be provable before merge.'
             exit 1
           fi
