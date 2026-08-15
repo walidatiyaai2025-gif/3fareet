@@ -24,6 +24,7 @@ unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated.meta
 unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals.meta
+unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/
 
 # Local CI / QA evidence outputs (generated, never source-of-truth)
 /artifacts/
