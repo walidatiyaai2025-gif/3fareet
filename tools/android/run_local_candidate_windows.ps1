@@ -1,7 +1,6 @@
 param(
     [string]$UnityPath = "",
-    [string]$RepoRoot = "",
-    [string]$PythonPath = ""
+    [string]$RepoRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,11 +18,11 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $testScript = Join-Path $RepoRoot "tools\android\test_current_windows.ps1"
 $buildScript = Join-Path $RepoRoot "tools\android\build_current_windows.ps1"
-$verifyScript = Join-Path $RepoRoot "tools\android\verify_local_candidate.py"
-$packageVerifyScript = Join-Path $RepoRoot "tools\android\verify_unity_package_lock.py"
-$textNormalizeScript = Join-Path $RepoRoot "tools\android\verify_unity_text_normalization.py"
+$verifyScript = Join-Path $RepoRoot "tools\android\verify_local_candidate_windows.ps1"
+$packageVerifyScript = Join-Path $RepoRoot "tools\android\verify_unity_package_lock_windows.ps1"
+$textNormalizeScript = Join-Path $RepoRoot "tools\android\verify_unity_text_normalization_windows.ps1"
 foreach ($required in @($testScript, $buildScript, $verifyScript, $packageVerifyScript, $textNormalizeScript)) {
-    if (-not (Test-Path $required)) {
+    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         Fail "Required candidate step is missing: $required"
     }
 }
@@ -33,89 +32,7 @@ if ($null -eq $git) {
     Fail "git is required for exact-SHA candidate evidence."
 }
 
-function Test-Python3Candidate([string]$Executable, [string[]]$PrefixArgs) {
-    if ([string]::IsNullOrWhiteSpace($Executable) -or -not (Test-Path $Executable)) {
-        return $null
-    }
-
-    $probeId = [Guid]::NewGuid().ToString('N')
-    $probeOut = Join-Path $env:TEMP "afareet-python-$probeId.out.txt"
-    $probeErr = Join-Path $env:TEMP "afareet-python-$probeId.err.txt"
-    try {
-        $args = @()
-        $args += $PrefixArgs
-        $args += '--version'
-        $process = Start-Process `
-            -FilePath $Executable `
-            -ArgumentList $args `
-            -Wait `
-            -PassThru `
-            -WindowStyle Hidden `
-            -RedirectStandardOutput $probeOut `
-            -RedirectStandardError $probeErr
-
-        $versionText = ""
-        if (Test-Path $probeOut) {
-            $versionText += (Get-Content -Raw $probeOut -ErrorAction SilentlyContinue)
-        }
-        if (Test-Path $probeErr) {
-            $versionText += (Get-Content -Raw $probeErr -ErrorAction SilentlyContinue)
-        }
-        $versionText = $versionText.Trim()
-
-        if ($process.ExitCode -eq 0 -and $versionText -match '^Python 3\.') {
-            return @{
-                Executable = $Executable
-                Args = @($PrefixArgs)
-                Version = $versionText
-            }
-        }
-    } catch {
-        return $null
-    } finally {
-        Remove-Item -Force $probeOut, $probeErr -ErrorAction SilentlyContinue
-    }
-
-    return $null
-}
-
-function Resolve-Python3([string]$RequestedPath) {
-    $candidates = @()
-
-    if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
-        if (-not (Test-Path $RequestedPath)) {
-            Fail "The supplied PythonPath does not exist: $RequestedPath"
-        }
-        $resolvedRequested = (Resolve-Path $RequestedPath).Path
-        $candidates += ,@($resolvedRequested, @())
-    } else {
-        $py = Get-Command py -ErrorAction SilentlyContinue
-        if ($null -ne $py) {
-            $candidates += ,@($py.Source, @('-3'))
-        }
-
-        $python3 = Get-Command python3 -ErrorAction SilentlyContinue
-        if ($null -ne $python3) {
-            $candidates += ,@($python3.Source, @())
-        }
-
-        $python = Get-Command python -ErrorAction SilentlyContinue
-        if ($null -ne $python) {
-            $candidates += ,@($python.Source, @())
-        }
-    }
-
-    foreach ($candidate in $candidates) {
-        $probe = Test-Python3Candidate -Executable $candidate[0] -PrefixArgs $candidate[1]
-        if ($null -ne $probe) {
-            return $probe
-        }
-    }
-
-    Fail "A usable Python 3 interpreter was not found. Windows Store App Execution Alias python.exe is not sufficient. Install Python 3/py launcher or pass -PythonPath 'C:\path\to\python.exe'."
-}
-
-$gitSha = (& git -C $RepoRoot rev-parse HEAD 2>$null).Trim()
+$gitSha = (& $git.Source -C $RepoRoot rev-parse HEAD 2>$null).Trim()
 if ($LASTEXITCODE -ne 0 -or $gitSha -notmatch '^[0-9a-fA-F]{40}$') {
     Fail "Unable to resolve a full 40-character Git SHA."
 }
@@ -161,7 +78,7 @@ function Preserve-DirtyTreeEvidence([string]$Phase, [string[]]$Changes) {
 }
 
 function Assert-CleanTree([string]$Phase) {
-    $changes = @(& git -C $RepoRoot status --porcelain 2>$null)
+    $changes = @(& $git.Source -C $RepoRoot status --porcelain 2>$null)
     if ($LASTEXITCODE -ne 0) {
         Fail "Unable to inspect Git state after $Phase."
     }
@@ -193,7 +110,9 @@ function Clear-StaleCandidateEvidence {
     Write-Host "AFAREET_STALE_CANDIDATE_EVIDENCE_CLEARED count=$removed"
 }
 
-$initialDirty = @(& git -C $RepoRoot status --porcelain 2>$null)
+# Preserve any prior dirty state before deleting stale ignored evidence. This
+# keeps the fail-closed initial-tree behavior introduced by the hardened path.
+$initialDirty = @(& $git.Source -C $RepoRoot status --porcelain 2>$null)
 if ($LASTEXITCODE -ne 0) {
     Fail "Unable to inspect the initial Git working tree."
 }
@@ -206,38 +125,20 @@ if ($initialDirty.Count -gt 0) {
 Clear-StaleCandidateEvidence
 Assert-CleanTree "STALE_EVIDENCE_PURGE"
 
-# Resolve Python only after the initial dirty tree has been preserved/refused and
-# stale release-looking evidence has been purged. A missing/broken interpreter
-# must never preempt INITIAL_TREE evidence capture from a previous Windows run.
-$python = Resolve-Python3 -RequestedPath $PythonPath
-$pythonExecutable = [string]$python.Executable
-$pythonArgs = @($python.Args)
-Write-Host "AFAREET_PYTHON_RESOLVED executable=$pythonExecutable args=$($pythonArgs -join ' ') version=$($python.Version)"
+# The licensed Windows candidate path is intentionally self-contained. Python
+# verifiers remain available for hosted CI/Linux parity, but the Windows
+# workstation uses native PowerShell equivalents and needs no Python install.
+Write-Host "AFAREET_WINDOWS_NATIVE_VERIFIERS_OK pythonRequired=False"
 
-$textNormalizeArgs = @(
-    $textNormalizeScript,
-    '--repo-root', $RepoRoot
-)
 Write-Host "AFAREET_TEXT_NORMALIZATION_PREFLIGHT_START gitSha=$gitSha"
-& $pythonExecutable @pythonArgs @textNormalizeArgs
-if ($LASTEXITCODE -ne 0) {
-    Fail "Unity text-normalization preflight failed with exit code $LASTEXITCODE. Fix .gitattributes/working-tree LF normalization before starting Unity."
-}
+& $textNormalizeScript -RepoRoot $RepoRoot
 Assert-CleanTree "TEXT_NORMALIZATION_PREFLIGHT"
 Write-Host "AFAREET_TEXT_NORMALIZATION_PREFLIGHT_OK gitSha=$gitSha"
 
 $packageManifest = Join-Path $RepoRoot "unity_game\Packages\manifest.json"
 $packageLock = Join-Path $RepoRoot "unity_game\Packages\packages-lock.json"
-$packageVerifyArgs = @(
-    $packageVerifyScript,
-    '--manifest', $packageManifest,
-    '--lock', $packageLock
-)
 Write-Host "AFAREET_PACKAGE_PREFLIGHT_START gitSha=$gitSha"
-& $pythonExecutable @pythonArgs @packageVerifyArgs
-if ($LASTEXITCODE -ne 0) {
-    Fail "Unity package manifest/lock preflight failed with exit code $LASTEXITCODE. Reconcile Packages before starting Unity."
-}
+& $packageVerifyScript -RepoRoot $RepoRoot -ManifestPath $packageManifest -LockPath $packageLock
 Assert-CleanTree "PACKAGE_PREFLIGHT"
 Write-Host "AFAREET_PACKAGE_PREFLIGHT_OK gitSha=$gitSha"
 
@@ -265,17 +166,11 @@ $buildMetadata = Join-Path $RepoRoot "artifacts\android-local\artifact-metadata.
 $apk = Join-Path $RepoRoot "artifacts\android-local\afareet-unity3d-debug.apk"
 $manifest = Join-Path $RepoRoot "artifacts\local-candidate-manifest.json"
 
-$verifyArgs = @(
-    $verifyScript,
-    '--test-metadata', $testMetadata,
-    '--build-metadata', $buildMetadata,
-    '--apk', $apk,
-    '--output', $manifest
-)
-& $pythonExecutable @pythonArgs @verifyArgs
-if ($LASTEXITCODE -ne 0) {
-    Fail "Local candidate integrity verification failed with exit code $LASTEXITCODE."
-}
+& $verifyScript `
+    -TestMetadata $testMetadata `
+    -BuildMetadata $buildMetadata `
+    -Apk $apk `
+    -Output $manifest
 
 Assert-CleanTree "CANDIDATE_VERIFY"
 
@@ -284,4 +179,4 @@ if (-not (Test-Path $manifest) -or (Get-Item $manifest).Length -le 0) {
 }
 
 Write-Host "AFAREET_LOCAL_CANDIDATE_OK gitSha=$gitSha manifest=$manifest"
-Write-Host "Next: tools/android/prepare_candidate_device.py with this exact manifest/APK on a physical Android device."
+Write-Host "Next: candidate-bound physical Android device evidence. Python is not required for this Windows candidate chain."
