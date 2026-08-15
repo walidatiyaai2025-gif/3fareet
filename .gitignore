@@ -24,6 +24,8 @@ unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated.meta
 unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit/Generated/
 unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit/Generated.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated/
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated.meta
 
 # Local CI / QA evidence outputs (generated, never source-of-truth)
 /artifacts/
