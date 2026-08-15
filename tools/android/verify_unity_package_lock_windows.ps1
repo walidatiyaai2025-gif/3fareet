@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 function Fail([string]$Message) {
+    Write-Host "::error::$Message"
     throw "AFAREET_UNITY_PACKAGE_LOCK_ERROR: $Message"
 }
 
