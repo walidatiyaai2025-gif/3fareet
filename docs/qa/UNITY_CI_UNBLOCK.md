@@ -1,62 +1,47 @@
 # Unity CI / Android Build Unblock
 
-This runbook addresses the external blocker tracked in Issue #98 and provides two supported paths to obtain exact-head Unity test evidence and a current Android APK for the five remaining P1 device/release gates.
+This runbook defines the supported ways to obtain exact-head Unity test evidence and a current Android APK for the five remaining P1 device/release gates. It is fail-closed: a Green static/tooling check is never equivalent to Unity execution, and no APK is called VERIFIED without the later physical-device/manual gates.
 
-## Current blocker
+## Current external blocker
 
-Unity Production CI is implemented, but Unity engine jobs cannot start until a complete Unity licensing credential set is available to GitHub Actions.
+GitHub-hosted `Unity Production CI` cannot run Unity engine jobs until one complete credential set exists in repository Actions secrets.
 
-The workflow accepts only complete sets:
+Supported sets:
 
-### Unity Personal / file-license path
+### Personal / file-license
 
-Configure all three repository Actions secrets:
+- `UNITY_LICENSE`
+- `UNITY_EMAIL`
+- `UNITY_PASSWORD`
 
-- `UNITY_LICENSE` — contents of the local Unity `.ulf` license file;
-- `UNITY_EMAIL` — Unity account email;
-- `UNITY_PASSWORD` — Unity account password.
+### Professional / serial
 
-### Unity Pro / serial path
+- `UNITY_SERIAL`
+- `UNITY_EMAIL`
+- `UNITY_PASSWORD`
 
-Configure all three repository Actions secrets:
+Never commit those values to Git.
 
-- `UNITY_SERIAL`;
-- `UNITY_EMAIL`;
-- `UNITY_PASSWORD`.
+The license preflight deliberately fails partial sets. When credentials are absent, EditMode, PlayMode, Windows build and Android build are skipped and no APK is produced.
 
-Never commit any of these values to Git.
+## GitHub-hosted production path
 
-After secrets are configured, rerun `Unity Production CI` on the latest production-stack head. Do not use a Green static-contract job as evidence that Unity compile/tests/build executed.
+When licensing is configured, `Unity Production CI` must pass in this order:
 
-## GitHub-hosted Unity Production CI path
+1. static contract and package-graph checks;
+2. license preflight;
+3. real EditMode + PlayMode execution;
+4. NUnit verification for both modes (`total > 0`, `passed > 0`, zero failed/inconclusive and fully accounted counters);
+5. Windows x64 build;
+6. Android ARM64 APK build;
+7. APK inspection for package `com.fiftysolutions.afareetunity3d`, minSdk 26, ARM64-only native payload and `libunity.so`;
+8. SHA-256 / size / workflow provenance metadata;
+9. `verify_ci_candidate.py` binding those metadata to the exact APK bytes;
+10. upload of the APK plus `artifacts/android/ci-candidate-manifest.json`.
 
-When licensing is configured, the workflow is intentionally fail-closed:
+For pull-request workflows, the checked-out `GITHUB_SHA` may be the PR merge commit. That is valid provenance for the bytes produced by that run; do not silently replace it with the branch-head SHA.
 
-1. static contract validates the APK verifier and candidate/test verifier CLIs;
-2. license preflight requires one complete credential triple;
-3. EditMode and PlayMode execute through GameCI;
-4. `verify_unity_test_results.py` recursively validates NUnit XML for each mode and rejects missing/zero/all-skipped/failed/inconclusive/incompletely-accounted evidence;
-5. Windows and Android builds only run after both test jobs pass;
-6. Android APK inspection validates package `com.fiftysolutions.afareetunity3d`, minSdk 26, ARM64-only native payload and `libunity.so`, then writes SHA/size plus GitHub run provenance;
-7. `verify_ci_candidate.py` binds those workflow metadata to the exact APK bytes and creates `artifacts/android/ci-candidate-manifest.json`;
-8. the Android artifact upload contains the APK plus `artifacts/android/`, including the candidate manifest.
-
-The CI artifact metadata/candidate provenance must identify:
-
-- repository `walidatiyaai2025-gif/3fareet`;
-- workflow `Unity Production CI`;
-- a supported `pull_request`, `push`, or `workflow_dispatch` event;
-- a valid `refs/*` GitHub ref;
-- full Git SHA, positive run ID and run attempt;
-- exact APK SHA-256 and size.
-
-For pull-request workflows, `GITHUB_SHA` can be the PR merge commit checked out by Actions. That is the correct provenance for the bytes built by that run; do not replace it with the branch-head SHA by assumption.
-
-### Prepare a downloaded CI artifact for device QA
-
-Do not pass a downloaded CI APK directly to `device_evidence.py prepare`.
-
-Use the candidate manifest uploaded by the Android job and explicitly provide the downloaded APK path because the manifest's original APK path refers to the Actions runner:
+A downloaded hosted candidate must be consumed through the candidate-aware bridge, not by passing an arbitrary APK directly to the device harness:
 
 ```bash
 python3 tools/android/prepare_candidate_device.py \
@@ -65,158 +50,192 @@ python3 tools/android/prepare_candidate_device.py \
   --output evidence/p1-device
 ```
 
-Before ADB install, `prepare_candidate_device.py` independently rechecks the GitHub candidate type/provenance, non-self-VERIFIED state, full Git SHA, package identity, APK filename, byte length and SHA-256. A candidate from another repo/workflow or altered APK is rejected.
+The bridge rechecks repository/workflow/run provenance, package identity, full Git SHA, APK filename, byte size and SHA-256 before ADB installation. The candidate remains `verified: false`.
 
-`verify_ci_candidate.py` does not make a network call to attest the downloaded run later. Retain the GitHub Actions run/artifact context and only use the candidate bundle from the fully Green run under review.
+## Licensed-Windows fallback — canonical path
 
-## Local Windows fallback — licensed workstation
-
-If a Windows workstation already has Unity `6000.5.8f1` activated through Unity Hub, the repository provides a clean exact-head fallback for automated Unity tests and the Android APK build without storing Unity credentials in GitHub Actions.
+A licensed Windows workstation with Unity `6000.5.8f1` may produce the exact-head candidate without storing Unity credentials in GitHub Actions.
 
 Prerequisites:
 
-1. Unity `6000.5.8f1` installed and licensed locally.
-2. Android Build Support installed for the APK build step.
-3. Git CLI installed and the repository checked out at the exact production candidate commit.
+1. Unity `6000.5.8f1` installed and activated.
+2. Android Build Support installed.
+3. Git available.
 4. Python 3 available as `python` or `py -3`.
-5. Clean Git working tree for release-eligible evidence.
+5. Exact production branch/commit checked out.
+6. Clean Git working tree.
 
-### Canonical fail-closed candidate command
+Refresh the workstation first:
 
-For release-candidate evidence, use the orchestrator rather than running the three local stages independently:
+```powershell
+git fetch origin
+git reset --hard origin/agent/unblock-final-5
+git clean -fd
+```
+
+Then run the canonical orchestrator:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/android/run_local_candidate_windows.ps1
 ```
 
-If Unity is installed in a non-default path:
+Or provide Unity explicitly:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/android/run_local_candidate_windows.ps1 `
-  -UnityPath 'D:\Unity\6000.5.8f1\Editor\Unity.exe'
+  -UnityPath 'C:\Program Files\Unity\Hub\Editor\6000.5.8f1\Editor\Unity.exe'
 ```
 
-The orchestrator:
+## Exact local orchestration sequence
 
-- uses named PowerShell splatting so `RepoRoot` and optional `UnityPath` bind reliably even when paths contain spaces;
-- requires a clean Git tree before Unity starts;
-- runs exact-head EditMode + PlayMode through `test_current_windows.ps1`;
-- immediately rechecks Git and fails if Unity/UPM changed tracked repository content during tests;
-- runs the Android build/inspection through `build_current_windows.ps1` only if the post-test tree is still clean;
-- rechecks Git after the build;
-- runs `verify_local_candidate.py` against the exact test metadata, build metadata and APK bytes;
-- rechecks Git again after candidate verification;
-- emits `AFAREET_LOCAL_CANDIDATE_OK` only after every stage succeeds without source/package mutation.
+The local release-evidence path is now intentionally ordered as follows:
 
-If Unity/UPM writes package/source changes at any stage, reconcile and commit those changes first, then restart from a clean exact head. Do not promote the previous run as release evidence.
+1. resolve the full 40-character Git SHA;
+2. reject an already-dirty tree, preserving `INITIAL_TREE` status/patch/stderr evidence first;
+3. purge stale release-looking candidate evidence;
+4. **Unity text-normalization preflight**;
+5. Git cleanliness check after text normalization;
+6. **Unity package manifest/lock preflight**;
+7. Git cleanliness check after package verification;
+8. EditMode + PlayMode execution;
+9. Git cleanliness check after tests;
+10. Android build + APK inspection;
+11. Git cleanliness check after build;
+12. same-SHA candidate integrity verification;
+13. final Git cleanliness check;
+14. emit `AFAREET_LOCAL_CANDIDATE_OK` only when all stages succeed.
 
-The individual steps below remain useful for diagnosis, but the orchestrator is the required local release-evidence path.
+The two preflights are mandatory. Do not bypass them to save time.
 
-### 1. Run EditMode + PlayMode tests
+### Text-normalization preflight
 
-From PowerShell at repository root:
+`tools/android/verify_unity_text_normalization.py` checks every tracked file matching:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/android/test_current_windows.ps1
+- `unity_game/ProjectSettings/*.asset`
+- `unity_game/ProjectSettings/*.txt`
+- `unity_game/Packages/*.json`
+
+Each file must:
+
+- be covered by explicit Git text normalization;
+- resolve to `eol=lf`;
+- exist in the working tree;
+- contain no CRLF bytes.
+
+The repository `.gitattributes` pins those paths to LF so Windows `core.autocrlf` cannot create false post-Unity dirty state.
+
+Expected markers:
+
+```text
+AFAREET_TEXT_NORMALIZATION_PREFLIGHT_START
+AFAREET_UNITY_TEXT_NORMALIZATION_OK
+AFAREET_TEXT_NORMALIZATION_PREFLIGHT_OK
 ```
 
-If Unity is installed in a non-default path:
+Any failure stops before Unity starts.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/android/test_current_windows.ps1 `
-  -UnityPath 'D:\Unity\6000.5.8f1\Editor\Unity.exe'
+### Package graph preflight
+
+`tools/android/verify_unity_package_lock.py` requires every direct `Packages/manifest.json` dependency to exist in `packages-lock.json` at the same version with `depth: 0`. Known Unity resolver child maps are also checked, including the resolved child packages themselves.
+
+Expected markers:
+
+```text
+AFAREET_PACKAGE_PREFLIGHT_START
+AFAREET_UNITY_PACKAGE_LOCK_OK
+AFAREET_PACKAGE_PREFLIGHT_OK
 ```
 
-The test script:
+Any mismatch stops before Unity starts.
 
-- rejects the wrong Unity version;
-- requires Git and a full 40-character commit SHA;
-- rejects a dirty tree by default;
-- treats `-AllowDirty` output as debug-only and marks it `releaseEvidenceEligible: false`;
-- runs Unity Test Framework from the command line in both `EditMode` and `PlayMode`;
-- writes separate NUnit XML results and Unity logs;
-- requires `total > 0` and `passed > 0` for each mode;
-- rejects any failed or inconclusive tests;
-- requires `passed + failed + skipped + inconclusive == total` and a passing NUnit result state;
-- writes `artifacts/unity-local-tests/test-metadata.json` pinned to the exact Git SHA.
+## Unity tests
 
-Unity is started with `Start-Process -Wait -PassThru`, so PowerShell waits for the real editor process and reads its actual exit code instead of continuing early from the Windows GUI executable.
+`test_current_windows.ps1`:
 
-Successful output contains:
+- requires Unity `6000.5.8f1`;
+- binds evidence to a full Git SHA;
+- runs both EditMode and PlayMode;
+- uses `Start-Process -Wait -PassThru` so PowerShell waits for the actual Unity process;
+- requires real non-empty NUnit evidence;
+- rejects failed or inconclusive tests and inconsistent counters;
+- writes `artifacts/unity-local-tests/test-metadata.json`.
 
-`AFAREET_LOCAL_UNITY_TESTS_OK`
+Standalone success marker:
 
-This standalone step is diagnostic/test evidence. For local release-candidate evidence, the orchestrator must also prove the working tree remains clean after Unity tests.
-
-### 2. Build and inspect Android APK
-
-Run:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/android/build_current_windows.ps1
+```text
+AFAREET_LOCAL_UNITY_TESTS_OK
 ```
 
-If Unity is installed in a non-default path:
+Standalone test success is useful diagnostics, but release-candidate evidence still requires the orchestrator's post-test clean-tree gate.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/android/build_current_windows.ps1 `
-  -UnityPath 'D:\Unity\6000.5.8f1\Editor\Unity.exe'
-```
+## Android build and inspection
 
-The build script:
+`build_current_windows.ps1`:
 
-- rejects the wrong Unity version;
-- requires a full Git commit SHA and records the active branch;
-- rejects a dirty Git tree by default;
-- treats `-AllowDirty` output as debug-only and marks it `releaseEvidenceEligible: false`;
-- confirms Android Build Support exists;
-- waits for the actual Unity process with `Start-Process -Wait -PassThru` and captures its exit code;
-- deletes stale APK/log output before launching Unity;
-- requires the explicit `AFAREET_BUILD_SUCCESS target=Android` Unity log marker before accepting a zero exit code;
+- requires Unity `6000.5.8f1` and exact Git provenance;
+- confirms Android Build Support;
+- deletes stale APK/log output;
+- waits for the actual Unity process;
+- requires `AFAREET_BUILD_SUCCESS target=Android` from Unity;
 - requires a non-empty APK;
-- verifies package `com.fiftysolutions.afareetunity3d`;
-- verifies minSdk API 26;
-- verifies ARM64-only native payload and `libunity.so`;
-- detects post-build Git mutation and makes such output non-release-eligible;
-- generates SHA-256 and JSON artifact metadata pinned to the Git commit;
-- copies the inspected APK/evidence to `artifacts/android-local/`.
+- verifies package id, minSdk 26, ARM64-only payload and `libunity.so`;
+- writes SHA-256 and artifact metadata under `artifacts/android-local/`.
 
-Successful output contains:
+Standalone success marker:
 
-`AFAREET_LOCAL_ANDROID_BUILD_OK`
-
-The APK build/inspection evidence is not Device Verified evidence.
-
-### 3. Verify tests + APK are one candidate
-
-Do not manually compare metadata. Run the fail-closed candidate integrity gate:
-
-```bash
-python3 tools/android/verify_local_candidate.py \
-  --test-metadata artifacts/unity-local-tests/test-metadata.json \
-  --build-metadata artifacts/android-local/artifact-metadata.json \
-  --apk artifacts/android-local/afareet-unity3d-debug.apk \
-  --output artifacts/local-candidate-manifest.json
+```text
+AFAREET_LOCAL_ANDROID_BUILD_OK
 ```
 
-The gate rejects the candidate unless:
+That is build evidence, not device verification.
 
-- test and build metadata are both release-eligible and clean;
-- EditMode and PlayMode each have real passing, fully accounted NUnit evidence with zero failures/inconclusive tests;
-- both metadata files use Unity `6000.5.8f1`;
-- test and build metadata pin to the same full Git SHA;
-- package/minSdk/ABI/artifact identity matches the production contract;
-- the actual APK SHA-256 and file size exactly match build metadata.
+## Dirty-tree evidence
 
-Successful output contains:
+The canonical orchestrator never ignores or auto-reverts Unity/UPM changes.
 
-`AFAREET_LOCAL_CANDIDATE_READY`
+For a dirty phase it preserves under ignored `artifacts/logs/`:
 
-The generated manifest deliberately contains `readyForDeviceEvidence: true` and `verified: false`. It is an integrity handoff to physical-device QA, not release approval.
+- `git-dirty-<phase>.status.txt`
+- `git-dirty-<phase>.patch`
+- `git-dirty-<phase>.stderr.txt`
 
-### 4. Start device evidence only from that candidate
+Binary Git diff capture uses a waited native Git process with stdout/stderr separated. Non-fatal Git warnings cannot corrupt the patch or become a Windows PowerShell `NativeCommandError`.
 
-For the local path, do not manually pass an arbitrary APK to the ADB collector. Use the candidate-aware bridge:
+If Unity/UPM changes tracked content, review and commit only legitimate generated/source changes, then restart from a clean exact head. A failed/dirty run is never promoted to release evidence.
+
+## Candidate integrity handoff
+
+A successful orchestrated local run produces:
+
+```text
+artifacts/local-candidate-manifest.json
+```
+
+The candidate verifier requires:
+
+- release-eligible clean test and build metadata;
+- real passing EditMode + PlayMode evidence;
+- Unity `6000.5.8f1`;
+- one identical full Git SHA across test/build evidence;
+- correct package/minSdk/ABI/artifact identity;
+- exact APK SHA-256 and byte-size match.
+
+Successful candidate-verifier marker:
+
+```text
+AFAREET_LOCAL_CANDIDATE_READY
+```
+
+The manifest deliberately remains:
+
+```text
+readyForDeviceEvidence: true
+verified: false
+```
+
+## Start physical-device evidence
+
+For the local candidate:
 
 ```bash
 python3 tools/android/prepare_candidate_device.py \
@@ -224,46 +243,22 @@ python3 tools/android/prepare_candidate_device.py \
   --output evidence/p1-device
 ```
 
-If the candidate manifest/APK bundle was moved to another workstation, provide the moved APK explicitly:
+If the candidate bundle was moved, also supply the exact moved APK via `--apk`.
 
-```bash
-python3 tools/android/prepare_candidate_device.py \
-  --candidate-manifest /path/to/local-candidate-manifest.json \
-  --apk /path/to/afareet-unity3d-debug.apk \
-  --output evidence/p1-device
+Expected precheck marker:
+
+```text
+AFAREET_CANDIDATE_DEVICE_PRECHECK_OK
 ```
 
-Before invoking ADB, this wrapper independently requires:
+The wrapper validates the candidate manifest and APK bytes before delegating to ADB and persists candidate provenance into the evidence session. Do not use direct arbitrary-APK sessions for the final-five release gates.
 
-- one of the two supported candidate types and the production package id;
-- `releaseEvidenceEligible: true`;
-- `readyForDeviceEvidence: true`;
-- the expected non-self-VERIFIED manifest contract;
-- verdict `READY_FOR_PHYSICAL_DEVICE_EVIDENCE`;
-- a valid full Git SHA;
-- exact APK filename, positive byte length and SHA-256 match;
-- exact GitHub run provenance when the candidate type is `github-actions-unity-ci`.
+## Final rule
 
-Successful precheck contains:
+The current project ledger remains:
 
-`AFAREET_CANDIDATE_DEVICE_PRECHECK_OK`
+`IN REVIEW 60 | READY 0 | TODO 0 | BLOCKED 5 = 65`
 
-It then invokes the existing `device_evidence.py prepare` flow against those exact APK bytes.
+The local or hosted candidate only unblocks physical-device evidence. Follow `docs/qa/P1_FINAL_5_GATE_PLAN.md` for `UVEH-012`, `URAC-012`, `UPER-006`, `UPER-009` and `UPER-010`.
 
-## Evidence consistency rule
-
-For local release review, use `run_local_candidate_windows.ps1` so the tree is checked before Unity, after tests, after build, and after candidate verification. For GitHub-hosted release review, use the `ci-candidate-manifest.json` generated inside the successful Android job. In both cases the resulting manifest must be consumed by `prepare_candidate_device.py` before physical-device collection.
-
-Never use an arbitrary APK path as final P1 evidence without candidate-manifest binding. A dirty-tree/local-mutated run or a GitHub candidate with wrong provenance/hash/size must never be promoted to release evidence.
-
-## After a device session exists
-
-Follow `docs/qa/P1_FINAL_5_GATE_PLAN.md` to capture and review:
-
-- `UVEH-012` driving feel;
-- `URAC-012` race completion/results/restart;
-- `UPER-006` smoke/performance;
-- `UPER-009` Visual Gate;
-- `UPER-010` release review.
-
-The release gate remains pinned to the exact APK SHA and physical-device evidence. No tooling in this repository automatically marks an APK VERIFIED.
+No tool in this repository automatically marks an APK VERIFIED.
