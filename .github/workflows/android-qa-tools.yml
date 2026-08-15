@@ -115,6 +115,9 @@ jobs:
           if ($testText.Contains('& $UnityPath \\')) {
             throw 'Invalid test invocation: backslash must not be used as a line-continuation argument for Unity.'
           }
+          if ($testText -match "(?m)^\s*'-quit',\s*$") {
+            throw 'Local Unity test invocation must not pass -quit; Unity Test Framework owns editor exit for -runTests.'
+          }
           $testRequired = @(
             'Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru',
             '$unityProcess.ExitCode',
