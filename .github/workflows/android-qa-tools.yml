@@ -143,12 +143,18 @@ jobs:
             'Assert-CleanTree "CANDIDATE_VERIFY"',
             'verify_local_candidate.py',
             'AFAREET_LOCAL_CANDIDATE_OK',
-            'Candidate orchestration requires a clean Git working tree before Unity starts.'
+            'Candidate orchestration requires a clean Git working tree before Unity starts.',
+            '$sharedParams.UnityPath = $UnityPath',
+            '& $testScript @sharedParams',
+            '& $buildScript @sharedParams'
           )
           foreach ($required in $candidateRequired) {
             if (-not $candidateText.Contains($required)) {
               throw "Local candidate orchestrator is missing fail-closed contract: $required"
             }
+          }
+          if ($candidateText.Contains('@sharedArgs')) {
+            throw 'Local candidate orchestrator must use named splatting, not positional string-array forwarding.'
           }
 
           Write-Host 'PowerShell syntax and semantic fallback/orchestration contracts OK.'
