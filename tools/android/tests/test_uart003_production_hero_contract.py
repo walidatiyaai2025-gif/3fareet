@@ -15,6 +15,52 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
         self.assertIn("HeroCarLodPolicy.ProductionAssetPath", text)
         self.assertIn("AFAREET_UART003_PRODUCTION_GATE_BLOCKED", text)
         self.assertIn("ValidateProductionPrefab", text)
+        self.assertIn("ValidateExternalSourceProvenanceOrThrow", text)
+
+    def test_android_gate_verifies_real_source_guid_hash_and_mesh_backing(self):
+        text = self._read("unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs")
+        for required in (
+            "AssetDatabase.AssetPathToGUID",
+            "AssetDatabase.GetAssetDependencyHash",
+            "AssetDatabase.GetAssetPath(filter.sharedMesh)",
+            "source-guid-mismatch",
+            "source-dependency-hash-mismatch",
+            "mesh-not-backed-by-source",
+            "generated-source-is-not-production",
+        ):
+            self.assertIn(required, text)
+
+    def test_production_metadata_requires_supported_external_3d_source(self):
+        text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionAssetMetadata.cs")
+        for required in (
+            "authoredExternalSource",
+            "sourceAssetId",
+            "assetVersion",
+            "sourceGuid",
+            "sourceDependencyHash",
+            "IsSupportedExternalModelSource",
+            '".fbx"',
+            '".obj"',
+            '".blend"',
+            '".glb"',
+            '".gltf"',
+        ):
+            self.assertIn(required, text)
+
+    def test_source_binder_only_binds_meshes_backed_by_selected_model(self):
+        text = self._read("unity_game/Assets/Afareet/Editor/HeroCarProductionSourceBinder.cs")
+        for required in (
+            "Bind UART-003 Production Hero Source",
+            "HeroCarLodPolicy.ProductionAssetPath",
+            "IsSupportedExternalModelSource",
+            "AssetDatabase.GetAssetPath(filter.sharedMesh)",
+            "AssetDatabase.AssetPathToGUID",
+            "AssetDatabase.GetAssetDependencyHash",
+            "metadata.Configure",
+            "AFAREET_UART003_SOURCE_BIND_OK",
+        ):
+            self.assertIn(required, text)
+        self.assertNotIn("HeroCarProductionAssetBuilder.BuildOrThrow", text)
 
     def test_production_and_generated_preview_resource_paths_are_distinct(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarLodPolicy.cs")
