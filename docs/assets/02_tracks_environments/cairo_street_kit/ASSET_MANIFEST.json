@@ -46,27 +46,27 @@
       "model": "SM_Prop_CairoLamp_A.obj",
       "legacyPrefab": "PF_Prop_CairoLamp_A.prefab",
       "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Prop_CairoLamp_A",
-      "dimensionsMeters": [0.2, 3.0, 0.2],
+      "dimensionsMeters": [0.84, 2.95, 0.30],
       "atlasTile": "lamp",
       "productionMinVertices": 64,
       "productionMinTriangles": 96,
-      "currentVertices": 130,
-      "currentTriangles": 236,
-      "surfaceAuthoring": "pending",
-      "requiredDetails": ["pole profile", "fixture head", "mount/bracket"]
+      "currentVertices": 68,
+      "currentTriangles": 112,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
+      "requiredDetails": ["octagonal base", "pole profile", "cross-arm", "twin fixture heads", "center finial"]
     },
     {
       "model": "SM_Prop_CairoBarrier_A.obj",
       "legacyPrefab": "PF_Prop_CairoBarrier_A.prefab",
       "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Prop_CairoBarrier_A",
-      "dimensionsMeters": [2.0, 0.6, 0.4],
+      "dimensionsMeters": [2.0, 0.64, 0.56],
       "atlasTile": "barrier",
       "productionMinVertices": 48,
       "productionMinTriangles": 72,
-      "currentVertices": 48,
-      "currentTriangles": 72,
-      "surfaceAuthoring": "pending",
-      "requiredDetails": ["beveled silhouette", "feet/supports", "reflective/signage surface"]
+      "currentVertices": 58,
+      "currentTriangles": 92,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
+      "requiredDetails": ["beveled body silhouette", "feet/supports", "front/back reflective panels", "top rail detail"]
     },
     {
       "model": "SM_Track_CairoRoad_A.obj",
@@ -106,12 +106,11 @@
     "landmarksStillProcedural": true
   },
   "requiredProductionExpansion": [
-    "surface-author lamp and barrier source candidates",
     "at least three facade/building variants",
     "storefront/sign/awning variants",
     "street props including lamps, barriers and roadside clutter",
     "mobile LOD/collision setup",
-    "authored base-color plus normal/ORM or equivalent material detail where visually required",
+    "upgrade candidate base-color maps with authored normal/ORM or equivalent material detail where visually required",
     "authored landmark and skyline replacement"
   ],
   "atlas": {
@@ -124,11 +123,10 @@
   },
   "pivotRule": "Production source pivot must preserve modular snap/contact convention at the placement origin.",
   "acceptancePending": [
-    "surface authoring for lamp and barrier",
-    "licensed Unity compile/import proof for all six authored Resources models",
+    "licensed Unity compile/import proof for all six surfaced authored Resources models",
     "runtime integration verification on the exact production candidate",
     "authored landmark replacement",
-    "additional building/environment variants",
+    "additional building/environment variants and final material detail",
     "exact Android in-race visual evidence",
     "owner/Art Director Visual Gate acceptance"
   ]
