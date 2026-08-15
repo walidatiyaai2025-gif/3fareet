@@ -23,7 +23,13 @@ class ExportDeviceEvidenceTests(unittest.TestCase):
         serial_hash = hashlib.sha256(serial.encode("utf-8")).hexdigest()
         apk_sha = "a" * 64
         git_sha = "b" * 40
-        manifest_sha = "c" * 64
+
+        bound_manifest = session_dir / EXPORTER.BOUND_CANDIDATE_MANIFEST_FILE
+        bound_manifest_bytes = json.dumps(
+            {"localPath": f"C:/private/{serial}/candidate.apk"}, sort_keys=True
+        ).encode("utf-8")
+        bound_manifest.write_bytes(bound_manifest_bytes)
+        manifest_sha = hashlib.sha256(bound_manifest_bytes).hexdigest()
 
         session = {
             "packageId": EXPORTER.PACKAGE_ID,
@@ -42,17 +48,13 @@ class ExportDeviceEvidenceTests(unittest.TestCase):
                 "verified": False,
                 "verdict": EXPORTER.EXPECTED_CANDIDATE_VERDICT,
                 "manifest": {
-                    "fileName": "candidate-manifest.json",
+                    "fileName": EXPORTER.BOUND_CANDIDATE_MANIFEST_FILE,
                     "sourceFileName": "local-candidate-manifest.json",
                     "sha256": manifest_sha,
                 },
             },
         }
         EXPORTER.write_json(session_dir / EXPORTER.SESSION_FILE, session)
-        (session_dir / "candidate-manifest.json").write_text(
-            json.dumps({"localPath": f"C:/private/{serial}/candidate.apk"}),
-            encoding="utf-8",
-        )
         (session_dir / "package-dump.txt").write_text(f"device={serial}\n", encoding="utf-8")
 
         index = {
@@ -127,10 +129,16 @@ class ExportDeviceEvidenceTests(unittest.TestCase):
             self.assertTrue((output / "checkpoints" / "results" / "meminfo.txt").is_file())
 
             self.assertFalse((output / "session.json").exists())
-            self.assertFalse((output / "candidate-manifest.json").exists())
+            self.assertFalse((output / EXPORTER.BOUND_CANDIDATE_MANIFEST_FILE).exists())
             self.assertFalse((output / "package-dump.txt").exists())
             self.assertFalse((output / "checkpoints" / "results" / "logcat.txt").exists())
             self.assertFalse((output / "checkpoints" / "results" / "activity.txt").exists())
+
+            checkpoint = json.loads(
+                (output / "checkpoints" / "results" / "checkpoint.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(list(EXPORTER.SAFE_CHECKPOINT_PAYLOAD_FILES), checkpoint["files"])
+            self.assertEqual(["logcat.txt", "activity.txt"], checkpoint["excludedByPolicy"])
 
             for path in output.rglob("*"):
                 if path.is_file() and path.suffix.lower() in EXPORTER.TEXT_SUFFIXES:
@@ -163,6 +171,29 @@ class ExportDeviceEvidenceTests(unittest.TestCase):
 
             with self.assertRaisesRegex(EXPORTER.EvidenceExportError, "must not be inside"):
                 EXPORTER.export_bundle(session_dir, session_dir / "public")
+
+    def test_export_rejects_tampered_bound_candidate_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            session_dir, _ = self._fixture(root)
+            (session_dir / EXPORTER.BOUND_CANDIDATE_MANIFEST_FILE).write_text(
+                '{"tampered": true}\n', encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(EXPORTER.EvidenceExportError, "manifest SHA mismatch"):
+                EXPORTER.export_bundle(session_dir, root / "review-bundle")
+
+    def test_export_rejects_unsupported_candidate_type(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            session_dir, _ = self._fixture(root)
+            session_path = session_dir / EXPORTER.SESSION_FILE
+            session = json.loads(session_path.read_text(encoding="utf-8"))
+            session["candidate"]["candidateType"] = "untrusted-candidate"
+            EXPORTER.write_json(session_path, session)
+
+            with self.assertRaisesRegex(EXPORTER.EvidenceExportError, "Unsupported candidateType"):
+                EXPORTER.export_bundle(session_dir, root / "review-bundle")
 
     def test_cli_exports_bundle_but_returns_nonzero_when_red_flags_exist(self):
         with tempfile.TemporaryDirectory() as directory:
