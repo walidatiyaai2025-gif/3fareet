@@ -11,6 +11,8 @@ namespace Afareet.Vehicle
         [SerializeField] private bool normalsAuthored;
         [SerializeField] private bool textureMappedMaterials;
         [SerializeField] private string sourceAssetId = string.Empty;
+        [SerializeField] private string assetVersion = string.Empty;
+        [SerializeField] private string sourceFingerprint = string.Empty;
 
         public int VariantIndex => variantIndex;
         public bool AuthoredExternalSource => authoredExternalSource;
@@ -18,19 +20,39 @@ namespace Afareet.Vehicle
         public bool NormalsAuthored => normalsAuthored;
         public bool TextureMappedMaterials => textureMappedMaterials;
         public string SourceAssetId => sourceAssetId;
+        public string AssetVersion => assetVersion;
+        public string SourceFingerprint => sourceFingerprint;
 
         public bool DeclaresProductionAuthoring =>
-            authoredExternalSource &&
-            uv0Authored &&
-            normalsAuthored &&
-            textureMappedMaterials &&
-            !string.IsNullOrWhiteSpace(sourceAssetId);
+            authoredExternalSource && uv0Authored && normalsAuthored && textureMappedMaterials &&
+            !string.IsNullOrWhiteSpace(sourceAssetId) &&
+            !string.IsNullOrWhiteSpace(assetVersion) &&
+            !string.IsNullOrWhiteSpace(sourceFingerprint);
+
+        public void Configure(
+            int index,
+            bool externalSource,
+            bool authoredUv0,
+            bool authoredNormals,
+            bool mappedMaterials,
+            string sourceId,
+            string version,
+            string fingerprint)
+        {
+            variantIndex = index;
+            authoredExternalSource = externalSource;
+            uv0Authored = authoredUv0;
+            normalsAuthored = authoredNormals;
+            textureMappedMaterials = mappedMaterials;
+            sourceAssetId = sourceId ?? string.Empty;
+            assetVersion = version ?? string.Empty;
+            sourceFingerprint = fingerprint ?? string.Empty;
+        }
     }
 
     /// <summary>
-    /// Fail-closed UART-004 contract for the three authored rival vehicles. The existing
-    /// CarFactory bodies and RivalVariantPass cube stripe/fin treatment are Editor blockout
-    /// only and can never satisfy this policy.
+    /// Fail-closed UART-004 contract for three authored rival production vehicles.
+    /// Historical CarFactory bodies and editor stripe/fin primitives can never satisfy it.
     /// </summary>
     public static class RivalProductionPolicy
     {
@@ -65,12 +87,7 @@ namespace Afareet.Vehicle
             return AssetPaths[variantIndex];
         }
 
-        public static bool MeetsProductionFloor(
-            int lod,
-            int triangleCount,
-            bool allMeshesHaveUv0,
-            bool allMeshesHaveAuthoredNormals,
-            bool hasTextureMappedMaterial)
+        public static bool MeetsProductionFloor(int lod, int triangleCount, bool allMeshesHaveUv0, bool allMeshesHaveAuthoredNormals, bool hasTextureMappedMaterial)
         {
             if (lod < 0 || lod >= MinimumTriangles.Length) return false;
             if (triangleCount < MinimumTriangles[lod] || triangleCount > MaximumTriangles[lod]) return false;
@@ -79,44 +96,20 @@ namespace Afareet.Vehicle
 
         public static bool ValidateProductionPrefab(GameObject prefab, int variantIndex, out string reason)
         {
-            if (prefab == null)
-            {
-                reason = "missing-prefab";
-                return false;
-            }
-
-            if (variantIndex < 0 || variantIndex >= VariantCount)
-            {
-                reason = "variant-index-out-of-range";
-                return false;
-            }
+            if (prefab == null) { reason = "missing-prefab"; return false; }
+            if (variantIndex < 0 || variantIndex >= VariantCount) { reason = "variant-index-out-of-range"; return false; }
 
             var metadata = prefab.GetComponent<RivalProductionAssetMetadata>();
-            if (metadata == null)
-            {
-                reason = "missing-production-metadata";
-                return false;
-            }
-
+            if (metadata == null) { reason = "missing-production-metadata"; return false; }
             if (metadata.VariantIndex != variantIndex)
             {
                 reason = $"variant-metadata-mismatch-{metadata.VariantIndex}-{variantIndex}";
                 return false;
             }
-
-            if (!metadata.DeclaresProductionAuthoring)
-            {
-                reason = "production-metadata-incomplete";
-                return false;
-            }
+            if (!metadata.DeclaresProductionAuthoring) { reason = "production-metadata-incomplete"; return false; }
 
             var group = prefab.GetComponent<LODGroup>();
-            if (group == null)
-            {
-                reason = "missing-lod-group";
-                return false;
-            }
-
+            if (group == null) { reason = "missing-lod-group"; return false; }
             var lods = group.GetLODs();
             if (lods == null || lods.Length != 3)
             {
@@ -127,12 +120,7 @@ namespace Afareet.Vehicle
             for (var lod = 0; lod < lods.Length; lod++)
             {
                 var renderers = lods[lod].renderers;
-                if (renderers == null || renderers.Length == 0)
-                {
-                    reason = $"lod{lod}-no-renderers";
-                    return false;
-                }
-
+                if (renderers == null || renderers.Length == 0) { reason = $"lod{lod}-no-renderers"; return false; }
                 var triangles = 0;
                 var allUv0 = true;
                 var allNormals = true;
@@ -140,45 +128,22 @@ namespace Afareet.Vehicle
 
                 foreach (var renderer in renderers)
                 {
-                    if (renderer == null)
-                    {
-                        reason = $"lod{lod}-null-renderer";
-                        return false;
-                    }
-
+                    if (renderer == null) { reason = $"lod{lod}-null-renderer"; return false; }
                     var mesh = MeshFor(renderer);
-                    if (mesh == null)
-                    {
-                        reason = $"lod{lod}-renderer-missing-mesh";
-                        return false;
-                    }
-
+                    if (mesh == null) { reason = $"lod{lod}-renderer-missing-mesh"; return false; }
                     triangles += TriangleCount(mesh);
                     allUv0 &= mesh.uv != null && mesh.uv.Length == mesh.vertexCount;
                     allNormals &= mesh.normals != null && mesh.normals.Length == mesh.vertexCount;
-
                     if (renderer.sharedMaterials != null)
                     {
                         foreach (var material in renderer.sharedMaterials)
-                        {
-                            if (material != null && material.mainTexture != null)
-                                hasTexture = true;
-                        }
+                            if (material != null && material.mainTexture != null) hasTexture = true;
                     }
                 }
 
-                if (!MeetsProductionFloor(
-                        lod,
-                        triangles,
-                        allUv0 && metadata.Uv0Authored,
-                        allNormals && metadata.NormalsAuthored,
-                        hasTexture && metadata.TextureMappedMaterials))
+                if (!MeetsProductionFloor(lod, triangles, allUv0 && metadata.Uv0Authored, allNormals && metadata.NormalsAuthored, hasTexture && metadata.TextureMappedMaterials))
                 {
-                    reason =
-                        $"lod{lod}-production-quality triangles={triangles} " +
-                        $"uv0={allUv0}/{metadata.Uv0Authored} " +
-                        $"normals={allNormals}/{metadata.NormalsAuthored} " +
-                        $"texture={hasTexture}/{metadata.TextureMappedMaterials}";
+                    reason = $"lod{lod}-production-quality triangles={triangles} uv0={allUv0}/{metadata.Uv0Authored} normals={allNormals}/{metadata.NormalsAuthored} texture={hasTexture}/{metadata.TextureMappedMaterials}";
                     return false;
                 }
             }
@@ -193,13 +158,11 @@ namespace Afareet.Vehicle
                 throw new InvalidOperationException("UART-004 must define exactly three production rival paths.");
             if (MinimumTriangles.Length != 3 || MaximumTriangles.Length != 3)
                 throw new InvalidOperationException("UART-004 must define exactly three LOD quality bands.");
-
             for (var lod = 0; lod < 3; lod++)
             {
                 if (MinimumTriangles[lod] <= 0 || MaximumTriangles[lod] <= MinimumTriangles[lod])
                     throw new InvalidOperationException($"UART-004 invalid production triangle band for LOD{lod}.");
             }
-
             if (!(MinimumTriangles[0] > MinimumTriangles[1] && MinimumTriangles[1] > MinimumTriangles[2]))
                 throw new InvalidOperationException("UART-004 production triangle floors must decrease across LODs.");
         }
@@ -214,8 +177,7 @@ namespace Afareet.Vehicle
         private static int TriangleCount(Mesh mesh)
         {
             var count = 0;
-            for (var sub = 0; sub < mesh.subMeshCount; sub++)
-                count += (int)mesh.GetIndexCount(sub) / 3;
+            for (var sub = 0; sub < mesh.subMeshCount; sub++) count += (int)mesh.GetIndexCount(sub) / 3;
             return count;
         }
 
