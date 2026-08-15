@@ -85,6 +85,20 @@ $LogDir = Join-Path $RepoRoot "artifacts\logs"
 New-Item -ItemType Directory -Force -Path $ArtifactDir, $LogDir | Out-Null
 $LogPath = Join-Path $LogDir "unity-android-local.log"
 $ApkPath = Join-Path $ProjectPath "Builds\Android\afareet-unity3d-debug.apk"
+$ArtifactApkPath = Join-Path $ArtifactDir "afareet-unity3d-debug.apk"
+$ArtifactMetadataPath = Join-Path $ArtifactDir "artifact-metadata.json"
+$ShaPath = Join-Path $ArtifactDir "afareet-unity3d-debug.apk.sha256"
+$BadgingPath = Join-Path $ArtifactDir "aapt-badging.txt"
+
+$staleEvidencePaths = @($ArtifactApkPath, $ArtifactMetadataPath, $ShaPath, $BadgingPath)
+$removedStaleEvidence = 0
+foreach ($stalePath in $staleEvidencePaths) {
+    if (Test-Path $stalePath) {
+        Remove-Item -Force $stalePath
+        $removedStaleEvidence++
+    }
+}
+Write-Host "AFAREET_STALE_BUILD_EVIDENCE_CLEARED count=$removedStaleEvidence"
 
 Remove-Item -Force $LogPath -ErrorAction SilentlyContinue
 Remove-Item -Force $ApkPath -ErrorAction SilentlyContinue
@@ -154,7 +168,6 @@ if (-not $Aapt) {
     Fail "aapt.exe was not found in Android SDK build-tools."
 }
 
-$BadgingPath = Join-Path $ArtifactDir "aapt-badging.txt"
 $badging = & $Aapt dump badging $ApkPath
 if ($LASTEXITCODE -ne 0) {
     Fail "aapt dump badging failed for $ApkPath"
@@ -202,8 +215,7 @@ if ($IsDirtyAfterBuild) {
 
 $hash = (Get-FileHash -Algorithm SHA256 $ApkPath).Hash.ToLowerInvariant()
 $size = (Get-Item $ApkPath).Length
-$shaPath = Join-Path $ArtifactDir "afareet-unity3d-debug.apk.sha256"
-"$hash  afareet-unity3d-debug.apk" | Set-Content -Encoding ASCII $shaPath
+"$hash  afareet-unity3d-debug.apk" | Set-Content -Encoding ASCII $ShaPath
 
 $metadata = [ordered]@{
     schemaVersion = 1
@@ -223,9 +235,9 @@ $metadata = [ordered]@{
     generatedAtUtc = [DateTime]::UtcNow.ToString("o")
     unityLog = $LogPath
 }
-$metadata | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 (Join-Path $ArtifactDir "artifact-metadata.json")
+$metadata | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $ArtifactMetadataPath
 
-Copy-Item -Force $ApkPath (Join-Path $ArtifactDir "afareet-unity3d-debug.apk")
+Copy-Item -Force $ApkPath $ArtifactApkPath
 
 Write-Host "AFAREET_LOCAL_ANDROID_BUILD_OK package=$ExpectedPackage abi=$ExpectedAbi sha256=$hash size=$size gitSha=$GitSha releaseEligible=$ReleaseEvidenceEligible"
 Write-Host "APK: $ApkPath"
