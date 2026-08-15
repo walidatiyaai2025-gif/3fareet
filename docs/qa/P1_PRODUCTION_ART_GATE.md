@@ -23,7 +23,7 @@ Defects #127 and #128 remain the current owner rejection records. This gate does
 
 Schema v2 binds the review not only to the candidate Git SHA and APK SHA-256, but also to the **exact bytes** reviewed for every declared source file, packaged runtime asset and screenshot/video.
 
-Every `sourceFiles`, `runtimeAssets` and `evidence` entry must therefore carry a 64-hex `sha256`. The verifier recomputes each digest from disk and fails if bytes changed after the review manifest was created, even when the path is unchanged.
+Every `sourceFiles`, `runtimeAssets` and `evidence` entry must carry a 64-hex `sha256`. The verifier recomputes each digest from disk and fails if bytes changed after the review manifest was created, even when the path is unchanged.
 
 The gate also rejects:
 
@@ -31,13 +31,34 @@ The gate also rejects:
 - reuse of the same screenshot/video file across multiple required production-art tasks;
 - legacy schema-v1 manifests that do not pin artifact bytes.
 
-This prevents a reviewed manifest from becoming a transferable approval token for different source/runtime/evidence bytes.
+## Candidate Git provenance requirement
+
+A matching manifest SHA is not enough by itself. Repository source/runtime files must also be proven to belong to the **same Git commit named by `candidate.gitSha`**.
+
+The verifier therefore requires:
+
+- `--repo-root` to be the exact Git worktree root;
+- repository `HEAD` to equal the manifest candidate Git SHA;
+- every declared source/runtime artifact to be tracked by that candidate commit;
+- the candidate Git blob bytes for each tracked source/runtime path to have the same SHA-256 as the reviewed working-tree artifact.
+
+This blocks several false-acceptance paths:
+
+- running review against a different checkout while copying the candidate SHA into the manifest;
+- reviewing an untracked source or prefab that was never part of the candidate commit;
+- modifying a tracked source/runtime file after checkout and updating only the manifest hash;
+- using a later/earlier repository HEAD with otherwise identical evidence metadata.
+
+Visual screenshot/video evidence remains bound to the exact APK through the candidate/review chain and to its own SHA-256 in this manifest; source/runtime provenance is additionally anchored to the Git commit that produced the candidate.
 
 ## What the verifier rejects
 
 `tools/android/verify_p1_production_art.py` rejects the evidence manifest when any of these are true:
 
 - candidate Git SHA or APK SHA is absent/invalid/mismatched;
+- repository HEAD does not equal the candidate Git SHA;
+- a source/runtime path is untracked or absent from the candidate commit;
+- working-tree source/runtime bytes differ from the candidate Git blob;
 - owner acceptance is absent;
 - any required task is missing or not `ACCEPTED`;
 - any required task is still marked `blockout`/non-production;
@@ -102,7 +123,10 @@ All required task records follow the same contract, and each visual evidence pat
 
 ## Command
 
+Run from the exact candidate checkout:
+
 ```bash
+git rev-parse HEAD
 python tools/android/verify_p1_production_art.py \
   --manifest evidence/p1-review/p1-production-art.json \
   --repo-root . \
@@ -113,7 +137,7 @@ python tools/android/verify_p1_production_art.py \
 
 Expected success marker:
 
-`AFAREET_PRODUCTION_ART_GATE_OK ... fingerprints=<N> verdict=PRODUCTION_ART_GATE_PASSED verified=false`
+`AFAREET_PRODUCTION_ART_GATE_OK ... fingerprints=<N> gitTracked=<N> verdict=PRODUCTION_ART_GATE_PASSED verified=false`
 
 ## Current repository truth
 
@@ -121,4 +145,4 @@ The convergence line contains the engineering/source remediation for the Cairo w
 
 The repository still does not contain the owner-accepted real Afareet King production model required by `UART-003`, and the converged art stack has not yet been imported/rendered/built under licensed Unity or accepted on an exact Android candidate by the owner/Art Director.
 
-Therefore no current APK should have a production-art acceptance manifest that passes this verifier. A valid schema-v2 manifest can only be created after the real authored production assets are integrated, their exact bytes are fingerprinted, and fresh in-race evidence is captured and accepted on one exact candidate.
+Therefore no current APK should have a production-art acceptance manifest that passes this verifier. A valid schema-v2 manifest can only be created from the exact candidate Git checkout after the real authored production assets are integrated, tracked, fingerprinted, and fresh in-race evidence is captured and accepted on that same candidate.
