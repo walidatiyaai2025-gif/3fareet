@@ -3,9 +3,9 @@
 
 This wrapper accepts candidate manifests produced by either the licensed-Windows
 local path or the GitHub Unity Production CI artifact-binding path. It fails
-closed if the manifest and APK bytes do not match, then hands the exact APK to
-the existing ADB evidence collector. It never marks a candidate or device gate
-VERIFIED.
+closed if candidate provenance or APK bytes do not match the supported contract,
+then hands the exact APK to the existing ADB evidence collector. It never marks
+a candidate or device gate VERIFIED.
 """
 
 from __future__ import annotations
@@ -20,13 +20,16 @@ from typing import Any
 
 EXPECTED_PACKAGE_ID = "com.fiftysolutions.afareetunity3d"
 EXPECTED_ARTIFACT = "afareet-unity3d-debug.apk"
-ALLOWED_CANDIDATE_TYPES = {
-    "local-windows-licensed-unity",
-    "github-actions-unity-ci",
-}
+LOCAL_CANDIDATE_TYPE = "local-windows-licensed-unity"
+CI_CANDIDATE_TYPE = "github-actions-unity-ci"
+ALLOWED_CANDIDATE_TYPES = {LOCAL_CANDIDATE_TYPE, CI_CANDIDATE_TYPE}
+EXPECTED_CI_REPOSITORY = "walidatiyaai2025-gif/3fareet"
+EXPECTED_CI_WORKFLOW = "Unity Production CI"
+ALLOWED_CI_EVENTS = {"pull_request", "push", "workflow_dispatch"}
 EXPECTED_VERDICT = "READY_FOR_PHYSICAL_DEVICE_EVIDENCE"
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+DIGITS_RE = re.compile(r"^[1-9][0-9]*$")
 
 
 class CandidatePrepareError(RuntimeError):
@@ -53,6 +56,41 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _positive_id(value: Any, label: str) -> str:
+    text = str(value or "").strip()
+    if not DIGITS_RE.fullmatch(text):
+        raise CandidatePrepareError(f"{label} must be a positive integer string, found {value!r}")
+    return text
+
+
+def _validate_ci_provenance(manifest: dict[str, Any]) -> dict[str, str]:
+    github_run = manifest.get("githubRun")
+    if not isinstance(github_run, dict):
+        raise CandidatePrepareError("GitHub CI candidate is missing githubRun provenance")
+    run_id = _positive_id(github_run.get("runId"), "githubRun.runId")
+    run_attempt = _positive_id(github_run.get("runAttempt"), "githubRun.runAttempt")
+    repository = str(github_run.get("repository") or "").strip()
+    workflow = str(github_run.get("workflow") or "").strip()
+    event_name = str(github_run.get("eventName") or "").strip()
+    ref = str(github_run.get("ref") or "").strip()
+    if repository != EXPECTED_CI_REPOSITORY:
+        raise CandidatePrepareError(f"Unexpected GitHub candidate repository: {repository!r}")
+    if workflow != EXPECTED_CI_WORKFLOW:
+        raise CandidatePrepareError(f"Unexpected GitHub candidate workflow: {workflow!r}")
+    if event_name not in ALLOWED_CI_EVENTS:
+        raise CandidatePrepareError(f"Unexpected GitHub candidate eventName: {event_name!r}")
+    if not ref.startswith("refs/"):
+        raise CandidatePrepareError(f"GitHub candidate ref must be refs/*, found {ref!r}")
+    return {
+        "runId": run_id,
+        "runAttempt": run_attempt,
+        "repository": repository,
+        "workflow": workflow,
+        "eventName": event_name,
+        "ref": ref,
+    }
+
+
 def resolve_candidate(
     manifest: dict[str, Any],
     manifest_path: Path,
@@ -75,6 +113,8 @@ def resolve_candidate(
     git_sha = str(manifest.get("gitSha") or "").strip().lower()
     if not SHA40_RE.fullmatch(git_sha):
         raise CandidatePrepareError(f"Candidate gitSha is not a full 40-character SHA: {git_sha!r}")
+
+    github_run = _validate_ci_provenance(manifest) if candidate_type == CI_CANDIDATE_TYPE else None
 
     apk_record = manifest.get("apk")
     if not isinstance(apk_record, dict):
@@ -124,6 +164,7 @@ def resolve_candidate(
         "gitSha": git_sha,
         "packageId": EXPECTED_PACKAGE_ID,
         "candidateType": candidate_type,
+        "githubRun": github_run,
     }
 
 
