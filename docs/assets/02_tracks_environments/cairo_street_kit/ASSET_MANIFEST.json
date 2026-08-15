@@ -15,6 +15,20 @@
   "targetRuntimePath": "unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit/Generated",
   "runtimeAdapter": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredStreetKit.cs",
   "stagingAdapter": "unity_game/Assets/Afareet/Editor/P1ProductionWorldAssetStager.cs",
+  "sourceSurfaceProgress": "10/10",
+  "sourceVariantCoverage": {
+    "facades": "3/3",
+    "awnings": "2/2",
+    "hangingSigns": "1/1",
+    "baseRoadCurbProps": "4/4"
+  },
+  "sourceVariantEvidence": {
+    "authoringCommit": "9ed18772c68501ce9d43c332634b2aa2520975ec",
+    "workflowRun": 31894651033,
+    "distinctNewSources": 4,
+    "surfaceChecksPassed": true,
+    "topologyPreservedDuringSurfacePass": true
+  },
   "modules": [
     {
       "model": "SM_Env_CairoFacade_A.obj",
@@ -30,6 +44,30 @@
       "requiredDetails": ["window recesses", "door/storefront opening", "cornice/parapet silhouette", "non-flat facade depth"]
     },
     {
+      "model": "SM_Env_CairoFacade_B.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Env_CairoFacade_B",
+      "dimensionsMeters": [6.0, 5.0, 0.9],
+      "atlasTile": "facade-b",
+      "productionMinVertices": 128,
+      "productionMinTriangles": 200,
+      "currentVertices": 216,
+      "currentTriangles": 324,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
+      "requiredDetails": ["balcony rhythm", "window recess plates", "entrance framing", "cornice and plinth depth"]
+    },
+    {
+      "model": "SM_Env_CairoFacade_C.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Env_CairoFacade_C",
+      "dimensionsMeters": [6.0, 5.0, 0.95],
+      "atlasTile": "facade-c",
+      "productionMinVertices": 128,
+      "productionMinTriangles": 200,
+      "currentVertices": 200,
+      "currentTriangles": 300,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
+      "requiredDetails": ["storefront lower tier", "vertical upper bays", "center door", "projecting sign/canopy ledge"]
+    },
+    {
       "model": "SM_Env_CairoAwning_A.obj",
       "legacyPrefab": "PF_Env_CairoAwning_A.prefab",
       "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Env_CairoAwning_A",
@@ -41,6 +79,18 @@
       "currentTriangles": 96,
       "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
       "requiredDetails": ["frame", "fabric/canopy volume", "edge profile"]
+    },
+    {
+      "model": "SM_Env_CairoAwning_B.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Env_CairoAwning_B",
+      "dimensionsMeters": [3.0, 1.4, 1.5],
+      "atlasTile": "awning-b",
+      "productionMinVertices": 64,
+      "productionMinTriangles": 96,
+      "currentVertices": 88,
+      "currentTriangles": 132,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
+      "requiredDetails": ["sloped canopy volume", "side frame", "front valance", "stripe-support ribs"]
     },
     {
       "model": "SM_Prop_CairoLamp_A.obj",
@@ -69,6 +119,18 @@
       "requiredDetails": ["beveled body silhouette", "feet/supports", "front/back reflective panels", "top rail detail"]
     },
     {
+      "model": "SM_Prop_CairoSign_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Prop_CairoSign_A",
+      "dimensionsMeters": [0.2, 1.9, 2.2],
+      "atlasTile": "sign",
+      "productionMinVertices": 72,
+      "productionMinTriangles": 108,
+      "currentVertices": 80,
+      "currentTriangles": 120,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
+      "requiredDetails": ["wall arm", "hanger", "framed board", "support braces", "finial"]
+    },
+    {
       "model": "SM_Track_CairoRoad_A.obj",
       "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Track_CairoRoad_A",
       "dimensionsMeters": [14.0, 0.22, 10.0],
@@ -93,7 +155,10 @@
   ],
   "runtimeReplacementStatus": {
     "authoredBuildings": "implemented-unverified",
+    "authoredFacadeVariantSelection": "implemented-unverified",
     "authoredAwnings": "implemented-unverified",
+    "authoredAwningVariantSelection": "implemented-unverified",
+    "authoredHangingSigns": "implemented-unverified",
     "authoredLamps": "implemented-unverified",
     "authoredBarriers": "implemented-unverified",
     "authoredRoad": "implemented-unverified",
@@ -106,12 +171,10 @@
     "landmarksStillProcedural": true
   },
   "requiredProductionExpansion": [
-    "at least three facade/building variants",
-    "storefront/sign/awning variants",
-    "street props including lamps, barriers and roadside clutter",
-    "mobile LOD/collision setup",
+    "additional roadside clutter beyond lamp/barrier/hanging-sign coverage",
+    "mobile LOD setup for repeated visual modules; runtime road/building collision remains separate simplified colliders",
     "upgrade candidate base-color maps with authored normal/ORM or equivalent material detail where visually required",
-    "authored landmark and skyline replacement"
+    "authored landmark and skyline replacement coordinated with UART-006/UART-007"
   ],
   "atlas": {
     "file": "T_Env_CairoStreetKit_BC.png",
@@ -123,10 +186,10 @@
   },
   "pivotRule": "Production source pivot must preserve modular snap/contact convention at the placement origin.",
   "acceptancePending": [
-    "licensed Unity compile/import proof for all six surfaced authored Resources models",
-    "runtime integration verification on the exact production candidate",
-    "authored landmark replacement",
-    "additional building/environment variants and final material detail",
+    "licensed Unity compile/import proof for all ten surfaced authored Resources models",
+    "runtime integration verification for deterministic facade/awning variation and hanging signs on the exact candidate",
+    "mobile LOD and final material/texture refinement",
+    "authored landmark replacement coordinated with UART-006/UART-007",
     "exact Android in-race visual evidence",
     "owner/Art Director Visual Gate acceptance"
   ]
