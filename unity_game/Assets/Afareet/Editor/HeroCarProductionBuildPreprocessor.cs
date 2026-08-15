@@ -45,7 +45,7 @@ namespace Afareet.Editor
             var sourcePath = (metadata.SourceAssetId ?? string.Empty).Replace('\\', '/');
             if (!sourcePath.StartsWith("Assets/", StringComparison.Ordinal))
                 Fail($"source-must-be-project-asset path={sourcePath}");
-            if (sourcePath.Contains("/Generated/", StringComparison.OrdinalIgnoreCase))
+            if (sourcePath.IndexOf("/Generated/", StringComparison.OrdinalIgnoreCase) >= 0)
                 Fail($"generated-source-is-not-production path={sourcePath}");
             if (!HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath))
                 Fail($"unsupported-external-model-source path={sourcePath}");
