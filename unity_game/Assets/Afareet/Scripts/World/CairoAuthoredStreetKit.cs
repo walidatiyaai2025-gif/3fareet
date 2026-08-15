@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Afareet.World
@@ -14,8 +15,34 @@ namespace Afareet.World
         private const string AwningPath = ResourceRoot + "/SM_Env_CairoAwning_A";
         private const string LampPath = ResourceRoot + "/SM_Prop_CairoLamp_A";
         private const string BarrierPath = ResourceRoot + "/SM_Prop_CairoBarrier_A";
+        private const string RoadPath = ResourceRoot + "/SM_Track_CairoRoad_A";
 
         private static bool activationLogged;
+
+        public static bool TryCreateRoadSegment(
+            Transform parent,
+            Vector3 position,
+            Quaternion rotation,
+            float length,
+            Material asphaltMaterial,
+            Material curbMaterial,
+            Material edgeMaterial)
+        {
+            var source = Resources.Load<GameObject>(RoadPath);
+            if (source == null)
+            {
+                Missing(RoadPath);
+                return false;
+            }
+
+            var road = Object.Instantiate(source, parent, false);
+            road.name = "AUTHORED CAIRO ROAD SEGMENT";
+            road.transform.SetPositionAndRotation(position, rotation);
+            road.transform.localScale = new Vector3(1f, 1f, Mathf.Max(.25f, length));
+            ApplyRoadMaterials(road, asphaltMaterial, curbMaterial, edgeMaterial);
+            LogActivation();
+            return true;
+        }
 
         public static bool TryCreateBuilding(
             Transform parent,
@@ -130,6 +157,33 @@ namespace Afareet.World
             panel.transform.localRotation = localRotation;
             panel.transform.localScale = localScale;
             ApplyMaterial(panel, material);
+        }
+
+        private static void ApplyRoadMaterials(GameObject instance, Material asphaltMaterial, Material curbMaterial, Material edgeMaterial)
+        {
+            if (instance == null) return;
+            foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                if (renderer == null) continue;
+                var objectName = renderer.gameObject.name ?? string.Empty;
+                var target = asphaltMaterial;
+                if (objectName.IndexOf("Curb", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    objectName.IndexOf("Sidewalk", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    target = curbMaterial ?? asphaltMaterial;
+                }
+                else if (objectName.IndexOf("Drain", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                         objectName.IndexOf("Edge_Blade", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    target = edgeMaterial ?? curbMaterial ?? asphaltMaterial;
+                }
+
+                if (target == null) continue;
+                var count = Mathf.Max(1, renderer.sharedMaterials == null ? 0 : renderer.sharedMaterials.Length);
+                var bindings = new Material[count];
+                for (var i = 0; i < bindings.Length; i++) bindings[i] = target;
+                renderer.sharedMaterials = bindings;
+            }
         }
 
         private static void ApplyMaterial(GameObject instance, Material material)
