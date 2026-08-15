@@ -51,6 +51,7 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
         text = self._read("unity_game/Assets/Afareet/Editor/HeroCarProductionSourceBinder.cs")
         for required in (
             "Bind UART-003 Production Hero Source",
+            "internal static void BindSource",
             "HeroCarLodPolicy.ProductionAssetPath",
             "IsSupportedExternalModelSource",
             "AssetDatabase.GetAssetPath(filter.sharedMesh)",
@@ -61,6 +62,48 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
         self.assertNotIn("HeroCarProductionAssetBuilder.BuildOrThrow", text)
+        self.assertNotIn("GameObject.CreatePrimitive", text)
+
+    def test_external_source_prefab_stager_never_generates_production_geometry(self):
+        path = REPO_ROOT / "unity_game/Assets/Afareet/Editor/HeroCarProductionPrefabStager.cs"
+        self.assertTrue(path.is_file())
+        self.assertTrue(path.with_suffix(path.suffix + ".meta").is_file())
+        text = path.read_text(encoding="utf-8")
+
+        for required in (
+            "Stage + Bind UART-003 Production Hero Source",
+            "IsSupportedExternalModelSource",
+            'IndexOf("/Generated/"',
+            "AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath)",
+            "PrefabUtility.InstantiatePrefab(sourceModel)",
+            "GetComponentsInChildren<MeshRenderer>(true)",
+            "ResolveLod",
+            'EndsWith($"_LOD{lod}"',
+            "AssetDatabase.GetAssetPath(mesh)",
+            "HeroCarLodPolicy.IsWithinBudget",
+            "mesh.uv",
+            "mesh.normals",
+            "material.mainTexture",
+            "new LOD(",
+            "group.SetLODs(lods)",
+            "PrefabUtility.SaveAsPrefabAsset",
+            "HeroCarProductionSourceBinder.BindSource(sourcePath)",
+            "HeroCarProductionVisual.ValidateProductionPrefab",
+            "AFAREET_UART003_PREFAB_STAGE_OK",
+            "geometryGenerated=false",
+            "primitiveCreated=false",
+        ):
+            self.assertIn(required, text)
+
+        for forbidden in (
+            "HeroCarProductionMeshAuthoring.Build",
+            "HeroCarProductionAssetBuilder.BuildOrThrow",
+            "GameObject.CreatePrimitive",
+            "new Mesh(",
+            "new Mesh {",
+            "RecalculateNormals",
+        ):
+            self.assertNotIn(forbidden, text)
 
     def test_production_and_generated_preview_resource_paths_are_distinct(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarLodPolicy.cs")
