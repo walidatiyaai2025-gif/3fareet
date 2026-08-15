@@ -5,10 +5,19 @@ on:
     paths:
       - '.github/workflows/unity-licensed-windows-candidate.yml'
       - 'docs/qa/LICENSED_WINDOWS_GITHUB_RUNNER.md'
+      - 'tools/android/tests/test_licensed_windows_workflow_convergence_ref_contract.py'
   workflow_dispatch:
     inputs:
+      candidate_ref:
+        description: 'Allowed production candidate ref to validate before integration'
+        required: true
+        type: choice
+        default: 'agent/p1-remediation-convergence'
+        options:
+          - 'agent/p1-remediation-convergence'
+          - 'agent/unblock-final-5'
       expected_sha:
-        description: 'Exact 40-character SHA expected at agent/unblock-final-5'
+        description: 'Exact 40-character SHA expected at the selected candidate_ref'
         required: true
         type: string
       unity_path:
@@ -38,17 +47,26 @@ jobs:
         run: |
           set -euo pipefail
           workflow='.github/workflows/unity-licensed-windows-candidate.yml'
-          grep -Fq "ref: agent/unblock-final-5" "$workflow"
+          grep -Fq 'candidate_ref:' "$workflow"
+          grep -Fq "type: choice" "$workflow"
+          grep -Fq "- 'agent/p1-remediation-convergence'" "$workflow"
+          grep -Fq "- 'agent/unblock-final-5'" "$workflow"
+          grep -Fq 'ref: ${{ steps.scope.outputs.candidate_ref }}' "$workflow"
           grep -Fq "runs-on: [self-hosted, Windows, X64]" "$workflow"
           grep -Fq "expected_sha" "$workflow"
           grep -Fq "run_local_candidate_windows.ps1" "$workflow"
           grep -Fq "persist-credentials: false" "$workflow"
           grep -Fq "actions/upload-artifact@v6" "$workflow"
-          if grep -Eq "default: '[0-9a-fA-F]{40}'" "$workflow"; then
+          grep -Fq 'Validate requested candidate ref before checkout' "$workflow"
+          if grep -Fq 'ref: agent/unblock-final-5' "$workflow"; then
+            echo '::error::Licensed proof must not be hard-wired to integration; convergence must be provable before merge.'
+            exit 1
+          fi
+          if grep -Eq "expected_sha:[[:space:]]*$" "$workflow" && grep -Eq "default: '[0-9a-fA-F]{40}'" "$workflow"; then
             echo '::error::expected_sha must never have a hard-coded default; concurrent Unity work would make it stale.'
             exit 1
           fi
-          echo 'Licensed Windows workflow static contract is present.'
+          echo 'Licensed Windows workflow convergence-ref contract is present.'
 
   licensed-candidate:
     name: Licensed Unity 6000.5.8f1 exact-SHA candidate
@@ -58,10 +76,31 @@ jobs:
     timeout-minutes: 150
 
     steps:
-      - name: Checkout canonical Unity production branch
+      - name: Validate requested candidate ref before checkout
+        id: scope
+        shell: pwsh
+        env:
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $candidateRef = ([string]$env:CANDIDATE_REF).Trim()
+          $allowedRefs = @(
+            'agent/p1-remediation-convergence',
+            'agent/unblock-final-5'
+          )
+          if ($candidateRef -notin $allowedRefs) {
+            throw "candidate_ref is not in the production allowlist: '$candidateRef'"
+          }
+
+          "candidate_ref=$candidateRef" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "AFAREET_SELF_HOSTED_REF_ALLOWLIST_OK candidateRef=$candidateRef"
+
+      - name: Checkout selected production candidate ref
         uses: actions/checkout@v5
         with:
-          ref: agent/unblock-final-5
+          ref: ${{ steps.scope.outputs.candidate_ref }}
           fetch-depth: 0
           lfs: true
           clean: true
@@ -71,14 +110,24 @@ jobs:
         id: pin
         shell: pwsh
         env:
+          CANDIDATE_REF: ${{ steps.scope.outputs.candidate_ref }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
 
+          $candidateRef = ([string]$env:CANDIDATE_REF).Trim()
           $expected = ([string]$env:EXPECTED_SHA).Trim().ToLowerInvariant()
           if ($expected -notmatch '^[0-9a-f]{40}$') {
             throw "expected_sha must be a full 40-character lowercase/uppercase Git SHA; found '$expected'"
+          }
+
+          $allowedRefs = @(
+            'agent/p1-remediation-convergence',
+            'agent/unblock-final-5'
+          )
+          if ($candidateRef -notin $allowedRefs) {
+            throw "candidate_ref escaped the production allowlist after checkout: '$candidateRef'"
           }
 
           $actual = (& git rev-parse HEAD).Trim().ToLowerInvariant()
@@ -86,7 +135,7 @@ jobs:
             throw 'Unable to resolve checkout HEAD to a full Git SHA.'
           }
           if ($actual -ne $expected) {
-            throw "Canonical branch moved or wrong SHA was requested. expected=$expected actual=$actual"
+            throw "Candidate ref moved or wrong SHA was requested. ref=$candidateRef expected=$expected actual=$actual"
           }
 
           $dirty = @(& git status --porcelain)
@@ -99,7 +148,7 @@ jobs:
           }
 
           "sha=$actual" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Host "AFAREET_SELF_HOSTED_SHA_PIN_OK gitSha=$actual branch=agent/unblock-final-5"
+          Write-Host "AFAREET_SELF_HOSTED_SHA_PIN_OK gitSha=$actual candidateRef=$candidateRef"
 
       - name: Validate licensed Unity executable and candidate entry point
         shell: pwsh
@@ -114,7 +163,7 @@ jobs:
           }
           $runner = Join-Path $env:GITHUB_WORKSPACE 'tools\android\run_local_candidate_windows.ps1'
           if (-not (Test-Path -LiteralPath $runner -PathType Leaf)) {
-            throw "Canonical production branch is missing candidate runner: $runner"
+            throw "Selected production candidate ref is missing candidate runner: $runner"
           }
           Write-Host 'AFAREET_SELF_HOSTED_UNITY_PREFLIGHT_OK unityVersion=6000.5.8f1'
 
