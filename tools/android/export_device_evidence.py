@@ -28,6 +28,7 @@ SESSION_FILE = "session.json"
 INDEX_FILE = "evidence-index.json"
 BOUND_CANDIDATE_MANIFEST_FILE = "candidate-manifest.json"
 REVIEW_MANIFEST_FILE = "review-manifest.json"
+REVIEW_MANIFEST_SCHEMA_VERSION = 2
 EXPECTED_CANDIDATE_VERDICT = "READY_FOR_PHYSICAL_DEVICE_EVIDENCE"
 EXPECTED_REVIEW_VERDICT = "MANUAL_REVIEW_REQUIRED"
 ALLOWED_CANDIDATE_TYPES = {
@@ -269,6 +270,18 @@ def _assert_text_does_not_contain_serial(path: Path, raw_serial: str) -> None:
         raise EvidenceExportError(f"Sanitized review file contains raw ADB serial: {path}")
 
 
+def _content_record(path: Path) -> dict[str, Any]:
+    size = path.stat().st_size
+    if size <= 0:
+        raise EvidenceExportError(f"Review bundle content file is empty: {path}")
+    return {"sha256": sha256_file(path), "sizeBytes": size}
+
+
+def _content_set_sha256(records: dict[str, dict[str, Any]]) -> str:
+    canonical = json.dumps(records, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def export_bundle(session_dir: Path, output_dir: Path, *, force: bool = False) -> dict[str, Any]:
     session_dir = session_dir.expanduser().resolve()
     output_dir = output_dir.expanduser().resolve()
@@ -323,8 +336,14 @@ def export_bundle(session_dir: Path, output_dir: Path, *, force: bool = False) -
             copied_files.append(relative)
             _assert_text_does_not_contain_serial(target, raw_serial)
 
+    content_files = {
+        relative: _content_record(output_dir / Path(relative))
+        for relative in sorted(copied_files)
+    }
+    content_set_sha = _content_set_sha256(content_files)
+
     review_manifest = {
-        "schemaVersion": 1,
+        "schemaVersion": REVIEW_MANIFEST_SCHEMA_VERSION,
         "state": "SANITIZED_REVIEW_BUNDLE",
         "verdict": EXPECTED_REVIEW_VERDICT,
         "packageId": PACKAGE_ID,
@@ -337,6 +356,8 @@ def export_bundle(session_dir: Path, output_dir: Path, *, force: bool = False) -
         "automatedRedFlags": index.get("automatedRedFlags", []),
         "manualReviewChecklist": index.get("manualReviewChecklist", []),
         "copiedFiles": sorted(copied_files),
+        "contentFiles": content_files,
+        "contentSetSha256": content_set_sha,
         "excludedByPolicy": list(EXCLUDED_BY_POLICY),
         "privacy": {
             "rawAdbSerialIncluded": False,
@@ -377,6 +398,7 @@ def main(argv: list[str] | None = None) -> int:
             "AFAREET_DEVICE_REVIEW_BUNDLE_EXPORTED "
             f"gitSha={manifest['candidate']['gitSha']} apkSha256={manifest['candidate']['apkSha256']} "
             f"checkpoints={manifest['checkpointCount']} redFlags={red_flags} "
+            f"contentSetSha256={manifest['contentSetSha256']} "
             f"verdict={manifest['verdict']} output={Path(args.output).expanduser().resolve()}"
         )
         return 2 if red_flags > 0 else 0
