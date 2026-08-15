@@ -19,19 +19,19 @@ namespace Afareet.Editor
         private static bool CanBindRival1() => CanBind(0);
 
         [MenuItem(MenuRoot + "Rival 1 Source")]
-        private static void BindRival1() => Bind(0);
+        private static void BindRival1() => BindSelected(0);
 
         [MenuItem(MenuRoot + "Rival 2 Source", true)]
         private static bool CanBindRival2() => CanBind(1);
 
         [MenuItem(MenuRoot + "Rival 2 Source")]
-        private static void BindRival2() => Bind(1);
+        private static void BindRival2() => BindSelected(1);
 
         [MenuItem(MenuRoot + "Rival 3 Source", true)]
         private static bool CanBindRival3() => CanBind(2);
 
         [MenuItem(MenuRoot + "Rival 3 Source")]
-        private static void BindRival3() => Bind(2);
+        private static void BindRival3() => BindSelected(2);
 
         private static bool CanBind(int variant)
         {
@@ -40,11 +40,21 @@ namespace Afareet.Editor
                    AssetDatabase.LoadAssetAtPath<GameObject>(RivalProductionPolicy.AssetPath(variant)) != null;
         }
 
-        private static void Bind(int variant)
+        private static void BindSelected(int variant)
+        {
+            BindSource(variant, SelectedSourcePath());
+        }
+
+        /// <summary>
+        /// Shared fail-closed binding entry used by the explicit menu flow and the UART-004
+        /// prefab stager. This method records provenance only; it never creates or modifies
+        /// model geometry.
+        /// </summary>
+        internal static void BindSource(int variant, string sourcePath)
         {
             RivalProductionPolicy.ValidateContract();
+            sourcePath = (sourcePath ?? string.Empty).Replace('\\', '/');
 
-            var sourcePath = SelectedSourcePath();
             if (!RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath))
                 throw new InvalidOperationException(
                     $"UART-004 selected asset is not a supported non-generated external 3D model: {sourcePath}");
