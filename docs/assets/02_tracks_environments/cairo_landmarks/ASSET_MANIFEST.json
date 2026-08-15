@@ -1,0 +1,62 @@
+{
+  "taskId": "UART-006",
+  "owner": "Environment Art-TechArt handoff",
+  "sourceOrLicense": "Original project-authored landmark source candidates; no third-party source material",
+  "reviewState": "BLOCKED",
+  "sourceQuality": "authored-source-candidate",
+  "runtimeIntegrationImplemented": true,
+  "runtimeIntegrated": false,
+  "runtimeIntegrationVerified": false,
+  "proceduralFallbackAllowedInCandidate": false,
+  "blockerIssue": 128,
+  "unitMeters": 1.0,
+  "axes": "+Y up, +Z forward, +X right",
+  "sourceRoot": "docs/assets/02_tracks_environments/cairo_landmarks/source",
+  "targetRuntimePath": "unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoLandmarks/Generated",
+  "runtimeAdapter": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredLandmarks.cs",
+  "stagingAdapter": "unity_game/Assets/Afareet/Editor/P1LandmarkAssetStager.cs",
+  "modules": [
+    {
+      "model": "SM_Landmark_GizaSpiritPyramid_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoLandmarks/Generated/SM_Landmark_GizaSpiritPyramid_A",
+      "productionMinVertices": 96,
+      "productionMinTriangles": 120,
+      "requiredDetails": ["stepped stone silhouette", "upper pyramid crown", "entrance portal", "spirit channels", "gold apex"]
+    },
+    {
+      "model": "SM_Landmark_CairoMinaret_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoLandmarks/Generated/SM_Landmark_CairoMinaret_A",
+      "productionMinVertices": 128,
+      "productionMinTriangles": 220,
+      "requiredDetails": ["multi-stage shaft", "balcony", "upper shaft", "crown", "spire", "identity accent"]
+    },
+    {
+      "model": "SM_Landmark_CairoDomeGate_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoLandmarks/Generated/SM_Landmark_CairoDomeGate_A",
+      "productionMinVertices": 140,
+      "productionMinTriangles": 240,
+      "requiredDetails": ["gate piers", "structural beam", "dome drum", "hemisphere dome", "neon ring", "spire"]
+    },
+    {
+      "model": "SM_Landmark_CairoBridgeGantry_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoLandmarks/Generated/SM_Landmark_CairoBridgeGantry_A",
+      "productionMinVertices": 96,
+      "productionMinTriangles": 150,
+      "requiredDetails": ["twin towers", "tower feet/caps", "bridge beam", "truss posts", "identity rails", "crest"]
+    }
+  ],
+  "runtimeReplacementStatus": {
+    "authoredPyramid": "implemented-unverified",
+    "authoredMinaret": "implemented-unverified",
+    "authoredDomeGate": "implemented-unverified",
+    "authoredBridgeGantry": "implemented-unverified",
+    "primitiveLandmarkFallbackInPlayer": false,
+    "sectorBeaconsStillProcedural": true
+  },
+  "acceptancePending": [
+    "licensed Unity compile/import proof for all four landmark Resources",
+    "authored UV/material/texture pass",
+    "exact Android in-race landmark screenshots/video",
+    "owner/Art Director Visual Gate acceptance"
+  ]
+}
