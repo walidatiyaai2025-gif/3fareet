@@ -87,7 +87,7 @@ class VerifyCiCandidateTests(unittest.TestCase):
 
             metadata = metadata_for(apk)
             metadata["ref"] = ""
-            with self.assertRaisesRegex(CiCandidateError, "refs/\*"):
+            with self.assertRaisesRegex(CiCandidateError, r"refs/\*"):
                 verify_ci_candidate(metadata, apk)
 
     def test_rejects_git_sha_mismatch_shape(self):
