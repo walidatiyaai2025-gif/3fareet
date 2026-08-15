@@ -6,10 +6,8 @@ void main() {
   group('FrontEndFlowController', () {
     test('covers menu, mode, loading, race and retry states', () {
       final flow = FrontEndFlowController();
-      expect(flow.stage, FrontEndStage.splash);
-
-      flow.showMainMenu();
       expect(flow.stage, FrontEndStage.mainMenu);
+
       flow.showModeSelection();
       expect(flow.stage, FrontEndStage.modeSelection);
       flow.showLoading();
