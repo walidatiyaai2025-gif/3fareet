@@ -230,7 +230,31 @@ Successful verification still reports:
 
 `verified=false` and `MANUAL_REVIEW_REQUIRED`.
 
-## 7. Record schema-v2 manual approvals
+## 7. Generate a fail-closed approval template
+
+Do not copy the three fingerprints by hand. Once the candidate-bound physical-device evidence is complete and the sanitized review bundle verifies, generate a fresh template:
+
+```bash
+python3 tools/android/p1_gate_readiness.py approval-template \
+  --session evidence/p1-device \
+  --review-bundle evidence/p1-review \
+  --output evidence/manual-approvals.json
+```
+
+The generator:
+- independently verifies the review bundle for the same candidate Git/APK SHA;
+- requires complete clean evidence for all four manual review gates;
+- fills `gitSha`, `apkSha256` and `reviewContentSetSha256` from verified inputs;
+- creates all five task records with `approved: false` and an empty reviewer;
+- refuses to overwrite an existing approvals file, so it cannot erase previous human decisions.
+
+Expected marker starts with:
+
+`AFAREET_P1_APPROVAL_TEMPLATE`
+
+The generator cannot approve any gate.
+
+## 8. Record schema-v2 manual approvals
 
 **Schema v1 approvals are intentionally rejected.**
 
@@ -263,7 +287,7 @@ If the bundle changes, its `contentSetSha256` changes and the previous approval 
 
 If the candidate SHA or APK SHA changes, the previous approval file no longer applies.
 
-## 8. Evaluate final-five readiness
+## 9. Evaluate final-five readiness
 
 Evidence-only check:
 
@@ -311,8 +335,8 @@ Smallest remaining human sequence:
 2. connect an authorized physical Android device;
 3. capture all required checkpoints;
 4. export and verify the content-addressed review bundle;
-5. Gameplay/QA/Art reviewers inspect that exact bundle;
-6. record schema-v2 approvals;
+5. generate the fail-closed approvals template;
+6. Gameplay/QA/Art reviewers inspect that exact bundle and edit only their approval records;
 7. release owner approves `UPER-010`;
 8. run readiness evaluator and then follow release policy.
 
