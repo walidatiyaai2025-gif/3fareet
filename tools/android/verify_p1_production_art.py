@@ -98,7 +98,10 @@ def _reject_forbidden_source_segments(path: Path, repo_root: Path, forbidden_seg
     relative = path.relative_to(repo_root)
     parts = {part.lower() for part in relative.parts}
     blocked = sorted(parts.intersection(forbidden_segments))
-    _require(not blocked, f"{label} uses forbidden generated/preview/blockout source segment: {blocked[0]}")
+    if blocked:
+        raise ProductionArtGateError(
+            f"{label} uses forbidden generated/preview/blockout source segment: {blocked[0]}"
+        )
 
 
 def verify_art_manifest(
