@@ -23,6 +23,10 @@ unity_game/Builds/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated.meta
 
+# UART-004 production Rival resources are intentionally tracked.
+# They must originate from external authored 3D sources and are required by
+# RivalProductionBuildGate; ignoring this tree would make accepted art impossible to commit.
+
 # Local CI / QA evidence outputs (generated, never source-of-truth)
 /artifacts/
 /evidence/
