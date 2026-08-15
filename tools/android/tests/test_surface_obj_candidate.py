@@ -1,4 +1,5 @@
 import importlib.util
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,7 @@ TOOL_PATH = REPO_ROOT / "tools/android/surface_obj_candidate.py"
 SPEC = importlib.util.spec_from_file_location("surface_obj_candidate", TOOL_PATH)
 TOOL = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
+sys.modules[SPEC.name] = TOOL
 SPEC.loader.exec_module(TOOL)
 
 
