@@ -84,9 +84,18 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "UART-004 must not ship a code-generated mesh builder as production provenance",
         )
 
-    def test_generated_rival_resources_are_ignored_not_committed_as_stale_truth(self):
+    def test_external_rival_resources_are_trackable(self):
         ignore = self._read(".gitignore")
-        self.assertIn("unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/", ignore)
+        for forbidden_ignore in (
+            "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/\n",
+            "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals.meta\n",
+            "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/\n",
+        ):
+            self.assertNotIn(
+                forbidden_ignore,
+                ignore,
+                "Externally authored UART-004 production assets must be commit-able and must not be hidden by .gitignore",
+            )
 
 
 if __name__ == "__main__":
