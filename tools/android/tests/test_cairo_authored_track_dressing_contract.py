@@ -12,6 +12,8 @@ MANIFEST = DRESSING_ROOT / "ASSET_MANIFEST.json"
 STAGER = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingAssetStager.cs"
 PREPROCESSOR = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingBuildPreprocessor.cs"
 ANDROID_GATE = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingBuildGate.cs"
+MATERIAL_POLICY = REPO_ROOT / "unity_game/Assets/Afareet/Editor/ObjProductionMaterialDependencyPolicy.cs"
+MATERIAL_GATE = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingMaterialDependencyGate.cs"
 ADAPTER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressing.cs"
 RUNTIME_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressingRuntimePass.cs"
 TRACK_BUILDER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoTrackBuilder.cs"
@@ -102,8 +104,6 @@ class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
         road_width = 14.0
         rail_offset = road_width * 0.56
         right_building_center = road_width + 8.0
-        # The +right buildings coincident with beacon waypoints 0 and 36 use seed 0/36,
-        # both producing width=5. Use the square's worst-case rotated projected half-width.
         building_half_diagonal = 5.0 * math.sqrt(2.0) / 2.0
         minimum_building_inner_edge = right_building_center - building_half_diagonal
 
@@ -204,6 +204,37 @@ class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
             "imported production surface rejected",
             "AFAREET_P1_PRODUCTION_TRACK_DRESSING_GATE_BLOCKED",
             "AFAREET_P1_PRODUCTION_TRACK_DRESSING_GATE_OK",
+        ):
+            self.assertIn(required, gate)
+
+    def test_track_dressing_production_materials_require_tracked_obj_mtl_texture_chain(self):
+        policy = MATERIAL_POLICY.read_text(encoding="utf-8")
+        for required in (
+            'line.StartsWith("mtllib ", StringComparison.Ordinal)',
+            'line.StartsWith("usemtl ", StringComparison.Ordinal)',
+            'line.StartsWith("newmtl ", StringComparison.Ordinal)',
+            "Production OBJ has no mtllib declaration",
+            "Production OBJ has no usemtl assignments",
+            "OBJ usemtl is not defined by tracked MTL files",
+            "OBJ production material has no tracked texture map",
+            "Path.IsPathRooted(reference)",
+            "dependency escapes tracked source root",
+            "Tracked material dependency is missing",
+            "Tracked texture dependency is missing",
+        ):
+            self.assertIn(required, policy)
+
+        gate = MATERIAL_GATE.read_text(encoding="utf-8")
+        for required in (
+            "IPreprocessBuildWithReport",
+            "BuildTarget.Android",
+            '"PRODUCTION_READY"',
+            '"authored-production"',
+            "ObjProductionMaterialDependencyPolicy.ValidateOrThrow",
+            "AFAREET_UART007_MATERIAL_DEPENDENCY_GATE_BLOCKED",
+            "AFAREET_UART007_MATERIAL_DEPENDENCY_GATE_OK",
+            "obj-mtllib-usemtl-tracked-textures",
+            "rootBound=true",
         ):
             self.assertIn(required, gate)
 
