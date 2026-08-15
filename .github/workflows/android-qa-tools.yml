@@ -166,7 +166,12 @@ jobs:
             'verify_unity_package_lock.py',
             'git-dirty-$phaseKey.status.txt',
             'git-dirty-$phaseKey.patch',
-            'diff --binary HEAD --',
+            'git-dirty-$phaseKey.stderr.txt',
+            "'diff', '--binary', 'HEAD', '--'",
+            'Start-Process',
+            '-RedirectStandardOutput $patchPath',
+            '-RedirectStandardError $stderrPath',
+            '$gitProcess.ExitCode',
             'artifacts\local-candidate-manifest.json',
             'artifacts\unity-local-tests\test-metadata.json',
             'artifacts\android-local\artifact-metadata.json',
@@ -184,6 +189,9 @@ jobs:
           }
           if ($candidateText.Contains('@sharedArgs')) {
             throw 'Local candidate orchestrator must use named splatting, not positional string-array forwarding.'
+          }
+          if ($candidateText -match '(?m)^\s*\$patch\s*=.*2>&1') {
+            throw 'Dirty-tree binary diff must not merge Git stderr into stdout; non-fatal Git warnings can become NativeCommandError in Windows PowerShell.'
           }
 
           Write-Host 'PowerShell syntax and semantic fallback/orchestration contracts OK.'
