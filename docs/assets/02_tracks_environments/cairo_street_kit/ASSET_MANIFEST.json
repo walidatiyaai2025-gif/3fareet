@@ -1,9 +1,9 @@
 {
   "taskId": "UART-005",
   "owner": "Environment Art-TechArt handoff",
-  "sourceOrLicense": "Original project-generated blockout assets; replacement must be authored production 3D",
+  "sourceOrLicense": "Original project-authored source candidates; no third-party source material",
   "reviewState": "BLOCKED",
-  "sourceQuality": "blockout",
+  "sourceQuality": "authored-source-candidate",
   "runtimeIntegrated": false,
   "proceduralFallbackAllowedInCandidate": false,
   "blockerIssue": 128,
@@ -19,6 +19,8 @@
       "atlasTile": "facade",
       "productionMinVertices": 128,
       "productionMinTriangles": 200,
+      "currentVertices": 136,
+      "currentTriangles": 204,
       "requiredDetails": ["window recesses", "door/storefront opening", "cornice/parapet silhouette", "non-flat facade depth"]
     },
     {
@@ -28,6 +30,8 @@
       "atlasTile": "awning",
       "productionMinVertices": 48,
       "productionMinTriangles": 72,
+      "currentVertices": 64,
+      "currentTriangles": 96,
       "requiredDetails": ["frame", "fabric/canopy volume", "edge profile"]
     },
     {
@@ -37,6 +41,8 @@
       "atlasTile": "lamp",
       "productionMinVertices": 64,
       "productionMinTriangles": 96,
+      "currentVertices": 130,
+      "currentTriangles": 236,
       "requiredDetails": ["pole profile", "fixture head", "mount/bracket"]
     },
     {
@@ -46,6 +52,8 @@
       "atlasTile": "barrier",
       "productionMinVertices": 48,
       "productionMinTriangles": 72,
+      "currentVertices": 48,
+      "currentTriangles": 72,
       "requiredDetails": ["beveled silhouette", "feet/supports", "reflective/signage surface"]
     }
   ],
@@ -63,13 +71,14 @@
     "tiles": 4,
     "colorSpace": "sRGB",
     "mipmaps": true,
-    "status": "blockout-only"
+    "status": "replacement-required"
   },
   "pivotRule": "Production source pivot must preserve modular snap/contact convention at the placement origin.",
   "acceptancePending": [
-    "authored production source replacement",
+    "material/UV authoring and texture replacement",
     "Unity import with non-built-in meshes",
     "runtime replacement of procedural Cairo path",
+    "additional road/building/landmark variants",
     "exact Android in-race visual evidence",
     "owner/Art Director Visual Gate acceptance"
   ]
