@@ -14,11 +14,11 @@ SPEC.loader.exec_module(PREPARE)
 SHA = "a" * 40
 
 
-def make_manifest(apk: Path):
+def make_manifest(apk: Path, candidate_type: str = "local-windows-licensed-unity"):
     payload = apk.read_bytes()
     return {
         "schemaVersion": 1,
-        "candidateType": "local-windows-licensed-unity",
+        "candidateType": candidate_type,
         "gitSha": SHA,
         "packageId": "com.fiftysolutions.afareetunity3d",
         "releaseEvidenceEligible": True,
@@ -47,7 +47,27 @@ class PrepareCandidateDeviceTests(unittest.TestCase):
             candidate = PREPARE.resolve_candidate(make_manifest(apk), manifest_path)
             self.assertEqual(apk.resolve(), candidate["apkPath"])
             self.assertEqual(SHA, candidate["gitSha"])
+            self.assertEqual("local-windows-licensed-unity", candidate["candidateType"])
             self.assertEqual(hashlib.sha256(apk.read_bytes()).hexdigest(), candidate["apkSha256"])
+
+    def test_valid_github_ci_candidate_resolves_exact_apk(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = self.make_apk(tmp, b"github-ci-candidate")
+            manifest_path = Path(tmp) / "ci-candidate-manifest.json"
+            candidate = PREPARE.resolve_candidate(
+                make_manifest(apk, "github-actions-unity-ci"),
+                manifest_path,
+            )
+            self.assertEqual(apk.resolve(), candidate["apkPath"])
+            self.assertEqual(SHA, candidate["gitSha"])
+            self.assertEqual("github-actions-unity-ci", candidate["candidateType"])
+
+    def test_rejects_unsupported_candidate_type(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = self.make_apk(tmp)
+            manifest = make_manifest(apk, "arbitrary-apk")
+            with self.assertRaisesRegex(PREPARE.CandidatePrepareError, "Unsupported candidateType"):
+                PREPARE.resolve_candidate(manifest, Path(tmp) / "manifest.json")
 
     def test_rejects_apk_hash_mismatch_before_adb(self):
         with tempfile.TemporaryDirectory() as tmp:
