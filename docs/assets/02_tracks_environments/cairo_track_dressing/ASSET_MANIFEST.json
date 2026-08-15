@@ -22,7 +22,10 @@
       "role": "authored start/finish landmark",
       "status": "authored-source-candidate",
       "productionMinVertices": 100,
-      "productionMinTriangles": 150
+      "productionMinTriangles": 150,
+      "currentVertices": 286,
+      "currentTriangles": 396,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
     },
     {
       "model": "SM_Track_SpiritRune_A.obj",
@@ -32,7 +35,8 @@
       "currentVertices": 34,
       "currentTriangles": 64,
       "productionMinVertices": 30,
-      "productionMinTriangles": 50
+      "productionMinTriangles": 50,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
     },
     {
       "model": "SM_Track_DesertGround_A.obj",
@@ -42,7 +46,8 @@
       "currentVertices": 163,
       "currentTriangles": 256,
       "productionMinVertices": 140,
-      "productionMinTriangles": 220
+      "productionMinTriangles": 220,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
     },
     {
       "model": "SM_Track_SectorBeacon_A.obj",
@@ -52,7 +57,8 @@
       "currentVertices": 92,
       "currentTriangles": 156,
       "productionMinVertices": 80,
-      "productionMinTriangles": 130
+      "productionMinTriangles": 130,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
     }
   ],
   "runtimeReplacementStatus": {
@@ -68,9 +74,11 @@
   },
   "acceptancePending": [
     "licensed Unity compile/import/render proof for all four dressing Resources",
-    "final material/UV/texture pass",
+    "final visual material/texture refinement after licensed Unity render review",
     "additional track signage/decals/roadside dressing",
     "exact Android in-race screenshot/video proof",
     "owner/Art Director Visual Gate acceptance"
-  ]
+  ],
+  "sourceSurfaceProgress": "4/4",
+  "finishGateTopologyRepair": "malformed-arch-rebuilt-pylon-trim-preserved"
 }

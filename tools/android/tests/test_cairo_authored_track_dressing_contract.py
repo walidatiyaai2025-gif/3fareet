@@ -26,6 +26,13 @@ EXPECTED_MODELS = {
     "SM_Track_SectorBeacon_A.obj",
 }
 
+SURFACED = (
+    ("SM_Track_FinishGate_A.obj", "SM_Track_FinishGate_A.mtl", "FinishGate_Metal", "T_Track_FinishGate_BC.png"),
+    ("SM_Track_SpiritRune_A.obj", "SM_Track_SpiritRune_A.mtl", "SpiritRune_Surface", "T_Track_SpiritRune_BC.png"),
+    ("SM_Track_DesertGround_A.obj", "SM_Track_DesertGround_A.mtl", "DesertGround_Sand", "T_Track_DesertGround_BC.png"),
+    ("SM_Track_SectorBeacon_A.obj", "SM_Track_SectorBeacon_A.mtl", "SectorBeacon_Metal", "T_Track_SectorBeacon_BC.png"),
+)
+
 
 def obj_stats(path: Path):
     vertices = 0
@@ -75,6 +82,38 @@ class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
         self.assertFalse(manifest["runtimeReplacementStatus"]["primitiveFinishFallbackInPlayer"])
         self.assertFalse(manifest["runtimeReplacementStatus"]["primitiveRuneFallbackInPlayer"])
         self.assertFalse(manifest["runtimeReplacementStatus"]["primitiveSectorBeaconFallbackInPlayer"])
+
+    def _assert_surface_chain(self, model, mtl_file, material, texture):
+        obj=(SOURCE_ROOT/model).read_text(encoding="utf-8")
+        mtl=(SOURCE_ROOT/mtl_file).read_text(encoding="utf-8")
+        self.assertIn(f"mtllib {mtl_file}",obj)
+        self.assertIn(f"usemtl {material}",obj)
+        self.assertTrue(any(line.startswith("vt ") for line in obj.splitlines()), model)
+        self.assertTrue(any(line.startswith("vn ") for line in obj.splitlines()), model)
+        self.assertIn(f"newmtl {material}",mtl)
+        self.assertIn(f"map_Kd {texture}",mtl)
+        self.assertEqual(bytes((137,80,78,71,13,10,26,10)), (SOURCE_ROOT/texture).read_bytes()[:8], texture)
+        vertices=sum(1 for line in obj.splitlines() if line.startswith("v "))
+        for face in (line for line in obj.splitlines() if line.startswith("f ")):
+            for token in face.split()[1:]:
+                fields=token.split("/")
+                self.assertEqual(3,len(fields),token)
+                self.assertTrue(fields[1] and fields[2],token)
+                self.assertGreaterEqual(int(fields[0]),1,token)
+                self.assertLessEqual(int(fields[0]),vertices,token)
+
+    def test_all_four_sources_have_tracked_surface_chains_and_valid_face_indices(self):
+        manifest=json.loads(MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual("4/4",manifest["sourceSurfaceProgress"])
+        self.assertEqual("malformed-arch-rebuilt-pylon-trim-preserved",manifest["finishGateTopologyRepair"])
+        modules={m["model"]:m for m in manifest["modules"]}
+        self.assertEqual(4,sum(m.get("surfaceAuthoring")=="tracked-uv-normal-mtl-texture-candidate" for m in modules.values()))
+        for surface in SURFACED:
+            with self.subTest(model=surface[0]):
+                self._assert_surface_chain(*surface)
+                v,t=obj_stats(SOURCE_ROOT/surface[0])
+                self.assertEqual(v,modules[surface[0]]["currentVertices"])
+                self.assertEqual(t,modules[surface[0]]["currentTriangles"])
 
     def test_sources_clear_manifest_anti_blockout_floors(self):
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
