@@ -2,8 +2,9 @@
 """Create a device-evidence candidate manifest from verified GitHub Unity CI APK metadata.
 
 The Android CI job can only run after Unity tests succeed. This gate binds the
-workflow-produced artifact metadata to the exact APK bytes before physical-device
-QA. It does not contact GitHub and never self-asserts VERIFIED state.
+workflow-produced artifact metadata to the exact APK bytes and expected GitHub
+repository/workflow identity before physical-device QA. It does not contact
+GitHub and never self-asserts VERIFIED state.
 """
 
 from __future__ import annotations
@@ -23,6 +24,9 @@ EXPECTED_PACKAGE_ID = "com.fiftysolutions.afareetunity3d"
 EXPECTED_MIN_SDK = 26
 EXPECTED_ABI = "arm64-v8a"
 EXPECTED_CANDIDATE_TYPE = "github-actions-unity-ci"
+EXPECTED_REPOSITORY = "walidatiyaai2025-gif/3fareet"
+EXPECTED_WORKFLOW = "Unity Production CI"
+ALLOWED_EVENTS = {"pull_request", "push", "workflow_dispatch"}
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DIGITS_RE = re.compile(r"^[1-9][0-9]*$")
@@ -89,6 +93,18 @@ def verify_ci_candidate(metadata: dict[str, Any], apk_path: Path) -> dict[str, A
     git_sha = _full_sha(metadata.get("gitSha"))
     run_id = _positive_id(metadata.get("runId"), "runId")
     run_attempt = _positive_id(metadata.get("runAttempt"), "runAttempt")
+    repository = str(metadata.get("repository") or "").strip()
+    workflow = str(metadata.get("workflow") or "").strip()
+    event_name = str(metadata.get("eventName") or "").strip()
+    ref = str(metadata.get("ref") or "").strip()
+    if repository != EXPECTED_REPOSITORY:
+        raise CiCandidateError(f"Unexpected GitHub repository: {repository!r}")
+    if workflow != EXPECTED_WORKFLOW:
+        raise CiCandidateError(f"Unexpected GitHub workflow: {workflow!r}")
+    if event_name not in ALLOWED_EVENTS:
+        raise CiCandidateError(f"Unexpected GitHub eventName: {event_name!r}")
+    if not ref.startswith("refs/"):
+        raise CiCandidateError(f"GitHub ref must be a non-empty refs/* value, found {ref!r}")
 
     if not apk_path.is_file() or apk_path.stat().st_size <= 0:
         raise CiCandidateError(f"APK is missing or empty: {apk_path}")
@@ -121,10 +137,10 @@ def verify_ci_candidate(metadata: dict[str, Any], apk_path: Path) -> dict[str, A
         "githubRun": {
             "runId": run_id,
             "runAttempt": run_attempt,
-            "repository": str(metadata.get("repository") or ""),
-            "workflow": str(metadata.get("workflow") or ""),
-            "eventName": str(metadata.get("eventName") or ""),
-            "ref": str(metadata.get("ref") or ""),
+            "repository": repository,
+            "workflow": workflow,
+            "eventName": event_name,
+            "ref": ref,
         },
         "apk": {
             "path": str(apk_path.resolve()),
@@ -137,8 +153,8 @@ def verify_ci_candidate(metadata: dict[str, Any], apk_path: Path) -> dict[str, A
         "verified": False,
         "verdict": "READY_FOR_PHYSICAL_DEVICE_EVIDENCE",
         "notes": [
-            "This manifest binds workflow-produced APK inspection metadata to the exact APK bytes.",
-            "It does not independently query GitHub to attest run status.",
+            "This manifest binds Unity Production CI artifact metadata to the exact APK bytes and expected workflow identity.",
+            "It does not independently query GitHub to attest run conclusion after the bundle is downloaded.",
             "It does not replace physical-device, performance, visual, or human approval gates.",
         ],
     }
