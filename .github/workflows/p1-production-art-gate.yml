@@ -1,0 +1,56 @@
+name: P1 Production Art Gate
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/verify_p1_production_art.py'
+      - 'tools/android/verify_release_with_production_art.py'
+      - 'tools/android/p1_production_art_spec.json'
+      - 'tools/android/tests/test_verify_p1_production_art.py'
+      - 'tools/android/tests/test_verify_release_with_production_art.py'
+      - 'docs/qa/P1_PRODUCTION_ART_GATE.md'
+      - '.github/workflows/p1-production-art-gate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/android/verify_p1_production_art.py'
+      - 'tools/android/verify_release_with_production_art.py'
+      - 'tools/android/p1_production_art_spec.json'
+      - 'tools/android/tests/test_verify_p1_production_art.py'
+      - 'tools/android/tests/test_verify_release_with_production_art.py'
+      - 'docs/qa/P1_PRODUCTION_ART_GATE.md'
+      - '.github/workflows/p1-production-art-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Production art fail-closed contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Syntax and CLI contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/android/verify_p1_production_art.py \
+            tools/android/verify_release_with_production_art.py \
+            tools/android/tests/test_verify_p1_production_art.py \
+            tools/android/tests/test_verify_release_with_production_art.py
+          python3 tools/android/verify_p1_production_art.py --help >/dev/null
+          python3 tools/android/verify_release_with_production_art.py --help >/dev/null
+          python3 -m json.tool tools/android/p1_production_art_spec.json >/dev/null
+
+      - name: Production art unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_verify_p1_production_art.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_verify_release_with_production_art.py' -v

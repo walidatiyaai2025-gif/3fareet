@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "visualGate": "UPER-009",
+  "requiredTasks": [
+    "UART-003",
+    "UART-004",
+    "UART-005",
+    "UART-006",
+    "UART-007",
+    "URAC-011"
+  ],
+  "forbiddenActiveFallbacks": [
+    "heroProcedural",
+    "rivalsProcedural",
+    "trackProcedural",
+    "cairoWorldProcedural",
+    "landmarksProcedural"
+  ],
+  "allowedAuthored3DSuffixes": [
+    ".fbx",
+    ".obj",
+    ".blend",
+    ".glb",
+    ".gltf"
+  ],
+  "allowedVisualEvidenceKinds": [
+    "screenshot",
+    "video"
+  ]
+}
