@@ -1,0 +1,65 @@
+{
+  "taskId": "UART-006",
+  "owner": "Environment Art / Technical Art",
+  "sourceOrLicense": "Original project-authored source candidates; no third-party model dependency",
+  "reviewState": "BLOCKED",
+  "sourceQuality": "authored-source-candidate",
+  "runtimeIntegrationImplemented": true,
+  "runtimeIntegrated": false,
+  "runtimeIntegrationVerified": false,
+  "proceduralFallbackAllowedInCandidate": false,
+  "blockerIssue": 128,
+  "unitMeters": 1.0,
+  "axes": "+Y up, +Z forward, +X right",
+  "sourceRoot": "docs/assets/03_props_architecture/cairo_landmarks/source",
+  "targetRuntimePath": "unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated",
+  "stagingAdapter": "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkAssetStager.cs",
+  "runtimeAdapter": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredLandmarkKit.cs",
+  "runtimePass": "unity_game/Assets/Afareet/Scripts/World/CairoLandmarkRuntimePass.cs",
+  "modules": [
+    {
+      "model": "SM_Landmark_GizaPyramid_A.obj",
+      "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_GizaPyramid_A",
+      "role": "Giza-inspired stepped pyramid silhouette",
+      "status": "authored-source-candidate"
+    },
+    {
+      "model": "SM_Landmark_Minaret_A.obj",
+      "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_Minaret_A",
+      "role": "multi-stage minaret silhouette",
+      "status": "authored-source-candidate"
+    },
+    {
+      "model": "SM_Landmark_DomeGate_A.obj",
+      "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_DomeGate_A",
+      "role": "arched dome gateway with spire",
+      "status": "authored-source-candidate",
+      "currentVertices": 497,
+      "currentTriangles": 696
+    },
+    {
+      "model": "SM_Landmark_BridgeGantry_A.obj",
+      "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_BridgeGantry_A",
+      "role": "Cairo fantasy bridge/gantry landmark",
+      "status": "authored-source-candidate",
+      "currentVertices": 248,
+      "currentTriangles": 328
+    }
+  ],
+  "runtimeReplacementStatus": {
+    "authoredMinarets": "implemented-unverified",
+    "authoredDomeGate": "implemented-unverified",
+    "authoredPyramids": "implemented-unverified",
+    "authoredBridgeGantry": "implemented-unverified",
+    "primitiveLandmarkFallbackInPlayer": false,
+    "sectorBeaconsStillNeedAuthoredReplacement": true
+  },
+  "acceptancePending": [
+    "licensed Unity compile/import proof",
+    "runtime render proof for all four authored landmark modules",
+    "material/UV/texture refinement where visually required",
+    "authored sector-beacon replacement under UART-007 or landmark dressing scope",
+    "exact Android in-race screenshots/video",
+    "owner/Art Director Visual Gate acceptance"
+  ]
+}
