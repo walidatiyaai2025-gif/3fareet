@@ -19,9 +19,13 @@ namespace Afareet.Editor
         private static readonly string[] Models =
         {
             "SM_Env_CairoFacade_A.obj",
+            "SM_Env_CairoFacade_B.obj",
+            "SM_Env_CairoFacade_C.obj",
             "SM_Env_CairoAwning_A.obj",
+            "SM_Env_CairoAwning_B.obj",
             "SM_Prop_CairoLamp_A.obj",
             "SM_Prop_CairoBarrier_A.obj",
+            "SM_Prop_CairoSign_A.obj",
             "SM_Track_CairoRoad_A.obj",
             "SM_Track_CairoCurb_A.obj"
         };
@@ -144,7 +148,6 @@ namespace Afareet.Editor
 
         private static string RepositoryRoot()
         {
-            // Application.dataPath => <repo>/unity_game/Assets
             return Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
         }
     }
