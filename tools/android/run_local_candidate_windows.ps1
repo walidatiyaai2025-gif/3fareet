@@ -49,14 +49,6 @@ if ($LASTEXITCODE -ne 0 -or $gitSha -notmatch '^[0-9a-fA-F]{40}$') {
 }
 $gitSha = $gitSha.ToLowerInvariant()
 
-$initialDirty = @(& git -C $RepoRoot status --porcelain 2>$null)
-if ($LASTEXITCODE -ne 0) {
-    Fail "Unable to inspect the initial Git working tree."
-}
-if ($initialDirty.Count -gt 0) {
-    Fail "Candidate orchestration requires a clean Git working tree before Unity starts."
-}
-
 function Preserve-DirtyTreeEvidence([string]$Phase, [string[]]$Changes) {
     $phaseKey = ($Phase.ToLowerInvariant() -replace '[^a-z0-9_-]', '-')
     $evidenceDir = Join-Path $RepoRoot "artifacts\logs"
@@ -136,6 +128,16 @@ function Clear-StaleCandidateEvidence {
     }
 
     Write-Host "AFAREET_STALE_CANDIDATE_EVIDENCE_CLEARED count=$removed"
+}
+
+$initialDirty = @(& git -C $RepoRoot status --porcelain 2>$null)
+if ($LASTEXITCODE -ne 0) {
+    Fail "Unable to inspect the initial Git working tree."
+}
+if ($initialDirty.Count -gt 0) {
+    Preserve-DirtyTreeEvidence -Phase "INITIAL_TREE" -Changes $initialDirty
+    $initialDirty | ForEach-Object { Write-Warning "INITIAL_TREE_DIRTY $_" }
+    Fail "Candidate orchestration requires a clean Git working tree before Unity starts. Initial dirty-tree status/patch/stderr evidence was preserved under artifacts/logs before any cleanup."
 }
 
 Clear-StaleCandidateEvidence
