@@ -15,7 +15,7 @@ class Uart005RoadsideClutterSourceTests(unittest.TestCase):
         self.assertEqual("UART-005", manifest["taskId"])
         self.assertEqual("BLOCKED", manifest["reviewState"])
         self.assertEqual("3/3", manifest["sourceDeliveryProgress"])
-        self.assertFalse(manifest["runtimeIntegrationImplemented"])
+        self.assertTrue(manifest["runtimeIntegrationImplemented"])
         self.assertFalse(manifest["runtimeIntegrated"])
         self.assertFalse(manifest["runtimeIntegrationVerified"])
         self.assertEqual(3, len(manifest["modules"]))
@@ -66,13 +66,16 @@ class Uart005RoadsideClutterSourceTests(unittest.TestCase):
 
         self.assertEqual(3, len(digests), "clutter sources must be geometrically distinct")
 
-    def test_clutter_scope_does_not_self_claim_runtime_completion(self):
+    def test_clutter_scope_only_lists_real_acceptance_work_as_pending(self):
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
         pending = "\n".join(manifest["acceptancePending"])
-        self.assertIn("stage all three clutter sources", pending)
-        self.assertIn("deterministic runtime placement", pending)
-        self.assertIn("mobile LOD", pending)
-        self.assertIn("licensed Unity import/render proof", pending)
+        self.assertNotIn("stage all three clutter sources", pending)
+        self.assertNotIn("deterministic runtime placement without primitive fallback", pending)
+        self.assertNotIn("mobile LOD authoring", pending)
+        self.assertIn("licensed Unity compile/import/render verification", pending)
+        self.assertIn("exact runtime proof", pending)
+        self.assertIn("physical-device performance review", pending)
+        self.assertIn("owner/Art Director Visual Gate acceptance", pending)
 
 
 if __name__ == "__main__":
