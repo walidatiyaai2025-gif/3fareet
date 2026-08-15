@@ -21,7 +21,9 @@ namespace Afareet.Editor
             "SM_Env_CairoFacade_A.obj",
             "SM_Env_CairoAwning_A.obj",
             "SM_Prop_CairoLamp_A.obj",
-            "SM_Prop_CairoBarrier_A.obj"
+            "SM_Prop_CairoBarrier_A.obj",
+            "SM_Track_CairoRoad_A.obj",
+            "SM_Track_CairoCurb_A.obj"
         };
 
         [MenuItem("Afareet/P1/Stage Cairo Production Sources")]
