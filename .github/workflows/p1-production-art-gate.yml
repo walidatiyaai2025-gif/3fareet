@@ -4,28 +4,34 @@ on:
   pull_request:
     paths:
       - 'tools/android/analyze_device_smoke.py'
+      - 'tools/android/fingerprint_p1_production_art_manifest.py'
       - 'tools/android/verify_p1_production_art.py'
       - 'tools/android/verify_release_with_production_art.py'
       - 'tools/android/p1_production_art_spec.json'
       - 'tools/android/tests/test_analyze_device_smoke.py'
+      - 'tools/android/tests/test_fingerprint_p1_production_art_manifest.py'
       - 'tools/android/tests/test_verify_p1_production_art.py'
       - 'tools/android/tests/test_verify_release_with_production_art.py'
       - 'tools/android/tests/test_verify_release_with_smoke_contract.py'
       - 'docs/qa/P1_PRODUCTION_ART_GATE.md'
+      - 'docs/qa/P1_PRODUCTION_ART_FINGERPRINTING.md'
       - '.github/workflows/p1-production-art-gate.yml'
   push:
     branches:
       - main
     paths:
       - 'tools/android/analyze_device_smoke.py'
+      - 'tools/android/fingerprint_p1_production_art_manifest.py'
       - 'tools/android/verify_p1_production_art.py'
       - 'tools/android/verify_release_with_production_art.py'
       - 'tools/android/p1_production_art_spec.json'
       - 'tools/android/tests/test_analyze_device_smoke.py'
+      - 'tools/android/tests/test_fingerprint_p1_production_art_manifest.py'
       - 'tools/android/tests/test_verify_p1_production_art.py'
       - 'tools/android/tests/test_verify_release_with_production_art.py'
       - 'tools/android/tests/test_verify_release_with_smoke_contract.py'
       - 'docs/qa/P1_PRODUCTION_ART_GATE.md'
+      - 'docs/qa/P1_PRODUCTION_ART_FINGERPRINTING.md'
       - '.github/workflows/p1-production-art-gate.yml'
   workflow_dispatch:
 
@@ -47,13 +53,16 @@ jobs:
           set -euo pipefail
           python3 -m py_compile \
             tools/android/analyze_device_smoke.py \
+            tools/android/fingerprint_p1_production_art_manifest.py \
             tools/android/verify_p1_production_art.py \
             tools/android/verify_release_with_production_art.py \
             tools/android/tests/test_analyze_device_smoke.py \
+            tools/android/tests/test_fingerprint_p1_production_art_manifest.py \
             tools/android/tests/test_verify_p1_production_art.py \
             tools/android/tests/test_verify_release_with_production_art.py \
             tools/android/tests/test_verify_release_with_smoke_contract.py
           python3 tools/android/analyze_device_smoke.py --help >/dev/null
+          python3 tools/android/fingerprint_p1_production_art_manifest.py --help >/dev/null
           python3 tools/android/verify_p1_production_art.py --help >/dev/null
           python3 tools/android/verify_release_with_production_art.py --help >/dev/null
           python3 -m json.tool tools/android/p1_production_art_spec.json >/dev/null
@@ -63,6 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s tools/android/tests -p 'test_analyze_device_smoke.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_fingerprint_p1_production_art_manifest.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_verify_p1_production_art.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_verify_release_with_production_art.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_verify_release_with_smoke_contract.py' -v
