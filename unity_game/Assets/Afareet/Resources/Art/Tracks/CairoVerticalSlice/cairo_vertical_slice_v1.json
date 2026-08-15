@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "layoutId": "cairo-night-vertical-slice-v1",
+  "authoringState": "AUTHORED_LAYOUT",
+  "closedLoop": true,
+  "samplesPerControlPoint": 3,
+  "points": [
+    { "id": "CP00_START", "sector": "ROYAL_START", "position": { "x": 76.0, "y": 0.0, "z": -2.0 } },
+    { "id": "CP01", "sector": "ROYAL_START", "position": { "x": 90.0, "y": 0.0, "z": 10.0 } },
+    { "id": "CP02", "sector": "ROYAL_START", "position": { "x": 87.0, "y": 0.0, "z": 30.0 } },
+    { "id": "CP03", "sector": "ROYAL_START", "position": { "x": 70.0, "y": 0.0, "z": 44.0 } },
+
+    { "id": "CP04", "sector": "DOWNTOWN_CHICANE", "position": { "x": 50.0, "y": 0.0, "z": 42.0 } },
+    { "id": "CP05", "sector": "DOWNTOWN_CHICANE", "position": { "x": 40.0, "y": 0.0, "z": 28.0 } },
+    { "id": "CP06", "sector": "DOWNTOWN_CHICANE", "position": { "x": 25.0, "y": 0.0, "z": 34.0 } },
+    { "id": "CP07", "sector": "DOWNTOWN_CHICANE", "position": { "x": 12.0, "y": 0.0, "z": 50.0 } },
+
+    { "id": "CP08", "sector": "MINARET_AVENUE", "position": { "x": -8.0, "y": 0.0, "z": 54.0 } },
+    { "id": "CP09", "sector": "MINARET_AVENUE", "position": { "x": -28.0, "y": 0.0, "z": 43.0 } },
+    { "id": "CP10", "sector": "MINARET_AVENUE", "position": { "x": -34.0, "y": 0.0, "z": 24.0 } },
+    { "id": "CP11", "sector": "MINARET_AVENUE", "position": { "x": -48.0, "y": 0.0, "z": 13.0 } },
+
+    { "id": "CP12", "sector": "GIZA_SWEEP", "position": { "x": -75.0, "y": 0.0, "z": 8.0 } },
+    { "id": "CP13", "sector": "GIZA_SWEEP", "position": { "x": -92.0, "y": 0.0, "z": -8.0 } },
+    { "id": "CP14", "sector": "GIZA_SWEEP", "position": { "x": -88.0, "y": 0.0, "z": -30.0 } },
+    { "id": "CP15", "sector": "GIZA_SWEEP", "position": { "x": -70.0, "y": 0.0, "z": -46.0 } },
+
+    { "id": "CP16", "sector": "NILE_CUT", "position": { "x": -45.0, "y": 0.0, "z": -55.0 } },
+    { "id": "CP17", "sector": "NILE_CUT", "position": { "x": -18.0, "y": 0.0, "z": -50.0 } },
+    { "id": "CP18", "sector": "NILE_CUT", "position": { "x": -7.0, "y": 0.0, "z": -35.0 } },
+    { "id": "CP19", "sector": "NILE_CUT", "position": { "x": 10.0, "y": 0.0, "z": -28.0 } },
+
+    { "id": "CP20", "sector": "SPIRIT_RETURN", "position": { "x": 21.0, "y": 0.0, "z": -39.0 } },
+    { "id": "CP21", "sector": "SPIRIT_RETURN", "position": { "x": 43.0, "y": 0.0, "z": -42.0 } },
+    { "id": "CP22", "sector": "SPIRIT_RETURN", "position": { "x": 65.0, "y": 0.0, "z": -30.0 } },
+    { "id": "CP23", "sector": "SPIRIT_RETURN", "position": { "x": 70.0, "y": 0.0, "z": -15.0 } }
+  ]
+}

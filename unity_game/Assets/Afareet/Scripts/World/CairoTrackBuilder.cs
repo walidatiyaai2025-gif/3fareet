@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,9 +15,11 @@ namespace Afareet.World
     public static class CairoTrackBuilder
     {
         private const int SegmentCount = 72;
-        private const float RadiusX = 92f;
-        private const float RadiusZ = 58f;
+        private const float EditorFallbackRadiusX = 92f;
+        private const float EditorFallbackRadiusZ = 58f;
         private const float RoadWidth = 14f;
+        private const float RoadJoinHalfWidth = RoadWidth * .56f;
+        private const float SegmentOverlap = .3f;
 
         public static TrackRuntime Build(Transform parent)
         {
@@ -25,6 +28,7 @@ namespace Afareet.World
             root.SetParent(parent);
             CreateGround(root);
 
+            var route = ResolveRoute();
             var asphalt = Material(new Color(.022f, .028f, .052f), .18f, .58f);
             var curbStone = Material(new Color(.11f, .075f, .09f), .12f, .46f);
             var cyan = Emissive(new Color(0f, .72f, 1f), 4.2f);
@@ -34,12 +38,19 @@ namespace Afareet.World
 
             for (var i = 0; i < SegmentCount; i++)
             {
-                var t = i / (float)SegmentCount * Mathf.PI * 2f;
-                var nextT = (i + 1) / (float)SegmentCount * Mathf.PI * 2f;
-                var p = Point(t);
-                var next = Point(nextT);
+                var previous = route[(i - 1 + SegmentCount) % SegmentCount];
+                var p = route[i];
+                var next = route[(i + 1) % SegmentCount];
+                var after = route[(i + 2) % SegmentCount];
+                var incomingDirection = (p - previous).normalized;
                 var direction = (next - p).normalized;
-                var length = Vector3.Distance(p, next) + .3f;
+                var outgoingDirection = (after - next).normalized;
+                var startExtension = MiterExtension(incomingDirection, direction, RoadJoinHalfWidth);
+                var endExtension = MiterExtension(direction, outgoingDirection, RoadJoinHalfWidth);
+                var baseLength = Vector3.Distance(p, next);
+                var length = baseLength + startExtension + endExtension + SegmentOverlap;
+                var center = (p + next) * .5f + direction * ((endExtension - startExtension) * .5f);
+                var railStart = p - direction * (startExtension + SegmentOverlap * .5f);
                 var rotation = Quaternion.LookRotation(direction);
                 var right = rotation * Vector3.right;
                 var leftGlow = i % 3 == 0 ? purple : (i % 2 == 0 ? cyan : gold);
@@ -47,7 +58,7 @@ namespace Afareet.World
 
                 CreateRoadSegment(
                     root,
-                    (p + next) * .5f,
+                    center,
                     rotation,
                     length,
                     asphalt,
@@ -60,8 +71,8 @@ namespace Afareet.World
                 waypoint.SetPositionAndRotation(p + Vector3.up * .3f, rotation);
                 track.Waypoints.Add(waypoint);
 
-                CreateNeonRail(root, p + right * (RoadWidth * .56f), rotation, length, leftGlow, i, "L");
-                CreateNeonRail(root, p - right * (RoadWidth * .56f), rotation, length, rightGlow, i, "R");
+                CreateNeonRail(root, railStart + right * (RoadWidth * .56f), rotation, length, leftGlow, i, "L");
+                CreateNeonRail(root, railStart - right * (RoadWidth * .56f), rotation, length, rightGlow, i, "R");
 
                 if (i % 6 == 0) CreateRoadRune(root, (p + next) * .5f + Vector3.up * .22f, rotation, i, purple, gold);
                 if (i % 9 == 0) CreateLightTotem(root, p + right * (RoadWidth * .72f), rotation, i % 18 == 0 ? purple : cyan);
@@ -69,12 +80,57 @@ namespace Afareet.World
                 if (i % 5 == 0) CreateBuilding(root, p - right * (RoadWidth + 10f), i + 17, cyan, magenta);
             }
 
+            Debug.Log("AFAREET_URAC011_MITER_JOINS_ACTIVE roadWidth=14 authoredSegments=72 railDirection=forward");
             CreatePyramids(root, purple, gold);
             CreateFinishGate(root, track.Waypoints[0], cyan, purple, gold);
             return track;
         }
 
-        private static Vector3 Point(float t) => new(RadiusX * Mathf.Cos(t), 0f, RadiusZ * Mathf.Sin(t));
+        private static float MiterExtension(Vector3 fromDirection, Vector3 toDirection, float halfWidth)
+        {
+            if (fromDirection.sqrMagnitude < .0001f || toDirection.sqrMagnitude < .0001f) return 0f;
+
+            fromDirection.Normalize();
+            toDirection.Normalize();
+            var dot = Mathf.Clamp(Vector3.Dot(fromDirection, toDirection), -1f, 1f);
+            var halfAngle = Mathf.Acos(dot) * .5f;
+            if (halfAngle <= .001f) return 0f;
+
+            // A rectangular authored road/curb/barrier strip must continue beyond the
+            // center-line waypoint until the two offset edges meet. Without this miter
+            // allowance, wide segmented roads expose triangular holes on sharp turns.
+            var required = halfWidth * Mathf.Tan(halfAngle);
+            return Mathf.Min(required, halfWidth * 1.5f);
+        }
+
+        private static Vector3[] ResolveRoute()
+        {
+            if (CairoVerticalSliceLayout.TryLoadSampledPositions(SegmentCount, out var route, out var reason))
+            {
+                Debug.Log(
+                    $"AFAREET_URAC011_AUTHORED_LAYOUT_ACTIVE layout={CairoVerticalSliceLayout.LayoutId} " +
+                    $"controlPoints={CairoVerticalSliceLayout.RequiredControlPoints} runtimeSegments={route.Length}");
+                return route;
+            }
+
+            if (!Application.isEditor)
+                throw new InvalidOperationException(
+                    $"AFAREET_URAC011_PLAYER_LAYOUT_REQUIRED reason={reason} ellipse-fallback-disabled");
+
+            Debug.LogWarning(
+                $"AFAREET_URAC011_EDITOR_ELLIPSE_FALLBACK_ACTIVE reason={reason} production=false");
+
+            var fallback = new Vector3[SegmentCount];
+            for (var i = 0; i < SegmentCount; i++)
+            {
+                var t = i / (float)SegmentCount * Mathf.PI * 2f;
+                fallback[i] = EditorFallbackPoint(t);
+            }
+            return fallback;
+        }
+
+        private static Vector3 EditorFallbackPoint(float t) =>
+            new(EditorFallbackRadiusX * Mathf.Cos(t), 0f, EditorFallbackRadiusZ * Mathf.Sin(t));
 
         private static void CreateGround(Transform root)
         {
@@ -130,7 +186,7 @@ namespace Afareet.World
             if (CairoAuthoredStreetKit.TryCreateBarrier(
                     root,
                     position + Vector3.up * .02f,
-                    rotation * Quaternion.Euler(0f, 90f, 0f),
+                    rotation * Quaternion.Euler(0f, -90f, 0f),
                     glow,
                     Mathf.Max(.5f, length / 2f)))
                 return;
@@ -141,7 +197,7 @@ namespace Afareet.World
                 return;
             }
 
-            Cube(root, $"DEV Neon Rail {side}", position + Vector3.up * .35f, new Vector3(.18f, .18f, length), glow, rotation);
+            Cube(root, $"DEV Neon Rail {side}", position + rotation * Vector3.forward * (length * .5f) + Vector3.up * .35f, new Vector3(.18f, .18f, length), glow, rotation);
         }
 
         private static void CreateRoadRune(Transform root, Vector3 position, Quaternion rotation, int seed, Material primary, Material secondary)
