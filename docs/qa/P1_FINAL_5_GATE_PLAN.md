@@ -98,7 +98,18 @@ Successful precheck contains:
 
 `AFAREET_CANDIDATE_DEVICE_PRECHECK_OK`
 
-It then invokes the existing `device_evidence.py prepare` flow against those exact APK bytes. The device session hashes the APK again and pins all checkpoints to that exact SHA plus the physical-device identity.
+After `device_evidence.py prepare` succeeds, the wrapper now performs a second binding step:
+
+- copies the exact validated source manifest into the session as `candidate-manifest.json`;
+- records its SHA-256 in `session.json`;
+- records `candidateType`, exact Git SHA, exact APK SHA, release-evidence state and GitHub run provenance when applicable;
+- independently confirms the prepared session APK SHA/size still match the validated candidate.
+
+Successful persistence contains:
+
+`AFAREET_CANDIDATE_SESSION_BOUND`
+
+This binding is mandatory for final P1 readiness. Calling `device_evidence.py prepare --apk ...` directly remains useful for harness debugging, but the resulting unbound session is **not** eligible to satisfy the final-five release evidence gates.
 
 ## Required captures
 
@@ -163,7 +174,18 @@ python3 tools/android/p1_gate_readiness.py plan
 python3 tools/android/p1_gate_readiness.py validate --session evidence/p1-device
 ```
 
-The evaluator writes `p1-gate-readiness.json`. With all captures present and no automated red flags, the first four gates become `EVIDENCE_READY_FOR_MANUAL_REVIEW`; they are **not** automatically approved.
+Before evaluating checkpoints or approvals, the readiness evaluator now loads `session.json` plus the bound `candidate-manifest.json` and fails closed unless:
+
+- the session has a supported candidate type and full Git SHA;
+- the candidate APK SHA matches the evidence index APK SHA;
+- the copied candidate manifest still matches the SHA stored in `session.json`;
+- the copied manifest's candidate type, Git SHA, APK SHA and release-evidence state match the session;
+- hosted candidates retain valid GitHub repository/workflow/event/ref/run provenance;
+- the candidate remains `verified: false` and `READY_FOR_PHYSICAL_DEVICE_EVIDENCE` rather than self-promoting.
+
+An unbound direct-APK session reports `candidateBound=false`, which blocks every final P1 evidence gate even if captures and manual approval records are otherwise complete.
+
+The evaluator writes `p1-gate-readiness.json`. With valid candidate binding, all captures present and no automated red flags, the first four gates become `EVIDENCE_READY_FOR_MANUAL_REVIEW`; they are **not** automatically approved.
 
 ## Manual approvals contract
 
@@ -193,7 +215,7 @@ python3 tools/android/p1_gate_readiness.py validate \
 
 `UPER-010` can only reach `READY_FOR_RELEASE_REVIEW` when:
 
-- the APK came from an accepted exact-head candidate path;
+- the APK came from an accepted exact-head candidate path and the session retains a valid candidate-manifest binding;
 - the session is from a physical device;
 - all required checkpoints exist;
 - automated fatal/crash/ANR red flags are zero;
