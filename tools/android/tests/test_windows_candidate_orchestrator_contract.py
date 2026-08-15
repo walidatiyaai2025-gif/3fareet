@@ -27,6 +27,28 @@ class WindowsCandidateOrchestratorContractTests(unittest.TestCase):
 
         self.assertNotIn("diff --binary HEAD -- 2>&1", self.text)
 
+    def test_initial_dirty_tree_is_preserved_before_cleanup_and_refusal(self):
+        required = (
+            '$initialDirty = @(& git -C $RepoRoot status --porcelain 2>$null)',
+            'Preserve-DirtyTreeEvidence -Phase "INITIAL_TREE" -Changes $initialDirty',
+            'INITIAL_TREE_DIRTY',
+            'Initial dirty-tree status/patch/stderr evidence was preserved',
+            'Clear-StaleCandidateEvidence',
+        )
+        for marker in required:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.text)
+
+        preserve = self.text.index(
+            'Preserve-DirtyTreeEvidence -Phase "INITIAL_TREE" -Changes $initialDirty'
+        )
+        refusal = self.text.index(
+            'Candidate orchestration requires a clean Git working tree before Unity starts.'
+        )
+        cleanup_call = self.text.index("Clear-StaleCandidateEvidence\n")
+        self.assertLess(preserve, refusal)
+        self.assertLess(refusal, cleanup_call)
+
     def test_package_preflight_happens_before_unity_execution(self):
         required = (
             "verify_unity_package_lock.py",
