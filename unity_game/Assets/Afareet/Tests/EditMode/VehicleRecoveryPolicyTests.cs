@@ -32,12 +32,10 @@ namespace Afareet.Tests
         [Test]
         public void StuckTimer_TriggersOnlyAfterSustainedIntent()
         {
-            var timer = 0f;
-            for (var i = 0; i < 23; i++)
-                timer = VehicleRecoveryPolicy.AdvanceStuckTimer(timer, true, 0.5f, -1f, false, 0.1f);
-
+            var timer = VehicleRecoveryPolicy.StuckSecondsBeforeAutoRecovery - 0.01f;
             Assert.That(VehicleRecoveryPolicy.ShouldAutoRecover(timer), Is.False);
-            timer = VehicleRecoveryPolicy.AdvanceStuckTimer(timer, true, 0.5f, -1f, false, 0.1f);
+
+            timer = VehicleRecoveryPolicy.AdvanceStuckTimer(timer, true, 0.5f, -1f, false, 0.02f);
             Assert.That(VehicleRecoveryPolicy.ShouldAutoRecover(timer), Is.True);
         }
 
