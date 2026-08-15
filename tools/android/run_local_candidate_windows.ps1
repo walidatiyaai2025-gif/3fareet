@@ -1,6 +1,7 @@
 param(
     [string]$UnityPath = "",
-    [string]$RepoRoot = ""
+    [string]$RepoRoot = "",
+    [string]$PythonPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,17 +33,92 @@ if ($null -eq $git) {
     Fail "git is required for exact-SHA candidate evidence."
 }
 
-$python = Get-Command python -ErrorAction SilentlyContinue
-$pythonArgs = @()
-if ($null -eq $python) {
-    $python = Get-Command py -ErrorAction SilentlyContinue
-    if ($null -ne $python) {
-        $pythonArgs += '-3'
+function Test-Python3Candidate([string]$Executable, [string[]]$PrefixArgs) {
+    if ([string]::IsNullOrWhiteSpace($Executable) -or -not (Test-Path $Executable)) {
+        return $null
     }
+
+    $probeId = [Guid]::NewGuid().ToString('N')
+    $probeOut = Join-Path $env:TEMP "afareet-python-$probeId.out.txt"
+    $probeErr = Join-Path $env:TEMP "afareet-python-$probeId.err.txt"
+    try {
+        $args = @()
+        $args += $PrefixArgs
+        $args += '--version'
+        $process = Start-Process `
+            -FilePath $Executable `
+            -ArgumentList $args `
+            -Wait `
+            -PassThru `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput $probeOut `
+            -RedirectStandardError $probeErr
+
+        $versionText = ""
+        if (Test-Path $probeOut) {
+            $versionText += (Get-Content -Raw $probeOut -ErrorAction SilentlyContinue)
+        }
+        if (Test-Path $probeErr) {
+            $versionText += (Get-Content -Raw $probeErr -ErrorAction SilentlyContinue)
+        }
+        $versionText = $versionText.Trim()
+
+        if ($process.ExitCode -eq 0 -and $versionText -match '^Python 3\.') {
+            return @{
+                Executable = $Executable
+                Args = @($PrefixArgs)
+                Version = $versionText
+            }
+        }
+    } catch {
+        return $null
+    } finally {
+        Remove-Item -Force $probeOut, $probeErr -ErrorAction SilentlyContinue
+    }
+
+    return $null
 }
-if ($null -eq $python) {
-    Fail "Python 3 is required for package, text-normalization and candidate integrity verification."
+
+function Resolve-Python3([string]$RequestedPath) {
+    $candidates = @()
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
+        if (-not (Test-Path $RequestedPath)) {
+            Fail "The supplied PythonPath does not exist: $RequestedPath"
+        }
+        $resolvedRequested = (Resolve-Path $RequestedPath).Path
+        $candidates += ,@($resolvedRequested, @())
+    } else {
+        $py = Get-Command py -ErrorAction SilentlyContinue
+        if ($null -ne $py) {
+            $candidates += ,@($py.Source, @('-3'))
+        }
+
+        $python3 = Get-Command python3 -ErrorAction SilentlyContinue
+        if ($null -ne $python3) {
+            $candidates += ,@($python3.Source, @())
+        }
+
+        $python = Get-Command python -ErrorAction SilentlyContinue
+        if ($null -ne $python) {
+            $candidates += ,@($python.Source, @())
+        }
+    }
+
+    foreach ($candidate in $candidates) {
+        $probe = Test-Python3Candidate -Executable $candidate[0] -PrefixArgs $candidate[1]
+        if ($null -ne $probe) {
+            return $probe
+        }
+    }
+
+    Fail "A usable Python 3 interpreter was not found. Windows Store App Execution Alias python.exe is not sufficient. Install Python 3/py launcher or pass -PythonPath 'C:\path\to\python.exe'."
 }
+
+$python = Resolve-Python3 -RequestedPath $PythonPath
+$pythonExecutable = [string]$python.Executable
+$pythonArgs = @($python.Args)
+Write-Host "AFAREET_PYTHON_RESOLVED executable=$pythonExecutable args=$($pythonArgs -join ' ') version=$($python.Version)"
 
 $gitSha = (& git -C $RepoRoot rev-parse HEAD 2>$null).Trim()
 if ($LASTEXITCODE -ne 0 -or $gitSha -notmatch '^[0-9a-fA-F]{40}$') {
@@ -149,7 +225,7 @@ $textNormalizeArgs = @(
     '--repo-root', $RepoRoot
 )
 Write-Host "AFAREET_TEXT_NORMALIZATION_PREFLIGHT_START gitSha=$gitSha"
-& $python.Source @pythonArgs @textNormalizeArgs
+& $pythonExecutable @pythonArgs @textNormalizeArgs
 if ($LASTEXITCODE -ne 0) {
     Fail "Unity text-normalization preflight failed with exit code $LASTEXITCODE. Fix .gitattributes/working-tree LF normalization before starting Unity."
 }
@@ -164,7 +240,7 @@ $packageVerifyArgs = @(
     '--lock', $packageLock
 )
 Write-Host "AFAREET_PACKAGE_PREFLIGHT_START gitSha=$gitSha"
-& $python.Source @pythonArgs @packageVerifyArgs
+& $pythonExecutable @pythonArgs @packageVerifyArgs
 if ($LASTEXITCODE -ne 0) {
     Fail "Unity package manifest/lock preflight failed with exit code $LASTEXITCODE. Reconcile Packages before starting Unity."
 }
@@ -205,7 +281,7 @@ $verifyArgs = @(
     '--apk', $apk,
     '--output', $manifest
 )
-& $python.Source @pythonArgs @verifyArgs
+& $pythonExecutable @pythonArgs @verifyArgs
 if ($LASTEXITCODE -ne 0) {
     Fail "Local candidate integrity verification failed with exit code $LASTEXITCODE."
 }
