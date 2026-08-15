@@ -115,3 +115,40 @@ Do not publish based on harness output alone. Publication requires the exact APK
 The local `session.json` keeps the raw ADB serial for repeatability on the QA machine. `evidence-index.json` exposes only the serial SHA-256 plus device characteristics. Review before attaching raw local evidence publicly.
 
 Do not commit generated `artifacts/device-evidence/**` folders to Git. Store approved evidence according to the release/QA process for the exact APK/commit being promoted.
+
+## 4. Export a privacy-safe review bundle
+
+After the candidate-bound session is finished, generate the default shareable review bundle with:
+
+```bash
+python tools/android/export_device_evidence.py \
+  --session artifacts/device-evidence/pixel8-run1 \
+  --output artifacts/device-review/pixel8-run1
+```
+
+The exporter fails closed unless:
+
+- the session was prepared through `prepare_candidate_device.py` and is bound to a full candidate Git SHA + APK SHA-256;
+- candidate state is still `READY_FOR_PHYSICAL_DEVICE_EVIDENCE` with `verified=false`;
+- session/index/checkpoint APK hashes agree;
+- the raw ADB serial hashes to the exact serial SHA-256 recorded by both the session and index;
+- evidence comes from a physical device, not an emulator;
+- every indexed checkpoint has the expected candidate/device binding and required review files.
+
+The default review bundle includes:
+
+- `evidence-index.json`;
+- `review-manifest.json` with candidate Git SHA/APK SHA and explicit `MANUAL_REVIEW_REQUIRED` verdict;
+- per-checkpoint `screen.png`, `checkpoint.json`, `meminfo.txt`, `gfxinfo.txt`, `thermalservice.txt`, and `battery.txt`.
+
+The default review bundle **does not include**:
+
+- raw `session.json` (contains the ADB serial);
+- `candidate-manifest.json` (may contain workstation-local paths);
+- `package-dump.txt`;
+- raw `logcat.txt`;
+- raw `activity.txt`.
+
+Before completing the export, every copied text file is scanned and the command fails if the raw ADB serial appears anywhere in the bundle. The exporter also refuses to place its output inside the raw session directory.
+
+If automated crash/ANR red flags exist, the exporter still writes the sanitized bundle for diagnosis but exits non-zero. A clean export still has verdict `MANUAL_REVIEW_REQUIRED`; it **never** approves `UVEH-012`, `URAC-012`, `UPER-006`, `UPER-009`, or `UPER-010` automatically.
