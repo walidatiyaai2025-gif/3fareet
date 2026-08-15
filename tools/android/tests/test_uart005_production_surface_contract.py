@@ -61,8 +61,11 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         vertex_count = sum(line.startswith("v ") for line in lines)
         uv_count = sum(line.startswith("vt ") for line in lines)
         normal_count = sum(line.startswith("vn ") for line in lines)
-        self.assertGreaterEqual(uv_count, vertex_count, model)
-        self.assertGreaterEqual(normal_count, vertex_count, model)
+        # OBJ surface pools may be intentionally deduplicated: one UV/normal can be
+        # referenced by many vertices. Completeness is proven by every face token
+        # carrying in-range v/vt/vn indices rather than by requiring 1:1 pool sizes.
+        self.assertGreater(uv_count, 0, model)
+        self.assertGreater(normal_count, 0, model)
 
         for face in (line for line in lines if line.startswith("f ")):
             for token in face.split()[1:]:
@@ -235,9 +238,10 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
             "TryCreateRoadSegment",
             "TryCreateBuilding",
             "TryCreateLamp",
-            "AFAREET_UART005_PLAYER_ROAD_FALLBACK_DISABLED",
-            "AFAREET_UART005_PLAYER_BUILDING_FALLBACK_DISABLED",
-            "AFAREET_UART005_PLAYER_LAMP_FALLBACK_DISABLED",
+            "AFAREET_UART005_PLAYER_PRIMITIVE_ROAD_FALLBACK_DISABLED",
+            "AFAREET_UART005_PLAYER_PRIMITIVE_RAIL_FALLBACK_DISABLED",
+            "AFAREET_UART005_PLAYER_PRIMITIVE_BUILDING_FALLBACK_DISABLED",
+            "AFAREET_UART005_PLAYER_PRIMITIVE_LAMP_FALLBACK_DISABLED",
         ):
             self.assertIn(required, text)
         self.assertIn("#if UNITY_EDITOR", text)
