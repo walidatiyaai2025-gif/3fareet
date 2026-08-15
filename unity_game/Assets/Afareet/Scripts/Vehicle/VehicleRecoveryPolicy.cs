@@ -43,7 +43,7 @@ namespace Afareet.Vehicle
         }
 
         public static bool IsRecoveryCheckpointAdvanceAllowed(
-            int lastCheckpointIndex,
+            int baselineCheckpointIndex,
             int candidateCheckpointIndex,
             int checkpointCount)
         {
@@ -51,12 +51,17 @@ namespace Afareet.Vehicle
                 throw new ArgumentOutOfRangeException(nameof(checkpointCount));
             if (candidateCheckpointIndex < 0 || candidateCheckpointIndex >= checkpointCount)
                 throw new ArgumentOutOfRangeException(nameof(candidateCheckpointIndex));
-            if (lastCheckpointIndex < 0)
-                return true;
-            if (lastCheckpointIndex >= checkpointCount)
-                throw new ArgumentOutOfRangeException(nameof(lastCheckpointIndex));
 
-            var forwardDelta = (candidateCheckpointIndex - lastCheckpointIndex + checkpointCount) % checkpointCount;
+            // Before RacerCheckpointTracker configures the first expected checkpoint there is
+            // no safe ordered baseline. Fail closed instead of allowing an arbitrary spatially
+            // nearby waypoint in a chicane to become a recovery point.
+            if (baselineCheckpointIndex < 0)
+                return false;
+            if (baselineCheckpointIndex >= checkpointCount)
+                throw new ArgumentOutOfRangeException(nameof(baselineCheckpointIndex));
+
+            var forwardDelta =
+                (candidateCheckpointIndex - baselineCheckpointIndex + checkpointCount) % checkpointCount;
             return forwardDelta <= MaxForwardCheckpointAdvance;
         }
 
