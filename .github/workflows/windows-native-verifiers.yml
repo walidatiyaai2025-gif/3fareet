@@ -55,18 +55,25 @@ jobs:
           $target = 'unity_game/Packages/manifest.json'
           $targetPath = Join-Path $repoRoot $target
 
-          $text = [System.IO.File]::ReadAllText($targetPath)
-          $text = $text.Replace("`r`n", "`n").Replace("`r", "`n").Replace("`n", "`r`n")
-          [System.IO.File]::WriteAllText(
-            $targetPath,
-            $text,
-            [System.Text.UTF8Encoding]::new($false)
-          )
+          # Change line endings only, byte-for-byte. Do not decode/re-encode the
+          # JSON because that could alter a BOM or another byte and turn this
+          # into a content-change fixture instead of the stale-checkout case.
+          $inputBytes = [System.IO.File]::ReadAllBytes($targetPath)
+          $crlfBytes = New-Object System.Collections.Generic.List[byte]
+          for ($i = 0; $i -lt $inputBytes.Length; $i++) {
+            if ($inputBytes[$i] -eq 10 -and ($i -eq 0 -or $inputBytes[$i - 1] -ne 13)) {
+              $crlfBytes.Add([byte]13)
+              $crlfBytes.Add([byte]10)
+            } else {
+              $crlfBytes.Add($inputBytes[$i])
+            }
+          }
+          [System.IO.File]::WriteAllBytes($targetPath, $crlfBytes.ToArray())
 
           $statusBefore = @(& git status --porcelain -- $target)
           if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect CRLF fixture Git status.' }
           if ($statusBefore.Count -gt 0) {
-            throw "CRLF fixture should remain Git-clean under text/eol=lf, got: $($statusBefore -join '; ')"
+            throw "CRLF-only fixture should remain Git-clean under text/eol=lf, got: $($statusBefore -join '; ')"
           }
 
           $strictRejected = $false
