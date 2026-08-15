@@ -1,8 +1,23 @@
+import json
 import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SOURCE_ROOT = REPO_ROOT / "docs/assets/02_tracks_environments/cairo_street_kit/source"
+MANIFEST = REPO_ROOT / "docs/assets/02_tracks_environments/cairo_street_kit/ASSET_MANIFEST.json"
+
+SURFACED = (
+    ("SM_Track_CairoRoad_A.obj", "SM_Track_CairoRoad_A.mtl", "Road_Surface", "T_Track_CairoRoad_Surface_BC.png"),
+    ("SM_Track_CairoCurb_A.obj", "SM_Track_CairoCurb_A.mtl", "Curb_Surface", "T_Track_CairoCurb_Surface_BC.png"),
+    ("SM_Env_CairoAwning_A.obj", "SM_Env_CairoAwning_A.mtl", "Awning_Surface", "T_Env_CairoAwning_Surface_BC.png"),
+    ("SM_Env_CairoAwning_B.obj", "SM_Env_CairoAwning_B.mtl", "Awning_B_Surface", "T_Env_CairoAwning_B_BC.png"),
+    ("SM_Env_CairoFacade_A.obj", "SM_Env_CairoFacade_A.mtl", "Facade_Surface", "T_Env_CairoFacade_Surface_BC.png"),
+    ("SM_Env_CairoFacade_B.obj", "SM_Env_CairoFacade_B.mtl", "Facade_B_Surface", "T_Env_CairoFacade_B_BC.png"),
+    ("SM_Env_CairoFacade_C.obj", "SM_Env_CairoFacade_C.mtl", "Facade_C_Surface", "T_Env_CairoFacade_C_BC.png"),
+    ("SM_Prop_CairoLamp_A.obj", "SM_Prop_CairoLamp_A.mtl", "Lamp_Surface", "T_Prop_CairoLamp_Surface_BC.png"),
+    ("SM_Prop_CairoBarrier_A.obj", "SM_Prop_CairoBarrier_A.mtl", "Barrier_Surface", "T_Prop_CairoBarrier_Surface_BC.png"),
+    ("SM_Prop_CairoSign_A.obj", "SM_Prop_CairoSign_A.mtl", "Sign_Surface", "T_Prop_CairoSign_A_BC.png"),
+)
 
 
 class Uart005ProductionSurfaceContractTests(unittest.TestCase):
@@ -24,7 +39,9 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
 
     def _counts(self, model):
         lines = (SOURCE_ROOT / model).read_text(encoding="utf-8").splitlines()
-        return sum(line.startswith("v ") for line in lines), sum(line.startswith("f ") for line in lines)
+        vertices = sum(line.startswith("v ") for line in lines)
+        triangles = sum(max(0, len(line.split()) - 3) for line in lines if line.startswith("f "))
+        return vertices, triangles
 
     def _assert_surface_chain(self, model, mtl_file, material, texture):
         obj = (SOURCE_ROOT / model).read_text(encoding="utf-8")
@@ -35,37 +52,48 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         self.assertIn("\nvn ", "\n" + obj)
         self.assertIn(f"newmtl {material}", mtl)
         self.assertIn(f"map_Kd {texture}", mtl)
+
         payload = (SOURCE_ROOT / texture).read_bytes()
         self.assertGreater(len(payload), 32)
-        self.assertTrue(payload.startswith(b"\x89PNG\r\n\x1a\n"), texture)
-        for face in (line for line in obj.splitlines() if line.startswith("f ")):
+        self.assertEqual(bytes((137, 80, 78, 71, 13, 10, 26, 10)), payload[:8], texture)
+
+        lines = obj.splitlines()
+        vertex_count = sum(line.startswith("v ") for line in lines)
+        uv_count = sum(line.startswith("vt ") for line in lines)
+        normal_count = sum(line.startswith("vn ") for line in lines)
+        self.assertGreaterEqual(uv_count, vertex_count, model)
+        self.assertGreaterEqual(normal_count, vertex_count, model)
+
+        for face in (line for line in lines if line.startswith("f ")):
             for token in face.split()[1:]:
                 fields = token.split("/")
                 self.assertEqual(3, len(fields), token)
-                self.assertTrue(fields[1] and fields[2], token)
+                self.assertTrue(all(fields), token)
+                vi, ti, ni = map(int, fields)
+                self.assertGreaterEqual(vi, 1, token)
+                self.assertLessEqual(vi, vertex_count, token)
+                self.assertGreaterEqual(ti, 1, token)
+                self.assertLessEqual(ti, uv_count, token)
+                self.assertGreaterEqual(ni, 1, token)
+                self.assertLessEqual(ni, normal_count, token)
 
-    def test_all_six_modules_have_tracked_surface_authoring(self):
-        modules = (
-            ("SM_Track_CairoRoad_A.obj", "SM_Track_CairoRoad_A.mtl", "Road_Surface", "T_Track_CairoRoad_Surface_BC.png"),
-            ("SM_Track_CairoCurb_A.obj", "SM_Track_CairoCurb_A.mtl", "Curb_Surface", "T_Track_CairoCurb_Surface_BC.png"),
-            ("SM_Env_CairoAwning_A.obj", "SM_Env_CairoAwning_A.mtl", "Awning_Surface", "T_Env_CairoAwning_Surface_BC.png"),
-            ("SM_Env_CairoFacade_A.obj", "SM_Env_CairoFacade_A.mtl", "Facade_Surface", "T_Env_CairoFacade_Surface_BC.png"),
-            ("SM_Prop_CairoLamp_A.obj", "SM_Prop_CairoLamp_A.mtl", "Lamp_Surface", "T_Prop_CairoLamp_Surface_BC.png"),
-            ("SM_Prop_CairoBarrier_A.obj", "SM_Prop_CairoBarrier_A.mtl", "Barrier_Surface", "T_Prop_CairoBarrier_Surface_BC.png"),
-        )
-        for module in modules:
+    def test_all_ten_modules_have_tracked_surface_authoring(self):
+        for module in SURFACED:
             with self.subTest(model=module[0]):
                 self._assert_surface_chain(*module)
 
-    def test_geometry_floors_and_key_runtime_envelopes(self):
-        for model, min_v, min_t in (
-            ("SM_Prop_CairoLamp_A.obj", 64, 96),
-            ("SM_Prop_CairoBarrier_A.obj", 48, 72),
-        ):
-            v, t = self._counts(model)
-            self.assertGreaterEqual(v, min_v)
-            self.assertGreaterEqual(t, min_t)
+    def test_all_ten_sources_clear_manifest_anti_blockout_floors(self):
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual(10, len(manifest["modules"]))
+        for module in manifest["modules"]:
+            with self.subTest(model=module["model"]):
+                vertices, triangles = self._counts(module["model"])
+                self.assertEqual(module["currentVertices"], vertices)
+                self.assertEqual(module["currentTriangles"], triangles)
+                self.assertGreaterEqual(vertices, module["productionMinVertices"])
+                self.assertGreaterEqual(triangles, module["productionMinTriangles"])
 
+    def test_geometry_floors_and_key_runtime_envelopes(self):
         road = self._bounds("SM_Track_CairoRoad_A.obj")
         curb = self._bounds("SM_Track_CairoCurb_A.obj")
         lamp = self._bounds("SM_Prop_CairoLamp_A.obj")
@@ -101,6 +129,56 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         ):
             self.assertIn(required, runtime)
 
+    def test_facade_awning_and_sign_expansion_is_distinct_and_registered(self):
+        names = (
+            "SM_Env_CairoFacade_A.obj",
+            "SM_Env_CairoFacade_B.obj",
+            "SM_Env_CairoFacade_C.obj",
+            "SM_Env_CairoAwning_A.obj",
+            "SM_Env_CairoAwning_B.obj",
+            "SM_Prop_CairoSign_A.obj",
+        )
+        payloads = [(SOURCE_ROOT / name).read_bytes() for name in names]
+        self.assertEqual(len(payloads), len(set(payloads)))
+
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual("10/10", manifest["sourceSurfaceProgress"])
+        self.assertEqual("3/3", manifest["sourceVariantCoverage"]["facades"])
+        self.assertEqual("2/2", manifest["sourceVariantCoverage"]["awnings"])
+        self.assertEqual("1/1", manifest["sourceVariantCoverage"]["hangingSigns"])
+        expansion = "\n".join(manifest["requiredProductionExpansion"])
+        self.assertNotIn("at least three facade/building variants", expansion)
+        self.assertNotIn("storefront/sign/awning variants", expansion)
+        self.assertIn("mobile LOD", expansion)
+        self.assertIn("additional roadside clutter", expansion)
+
+    def test_runtime_adapter_uses_all_authored_sources_and_stable_building_variation(self):
+        runtime = self._read("unity_game/Assets/Afareet/Scripts/World/CairoAuthoredStreetKit.cs")
+        for required in (
+            "SM_Env_CairoFacade_A",
+            "SM_Env_CairoFacade_B",
+            "SM_Env_CairoFacade_C",
+            "SM_Env_CairoAwning_A",
+            "SM_Env_CairoAwning_B",
+            "SM_Prop_CairoLamp_A",
+            "SM_Prop_CairoBarrier_A",
+            "SM_Prop_CairoSign_A",
+            "SM_Track_CairoRoad_A",
+            "SM_Track_CairoCurb_A",
+            "StableVariantIndex",
+            "FacadePaths.Length",
+            "AwningPaths.Length",
+            "AFAREET_UART005_BUILDING_VARIANTS_ACTIVE",
+            "facades=3 awnings=2 signs=1",
+            "selection=stable-position-hash",
+            "playerMaterials=source-authored",
+        ):
+            self.assertIn(required, runtime)
+        self.assertIn("if (facade == null) Missing(facadePath);", runtime)
+        self.assertIn("if (awning == null) Missing(awningPath);", runtime)
+        self.assertIn("if (sign == null) Missing(SignPath);", runtime)
+        self.assertIn("if (!Application.isEditor)", runtime)
+
     def test_fail_closed_android_surface_and_dependency_contracts_remain(self):
         gate = self._read("unity_game/Assets/Afareet/Editor/P1ProductionWorldBuildGate.cs")
         for required in (
@@ -131,8 +209,15 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         ):
             self.assertIn(required, material_gate)
 
+    def test_stager_tracks_all_ten_models_and_surface_companions(self):
         stager = self._read("unity_game/Assets/Afareet/Editor/P1ProductionWorldAssetStager.cs")
-        for required in ('case ".obj"', 'case ".mtl"', 'case ".png"', "RemoveStaleStageableFiles", "companions=mtl-textures"):
+        for model, _, _, _ in SURFACED:
+            self.assertIn(f'"{model}"', stager)
+        for required in (
+            'case ".obj"', 'case ".mtl"', 'case ".png"',
+            "RemoveStaleStageableFiles", "Resources.Load<GameObject>",
+            "companions=mtl-textures", "models={Models.Length}",
+        ):
             self.assertIn(required, stager)
 
     def test_player_preserves_imported_source_materials(self):
@@ -144,14 +229,33 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         self.assertNotIn("private static void ApplyNamedMaterials(", runtime)
         self.assertNotIn("private static void ApplyMaterial(GameObject", runtime)
 
-    def test_manifest_stays_blocked_after_source_surface_completion(self):
-        manifest = self._read("docs/assets/02_tracks_environments/cairo_street_kit/ASSET_MANIFEST.json")
-        self.assertIn('"reviewState": "BLOCKED"', manifest)
-        self.assertIn('"sourceQuality": "authored-source-candidate"', manifest)
-        self.assertIn('"runtimeIntegrated": false', manifest)
-        self.assertIn('"runtimeIntegrationVerified": false', manifest)
-        self.assertIn('"status": "replacement-required"', manifest)
-        self.assertEqual(6, manifest.count('"surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"'))
+    def test_runtime_player_fallbacks_for_replaced_geometry_are_disabled(self):
+        text = self._read("unity_game/Assets/Afareet/Scripts/World/CairoTrackBuilder.cs")
+        for required in (
+            "TryCreateRoadSegment",
+            "TryCreateBuilding",
+            "TryCreateLamp",
+            "AFAREET_UART005_PLAYER_ROAD_FALLBACK_DISABLED",
+            "AFAREET_UART005_PLAYER_BUILDING_FALLBACK_DISABLED",
+            "AFAREET_UART005_PLAYER_LAMP_FALLBACK_DISABLED",
+        ):
+            self.assertIn(required, text)
+        self.assertIn("#if UNITY_EDITOR", text)
+
+    def test_manifest_stays_blocked_after_ten_source_surface_completion(self):
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual("BLOCKED", manifest["reviewState"])
+        self.assertEqual("authored-source-candidate", manifest["sourceQuality"])
+        self.assertFalse(manifest["runtimeIntegrated"])
+        self.assertFalse(manifest["runtimeIntegrationVerified"])
+        self.assertEqual("replacement-required", manifest["atlas"]["status"])
+        self.assertEqual(
+            10,
+            sum(
+                module.get("surfaceAuthoring") == "tracked-uv-normal-mtl-texture-candidate"
+                for module in manifest["modules"]
+            ),
+        )
 
 
 if __name__ == "__main__":
