@@ -7,8 +7,8 @@ using UnityEngine;
 namespace Afareet.Editor
 {
     /// <summary>
-    /// Fail-closed UART-004 Android gate. All three authored rival production prefabs must
-    /// already be imported and pass geometry/surface-authoring validation before an APK builds.
+    /// Fail-closed UART-004 Android gate. Rebuild the authored rival Resources from the
+    /// tracked design source, then require all three prefabs to pass geometry/surface validation.
     /// </summary>
     public sealed class RivalProductionBuildGate : IPreprocessBuildWithReport
     {
@@ -19,6 +19,7 @@ namespace Afareet.Editor
             if (report.summary.platform != BuildTarget.Android) return;
 
             RivalProductionPolicy.ValidateContract();
+            RivalProductionAssetBuilder.BuildOrThrow();
 
             for (var variant = 0; variant < RivalProductionPolicy.VariantCount; variant++)
             {
@@ -26,16 +27,14 @@ namespace Afareet.Editor
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (prefab == null)
                     throw new BuildFailedException(
-                        $"AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED variant={variant + 1} " +
-                        $"reason=missing-authored-prefab path={path}");
+                        $"AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED variant={variant + 1} reason=missing-authored-prefab path={path}");
 
                 if (!RivalProductionPolicy.ValidateProductionPrefab(prefab, variant, out var reason))
                     throw new BuildFailedException(
-                        $"AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED variant={variant + 1} " +
-                        $"reason={reason} path={path}");
+                        $"AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED variant={variant + 1} reason={reason} path={path}");
             }
 
-            Debug.Log("AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK variants=3");
+            Debug.Log("AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK variants=3 source=tracked-authored-design-profiles primitiveFallback=false");
         }
     }
 }
