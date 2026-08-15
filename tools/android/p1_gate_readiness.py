@@ -3,19 +3,35 @@
 
 The evaluator is deliberately conservative. It can prove that required evidence
 exists and that explicit human approvals are present, but it never marks an APK
-VERIFIED or publishes a release.
+VERIFIED or publishes a release. Final-five readiness also requires a device
+session bound to a validated local/CI candidate manifest; a direct arbitrary
+APK session is diagnostic-only and cannot satisfy release evidence gates.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 INDEX_FILE = "evidence-index.json"
+SESSION_FILE = "session.json"
+BOUND_MANIFEST_FILE = "candidate-manifest.json"
 DEFAULT_SPEC = Path(__file__).with_name("p1_gate_spec.json")
 FINAL_GATE = "UPER-010"
+LOCAL_CANDIDATE_TYPE = "local-windows-licensed-unity"
+CI_CANDIDATE_TYPE = "github-actions-unity-ci"
+ALLOWED_CANDIDATE_TYPES = {LOCAL_CANDIDATE_TYPE, CI_CANDIDATE_TYPE}
+EXPECTED_CI_REPOSITORY = "walidatiyaai2025-gif/3fareet"
+EXPECTED_CI_WORKFLOW = "Unity Production CI"
+ALLOWED_CI_EVENTS = {"pull_request", "push", "workflow_dispatch"}
+EXPECTED_CANDIDATE_VERDICT = "READY_FOR_PHYSICAL_DEVICE_EVIDENCE"
+SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+DIGITS_RE = re.compile(r"^[1-9][0-9]*$")
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -25,6 +41,14 @@ def read_json(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise RuntimeError(f"JSON root must be an object: {path}")
     return payload
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def load_spec(path: Path) -> dict[str, Any]:
@@ -63,14 +87,148 @@ def approval_for(approvals: dict[str, Any] | None, task_id: str, apk_sha: str) -
     return True, reviewer
 
 
+def candidate_blockers(index: dict[str, Any]) -> list[str]:
+    blockers: list[str] = []
+    binding_error = str(index.get("candidateBindingError") or "").strip()
+    if binding_error:
+        blockers.append(f"candidate binding invalid: {binding_error}")
+
+    candidate = index.get("candidate")
+    if not isinstance(candidate, dict):
+        blockers.append("candidate provenance is missing; direct APK evidence cannot satisfy P1 gates")
+        return blockers
+
+    candidate_type = str(candidate.get("candidateType") or "").strip()
+    if candidate_type not in ALLOWED_CANDIDATE_TYPES:
+        blockers.append(f"unsupported candidate type: {candidate_type!r}")
+
+    git_sha = str(candidate.get("gitSha") or "").strip().lower()
+    if not SHA40_RE.fullmatch(git_sha):
+        blockers.append("candidate gitSha is not a full 40-character SHA")
+
+    apk_sha = str(index.get("apkSha256") or "").strip().lower()
+    candidate_apk_sha = str(candidate.get("apkSha256") or "").strip().lower()
+    if not SHA256_RE.fullmatch(candidate_apk_sha):
+        blockers.append("candidate APK SHA-256 is invalid")
+    elif candidate_apk_sha != apk_sha:
+        blockers.append("candidate APK SHA-256 does not match evidence index")
+
+    if candidate.get("releaseEvidenceEligible") is not True:
+        blockers.append("candidate is not release-evidence eligible")
+    if candidate.get("readyForDeviceEvidence") is not True:
+        blockers.append("candidate is not ready for physical-device evidence")
+    if candidate.get("verified") is not False:
+        blockers.append("candidate must not self-assert VERIFIED state")
+    if candidate.get("verdict") != EXPECTED_CANDIDATE_VERDICT:
+        blockers.append("candidate verdict is not READY_FOR_PHYSICAL_DEVICE_EVIDENCE")
+
+    manifest = candidate.get("manifest")
+    if not isinstance(manifest, dict):
+        blockers.append("candidate manifest binding metadata is missing")
+    else:
+        if manifest.get("fileName") != BOUND_MANIFEST_FILE:
+            blockers.append(f"candidate manifest filename must be {BOUND_MANIFEST_FILE}")
+        manifest_sha = str(manifest.get("sha256") or "").strip().lower()
+        if not SHA256_RE.fullmatch(manifest_sha):
+            blockers.append("candidate manifest SHA-256 is invalid")
+
+    if candidate_type == CI_CANDIDATE_TYPE:
+        github_run = candidate.get("githubRun")
+        if not isinstance(github_run, dict):
+            blockers.append("GitHub CI candidate is missing githubRun provenance")
+        else:
+            run_id = str(github_run.get("runId") or "").strip()
+            run_attempt = str(github_run.get("runAttempt") or "").strip()
+            repository = str(github_run.get("repository") or "").strip()
+            workflow = str(github_run.get("workflow") or "").strip()
+            event_name = str(github_run.get("eventName") or "").strip()
+            ref = str(github_run.get("ref") or "").strip()
+            if not DIGITS_RE.fullmatch(run_id) or not DIGITS_RE.fullmatch(run_attempt):
+                blockers.append("GitHub CI candidate runId/runAttempt is invalid")
+            if repository != EXPECTED_CI_REPOSITORY:
+                blockers.append("GitHub CI candidate repository provenance is invalid")
+            if workflow != EXPECTED_CI_WORKFLOW:
+                blockers.append("GitHub CI candidate workflow provenance is invalid")
+            if event_name not in ALLOWED_CI_EVENTS:
+                blockers.append("GitHub CI candidate event provenance is invalid")
+            if not ref.startswith("refs/"):
+                blockers.append("GitHub CI candidate ref provenance is invalid")
+
+    return blockers
+
+
+def load_bound_candidate(session_dir: Path, index: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    session_path = session_dir / SESSION_FILE
+    if not session_path.is_file():
+        return None, f"device evidence session is missing {SESSION_FILE}"
+    try:
+        session = read_json(session_path)
+    except (RuntimeError, json.JSONDecodeError) as exc:
+        return None, str(exc)
+
+    candidate = session.get("candidate")
+    if not isinstance(candidate, dict):
+        return None, "device session is not bound to a validated candidate manifest"
+
+    session_apk = session.get("apk")
+    if not isinstance(session_apk, dict):
+        return candidate, "device session APK metadata is missing"
+    session_apk_sha = str(session_apk.get("sha256") or "").strip().lower()
+    index_apk_sha = str(index.get("apkSha256") or "").strip().lower()
+    if session_apk_sha != index_apk_sha:
+        return candidate, "device session APK SHA-256 does not match evidence index"
+    if str(candidate.get("apkSha256") or "").strip().lower() != index_apk_sha:
+        return candidate, "candidate APK SHA-256 does not match device evidence"
+
+    manifest_record = candidate.get("manifest")
+    if not isinstance(manifest_record, dict):
+        return candidate, "candidate manifest binding metadata is missing from session"
+    manifest_name = str(manifest_record.get("fileName") or "").strip()
+    if manifest_name != BOUND_MANIFEST_FILE:
+        return candidate, f"bound candidate manifest must be named {BOUND_MANIFEST_FILE}"
+    manifest_path = session_dir / BOUND_MANIFEST_FILE
+    if not manifest_path.is_file():
+        return candidate, f"bound candidate manifest is missing: {manifest_path}"
+    declared_manifest_sha = str(manifest_record.get("sha256") or "").strip().lower()
+    actual_manifest_sha = sha256_file(manifest_path)
+    if declared_manifest_sha != actual_manifest_sha:
+        return candidate, "bound candidate manifest SHA-256 does not match session metadata"
+
+    try:
+        source_manifest = read_json(manifest_path)
+    except (RuntimeError, json.JSONDecodeError) as exc:
+        return candidate, str(exc)
+    if source_manifest.get("candidateType") != candidate.get("candidateType"):
+        return candidate, "bound manifest candidateType does not match session candidate"
+    source_git_sha = str(source_manifest.get("gitSha") or "").strip().lower()
+    if source_git_sha != str(candidate.get("gitSha") or "").strip().lower():
+        return candidate, "bound manifest gitSha does not match session candidate"
+    source_apk = source_manifest.get("apk")
+    if not isinstance(source_apk, dict):
+        return candidate, "bound manifest is missing APK metadata"
+    if str(source_apk.get("sha256") or "").strip().lower() != index_apk_sha:
+        return candidate, "bound manifest APK SHA-256 does not match device evidence"
+    if source_manifest.get("releaseEvidenceEligible") is not True:
+        return candidate, "bound manifest is not release-evidence eligible"
+    if source_manifest.get("readyForDeviceEvidence") is not True:
+        return candidate, "bound manifest is not ready for device evidence"
+    if source_manifest.get("verified") is not False:
+        return candidate, "bound manifest self-asserts VERIFIED state"
+    if source_manifest.get("verdict") != EXPECTED_CANDIDATE_VERDICT:
+        return candidate, "bound manifest verdict is not device-evidence ready"
+
+    return candidate, None
+
+
 def evaluate(spec: dict[str, Any], index: dict[str, Any], approvals: dict[str, Any] | None = None) -> dict[str, Any]:
     apk_sha = str(index.get("apkSha256", "")).strip()
     checkpoints = {str(item) for item in index.get("checkpoints", [])}
     red_flag_count = int(index.get("automatedRedFlagCount", 0) or 0)
     device = index.get("device", {}) if isinstance(index.get("device"), dict) else {}
     is_emulator = bool(device.get("isEmulator", False))
+    provenance_blockers = candidate_blockers(index)
 
-    common_blockers: list[str] = []
+    common_blockers: list[str] = list(provenance_blockers)
     if not apk_sha:
         common_blockers.append("evidence index has no APK SHA-256")
     if is_emulator:
@@ -132,10 +290,13 @@ def evaluate(spec: dict[str, Any], index: dict[str, Any], approvals: dict[str, A
         "blockers": final_blockers,
     }
 
+    candidate = index.get("candidate") if isinstance(index.get("candidate"), dict) else None
     return {
         "schemaVersion": 1,
         "verdict": "MANUAL_REVIEW_REQUIRED",
         "apkSha256": apk_sha,
+        "candidateBound": not provenance_blockers,
+        "candidate": candidate,
         "physicalDevice": not is_emulator,
         "automatedRedFlagCount": red_flag_count,
         "capturedCheckpoints": sorted(checkpoints),
@@ -145,6 +306,7 @@ def evaluate(spec: dict[str, Any], index: dict[str, Any], approvals: dict[str, A
         "verified": False,
         "notes": [
             "This evaluator never marks an APK VERIFIED.",
+            "Direct APK device sessions without candidate-manifest binding cannot satisfy final P1 gates.",
             "UPER-010 still requires the repository release policy and human publication decision.",
         ],
     }
@@ -160,13 +322,20 @@ def command_validate(args: argparse.Namespace) -> int:
     spec = load_spec(Path(args.spec))
     session = Path(args.session).expanduser().resolve()
     index = read_json(session / INDEX_FILE)
+    candidate, binding_error = load_bound_candidate(session, index)
+    evaluation_index = dict(index)
+    if candidate is not None:
+        evaluation_index["candidate"] = candidate
+    if binding_error:
+        evaluation_index["candidateBindingError"] = binding_error
     approvals = load_approvals(Path(args.approvals).expanduser().resolve() if args.approvals else None)
-    result = evaluate(spec, index, approvals)
+    result = evaluate(spec, evaluation_index, approvals)
     output = Path(args.output).expanduser().resolve() if args.output else session / "p1-gate-readiness.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(
         "AFAREET_P1_GATE_READINESS "
+        f"candidateBound={str(result['candidateBound']).lower()} "
         f"evidenceReady={str(result['allEvidenceReady']).lower()} "
         f"releaseReviewReady={str(result['releaseReviewReady']).lower()} "
         f"output={output}"
@@ -182,8 +351,8 @@ def build_parser() -> argparse.ArgumentParser:
     plan = sub.add_parser("plan", help="Print the declarative five-gate evidence plan.")
     plan.set_defaults(func=command_plan)
 
-    validate = sub.add_parser("validate", help="Evaluate a device evidence session and optional manual approvals.")
-    validate.add_argument("--session", required=True, help="Evidence session directory containing evidence-index.json")
+    validate = sub.add_parser("validate", help="Evaluate a candidate-bound device evidence session and optional manual approvals.")
+    validate.add_argument("--session", required=True, help="Evidence session directory containing session.json/evidence-index.json")
     validate.add_argument("--approvals", help="Optional manual approvals JSON pinned to the same APK SHA")
     validate.add_argument("--output", help="Optional readiness JSON output path")
     validate.set_defaults(func=command_validate)
