@@ -42,8 +42,9 @@ function Get-Value($Object, [string]$Name) {
 
 function Require-Bool($Object, [string]$Key, [bool]$Expected, [string]$Label) {
     $value = Get-Value $Object $Key
-    if ($null -eq $value -or [bool]$value -ne $Expected) {
-        Fail "$Label.$Key must be $($Expected.ToString().ToLowerInvariant()), found '$value'"
+    if ($null -eq $value -or $value -isnot [bool] -or $value -ne $Expected) {
+        $foundType = if ($null -eq $value) { '<null>' } else { $value.GetType().FullName }
+        Fail "$Label.$Key must be JSON boolean $($Expected.ToString().ToLowerInvariant()), found '$value' type=$foundType"
     }
 }
 
