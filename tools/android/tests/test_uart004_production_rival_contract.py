@@ -26,16 +26,17 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         self.assertIn("GameObject.CreatePrimitive(PrimitiveType.Cube)", text)
         self.assertIn("AFAREET_UART004_EDITOR_BLOCKOUT_RIVAL_ACTIVE", text)
 
-    def test_android_gate_builds_then_requires_all_three_authored_prefabs(self):
+    def test_android_gate_requires_preexisting_external_authored_prefabs(self):
         text = self._read("unity_game/Assets/Afareet/Editor/RivalProductionBuildGate.cs")
-        self.assertIn("RivalProductionAssetBuilder.BuildOrThrow", text)
+        self.assertNotIn("RivalProductionAssetBuilder.BuildOrThrow", text)
         self.assertIn("RivalProductionPolicy.VariantCount", text)
         self.assertIn("RivalProductionPolicy.AssetPath", text)
         self.assertIn("ValidateProductionPrefab", text)
         self.assertIn("AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED", text)
         self.assertIn("AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK", text)
+        self.assertIn("external-authored-3d", text)
 
-    def test_rival_quality_contract_requires_surface_authoring_and_identity(self):
+    def test_rival_quality_contract_requires_surface_authoring_identity_and_external_model_source(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
         for required in (
             "Art/Vehicles/Rivals/Production/PF_Rival_01_Production",
@@ -50,6 +51,12 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "mesh.uv",
             "mesh.normals",
             "material.mainTexture",
+            "IsSupportedAuthoredModelSource",
+            '".fbx"',
+            '".obj"',
+            '".blend"',
+            '".glb"',
+            '".gltf"',
         ):
             self.assertIn(required, text)
 
@@ -68,7 +75,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             self.assertGreater(variant["width"], 1.7)
             self.assertGreater(variant["bodyHeight"], 0.5)
 
-    def test_builder_creates_real_mesh_domains_not_unity_primitives(self):
+    def test_builder_creates_real_mesh_domains_but_is_not_external_model_provenance(self):
         text = self._read("unity_game/Assets/Afareet/Editor/RivalProductionAssetBuilder.cs")
         for required in (
             "BuildBody",
@@ -83,6 +90,12 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
         self.assertNotIn("GameObject.CreatePrimitive", text)
+
+        policy = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
+        self.assertIn("IsSupportedAuthoredModelSource(sourceAssetId)", policy)
+        # The generator supplies a profile id / JSON fingerprint, not an FBX/OBJ/BLEND/GLB/GLTF path.
+        # It can remain a useful geometry preview/candidate but cannot self-qualify as accepted production provenance.
+        self.assertIn("profile.id", text)
 
     def test_generated_rival_resources_are_ignored_not_committed_as_stale_truth(self):
         ignore = self._read(".gitignore")
