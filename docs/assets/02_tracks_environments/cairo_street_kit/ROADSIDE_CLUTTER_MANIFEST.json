@@ -5,7 +5,7 @@
   "sourceQuality": "authored-source-candidate",
   "sourceRoot": "docs/assets/02_tracks_environments/cairo_street_kit/source",
   "sourceDeliveryProgress": "3/3",
-  "runtimeIntegrationImplemented": false,
+  "runtimeIntegrationImplemented": true,
   "runtimeIntegrated": false,
   "runtimeIntegrationVerified": false,
   "authoringEvidence": {
@@ -52,10 +52,9 @@
     }
   ],
   "acceptancePending": [
-    "stage all three clutter sources into Unity Resources",
-    "deterministic runtime placement without primitive fallback",
-    "mobile LOD authoring for repeated clutter where required",
-    "licensed Unity import/render proof",
+    "licensed Unity compile/import/render verification of all three clutter Resources",
+    "exact runtime proof that authored buildings are decorated once with deterministic source-backed clutter",
+    "physical-device performance review of clutter LOD transitions and scene density",
     "exact Android in-race visual evidence",
     "owner/Art Director Visual Gate acceptance"
   ]
