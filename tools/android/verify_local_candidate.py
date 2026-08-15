@@ -76,6 +76,7 @@ def verify_test_mode(mode: Any, label: str) -> dict[str, int | str]:
         passed = int(mode.get("passed", 0))
         failed = int(mode.get("failed", 0))
         skipped = int(mode.get("skipped", 0))
+        inconclusive = int(mode.get("inconclusive", 0))
     except (TypeError, ValueError) as exc:
         raise CandidateError(f"{label} counters are not integers") from exc
     if total <= 0:
@@ -84,11 +85,18 @@ def verify_test_mode(mode: Any, label: str) -> dict[str, int | str]:
         raise CandidateError(f"{label} contains no passing tests; all-skipped/non-executed evidence is not release eligible")
     if failed != 0:
         raise CandidateError(f"{label} contains failed tests: {failed}")
+    if inconclusive != 0:
+        raise CandidateError(f"{label} contains inconclusive tests: {inconclusive}")
     if result.lower() not in PASS_RESULTS:
         raise CandidateError(f"{label} result is not passing: {result!r}")
-    if passed < 0 or skipped < 0 or passed + failed + skipped > total:
+    if min(passed, failed, skipped, inconclusive) < 0:
         raise CandidateError(
-            f"{label} counters are inconsistent: total={total} passed={passed} failed={failed} skipped={skipped}"
+            f"{label} counters cannot be negative: total={total} passed={passed} failed={failed} skipped={skipped} inconclusive={inconclusive}"
+        )
+    accounted = passed + failed + skipped + inconclusive
+    if accounted != total:
+        raise CandidateError(
+            f"{label} counters do not account for every test: total={total} accounted={accounted} passed={passed} failed={failed} skipped={skipped} inconclusive={inconclusive}"
         )
     return {
         "result": result,
@@ -96,6 +104,7 @@ def verify_test_mode(mode: Any, label: str) -> dict[str, int | str]:
         "passed": passed,
         "failed": failed,
         "skipped": skipped,
+        "inconclusive": inconclusive,
     }
 
 
