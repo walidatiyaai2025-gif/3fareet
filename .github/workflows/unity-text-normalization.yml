@@ -1,0 +1,86 @@
+name: Unity Text Normalization Contract
+
+on:
+  pull_request:
+    paths:
+      - '.gitattributes'
+      - 'unity_game/ProjectSettings/**'
+      - 'unity_game/Packages/**'
+      - '.github/workflows/unity-text-normalization.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '.gitattributes'
+      - 'unity_game/ProjectSettings/**'
+      - 'unity_game/Packages/**'
+      - '.github/workflows/unity-text-normalization.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  normalization-contract:
+    name: Unity LF normalization
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate Unity text attributes and tracked bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import subprocess
+          from pathlib import Path
+
+          ROOT = Path.cwd()
+          PATTERNS = (
+              'unity_game/ProjectSettings/*.asset',
+              'unity_game/ProjectSettings/*.txt',
+              'unity_game/Packages/*.json',
+          )
+
+          raw = subprocess.check_output(
+              ['git', 'ls-files', '-z', '--', *PATTERNS],
+              cwd=ROOT,
+          )
+          paths = [item.decode('utf-8') for item in raw.split(b'\0') if item]
+          if not paths:
+              raise SystemExit('::error::No tracked Unity metadata files matched the LF normalization contract.')
+
+          failures: list[str] = []
+          for path in paths:
+              attrs = subprocess.check_output(
+                  ['git', 'check-attr', 'text', 'eol', '--', path],
+                  cwd=ROOT,
+                  text=True,
+              ).splitlines()
+              attr_map: dict[str, str] = {}
+              for line in attrs:
+                  parts = line.rsplit(': ', 2)
+                  if len(parts) == 3:
+                      _, key, value = parts
+                      attr_map[key] = value
+
+              if attr_map.get('text') != 'set':
+                  failures.append(f'{path}: text={attr_map.get("text")!r}, expected set')
+              if attr_map.get('eol') != 'lf':
+                  failures.append(f'{path}: eol={attr_map.get("eol")!r}, expected lf')
+
+              data = (ROOT / path).read_bytes()
+              if b'\r\n' in data:
+                  failures.append(f'{path}: tracked content contains CRLF bytes')
+
+          if failures:
+              for failure in failures:
+                  print(f'::error::{failure}')
+              raise SystemExit(1)
+
+          print(f'AFAREET_UNITY_TEXT_NORMALIZATION_OK files={len(paths)} eol=lf')
+          PY
