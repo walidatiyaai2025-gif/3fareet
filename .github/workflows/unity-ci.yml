@@ -7,6 +7,7 @@ on:
       - 'docs/assets/01_vehicles/**'
       - 'docs/assets/02_tracks_environments/**'
       - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
+      - 'tools/android/verify_unity_test_results.py'
       - '.github/workflows/unity-ci.yml'
       - '.github/scripts/verify-unity-android-apk.sh'
   push:
@@ -17,6 +18,7 @@ on:
       - 'docs/assets/01_vehicles/**'
       - 'docs/assets/02_tracks_environments/**'
       - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
+      - 'tools/android/verify_unity_test_results.py'
       - '.github/workflows/unity-ci.yml'
       - '.github/scripts/verify-unity-android-apk.sh'
   workflow_dispatch:
@@ -49,6 +51,8 @@ jobs:
         run: |
           set -euo pipefail
           bash -n .github/scripts/verify-unity-android-apk.sh
+          python3 -m py_compile tools/android/verify_unity_test_results.py
+          python3 tools/android/verify_unity_test_results.py --help >/dev/null
           grep -Fq 'public static void BuildAndroid()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'com.fiftysolutions.afareetunity3d' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'AndroidArchitecture.ARM64' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
@@ -126,6 +130,14 @@ jobs:
           artifactsPath: artifacts/${{ matrix.testMode }}
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: Unity ${{ matrix.testMode }} Test Results
+
+      - name: Verify ${{ matrix.testMode }} has real passing test evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android/verify_unity_test_results.py \
+            --root "artifacts/${{ matrix.testMode }}" \
+            --label "${{ matrix.testMode }}"
 
       - name: Upload ${{ matrix.testMode }} test results
         if: always()
