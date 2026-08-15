@@ -1,19 +1,76 @@
 {
   "taskId": "UART-005",
-  "owner": "GPT-5.6 Sol / Environment Art-TechArt handoff",
-  "sourceOrLicense": "Original project-generated assets; no third-party source material",
-  "reviewState": "IN_REVIEW",
+  "owner": "Environment Art-TechArt handoff",
+  "sourceOrLicense": "Original project-generated blockout assets; replacement must be authored production 3D",
+  "reviewState": "BLOCKED",
+  "sourceQuality": "blockout",
+  "runtimeIntegrated": false,
+  "proceduralFallbackAllowedInCandidate": false,
+  "blockerIssue": 128,
   "unitMeters": 1.0,
   "axes": "+Y up, +Z forward, +X right",
   "sourceRoot": "docs/assets/02_tracks_environments/cairo_street_kit/source",
   "targetRuntimePath": "unity_game/Assets/Afareet/Art/TracksEnvironments/CairoStreetKit",
   "modules": [
-    {"model":"SM_Env_CairoFacade_A.obj","prefab":"PF_Env_CairoFacade_A.prefab","dimensionsMeters":[6.0,5.0,0.4],"atlasTile":"facade"},
-    {"model":"SM_Env_CairoAwning_A.obj","prefab":"PF_Env_CairoAwning_A.prefab","dimensionsMeters":[3.0,0.2,1.5],"atlasTile":"awning"},
-    {"model":"SM_Prop_CairoLamp_A.obj","prefab":"PF_Prop_CairoLamp_A.prefab","dimensionsMeters":[0.2,3.0,0.2],"atlasTile":"lamp"},
-    {"model":"SM_Prop_CairoBarrier_A.obj","prefab":"PF_Prop_CairoBarrier_A.prefab","dimensionsMeters":[2.0,0.6,0.4],"atlasTile":"barrier"}
+    {
+      "model": "SM_Env_CairoFacade_A.obj",
+      "prefab": "PF_Env_CairoFacade_A.prefab",
+      "dimensionsMeters": [6.0, 5.0, 0.4],
+      "atlasTile": "facade",
+      "productionMinVertices": 128,
+      "productionMinTriangles": 200,
+      "requiredDetails": ["window recesses", "door/storefront opening", "cornice/parapet silhouette", "non-flat facade depth"]
+    },
+    {
+      "model": "SM_Env_CairoAwning_A.obj",
+      "prefab": "PF_Env_CairoAwning_A.prefab",
+      "dimensionsMeters": [3.0, 0.2, 1.5],
+      "atlasTile": "awning",
+      "productionMinVertices": 48,
+      "productionMinTriangles": 72,
+      "requiredDetails": ["frame", "fabric/canopy volume", "edge profile"]
+    },
+    {
+      "model": "SM_Prop_CairoLamp_A.obj",
+      "prefab": "PF_Prop_CairoLamp_A.prefab",
+      "dimensionsMeters": [0.2, 3.0, 0.2],
+      "atlasTile": "lamp",
+      "productionMinVertices": 64,
+      "productionMinTriangles": 96,
+      "requiredDetails": ["pole profile", "fixture head", "mount/bracket"]
+    },
+    {
+      "model": "SM_Prop_CairoBarrier_A.obj",
+      "prefab": "PF_Prop_CairoBarrier_A.prefab",
+      "dimensionsMeters": [2.0, 0.6, 0.4],
+      "atlasTile": "barrier",
+      "productionMinVertices": 48,
+      "productionMinTriangles": 72,
+      "requiredDetails": ["beveled silhouette", "feet/supports", "reflective/signage surface"]
+    }
   ],
-  "atlas": {"file":"T_Env_CairoStreetKit_BC.png","size":[256,256],"tiles":4,"colorSpace":"sRGB","mipmaps":true},
-  "pivotRule": "Source OBJ pivot is the modular placement/contact minimum corner; runtime prefab root is the snap origin.",
-  "acceptancePending": ["Unity import", "prefab/material render review", "Android Visual Gate"]
+  "requiredProductionExpansion": [
+    "authored asphalt road/curb/edge modules",
+    "at least three facade/building variants",
+    "storefront/sign/awning variants",
+    "street props including lamps, barriers and roadside clutter",
+    "mobile LOD/collision setup",
+    "authored base-color plus normal/ORM or equivalent material detail where visually required"
+  ],
+  "atlas": {
+    "file": "T_Env_CairoStreetKit_BC.png",
+    "size": [256, 256],
+    "tiles": 4,
+    "colorSpace": "sRGB",
+    "mipmaps": true,
+    "status": "blockout-only"
+  },
+  "pivotRule": "Production source pivot must preserve modular snap/contact convention at the placement origin.",
+  "acceptancePending": [
+    "authored production source replacement",
+    "Unity import with non-built-in meshes",
+    "runtime replacement of procedural Cairo path",
+    "exact Android in-race visual evidence",
+    "owner/Art Director Visual Gate acceptance"
+  ]
 }
