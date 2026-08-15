@@ -26,6 +26,7 @@
       "productionMinTriangles": 200,
       "currentVertices": 136,
       "currentTriangles": 204,
+      "surfaceAuthoring": "pending",
       "requiredDetails": ["window recesses", "door/storefront opening", "cornice/parapet silhouette", "non-flat facade depth"]
     },
     {
@@ -38,6 +39,7 @@
       "productionMinTriangles": 72,
       "currentVertices": 64,
       "currentTriangles": 96,
+      "surfaceAuthoring": "pending",
       "requiredDetails": ["frame", "fabric/canopy volume", "edge profile"]
     },
     {
@@ -50,6 +52,7 @@
       "productionMinTriangles": 96,
       "currentVertices": 130,
       "currentTriangles": 236,
+      "surfaceAuthoring": "pending",
       "requiredDetails": ["pole profile", "fixture head", "mount/bracket"]
     },
     {
@@ -62,6 +65,7 @@
       "productionMinTriangles": 72,
       "currentVertices": 48,
       "currentTriangles": 72,
+      "surfaceAuthoring": "pending",
       "requiredDetails": ["beveled silhouette", "feet/supports", "reflective/signage surface"]
     },
     {
@@ -70,8 +74,9 @@
       "dimensionsMeters": [14.0, 0.22, 10.0],
       "productionMinVertices": 96,
       "productionMinTriangles": 150,
-      "currentVertices": 116,
-      "currentTriangles": 188,
+      "currentVertices": 96,
+      "currentTriangles": 150,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
       "requiredDetails": ["crowned asphalt cross-section", "edge seams", "center detail", "drainage geometry"]
     },
     {
@@ -80,8 +85,9 @@
       "dimensionsMeters": [0.98, 0.43, 10.0],
       "productionMinVertices": 80,
       "productionMinTriangles": 120,
-      "currentVertices": 96,
-      "currentTriangles": 144,
+      "currentVertices": 80,
+      "currentTriangles": 120,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate",
       "requiredDetails": ["curb body", "shoulder lip", "top cap", "reflector mounts", "neon channel"]
     }
   ],
@@ -100,6 +106,7 @@
     "landmarksStillProcedural": true
   },
   "requiredProductionExpansion": [
+    "surface-author facade, awning, lamp and barrier source candidates",
     "at least three facade/building variants",
     "storefront/sign/awning variants",
     "street props including lamps, barriers and roadside clutter",
@@ -117,8 +124,9 @@
   },
   "pivotRule": "Production source pivot must preserve modular snap/contact convention at the placement origin.",
   "acceptancePending": [
+    "surface authoring for facade, awning, lamp and barrier",
     "licensed Unity compile/import proof for all six authored Resources models",
-    "material/UV authoring and texture replacement",
+    "runtime integration verification on the exact production candidate",
     "authored landmark replacement",
     "additional building/environment variants",
     "exact Android in-race visual evidence",
