@@ -78,9 +78,12 @@ function Invoke-UnityTests([string]$Mode) {
     Remove-Item -Force $ResultPath -ErrorAction SilentlyContinue
     Remove-Item -Force $LogPath -ErrorAction SilentlyContinue
 
+    # Do not pass -quit here. Unity Test Framework owns the lifecycle for
+    # -runTests and exits the Editor after the run. With Unity 6000.5.8f1,
+    # combining -quit with -runTests can make batchmode exit after project
+    # initialization before the test run starts or writes the NUnit XML.
     $unityArgs = @(
         '-batchmode',
-        '-quit',
         '-projectPath', ('"{0}"' -f $ProjectPath),
         '-runTests',
         '-testPlatform', $Mode,
