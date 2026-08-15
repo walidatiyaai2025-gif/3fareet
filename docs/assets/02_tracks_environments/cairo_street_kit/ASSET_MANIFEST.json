@@ -63,6 +63,26 @@
       "currentVertices": 48,
       "currentTriangles": 72,
       "requiredDetails": ["beveled silhouette", "feet/supports", "reflective/signage surface"]
+    },
+    {
+      "model": "SM_Track_CairoRoad_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Track_CairoRoad_A",
+      "dimensionsMeters": [14.0, 0.22, 10.0],
+      "productionMinVertices": 96,
+      "productionMinTriangles": 150,
+      "currentVertices": 116,
+      "currentTriangles": 188,
+      "requiredDetails": ["crowned asphalt cross-section", "edge seams", "center detail", "drainage geometry"]
+    },
+    {
+      "model": "SM_Track_CairoCurb_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoStreetKit/Generated/SM_Track_CairoCurb_A",
+      "dimensionsMeters": [0.98, 0.43, 10.0],
+      "productionMinVertices": 80,
+      "productionMinTriangles": 120,
+      "currentVertices": 96,
+      "currentTriangles": 144,
+      "requiredDetails": ["curb body", "shoulder lip", "top cap", "reflector mounts", "neon channel"]
     }
   ],
   "runtimeReplacementStatus": {
@@ -70,18 +90,22 @@
     "authoredAwnings": "implemented-unverified",
     "authoredLamps": "implemented-unverified",
     "authoredBarriers": "implemented-unverified",
+    "authoredRoad": "implemented-unverified",
+    "authoredCurbs": "implemented-unverified",
     "primitiveBuildingFallbackInPlayer": false,
     "primitiveLampFallbackInPlayer": false,
-    "roadTrackStillProcedural": true,
+    "primitiveRoadFallbackInPlayer": false,
+    "primitiveRailFallbackInPlayer": false,
+    "roadTrackStillProcedural": false,
     "landmarksStillProcedural": true
   },
   "requiredProductionExpansion": [
-    "authored asphalt road/curb/edge modules",
     "at least three facade/building variants",
     "storefront/sign/awning variants",
     "street props including lamps, barriers and roadside clutter",
     "mobile LOD/collision setup",
-    "authored base-color plus normal/ORM or equivalent material detail where visually required"
+    "authored base-color plus normal/ORM or equivalent material detail where visually required",
+    "authored landmark and skyline replacement"
   ],
   "atlas": {
     "file": "T_Env_CairoStreetKit_BC.png",
@@ -93,9 +117,8 @@
   },
   "pivotRule": "Production source pivot must preserve modular snap/contact convention at the placement origin.",
   "acceptancePending": [
-    "licensed Unity compile/import proof for the authored Resources path",
+    "licensed Unity compile/import proof for all six authored Resources models",
     "material/UV authoring and texture replacement",
-    "authored road/track replacement",
     "authored landmark replacement",
     "additional building/environment variants",
     "exact Android in-race visual evidence",
