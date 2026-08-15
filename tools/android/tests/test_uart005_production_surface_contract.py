@@ -3,6 +3,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+SOURCE_ROOT = REPO_ROOT / "docs/assets/02_tracks_environments/cairo_street_kit/source"
 
 
 class Uart005ProductionSurfaceContractTests(unittest.TestCase):
@@ -24,14 +25,68 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
             min(v[2] for v in vertices), max(v[2] for v in vertices),
         )
 
-    def test_current_road_source_is_still_geometry_candidate_not_surface_ready(self):
-        road = self._read(
+    def _assert_surface_chain(self, model: str, material_file: str, material: str, texture: str):
+        obj = (SOURCE_ROOT / model).read_text(encoding="utf-8")
+        mtl = (SOURCE_ROOT / material_file).read_text(encoding="utf-8")
+        self.assertIn(f"mtllib {material_file}", obj)
+        self.assertIn(f"usemtl {material}", obj)
+        self.assertIn("\nvt ", "\n" + obj)
+        self.assertIn("\nvn ", "\n" + obj)
+        self.assertIn(f"newmtl {material}", mtl)
+        self.assertIn(f"map_Kd {texture}", mtl)
+        self.assertTrue((SOURCE_ROOT / texture).is_file())
+
+        faces = [line.strip() for line in obj.splitlines() if line.strip().startswith("f ")]
+        self.assertTrue(faces, model)
+        for face in faces:
+            for token in face.split()[1:]:
+                indices = token.split("/")
+                self.assertGreaterEqual(len(indices), 3, token)
+                self.assertTrue(indices[1], token)
+                self.assertTrue(indices[2], token)
+
+    def test_road_and_curb_now_have_tracked_surface_authoring(self):
+        self._assert_surface_chain(
+            "SM_Track_CairoRoad_A.obj",
+            "SM_Track_CairoRoad_A.mtl",
+            "Road_Surface",
+            "T_Track_CairoRoad_Surface_BC.png",
+        )
+        self._assert_surface_chain(
+            "SM_Track_CairoCurb_A.obj",
+            "SM_Track_CairoCurb_A.mtl",
+            "Curb_Surface",
+            "T_Track_CairoCurb_Surface_BC.png",
+        )
+
+    def test_road_and_curb_stay_inside_manifest_geometry_envelopes(self):
+        road = self._obj_bounds(
             "docs/assets/02_tracks_environments/cairo_street_kit/source/SM_Track_CairoRoad_A.obj"
         )
-        self.assertIn("v ", road)
-        self.assertIn("f ", road)
-        self.assertNotIn("\nvt ", "\n" + road)
-        self.assertNotIn("\nvn ", "\n" + road)
+        curb = self._obj_bounds(
+            "docs/assets/02_tracks_environments/cairo_street_kit/source/SM_Track_CairoCurb_A.obj"
+        )
+        self.assertAlmostEqual(-7.0, road[0], places=4)
+        self.assertAlmostEqual(7.0, road[1], places=4)
+        self.assertGreaterEqual(road[2], 0.0)
+        self.assertLessEqual(road[3], 0.22)
+        self.assertAlmostEqual(-5.0, road[4], places=4)
+        self.assertAlmostEqual(5.0, road[5], places=4)
+        self.assertGreaterEqual(curb[0], -0.49)
+        self.assertLessEqual(curb[1], 0.49)
+        self.assertGreaterEqual(curb[2], 0.0)
+        self.assertLessEqual(curb[3], 0.43)
+        self.assertAlmostEqual(-5.0, curb[4], places=4)
+        self.assertAlmostEqual(5.0, curb[5], places=4)
+
+    def test_remaining_facade_source_still_blocks_full_surface_promotion(self):
+        facade = self._read(
+            "docs/assets/02_tracks_environments/cairo_street_kit/source/SM_Env_CairoFacade_A.obj"
+        )
+        self.assertIn("v ", facade)
+        self.assertIn("f ", facade)
+        self.assertNotIn("\nvn ", "\n" + facade)
+        self.assertNotIn("\nmtllib ", "\n" + facade)
 
     def test_authored_awning_projects_outward_from_front_facade_and_stays_centered(self):
         awning_path = "docs/assets/02_tracks_environments/cairo_street_kit/source/SM_Env_CairoAwning_A.obj"
@@ -127,7 +182,7 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         self.assertNotIn("private static void ApplyNamedMaterials(", runtime)
         self.assertNotIn("private static void ApplyMaterial(GameObject", runtime)
 
-    def test_manifest_remains_blocked_until_surface_replacement_is_real(self):
+    def test_manifest_remains_blocked_until_all_surface_replacement_is_real(self):
         manifest = self._read("docs/assets/02_tracks_environments/cairo_street_kit/ASSET_MANIFEST.json")
         self.assertIn('"reviewState": "BLOCKED"', manifest)
         self.assertIn('"sourceQuality": "authored-source-candidate"', manifest)
