@@ -4,7 +4,10 @@ namespace Afareet.Vehicle
 {
     public static class HeroCarLodPolicy
     {
-        public const string ResourcePath = "Art/Vehicles/HeroCar/Generated/PF_Vehicle_AfareetKing_Production";
+        public const string ProductionResourcePath = "Art/Vehicles/HeroCar/Production/PF_Vehicle_AfareetKing_Production";
+        public const string GeneratedPreviewResourcePath = "Art/Vehicles/HeroCar/Generated/PF_Vehicle_AfareetKing_PreviewV2";
+        public const string ResourcePath = ProductionResourcePath;
+        public const string ProductionAssetPath = "Assets/Afareet/Resources/Art/Vehicles/HeroCar/Production/PF_Vehicle_AfareetKing_Production.prefab";
 
         public const float Lod0Transition = 0.18f;
         public const float Lod1Transition = 0.07f;
@@ -64,6 +67,8 @@ namespace Afareet.Vehicle
                 throw new InvalidOperationException("Hero triangle targets must decrease with distance.");
             if (!(MinimumTriangles[0] > MinimumTriangles[1] && MinimumTriangles[1] > MinimumTriangles[2]))
                 throw new InvalidOperationException("Hero minimum triangle floors must decrease with distance.");
+
+            HeroCarProductionQualityPolicy.ValidateContract();
         }
     }
 }
