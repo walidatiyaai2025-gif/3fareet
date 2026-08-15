@@ -4,8 +4,9 @@ namespace Afareet.World
 {
     /// <summary>
     /// Runtime presentation adapter for UART-005 tracked authored geometry.
-    /// Geometry comes from Unity-imported OBJ resources staged from tracked sources;
-    /// this class only applies authored transforms/materials and never constructs meshes.
+    /// Geometry comes from Unity-imported OBJ resources staged from tracked sources.
+    /// Editor preview may use temporary runtime materials; Player builds preserve imported
+    /// authored source materials so production texture mapping cannot be silently discarded.
     /// </summary>
     public static class CairoAuthoredStreetKit
     {
@@ -19,6 +20,7 @@ namespace Afareet.World
 
         private static bool activationLogged;
         private static bool roadActivationLogged;
+        private static bool editorMaterialOverrideLogged;
 
         public static bool TryCreateRoadSegment(
             Transform parent,
@@ -51,7 +53,7 @@ namespace Afareet.World
             road.transform.localPosition = Vector3.zero;
             road.transform.localRotation = Quaternion.identity;
             road.transform.localScale = new Vector3(xScale, 1f, zScale);
-            ApplyNamedMaterials(road, asphaltMaterial, accentMaterial, "EdgeSeam", "CenterDetail", "Drainage");
+            ApplyNamedMaterialsForEditorPreview(road, asphaltMaterial, accentMaterial, "EdgeSeam", "CenterDetail", "Drainage");
 
             var curbOffset = roadWidth * .5f + .28f;
             var rightCurb = Object.Instantiate(curbSource, root, false);
@@ -59,20 +61,20 @@ namespace Afareet.World
             rightCurb.transform.localPosition = new Vector3(curbOffset, 0f, 0f);
             rightCurb.transform.localRotation = Quaternion.identity;
             rightCurb.transform.localScale = new Vector3(1f, 1f, zScale);
-            ApplyNamedMaterials(rightCurb, curbMaterial, accentMaterial, "Reflector", "NeonChannel");
+            ApplyNamedMaterialsForEditorPreview(rightCurb, curbMaterial, accentMaterial, "Reflector", "NeonChannel");
 
             var leftCurb = Object.Instantiate(curbSource, root, false);
             leftCurb.name = "Authored Curb Left";
             leftCurb.transform.localPosition = new Vector3(-curbOffset, 0f, 0f);
             leftCurb.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
             leftCurb.transform.localScale = new Vector3(1f, 1f, zScale);
-            ApplyNamedMaterials(leftCurb, curbMaterial, accentMaterial, "Reflector", "NeonChannel");
+            ApplyNamedMaterialsForEditorPreview(leftCurb, curbMaterial, accentMaterial, "Reflector", "NeonChannel");
 
             LogActivation();
             if (!roadActivationLogged)
             {
                 roadActivationLogged = true;
-                Debug.Log("AFAREET_UART005_AUTHORED_ROAD_ACTIVE source=tracked-obj road=SM_Track_CairoRoad_A curb=SM_Track_CairoCurb_A");
+                Debug.Log("AFAREET_UART005_AUTHORED_ROAD_ACTIVE source=tracked-obj road=SM_Track_CairoRoad_A curb=SM_Track_CairoCurb_A playerMaterials=source-authored");
             }
             return true;
         }
@@ -119,7 +121,7 @@ namespace Afareet.World
                 canopy.transform.localPosition = new Vector3(-Mathf.Min(width * .32f, 1.5f), 1.55f, -width * .5f - .06f);
                 canopy.transform.localRotation = Quaternion.identity;
                 canopy.transform.localScale = new Vector3(Mathf.Min(1f, width / 6f), 1f, .78f);
-                ApplyMaterial(canopy, accentMaterial);
+                ApplyMaterialForEditorPreview(canopy, accentMaterial);
             }
 
             LogActivation();
@@ -139,7 +141,7 @@ namespace Afareet.World
             lamp.name = "AUTHORED CAIRO LAMP";
             lamp.transform.SetPositionAndRotation(position, rotation);
             lamp.transform.localScale = Vector3.one;
-            ApplyMaterial(lamp, material);
+            ApplyMaterialForEditorPreview(lamp, material);
 
             var lightHost = new GameObject("Lamp Practical Light");
             lightHost.transform.SetParent(lamp.transform, false);
@@ -170,7 +172,7 @@ namespace Afareet.World
             barrier.name = "AUTHORED CAIRO BARRIER";
             barrier.transform.SetPositionAndRotation(position, rotation);
             barrier.transform.localScale = new Vector3(Mathf.Max(.5f, lengthScale), 1f, 1f);
-            ApplyMaterial(barrier, material);
+            ApplyMaterialForEditorPreview(barrier, material);
             LogActivation();
             return true;
         }
@@ -189,11 +191,15 @@ namespace Afareet.World
             panel.transform.localPosition = localPosition;
             panel.transform.localRotation = localRotation;
             panel.transform.localScale = localScale;
-            ApplyMaterial(panel, material);
+            ApplyMaterialForEditorPreview(panel, material);
         }
 
-        private static void ApplyNamedMaterials(GameObject instance, Material baseMaterial, Material accentMaterial, params string[] accentNameTokens)
+        private static void ApplyNamedMaterialsForEditorPreview(GameObject instance, Material baseMaterial, Material accentMaterial, params string[] accentNameTokens)
         {
+            if (!Application.isEditor)
+                return;
+
+            LogEditorMaterialOverride();
             if (instance == null) return;
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
@@ -219,8 +225,12 @@ namespace Afareet.World
             }
         }
 
-        private static void ApplyMaterial(GameObject instance, Material material)
+        private static void ApplyMaterialForEditorPreview(GameObject instance, Material material)
         {
+            if (!Application.isEditor)
+                return;
+
+            LogEditorMaterialOverride();
             if (instance == null || material == null) return;
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
@@ -232,6 +242,13 @@ namespace Afareet.World
             }
         }
 
+        private static void LogEditorMaterialOverride()
+        {
+            if (editorMaterialOverrideLogged) return;
+            editorMaterialOverrideLogged = true;
+            Debug.Log("AFAREET_UART005_EDITOR_PREVIEW_MATERIAL_OVERRIDE production=false player-preserves-source-materials=true");
+        }
+
         private static void Missing(string path)
         {
             Debug.LogError($"AFAREET_UART005_AUTHORED_RESOURCE_MISSING path={path}");
@@ -241,7 +258,7 @@ namespace Afareet.World
         {
             if (activationLogged) return;
             activationLogged = true;
-            Debug.Log("AFAREET_UART005_AUTHORED_RUNTIME_ACTIVE geometry=tracked-obj resources=staged");
+            Debug.Log("AFAREET_UART005_AUTHORED_RUNTIME_ACTIVE geometry=tracked-obj resources=staged playerMaterials=source-authored");
         }
     }
 }
