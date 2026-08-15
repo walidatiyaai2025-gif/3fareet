@@ -1,0 +1,8 @@
+{
+  "name": "Afareet.RaceEditModeTests",
+  "rootNamespace": "Afareet.Tests.Race",
+  "references": ["Afareet.Race", "Afareet.World", "Afareet.Vehicle"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

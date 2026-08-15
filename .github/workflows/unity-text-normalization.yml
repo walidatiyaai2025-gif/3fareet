@@ -1,0 +1,54 @@
+name: Unity Text Normalization Contract
+
+on:
+  pull_request:
+    paths:
+      - '.gitattributes'
+      - 'unity_game/ProjectSettings/**'
+      - 'unity_game/Packages/**'
+      - 'tools/android/verify_unity_text_normalization.py'
+      - 'tools/android/tests/test_verify_unity_text_normalization.py'
+      - '.github/workflows/unity-text-normalization.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '.gitattributes'
+      - 'unity_game/ProjectSettings/**'
+      - 'unity_game/Packages/**'
+      - 'tools/android/verify_unity_text_normalization.py'
+      - 'tools/android/tests/test_verify_unity_text_normalization.py'
+      - '.github/workflows/unity-text-normalization.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  normalization-contract:
+    name: Unity LF normalization
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate verifier syntax and CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/android/verify_unity_text_normalization.py
+          python3 tools/android/verify_unity_text_normalization.py --help >/dev/null
+
+      - name: Validate Unity text attributes and tracked bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android/verify_unity_text_normalization.py --repo-root .
+
+      - name: Run normalization regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=tools/android python3 -m unittest \
+            tools.android.tests.test_verify_unity_text_normalization -v

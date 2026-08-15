@@ -1,0 +1,19 @@
+{
+  "taskId": "UART-005",
+  "owner": "GPT-5.6 Sol / Environment Art-TechArt handoff",
+  "sourceOrLicense": "Original project-generated assets; no third-party source material",
+  "reviewState": "IN_REVIEW",
+  "unitMeters": 1.0,
+  "axes": "+Y up, +Z forward, +X right",
+  "sourceRoot": "docs/assets/02_tracks_environments/cairo_street_kit/source",
+  "targetRuntimePath": "unity_game/Assets/Afareet/Art/TracksEnvironments/CairoStreetKit",
+  "modules": [
+    {"model":"SM_Env_CairoFacade_A.obj","prefab":"PF_Env_CairoFacade_A.prefab","dimensionsMeters":[6.0,5.0,0.4],"atlasTile":"facade"},
+    {"model":"SM_Env_CairoAwning_A.obj","prefab":"PF_Env_CairoAwning_A.prefab","dimensionsMeters":[3.0,0.2,1.5],"atlasTile":"awning"},
+    {"model":"SM_Prop_CairoLamp_A.obj","prefab":"PF_Prop_CairoLamp_A.prefab","dimensionsMeters":[0.2,3.0,0.2],"atlasTile":"lamp"},
+    {"model":"SM_Prop_CairoBarrier_A.obj","prefab":"PF_Prop_CairoBarrier_A.prefab","dimensionsMeters":[2.0,0.6,0.4],"atlasTile":"barrier"}
+  ],
+  "atlas": {"file":"T_Env_CairoStreetKit_BC.png","size":[256,256],"tiles":4,"colorSpace":"sRGB","mipmaps":true},
+  "pivotRule": "Source OBJ pivot is the modular placement/contact minimum corner; runtime prefab root is the snap origin.",
+  "acceptancePending": ["Unity import", "prefab/material render review", "Android Visual Gate"]
+}

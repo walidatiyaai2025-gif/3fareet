@@ -1,0 +1,8 @@
+{
+  "name": "Afareet.PlayModeTests",
+  "rootNamespace": "Afareet.Tests.PlayMode",
+  "references": ["Afareet.Race", "Afareet.Vehicle", "Afareet.World"],
+  "includePlatforms": [],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

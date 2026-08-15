@@ -1,0 +1,214 @@
+name: Windows Native Candidate Verifiers
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/*_windows.ps1'
+      - 'tools/android/run_local_candidate_windows.ps1'
+      - 'unity_game/Packages/**'
+      - 'unity_game/ProjectSettings/**'
+      - '.gitattributes'
+      - '.github/workflows/windows-native-verifiers.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-verifiers:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Parse native PowerShell scripts
+        shell: pwsh
+        run: |
+          $scripts = @(
+            'tools/android/materialize_unity_lf_windows.ps1',
+            'tools/android/verify_unity_text_normalization_windows.ps1',
+            'tools/android/verify_unity_package_lock_windows.ps1',
+            'tools/android/verify_local_candidate_windows.ps1',
+            'tools/android/run_local_candidate_windows.ps1'
+          )
+          foreach ($relativePath in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $relativePath),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "${relativePath}: $($_.Message)" }
+              exit 1
+            }
+          }
+          Write-Host 'AFAREET_WINDOWS_NATIVE_PARSE_OK'
+
+      - name: Reproduce and repair stale CRLF checkout
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repoRoot = (Resolve-Path '.').Path
+          $target = 'unity_game/Packages/manifest.json'
+          $targetPath = Join-Path $repoRoot $target
+
+          # Change line endings only, byte-for-byte. Do not decode/re-encode the
+          # JSON because that could alter a BOM or another byte and turn this
+          # into a content-change fixture instead of the stale-checkout case.
+          $inputBytes = [System.IO.File]::ReadAllBytes($targetPath)
+          $crlfBytes = New-Object System.Collections.Generic.List[byte]
+          for ($i = 0; $i -lt $inputBytes.Length; $i++) {
+            if ($inputBytes[$i] -eq 10 -and ($i -eq 0 -or $inputBytes[$i - 1] -ne 13)) {
+              $crlfBytes.Add([byte]13)
+              $crlfBytes.Add([byte]10)
+            } else {
+              $crlfBytes.Add($inputBytes[$i])
+            }
+          }
+          [System.IO.File]::WriteAllBytes($targetPath, $crlfBytes.ToArray())
+
+          $statusBefore = @(& git status --porcelain -- $target)
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect CRLF fixture Git status.' }
+          Write-Host "AFAREET_WINDOWS_CRLF_FIXTURE_STATUS count=$($statusBefore.Count)"
+
+          $strictRejected = $false
+          try {
+            & ./tools/android/verify_unity_text_normalization_windows.ps1 -RepoRoot $repoRoot
+          } catch {
+            if ($_.Exception.Message -match 'working-tree content contains CRLF bytes') {
+              $strictRejected = $true
+            } else {
+              throw
+            }
+          }
+          if (-not $strictRejected) {
+            throw 'Strict LF verifier did not reproduce the stale-CRLF checkout failure.'
+          }
+
+          & ./tools/android/materialize_unity_lf_windows.ps1 -RepoRoot $repoRoot
+
+          $statusAfter = @(& git status --porcelain)
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect Git status after LF materialization.' }
+          if ($statusAfter.Count -gt 0) {
+            throw "LF materialization must restore a clean Git tree, got: $($statusAfter -join '; ')"
+          }
+
+          & ./tools/android/verify_unity_text_normalization_windows.ps1 -RepoRoot $repoRoot
+          Write-Host 'AFAREET_WINDOWS_STALE_CRLF_REPAIR_OK'
+
+      - name: Verify Unity LF normalization natively
+        shell: pwsh
+        run: |
+          & ./tools/android/verify_unity_text_normalization_windows.ps1 -RepoRoot (Resolve-Path '.').Path
+
+      - name: Verify Unity package graph natively
+        shell: pwsh
+        run: |
+          & ./tools/android/verify_unity_package_lock_windows.ps1 -RepoRoot (Resolve-Path '.').Path
+
+      - name: Verify native candidate contract parity
+        shell: pwsh
+        run: |
+          $text = Get-Content -Raw 'tools/android/verify_local_candidate_windows.ps1'
+          foreach ($required in @(
+            'local-windows-licensed-unity-tests',
+            'local-windows-licensed-unity',
+            '6000.5.8f1',
+            'com.fiftysolutions.afareetunity3d',
+            'arm64-v8a',
+            'READY_FOR_PHYSICAL_DEVICE_EVIDENCE',
+            'verified = $false',
+            'Get-FileHash',
+            '$value -isnot [bool]'
+          )) {
+            if (-not $text.Contains($required)) {
+              throw "Native candidate verifier missing contract marker: $required"
+            }
+          }
+          Write-Host 'AFAREET_WINDOWS_NATIVE_CANDIDATE_CONTRACT_OK'
+
+      - name: Execute native candidate integrity fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'afareet-native-candidate-fixture'
+          Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+
+          $apk = Join-Path $root 'afareet-unity3d-debug.apk'
+          [System.IO.File]::WriteAllBytes($apk, [byte[]](1, 3, 3, 7, 42, 99, 5, 8))
+          $apkHash = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
+          $apkSize = (Get-Item -LiteralPath $apk).Length
+          $gitSha = ('a' * 40)
+
+          $tests = [ordered]@{
+            source = 'local-windows-licensed-unity-tests'
+            releaseEvidenceEligible = $true
+            dirtyTree = $false
+            gitSha = $gitSha
+            gitBranch = 'fixture'
+            unityVersion = '6000.5.8f1'
+            editMode = [ordered]@{
+              result = 'Passed'; total = 2; passed = 2; failed = 0; skipped = 0; inconclusive = 0
+            }
+            playMode = [ordered]@{
+              result = 'Passed'; total = 1; passed = 1; failed = 0; skipped = 0; inconclusive = 0
+            }
+          }
+          $build = [ordered]@{
+            source = 'local-windows-licensed-unity'
+            releaseEvidenceEligible = $true
+            gitDirty = $false
+            gitSha = $gitSha
+            gitBranch = 'fixture'
+            unityVersion = '6000.5.8f1'
+            artifact = 'afareet-unity3d-debug.apk'
+            packageId = 'com.fiftysolutions.afareetunity3d'
+            minSdk = 26
+            abi = 'arm64-v8a'
+            sha256 = $apkHash
+            sizeBytes = $apkSize
+          }
+
+          $testMetadata = Join-Path $root 'test-metadata.json'
+          $buildMetadata = Join-Path $root 'build-metadata.json'
+          $manifest = Join-Path $root 'candidate-manifest.json'
+          $tests | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $testMetadata -Encoding UTF8
+          $build | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $buildMetadata -Encoding UTF8
+
+          & ./tools/android/verify_local_candidate_windows.ps1 `
+            -TestMetadata $testMetadata `
+            -BuildMetadata $buildMetadata `
+            -Apk $apk `
+            -Output $manifest
+
+          $candidate = Get-Content -LiteralPath $manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($candidate.verified -ne $false) { throw 'Fixture candidate must remain verified=false.' }
+          if ($candidate.readyForDeviceEvidence -ne $true) { throw 'Fixture candidate must be readyForDeviceEvidence=true.' }
+          if ($candidate.verdict -ne 'READY_FOR_PHYSICAL_DEVICE_EVIDENCE') { throw 'Fixture candidate verdict mismatch.' }
+          if ($candidate.gitSha -ne $gitSha -or $candidate.apk.sha256 -ne $apkHash) { throw 'Fixture candidate provenance/hash mismatch.' }
+
+          $tests.releaseEvidenceEligible = 'true'
+          $badTestMetadata = Join-Path $root 'test-metadata-string-bool.json'
+          $badManifest = Join-Path $root 'bad-candidate-manifest.json'
+          $tests | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $badTestMetadata -Encoding UTF8
+          $rejected = $false
+          try {
+            & ./tools/android/verify_local_candidate_windows.ps1 `
+              -TestMetadata $badTestMetadata `
+              -BuildMetadata $buildMetadata `
+              -Apk $apk `
+              -Output $badManifest
+          } catch {
+            if ($_.Exception.Message -match 'must be JSON boolean') {
+              $rejected = $true
+            } else {
+              throw
+            }
+          }
+          if (-not $rejected) { throw 'Native candidate verifier accepted a string in place of a JSON boolean.' }
+
+          Write-Host 'AFAREET_WINDOWS_NATIVE_CANDIDATE_FIXTURE_OK'

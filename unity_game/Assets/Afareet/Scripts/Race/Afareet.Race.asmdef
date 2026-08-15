@@ -1,0 +1,6 @@
+{
+  "name": "Afareet.Race",
+  "rootNamespace": "Afareet.Race",
+  "references": ["Afareet.Vehicle", "Afareet.World"],
+  "autoReferenced": true
+}

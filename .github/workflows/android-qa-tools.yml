@@ -1,0 +1,280 @@
+name: Android QA Tools
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/**'
+      - 'unity_game/Assets/Afareet/Editor/AfareetBuild.cs'
+      - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
+      - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
+      - 'docs/qa/UNITY_CI_UNBLOCK.md'
+      - '.gitignore'
+      - '.gitattributes'
+      - '.github/workflows/android-qa-tools.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/android/**'
+      - 'unity_game/Assets/Afareet/Editor/AfareetBuild.cs'
+      - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
+      - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
+      - 'docs/qa/UNITY_CI_UNBLOCK.md'
+      - '.gitignore'
+      - '.gitattributes'
+      - '.github/workflows/android-qa-tools.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Android evidence harness unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Python syntax and CLI contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/android/device_evidence.py \
+            tools/android/export_device_evidence.py \
+            tools/android/verify_device_review_bundle.py \
+            tools/android/p1_gate_readiness.py \
+            tools/android/verify_release_publication.py \
+            tools/android/verify_local_candidate.py \
+            tools/android/verify_ci_candidate.py \
+            tools/android/prepare_candidate_device.py \
+            tools/android/verify_unity_test_results.py \
+            tools/android/verify_unity_package_lock.py
+          python3 tools/android/device_evidence.py --help >/dev/null
+          python3 tools/android/device_evidence.py prepare --help >/dev/null
+          python3 tools/android/device_evidence.py capture --help >/dev/null
+          python3 tools/android/device_evidence.py finish --help >/dev/null
+          python3 tools/android/export_device_evidence.py --help >/dev/null
+          python3 tools/android/verify_device_review_bundle.py --help >/dev/null
+          python3 tools/android/p1_gate_readiness.py --help >/dev/null
+          python3 tools/android/p1_gate_readiness.py plan >/dev/null
+          python3 tools/android/p1_gate_readiness.py validate --help >/dev/null
+          python3 tools/android/p1_gate_readiness.py approval-template --help >/dev/null
+          python3 tools/android/verify_release_publication.py --help >/dev/null
+          python3 tools/android/verify_local_candidate.py --help >/dev/null
+          python3 tools/android/verify_ci_candidate.py --help >/dev/null
+          python3 tools/android/prepare_candidate_device.py --help >/dev/null
+          python3 tools/android/verify_unity_test_results.py --help >/dev/null
+          python3 tools/android/verify_unity_package_lock.py --help >/dev/null
+          python3 -m json.tool tools/android/p1_gate_spec.json >/dev/null
+
+      - name: Validate generated evidence ignore contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe='artifacts/.afareet-candidate-evidence-probe'
+          if ! git check-ignore -q "$probe"; then
+            echo "::error::Local candidate evidence under artifacts/ must be ignored, otherwise fail-closed Git cleanliness checks reject their own generated output."
+            exit 1
+          fi
+          if git check-ignore -q 'unity_game/Packages/manifest.json'; then
+            echo '::error::Tracked Unity package source must never be hidden by the evidence ignore contract.'
+            exit 1
+          fi
+          echo 'Generated evidence ignore contract OK.'
+
+      - name: Validate Unity metadata LF contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=(
+            'unity_game/ProjectSettings/ProjectAuditorSettings.asset'
+            'unity_game/ProjectSettings/TimeManager.asset'
+            'unity_game/ProjectSettings/ProjectVersion.txt'
+            'unity_game/Packages/manifest.json'
+            'unity_game/Packages/packages-lock.json'
+          )
+          for path in "${paths[@]}"; do
+            text_attr="$(git check-attr text -- "$path")"
+            eol_attr="$(git check-attr eol -- "$path")"
+            echo "$text_attr"
+            echo "$eol_attr"
+            if [[ "$text_attr" != "$path: text: set" ]]; then
+              echo "::error::Unity metadata path must be explicitly text-normalized: $path"
+              exit 1
+            fi
+            if [[ "$eol_attr" != "$path: eol: lf" ]]; then
+              echo "::error::Unity metadata path must be pinned to LF: $path"
+              exit 1
+            fi
+          done
+          echo 'Unity metadata LF contract OK.'
+
+      - name: Validate Windows local Unity fallback contracts
+        shell: pwsh
+        run: |
+          $scripts = @(
+            'tools/android/build_current_windows.ps1',
+            'tools/android/test_current_windows.ps1',
+            'tools/android/run_local_candidate_windows.ps1',
+            'tools/android/verify_unity_text_normalization_windows.ps1',
+            'tools/android/verify_unity_package_lock_windows.ps1',
+            'tools/android/verify_local_candidate_windows.ps1'
+          )
+          foreach ($relativePath in $scripts) {
+            $scriptPath = Resolve-Path $relativePath
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $scriptPath,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "${relativePath}: $($_.Message)" }
+              exit 1
+            }
+          }
+
+          $buildText = Get-Content -Raw 'tools/android/build_current_windows.ps1'
+          if ($buildText.Contains('& $UnityPath \\')) {
+            throw 'Invalid build invocation: backslash must not be used as a line-continuation argument for Unity.'
+          }
+          $buildRequired = @(
+            'Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru',
+            '$unityProcess.ExitCode',
+            'AFAREET_BUILD_SUCCESS target=Android',
+            'AFAREET_STALE_BUILD_EVIDENCE_CLEARED',
+            '$ArtifactMetadataPath = Join-Path $ArtifactDir "artifact-metadata.json"',
+            '$ArtifactApkPath = Join-Path $ArtifactDir "afareet-unity3d-debug.apk"',
+            'git is required for SHA-pinned build evidence',
+            'releaseEvidenceEligible'
+          )
+          foreach ($required in $buildRequired) {
+            if (-not $buildText.Contains($required)) {
+              throw "Local Unity build fallback is missing required contract: $required"
+            }
+          }
+
+          $unityBuildText = Get-Content -Raw 'unity_game/Assets/Afareet/Editor/AfareetBuild.cs'
+          foreach ($required in @(
+            'AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath)',
+            'Build scene is missing or invalid'
+          )) {
+            if (-not $unityBuildText.Contains($required)) {
+              throw "Unity build source is missing immutable-scene contract: $required"
+            }
+          }
+          foreach ($forbidden in @(
+            'EditorSceneManager.NewScene',
+            'EditorSceneManager.SaveScene',
+            'SaveScene(scene, ScenePath)'
+          )) {
+            if ($unityBuildText.Contains($forbidden)) {
+              throw "Unity build must not regenerate or resave the tracked prototype scene: $forbidden"
+            }
+          }
+
+          $testText = Get-Content -Raw 'tools/android/test_current_windows.ps1'
+          if ($testText.Contains('& $UnityPath \\')) {
+            throw 'Invalid test invocation: backslash must not be used as a line-continuation argument for Unity.'
+          }
+          if ($testText -match "(?m)^\s*'-quit',\s*$") {
+            throw 'Local Unity test invocation must not pass -quit; Unity Test Framework owns editor exit for -runTests.'
+          }
+          $testRequired = @(
+            'Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru',
+            '$unityProcess.ExitCode',
+            'AFAREET_STALE_TEST_METADATA_CLEARED',
+            '$MetadataPath = Join-Path $ArtifactDir "test-metadata.json"',
+            'git is required for SHA-pinned test evidence',
+            'releaseEvidenceEligible',
+            "Invoke-UnityTests 'EditMode'",
+            "Invoke-UnityTests 'PlayMode'",
+            "'-runTests'",
+            "'-testPlatform'",
+            "'-testResults'",
+            '$resultXml.''test-run''',
+            'Write-TestCaseDiagnostics',
+            'AFAREET_TEST_CASE result=',
+            '$total -le 0',
+            '$passed -le 0',
+            '$failed -gt 0',
+            '$inconclusive -gt 0',
+            '$accounted -ne $total'
+          )
+          foreach ($required in $testRequired) {
+            if (-not $testText.Contains($required)) {
+              throw "Local Unity test fallback is missing required contract: $required"
+            }
+          }
+
+          $candidateText = Get-Content -Raw 'tools/android/run_local_candidate_windows.ps1'
+          $candidateRequired = @(
+            'Assert-CleanTree "UNITY_TESTS"',
+            'Assert-CleanTree "UNITY_BUILD"',
+            'Assert-CleanTree "CANDIDATE_VERIFY"',
+            'Assert-CleanTree "STALE_EVIDENCE_PURGE"',
+            'Assert-CleanTree "PACKAGE_PREFLIGHT"',
+            'Clear-StaleCandidateEvidence',
+            'AFAREET_STALE_CANDIDATE_EVIDENCE_CLEARED',
+            'Preserve-DirtyTreeEvidence',
+            'AFAREET_DIRTY_TREE_EVIDENCE',
+            'AFAREET_WINDOWS_NATIVE_VERIFIERS_OK pythonRequired=False',
+            'AFAREET_TEXT_NORMALIZATION_PREFLIGHT_START',
+            'AFAREET_TEXT_NORMALIZATION_PREFLIGHT_OK',
+            'AFAREET_PACKAGE_PREFLIGHT_START',
+            'AFAREET_PACKAGE_PREFLIGHT_OK',
+            'verify_unity_text_normalization_windows.ps1',
+            'verify_unity_package_lock_windows.ps1',
+            'verify_local_candidate_windows.ps1',
+            'git-dirty-$phaseKey.status.txt',
+            'git-dirty-$phaseKey.patch',
+            'git-dirty-$phaseKey.stderr.txt',
+            "'diff', '--binary', 'HEAD', '--'",
+            'Start-Process',
+            '-RedirectStandardOutput $patchPath',
+            '-RedirectStandardError $stderrPath',
+            '$gitProcess.ExitCode',
+            'artifacts\local-candidate-manifest.json',
+            'artifacts\unity-local-tests\test-metadata.json',
+            'artifacts\android-local\artifact-metadata.json',
+            'AFAREET_LOCAL_CANDIDATE_OK',
+            'Candidate orchestration requires a clean Git working tree before Unity starts.',
+            '$sharedParams.UnityPath = $UnityPath',
+            '& $testScript @sharedParams',
+            '& $buildScript @sharedParams'
+          )
+          foreach ($required in $candidateRequired) {
+            if (-not $candidateText.Contains($required)) {
+              throw "Local candidate orchestrator is missing fail-closed contract: $required"
+            }
+          }
+          foreach ($forbidden in @('Resolve-Python3', 'Test-Python3Candidate', 'AFAREET_PYTHON_RESOLVED', 'verify_local_candidate.py', 'verify_unity_package_lock.py', 'verify_unity_text_normalization.py')) {
+            if ($candidateText.Contains($forbidden)) {
+              throw "Windows candidate orchestrator must not depend on Python: $forbidden"
+            }
+          }
+          if ($candidateText.Contains('@sharedArgs')) {
+            throw 'Local candidate orchestrator must use named splatting, not positional string-array forwarding.'
+          }
+          if ($candidateText -match '(?m)^\s*\$patch\s*=.*2>&1') {
+            throw 'Dirty-tree binary diff must not merge Git stderr into stdout; non-fatal Git warnings can become NativeCommandError in Windows PowerShell.'
+          }
+
+          $nativeCandidateText = Get-Content -Raw 'tools/android/verify_local_candidate_windows.ps1'
+          foreach ($required in @('READY_FOR_PHYSICAL_DEVICE_EVIDENCE', 'verified = $false', 'Get-FileHash', 'releaseEvidenceEligible', 'dirtyTree', 'gitDirty')) {
+            if (-not $nativeCandidateText.Contains($required)) {
+              throw "Native Windows candidate verifier is missing required integrity contract: $required"
+            }
+          }
+
+          Write-Host 'PowerShell syntax and semantic fallback/orchestration contracts OK.'
+
+      - name: Run standard-library unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_*.py' -v

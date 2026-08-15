@@ -1,8 +1,8 @@
 # عفاريت الأسفلت — Master Development Plan
 
 **Document:** AFA-PLAN-001  
-**Version:** 1.3 Baseline  
-**Date:** 2026-08-12  
+**Version:** 2.0 Unity Production Baseline
+**Date:** 2026-08-13
 **Status:** Controlled team reference
 
 > قاعدة التحكم: أي تعديل في Scope أو Architecture أو ترتيب الأولويات أو Art Direction يجب أن يدخل الخطة وسجل المهام قبل بدء التنفيذ.
@@ -33,6 +33,17 @@
 - Garage + customization + seasons + Asphalt Pass.
 - Target: 60 FPS على الأجهزة المستهدفة مع quality tiers.
 
+## Locked client architecture — 2026-08-13
+
+- **Production game client:** Unity `6000.5.8f1` داخل `unity_game/`.
+- **Rendering target:** Mobile-first stylized 3D؛ يبدأ Built-in pipeline الحالي كـVertical Slice ثم يحسم `UART-008` قرار URP وترحيله قبل التوسع الفني.
+- **Flutter/Flame:** Legacy mechanics/UI prototype في الجذر. يبقى قابلًا للبناء للاختبارات والمقارنة، لكن لا يستقبل Features إنتاجية جديدة دون Task `FLT-*`.
+- **Source migration rule:** تنقل القواعد والـConfig المقصودة إلى Unity بإعادة تنفيذ واختبارات؛ لا يعتمد Unity Runtime على Dart/Flutter.
+- **Artifact identity:** `afareet-unity3d-*` للمنتج و`afareet-flutter-*` للمرجع.
+- **Active task source:** [`tasks/06-UNITY-3D-MIGRATION.md`](tasks/06-UNITY-3D-MIGRATION.md).
+
+هذا القرار يحل محل Architecture Risk Gate القديم الذي افترض Flutter كعميل نهائي. أي عكس للقرار يحتاج ADR وموافقة Product Owner + Unity Tech Lead.
+
 ## Mandatory Art Direction
 المرجع التفصيلي موجود في [`docs/ART_DIRECTION.md`](ART_DIRECTION.md). الصور المرجعية المقدمة من مالك المشروع أصبحت Visual Constitution للمشروع.
 
@@ -50,15 +61,15 @@
 
 القرار المعماري المعتمد موثق في [`docs/BACKEND_ARCHITECTURE.md`](BACKEND_ARCHITECTURE.md):
 
-- Game client: Flutter + Flame.
+- Game client: **Unity 3D production client**؛ Flutter legacy prototype ليس عميل الإنتاج.
 - Backend/API: **Laravel**.
 - Primary database: **MySQL**.
-- مسار البيانات الإلزامي: `Flutter/Flame → HTTPS API → Laravel → MySQL`.
-- ممنوع اتصال تطبيق Flutter مباشرة بقاعدة MySQL أو تضمين credentials قاعدة البيانات داخل التطبيق.
+- مسار البيانات الإلزامي: `Unity Game Client → HTTPS API → Laravel → MySQL`.
+- ممنوع اتصال أي Client مباشرة بقاعدة MySQL أو تضمين credentials قاعدة البيانات داخل التطبيق.
 - Laravel مسؤول عن auth/authorization/validation/business rules/economy validation/persistence/audit/rate limiting.
 - التنفيذ الكبير للـBackend يظل مؤجلًا حتى نجاح P1، لكن هذا القرار Locked من الآن لمنع أي coupling خاطئ في كود اللعبة.
 
-## P1 — Mandatory Playable Prototype Gate
+## U-P1 — Mandatory Unity 3D Vertical Slice Gate
 أعلى أولوية في المشروع. لا يبدأ التوسع الكبير في Backend/Store/Online قبل نجاح هذا الـGate.
 
 **Required:**
@@ -74,17 +85,18 @@
 - Cairo fantasy lighting/look-dev ظاهر داخل الـPrototype.
 - Release Android build يعمل على جهاز حقيقي.
 - آخر APK اجتاز التحقق يوضع في `Last verified APK released/`.
+- Build صادر من `unity_game/` باسم `afareet-unity3d-*`؛ Flutter APK لا يغلق هذا الـGate.
 
 ## Phases
 
-### P0 — تأسيس المشروع ونظام الفريق
+### P0 — تأسيس المشروع ونظام الفريق — DONE/MAINTAINED
 - هيكل Repository واضح
 - وثائق Architecture/Tasks/Assets/Art Direction
 - CI skeleton
 - مجلد Last verified APK released
 - Project Status Dashboard + freshness enforcement
 
-### P1 — Prototype قابل للعب - أعلى أولوية
+### U-P1 — Unity 3D Vertical Slice — أعلى أولوية حاليًا
 - سيارة واحدة قابلة للقيادة
 - حلبة مصرية Fantasy واحدة
 - لفة واحدة
@@ -92,6 +104,12 @@
 - 1-3 AI
 - Premium HUD وvisual identity
 - APK Android Verified
+
+### FLT-L — Flutter Legacy Reference
+- يبقى Build/Analyze/Test صالحًا.
+- لا Features إنتاجية مزدوجة.
+- يستخدم كمرجع للـRules والـTelemetry والـFlow أثناء Migration.
+- كل عمل جديد يحتاج Task `FLT-*` ومبررًا واضحًا.
 
 ### P2 — Driving & Racing Core
 - Vehicle configuration
@@ -188,6 +206,8 @@
 - أي interface مشتركة تُعدل في Task مستقلة أولًا.
 - VIS tasks إلزامية للـPrototype ولا تعتبر polish اختياريًا.
 - أي تغير فعلي في وضع المشروع يجب أن ينعكس في `docs/PROJECT_STATUS.md` داخل نفس PR.
+- كل مساهم جديد يبدأ من [`ONBOARDING.md`](ONBOARDING.md) ويلتزم بـ[`TEAM_WORKFLOW.md`](TEAM_WORKFLOW.md).
+- Active locks تسجل في [`MODULE_OWNERSHIP.md`](MODULE_OWNERSHIP.md) قبل `IN PROGRESS`.
 
 ## Task states
 `TODO → READY → IN PROGRESS → BLOCKED/IN REVIEW → DONE → VERIFIED`
@@ -199,8 +219,8 @@
 - metadata: commit SHA, build date, device/API, tester, smoke result, SHA-256.
 - إذا لا توجد نسخة Verified، لا يتم وضع APK وهمي.
 
-## Architecture risk gate
-المشروع يبدأ بـFlutter + Flame حسب الرؤية الحالية. P1 يجب أن يثبت عمليًا أن متطلبات القيادة/الكاميرا/عرض الأصول/الـVFX والاتجاه البصري والأداء قابلة للتنفيذ بصورة مستقرة. إذا فشل الـGate، يرفع ADR قبل أي توسع.
+## Architecture decision record
+تم حسم الـArchitecture Risk Gate لصالح Unity 3D في 2026-08-13. مشروع Flutter أصبح Legacy Reference. يجب أن يثبت U-P1 عمليًا القيادة والكاميرا والأصول والـVFX والأداء على Android قبل التوسع في Career/Backend/Online.
 
 قرار Backend مستقل ومقفل: Laravel + MySQL خلف HTTPS API؛ لا يتم استخدام MySQL كواجهة مباشرة للعميل تحت أي ظرف.
 
@@ -210,4 +230,8 @@
 - `docs/BACKEND_ARCHITECTURE.md`
 - `docs/ART_DIRECTION.md`
 - `docs/TASK_REGISTER.md`
+- `docs/tasks/06-UNITY-3D-MIGRATION.md`
+- `docs/ONBOARDING.md`
+- `docs/TEAM_WORKFLOW.md`
+- `docs/MODULE_OWNERSHIP.md`
 - `docs/MISSED_ASSETS.md`

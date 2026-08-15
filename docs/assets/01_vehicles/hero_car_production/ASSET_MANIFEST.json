@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "taskId": "UART-003",
+  "assetId": "Vehicle_AfareetKing",
+  "owner": "Vehicle Artist / Technical Art",
+  "sourceOrLicense": "Original project-authored geometry; no third-party model or texture dependency.",
+  "coordinateSystem": {
+    "unitMeters": 1.0,
+    "upAxis": "+Y",
+    "forwardAxis": "+Z",
+    "rightAxis": "+X"
+  },
+  "sourceRoot": "docs/assets/01_vehicles/hero_car_production/source",
+  "targetRuntimePath": "unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated",
+  "runtimeGeneration": "Afareet.Editor.HeroCarProductionAssetBuilder.BuildOrThrow",
+  "reviewState": "IN REVIEW",
+  "lodTransitions": [0.18, 0.07, 0.01],
+  "lods": [
+    {
+      "name": "SM_Vehicle_AfareetKing_LOD0",
+      "file": "source/SM_Vehicle_AfareetKing_LOD0.obj",
+      "vertices": 274,
+      "triangles": 476,
+      "triangleBudgetMax": 600,
+      "sha256": "6733bb0d4c4baf5cf6ce32ab11252bb99ecea5baed67204a90f736bab9beb063"
+    },
+    {
+      "name": "SM_Vehicle_AfareetKing_LOD1",
+      "file": "source/SM_Vehicle_AfareetKing_LOD1.obj",
+      "vertices": 194,
+      "triangles": 332,
+      "triangleBudgetMax": 400,
+      "sha256": "bc7031c09adcc8c846b78b79fd44854e1974fe99ffb2936a40d7dcdc42bc71a5"
+    },
+    {
+      "name": "SM_Vehicle_AfareetKing_LOD2",
+      "file": "source/SM_Vehicle_AfareetKing_LOD2.obj",
+      "vertices": 104,
+      "triangles": 180,
+      "triangleBudgetMax": 220,
+      "sha256": "a3cef8d0afab1cbeafa853ca54216d203c7a828f0d0d12f4c81c9a1a1ee01bd5"
+    }
+  ],
+  "materials": ["Body", "Glass", "Wheel", "GoldTrim", "Black", "Spirit"],
+  "textureBudget": {
+    "runtimeTextureCount": 0,
+    "estimatedTextureMemoryKb": 0,
+    "decision": "P1 Hero uses shader-color materials only. Texture maps are intentionally deferred until visual/device budget evidence allows them."
+  },
+  "identity": [
+    "low aggressive fictional coupe silhouette",
+    "black/purple/gold Afareet identity",
+    "four exposed performance wheels",
+    "gold splitter/wing details at near LODs",
+    "spirit hood/headlight signature"
+  ]
+}

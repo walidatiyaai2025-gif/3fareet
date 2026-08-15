@@ -18,14 +18,15 @@ import 'package:flutter/services.dart';
 
 class AfareetGame extends FlameGame with SingleGameInstance {
   AfareetGame({required this.bootstrap})
-      : musicController = PrototypeMusicController(bundle: rootBundle);
+    : musicController = PrototypeMusicController(bundle: rootBundle);
 
   final GameBootstrap bootstrap;
   final PrototypeMusicController musicController;
   final GameInputState input = GameInputState();
   final RacingCameraController racingCamera = RacingCameraController();
-  final VehicleTuningController vehicleTuning =
-      VehicleTuningController(PrototypeVehiclePreset.definition);
+  final VehicleTuningController vehicleTuning = VehicleTuningController(
+    PrototypeVehiclePreset.definition,
+  );
   final ValueNotifier<GameTelemetry> telemetry = ValueNotifier<GameTelemetry>(
     GameTelemetry.initial,
   );
@@ -68,7 +69,9 @@ class AfareetGame extends FlameGame with SingleGameInstance {
       // Audio must never block the playable prototype from booting.
     }
 
-    await world.add(PrototypeScene(trackId: config.prototypeTrackId));
+    // The visual prototype is attached to the viewport so the deterministic
+    // camera controller can keep evolving without moving the 2.5D projection.
+    await camera.viewport.add(PrototypeScene(trackId: config.prototypeTrackId));
   }
 
   @override
@@ -95,8 +98,8 @@ class AfareetGame extends FlameGame with SingleGameInstance {
       final progress = session.track.totalLengthMeters <= 0
           ? 0.0
           : (session.distanceAlongLapMeters / session.track.totalLengthMeters)
-              .clamp(0.0, 1.0)
-              .toDouble();
+                .clamp(0.0, 1.0)
+                .toDouble();
       telemetry.value = telemetry.value.copyWith(
         fps: fps,
         frameTimeMs: fps > 0 ? 1000 / fps : 0,
@@ -127,8 +130,8 @@ class AfareetGame extends FlameGame with SingleGameInstance {
     final driftIntensity = maxSlip <= 0
         ? 0.0
         : (session.vehicle.state.lateralSlipMps.abs() / maxSlip)
-            .clamp(0.0, 1.0)
-            .toDouble();
+              .clamp(0.0, 1.0)
+              .toDouble();
     racingCamera.step(
       dt: stepSeconds,
       trackDistanceMeters: session.distanceAlongLapMeters,

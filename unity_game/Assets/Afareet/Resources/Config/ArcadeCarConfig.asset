@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d64c3d540d7a9e74ca53ce9927e0400a, type: 3}
+  m_Name: ArcadeCarConfig
+  m_EditorClassIdentifier: Afareet.Vehicle::Afareet.Vehicle.ArcadeCarConfig
+  acceleration: 34
+  reverseAcceleration: 15
+  maxSpeedMetersPerSecond: 48
+  nitroForce: 25
+  steerStrengthDegrees: 105
+  grip: 8
+  driftGrip: 2.1
+  tractionSlipThresholdMetersPerSecond: 3.5
+  tractionStrength: 0.55
+  driftGripMinimumSteer: 0.2
+  driftGripFullSlipMetersPerSecond: 5
+  offRoadGripMultiplier: 0.58
+  offRoadAccelerationMultiplier: 0.72
+  offRoadMaxSpeedMultiplier: 0.66
+  boostGripMultiplier: 0.95
+  boostAccelerationMultiplier: 1.18
+  boostMaxSpeedMultiplier: 1.1
+  slipperyGripMultiplier: 0.42
+  slipperyAccelerationMultiplier: 0.75
+  slipperyMaxSpeedMultiplier: 0.82
+  massKilograms: 1150
+  linearDamping: 0.15
+  angularDamping: 3.5
+  centerOfMass: {x: 0, y: -0.45, z: 0.15}
+  nitroLowSpeedForceScale: 0.7
+  nitroFullForceSpeedRatio: 0.72
+  nitroMinimumSpeedKph: 15
+  nitroMinimumActivationEnergy: 0.12
+  nitroCooldownSeconds: 0.85
+  nitroConsumptionPerSecond: 0.22
+  nitroRechargePerSecond: 0.06
+  driftEnergyGainPerSecond: 0.24
+  driftEnergyDecayPerSecond: 0.1
+  driftEnergyMinimumSteer: 0.2
+  driftEnergyMinimumSpeedKph: 30
+  driftEnergyMinimumSlipMetersPerSecond: 0.8
+  driftEnergyFullGainSlipMetersPerSecond: 6

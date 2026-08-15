@@ -2,12 +2,13 @@
 
 **Document:** AFA-ARCH-BE-001  
 **Decision:** APPROVED  
-**Date:** 2026-08-12  
+**Date:** 2026-08-13
 **Scope:** Backend foundation contract only; implementation remains gated behind P1 Playable Prototype.
 
 ## Locked stack decision
 
-- Mobile/Game client: Flutter + Flame.
+- Production mobile/game client: Unity 3D.
+- Legacy reference client: Flutter + Flame؛ لا يتصل بالـBackend الإنتاجي دون Task صريحة.
 - Backend application/API: Laravel.
 - Primary relational database: MySQL.
 - Client/server transport: HTTPS JSON REST API for normal game/account/economy operations.
@@ -15,11 +16,11 @@
 
 ## Mandatory security boundary
 
-The Flutter application **must never connect directly to MySQL** and must never contain database credentials.
+أي Client، بما فيه Unity وFlutter legacy، **ممنوع** أن يتصل مباشرة بـMySQL أو يحتوي credentials.
 
 Required data path:
 
-`Flutter / Flame Client → HTTPS API → Laravel → MySQL`
+`Unity Game Client → HTTPS API → Laravel → MySQL`
 
 Laravel owns authentication, authorization, validation, rate limiting, business rules, persistence, audit logging and server-side anti-cheat/economy validation.
 
@@ -69,7 +70,7 @@ Planned modules map to the existing BCK task register:
 
 This architecture decision is locked now so current gameplay code does not evolve toward direct database coupling. However, substantial Laravel/MySQL implementation remains deferred until the P1 playable prototype proves the driving loop, visual direction and Android release path.
 
-A small API client abstraction may be introduced in Flutter before P6 only when required to preserve clean boundaries; it must not block the playable prototype.
+A small API client abstraction may be introduced in Unity before P6 only to preserve clean boundaries; it must not block U-P1. أي Flutter API work يحتاج `FLT-*` وموافقة Backend Lead.
 
 ## Definition of Done for BCK-001
 

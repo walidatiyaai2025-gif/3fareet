@@ -1,0 +1,7 @@
+# Keep Unity text metadata deterministic across Windows/macOS/Linux checkouts.
+# Unity rewrites ProjectSettings and package metadata as LF; enforce that in both
+# the repository and working tree so Windows core.autocrlf cannot create false
+# dirty-tree evidence after licensed test/build runs.
+unity_game/ProjectSettings/*.asset text eol=lf
+unity_game/ProjectSettings/*.txt text eol=lf
+unity_game/Packages/*.json text eol=lf

@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &100100200
+GameObject:
+  m_ObjectHideFlags: 0
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 400100200}
+  m_Layer: 0
+  m_Name: PF_Prop_CairoLamp_A
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &400100200
+Transform:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 100100200}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 400100201}
+  m_Father: {fileID: 0}
+--- !u!1 &100100201
+GameObject:
+  m_ObjectHideFlags: 0
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 400100201}
+  - component: {fileID: 330100201}
+  - component: {fileID: 230100201}
+  - component: {fileID: 650100201}
+  m_Layer: 0
+  m_Name: SM_Prop_CairoLamp_A
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &400100201
+Transform:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 100100201}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.1, y: 1.5, z: 0.1}
+  m_LocalScale: {x: 0.2, y: 3, z: 0.2}
+  m_Children: []
+  m_Father: {fileID: 400100200}
+--- !u!33 &330100201
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 100100201}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &230100201
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 100100201}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_Materials:
+  - {fileID: 2100000, guid: b1030000000000000000000000000003, type: 2}
+--- !u!65 &650100201
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 100100201}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}

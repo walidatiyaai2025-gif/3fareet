@@ -11,6 +11,7 @@ try {
     flutter create --empty --no-pub --platforms=android --org com.fiftysolutions --project-name afareet_asphalt $scaffold
     if (Test-Path 'android') { Remove-Item 'android' -Recurse -Force }
     Copy-Item (Join-Path $scaffold 'android') 'android' -Recurse
+    & (Join-Path $PSScriptRoot 'apply_flutter_branding.ps1')
     Write-Host 'Android scaffold generated. Run: flutter pub get; flutter build apk --debug'
 }
 finally {

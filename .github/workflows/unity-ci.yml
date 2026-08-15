@@ -1,0 +1,274 @@
+name: Unity Production CI
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/**'
+      - 'docs/assets/01_vehicles/**'
+      - 'docs/assets/02_tracks_environments/**'
+      - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
+      - 'tools/android/verify_unity_test_results.py'
+      - 'tools/android/verify_ci_candidate.py'
+      - 'tools/android/verify_unity_package_lock.py'
+      - '.github/workflows/unity-ci.yml'
+      - '.github/scripts/verify-unity-android-apk.sh'
+  push:
+    branches:
+      - main
+    paths:
+      - 'unity_game/**'
+      - 'docs/assets/01_vehicles/**'
+      - 'docs/assets/02_tracks_environments/**'
+      - 'docs/work/U3D-012-ANDROID-CI-ARTIFACT.md'
+      - 'tools/android/verify_unity_test_results.py'
+      - 'tools/android/verify_ci_candidate.py'
+      - 'tools/android/verify_unity_package_lock.py'
+      - '.github/workflows/unity-ci.yml'
+      - '.github/scripts/verify-unity-android-apk.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: unity-production-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UNITY_PROJECT_PATH: unity_game
+  UNITY_VERSION: 6000.5.8f1
+
+jobs:
+  static-contract:
+    name: Unity CI static contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Validate Android CI contract without Unity
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/scripts/verify-unity-android-apk.sh
+          python3 -m py_compile \
+            tools/android/verify_unity_test_results.py \
+            tools/android/verify_ci_candidate.py \
+            tools/android/verify_unity_package_lock.py
+          python3 tools/android/verify_unity_test_results.py --help >/dev/null
+          python3 tools/android/verify_ci_candidate.py --help >/dev/null
+          python3 tools/android/verify_unity_package_lock.py --help >/dev/null
+          python3 tools/android/verify_unity_package_lock.py
+          grep -Fq 'public static void BuildAndroid()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'com.fiftysolutions.afareetunity3d' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'AndroidArchitecture.ARM64' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'afareet-unity3d-debug.apk' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'github-actions-unity-production-ci' .github/scripts/verify-unity-android-apk.sh
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('unity_game/Assets/Afareet/Tests/PlayMode/Afareet.PlayModeTests.asmdef')
+          payload = json.loads(path.read_text(encoding='utf-8'))
+          if payload.get('name') != 'Afareet.PlayModeTests':
+              raise SystemExit(f'::error::Unexpected PlayMode assembly name: {payload.get("name")!r}')
+          if payload.get('includePlatforms') != []:
+              raise SystemExit(
+                  '::error::Afareet.PlayModeTests must not be Editor-only; '
+                  f'includePlatforms={payload.get("includePlatforms")!r}'
+              )
+          optional = payload.get('optionalUnityReferences')
+          if not isinstance(optional, list) or 'TestAssemblies' not in optional:
+              raise SystemExit('::error::Afareet.PlayModeTests must retain TestAssemblies optionalUnityReferences.')
+          if payload.get('autoReferenced') is not False:
+              raise SystemExit('::error::Afareet.PlayModeTests must remain autoReferenced=false.')
+          print('Unity PlayMode test assembly classification contract is present.')
+          PY
+          echo 'Unity Android CI static contract is present.'
+
+  license-preflight:
+    name: Unity license preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: static-contract
+    steps:
+      - name: Validate Unity CI credentials
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        run: |
+          set -euo pipefail
+
+          has_email=false
+          has_password=false
+          has_license=false
+          has_serial=false
+          [[ -n "${UNITY_EMAIL:-}" ]] && has_email=true
+          [[ -n "${UNITY_PASSWORD:-}" ]] && has_password=true
+          [[ -n "${UNITY_LICENSE:-}" ]] && has_license=true
+          [[ -n "${UNITY_SERIAL:-}" ]] && has_serial=true
+
+          if [[ "$has_license" == true && "$has_email" == true && "$has_password" == true ]]; then
+            echo 'Unity Personal/file-license credential set is configured.'
+            exit 0
+          fi
+
+          if [[ "$has_serial" == true && "$has_email" == true && "$has_password" == true ]]; then
+            echo 'Unity Professional serial credential set is configured.'
+            exit 0
+          fi
+
+          echo "::error::Unity CI licensing is incomplete. Configure either UNITY_LICENSE + UNITY_EMAIL + UNITY_PASSWORD, or UNITY_SERIAL + UNITY_EMAIL + UNITY_PASSWORD."
+          echo "::notice::Present flags: UNITY_LICENSE=$has_license UNITY_SERIAL=$has_serial UNITY_EMAIL=$has_email UNITY_PASSWORD=$has_password"
+          exit 1
+
+  tests:
+    name: Unity ${{ matrix.testMode }} tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: license-preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        testMode:
+          - editmode
+          - playmode
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Run ${{ matrix.testMode }} tests
+        uses: game-ci/unity-test-runner@v4.3.1
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          projectPath: ${{ env.UNITY_PROJECT_PATH }}
+          unityVersion: ${{ env.UNITY_VERSION }}
+          testMode: ${{ matrix.testMode }}
+          artifactsPath: artifacts/${{ matrix.testMode }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Unity ${{ matrix.testMode }} Test Results
+
+      - name: Verify ${{ matrix.testMode }} has real passing test evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android/verify_unity_test_results.py \
+            --root "artifacts/${{ matrix.testMode }}" \
+            --label "${{ matrix.testMode }}"
+
+      - name: Upload ${{ matrix.testMode }} test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: unity-${{ matrix.testMode }}-results-${{ github.sha }}
+          path: artifacts/${{ matrix.testMode }}
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-build:
+    name: Unity Windows x64 build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Build Windows x64
+        uses: game-ci/unity-builder@v5.0.0
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          projectPath: ${{ env.UNITY_PROJECT_PATH }}
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: StandaloneWindows64
+          buildMethod: Afareet.Editor.AfareetBuild.BuildWindows
+
+      - name: Verify Windows artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f unity_game/Builds/Windows/afareet-unity3d.exe
+          test -s unity_game/Builds/Windows/afareet-unity3d.exe
+          echo 'Windows build artifact exists and is non-empty.'
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v6
+        with:
+          name: afareet-unity3d-windows-${{ github.sha }}
+          path: unity_game/Builds/Windows/
+          if-no-files-found: error
+          retention-days: 14
+
+  android-build:
+    name: Unity Android ARM64 debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    needs: tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Build Android ARM64 debug APK
+        uses: game-ci/unity-builder@v5.0.0
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          projectPath: ${{ env.UNITY_PROJECT_PATH }}
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: Android
+          androidExportType: androidPackage
+          buildMethod: Afareet.Editor.AfareetBuild.BuildAndroid
+
+      - name: Verify APK identity, ARM64 payload and SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/verify-unity-android-apk.sh \
+            unity_game/Builds/Android/afareet-unity3d-debug.apk \
+            artifacts/android
+
+      - name: Bind verified CI metadata to exact APK candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android/verify_ci_candidate.py \
+            --artifact-metadata artifacts/android/artifact-metadata.json \
+            --apk unity_game/Builds/Android/afareet-unity3d-debug.apk \
+            --output artifacts/android/ci-candidate-manifest.json
+
+      - name: Upload Android APK and inspection evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: afareet-unity3d-android-${{ github.sha }}
+          path: |
+            unity_game/Builds/Android/afareet-unity3d-debug.apk
+            artifacts/android/
+          if-no-files-found: error
+          retention-days: 14

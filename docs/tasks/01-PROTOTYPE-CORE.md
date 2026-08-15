@@ -4,19 +4,19 @@
 Owner default: **Team Lead**
 | ID | Priority | Task | Owner | Status |
 |---|---|---|---|---|
-| GOV-001 | P0 | إنشاء README للمشروع وربطه بالمراجع الرسمية | Team Lead | TODO |
-| GOV-002 | P0 | إنشاء docs structure ومؤشر الوثائق | Team Lead | TODO |
-| GOV-003 | P0 | تثبيت Branch naming convention | Team Lead | TODO |
-| GOV-004 | P0 | تثبيت Task ownership وModule Lock policy | Team Lead | TODO |
-| GOV-005 | P0 | تثبيت Definition of Done وVerified | Team Lead | TODO |
-| GOV-006 | P0 | إنشاء CHANGELOG structure | Team Lead | TODO |
-| GOV-007 | P0 | إنشاء Architecture Decision Records folder | Team Lead | TODO |
-| GOV-008 | P0 | إنشاء coding conventions | Team Lead | TODO |
-| GOV-009 | P0 | إنشاء asset naming conventions | Team Lead | TODO |
-| GOV-010 | P0 | إنشاء release versioning policy | Team Lead | TODO |
-| GOV-011 | P0 | إنشاء Last verified APK released policy | Team Lead | TODO |
-| GOV-012 | P0 | إعداد issue/PR templates | Team Lead | TODO |
-| GOV-013 | P0 | إعداد baseline labels/status vocabulary | Team Lead | TODO |
+| GOV-001 | P0 | إنشاء README للمشروع وربطه بالمراجع الرسمية | Team Lead | VERIFIED |
+| GOV-002 | P0 | إنشاء docs structure ومؤشر الوثائق | Team Lead | VERIFIED |
+| GOV-003 | P0 | تثبيت Branch naming convention | Team Lead | VERIFIED |
+| GOV-004 | P0 | تثبيت Task ownership وModule Lock policy | Team Lead | VERIFIED |
+| GOV-005 | P0 | تثبيت Definition of Done وVerified | Team Lead | VERIFIED |
+| GOV-006 | P0 | إنشاء CHANGELOG structure | Team Lead | VERIFIED |
+| GOV-007 | P0 | إنشاء Architecture Decision Records folder | Team Lead | VERIFIED |
+| GOV-008 | P0 | إنشاء coding conventions | Team Lead | VERIFIED |
+| GOV-009 | P0 | إنشاء asset naming conventions | Team Lead | VERIFIED |
+| GOV-010 | P0 | إنشاء release versioning policy | Team Lead | VERIFIED |
+| GOV-011 | P0 | إنشاء Last verified APK released policy | Team Lead | VERIFIED |
+| GOV-012 | P0 | إعداد issue/PR templates | Team Lead | VERIFIED |
+| GOV-013 | P0 | إعداد baseline labels/status vocabulary | Team Lead | DONE |
 ## PRO — Prototype Foundation
 Owner default: **Flutter/Flame Developer**
 | ID | Priority | Task | Owner | Status |

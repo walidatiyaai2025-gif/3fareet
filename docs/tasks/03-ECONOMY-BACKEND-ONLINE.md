@@ -75,6 +75,6 @@ Owner default: **Backend/Network Engineer + Gameplay Lead**
 
 ## BCK-001 Evidence
 - Architecture: [`../BACKEND_ARCHITECTURE.md`](../BACKEND_ARCHITECTURE.md)
-- Locked data path: `Flutter/Flame → HTTPS API → Laravel → MySQL`.
+- Locked production data path: `Unity Game Client → HTTPS API → Laravel → MySQL`; Flutter is a legacy reference client and direct database access is prohibited for every client.
 - Direct client-to-MySQL access is prohibited.
 - Implementation remains deferred until the P1 playable prototype gate unless a small interface-only task is explicitly approved.
