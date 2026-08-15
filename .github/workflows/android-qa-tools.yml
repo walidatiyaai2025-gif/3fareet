@@ -43,7 +43,8 @@ jobs:
             tools/android/verify_local_candidate.py \
             tools/android/verify_ci_candidate.py \
             tools/android/prepare_candidate_device.py \
-            tools/android/verify_unity_test_results.py
+            tools/android/verify_unity_test_results.py \
+            tools/android/verify_unity_package_lock.py
           python3 tools/android/device_evidence.py --help >/dev/null
           python3 tools/android/device_evidence.py prepare --help >/dev/null
           python3 tools/android/device_evidence.py capture --help >/dev/null
@@ -54,6 +55,7 @@ jobs:
           python3 tools/android/verify_ci_candidate.py --help >/dev/null
           python3 tools/android/prepare_candidate_device.py --help >/dev/null
           python3 tools/android/verify_unity_test_results.py --help >/dev/null
+          python3 tools/android/verify_unity_package_lock.py --help >/dev/null
           python3 -m json.tool tools/android/p1_gate_spec.json >/dev/null
 
       - name: Validate generated evidence ignore contract
@@ -154,10 +156,14 @@ jobs:
             'Assert-CleanTree "UNITY_BUILD"',
             'Assert-CleanTree "CANDIDATE_VERIFY"',
             'Assert-CleanTree "STALE_EVIDENCE_PURGE"',
+            'Assert-CleanTree "PACKAGE_PREFLIGHT"',
             'Clear-StaleCandidateEvidence',
             'AFAREET_STALE_CANDIDATE_EVIDENCE_CLEARED',
             'Preserve-DirtyTreeEvidence',
             'AFAREET_DIRTY_TREE_EVIDENCE',
+            'AFAREET_PACKAGE_PREFLIGHT_START',
+            'AFAREET_PACKAGE_PREFLIGHT_OK',
+            'verify_unity_package_lock.py',
             'git-dirty-$phaseKey.status.txt',
             'git-dirty-$phaseKey.patch',
             'diff --binary HEAD --',
