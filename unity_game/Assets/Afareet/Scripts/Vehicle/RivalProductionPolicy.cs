@@ -25,7 +25,7 @@ namespace Afareet.Vehicle
 
         public bool DeclaresProductionAuthoring =>
             authoredExternalSource && uv0Authored && normalsAuthored && textureMappedMaterials &&
-            !string.IsNullOrWhiteSpace(sourceAssetId) &&
+            RivalProductionPolicy.IsSupportedAuthoredModelSource(sourceAssetId) &&
             !string.IsNullOrWhiteSpace(assetVersion) &&
             !string.IsNullOrWhiteSpace(sourceFingerprint);
 
@@ -51,8 +51,9 @@ namespace Afareet.Vehicle
     }
 
     /// <summary>
-    /// Fail-closed UART-004 contract for three authored rival production vehicles.
-    /// Historical CarFactory bodies and editor stripe/fin primitives can never satisfy it.
+    /// Fail-closed UART-004 contract for three externally authored rival production vehicles.
+    /// Historical CarFactory bodies, Editor stripe/fin primitives and code-generated design-profile
+    /// meshes can never satisfy production provenance on their own.
     /// </summary>
     public static class RivalProductionPolicy
     {
@@ -72,6 +73,11 @@ namespace Afareet.Vehicle
             "Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/PF_Rival_03_Production.prefab"
         };
 
+        private static readonly string[] AuthoredModelSuffixes =
+        {
+            ".fbx", ".obj", ".blend", ".glb", ".gltf"
+        };
+
         public static readonly int[] MinimumTriangles = { 1800, 800, 350 };
         public static readonly int[] MaximumTriangles = { 16000, 8000, 4000 };
 
@@ -85,6 +91,17 @@ namespace Afareet.Vehicle
         {
             ValidateVariantIndex(variantIndex);
             return AssetPaths[variantIndex];
+        }
+
+        public static bool IsSupportedAuthoredModelSource(string sourceAssetId)
+        {
+            if (string.IsNullOrWhiteSpace(sourceAssetId)) return false;
+            foreach (var suffix in AuthoredModelSuffixes)
+            {
+                if (sourceAssetId.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
         }
 
         public static bool MeetsProductionFloor(int lod, int triangleCount, bool allMeshesHaveUv0, bool allMeshesHaveAuthoredNormals, bool hasTextureMappedMaterial)
@@ -104,6 +121,16 @@ namespace Afareet.Vehicle
             if (metadata.VariantIndex != variantIndex)
             {
                 reason = $"variant-metadata-mismatch-{metadata.VariantIndex}-{variantIndex}";
+                return false;
+            }
+            if (!metadata.AuthoredExternalSource)
+            {
+                reason = "external-authored-source-required";
+                return false;
+            }
+            if (!IsSupportedAuthoredModelSource(metadata.SourceAssetId))
+            {
+                reason = $"unsupported-authored-model-source:{metadata.SourceAssetId ?? "<null>"}";
                 return false;
             }
             if (!metadata.DeclaresProductionAuthoring) { reason = "production-metadata-incomplete"; return false; }
@@ -158,6 +185,8 @@ namespace Afareet.Vehicle
                 throw new InvalidOperationException("UART-004 must define exactly three production rival paths.");
             if (MinimumTriangles.Length != 3 || MaximumTriangles.Length != 3)
                 throw new InvalidOperationException("UART-004 must define exactly three LOD quality bands.");
+            if (AuthoredModelSuffixes.Length < 5)
+                throw new InvalidOperationException("UART-004 must retain the supported external 3D source suffix contract.");
             for (var lod = 0; lod < 3; lod++)
             {
                 if (MinimumTriangles[lod] <= 0 || MaximumTriangles[lod] <= MinimumTriangles[lod])
