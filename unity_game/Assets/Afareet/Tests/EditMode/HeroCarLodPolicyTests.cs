@@ -9,6 +9,7 @@ namespace Afareet.Tests
         public void HeroLodContractIsInternallyValid()
         {
             Assert.DoesNotThrow(HeroCarLodPolicy.ValidateContract);
+            Assert.DoesNotThrow(HeroCarProductionQualityPolicy.ValidateContract);
         }
 
         [Test]
@@ -37,6 +38,29 @@ namespace Afareet.Tests
         }
 
         [Test]
+        public void GeneratedV2GeometryStillCannotPassProductionWithoutAuthoredSurfaceData()
+        {
+            Assert.That(
+                HeroCarProductionQualityPolicy.MeetsProductionFloor(
+                    lod: 0,
+                    triangleCount: 4592,
+                    hasUv0: false,
+                    hasAuthoredNormals: false,
+                    hasTextureMappedMaterial: false),
+                Is.False,
+                "More triangles alone must never turn the generated V2 preview into UART-003 production art.");
+        }
+
+        [Test]
+        public void ProductionQualityRequiresUvNormalsAndTextureMapping()
+        {
+            Assert.That(HeroCarProductionQualityPolicy.MeetsProductionFloor(0, 5000, false, true, true), Is.False);
+            Assert.That(HeroCarProductionQualityPolicy.MeetsProductionFloor(0, 5000, true, false, true), Is.False);
+            Assert.That(HeroCarProductionQualityPolicy.MeetsProductionFloor(0, 5000, true, true, false), Is.False);
+            Assert.That(HeroCarProductionQualityPolicy.MeetsProductionFloor(0, 5000, true, true, true), Is.True);
+        }
+
+        [Test]
         public void UnderDetailedOrOverBudgetGeometryIsRejected()
         {
             Assert.That(HeroCarLodPolicy.IsWithinBudget(0, HeroCarLodPolicy.MinimumVertices[0] - 1, HeroCarLodPolicy.MinimumTriangles[0]), Is.False);
@@ -55,11 +79,16 @@ namespace Afareet.Tests
         }
 
         [Test]
-        public void ProductionPrefabResourcePathIsStable()
+        public void ProductionAndGeneratedPreviewResourcePathsAreSeparated()
         {
             Assert.That(
-                HeroCarLodPolicy.ResourcePath,
-                Is.EqualTo("Art/Vehicles/HeroCar/Generated/PF_Vehicle_AfareetKing_Production"));
+                HeroCarLodPolicy.ProductionResourcePath,
+                Is.EqualTo("Art/Vehicles/HeroCar/Production/PF_Vehicle_AfareetKing_Production"));
+            Assert.That(HeroCarLodPolicy.ResourcePath, Is.EqualTo(HeroCarLodPolicy.ProductionResourcePath));
+            Assert.That(
+                HeroCarLodPolicy.GeneratedPreviewResourcePath,
+                Is.EqualTo("Art/Vehicles/HeroCar/Generated/PF_Vehicle_AfareetKing_PreviewV2"));
+            Assert.That(HeroCarLodPolicy.GeneratedPreviewResourcePath, Is.Not.EqualTo(HeroCarLodPolicy.ProductionResourcePath));
         }
     }
 }
