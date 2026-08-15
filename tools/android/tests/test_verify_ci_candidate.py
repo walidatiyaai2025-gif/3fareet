@@ -50,6 +50,8 @@ class VerifyCiCandidateTests(unittest.TestCase):
             self.assertTrue(manifest["readyForDeviceEvidence"])
             self.assertFalse(manifest["verified"])
             self.assertEqual(manifest["githubRun"]["runId"], "12345")
+            self.assertEqual(manifest["githubRun"]["repository"], "walidatiyaai2025-gif/3fareet")
+            self.assertEqual(manifest["githubRun"]["workflow"], "Unity Production CI")
 
     def test_rejects_wrong_source_or_missing_run_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -62,6 +64,30 @@ class VerifyCiCandidateTests(unittest.TestCase):
             metadata = metadata_for(apk)
             metadata["runId"] = ""
             with self.assertRaisesRegex(CiCandidateError, "runId"):
+                verify_ci_candidate(metadata, apk)
+
+    def test_rejects_wrong_repository_workflow_event_or_ref(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = self.make_apk(tmp)
+
+            metadata = metadata_for(apk)
+            metadata["repository"] = "other/repo"
+            with self.assertRaisesRegex(CiCandidateError, "Unexpected GitHub repository"):
+                verify_ci_candidate(metadata, apk)
+
+            metadata = metadata_for(apk)
+            metadata["workflow"] = "Other Workflow"
+            with self.assertRaisesRegex(CiCandidateError, "Unexpected GitHub workflow"):
+                verify_ci_candidate(metadata, apk)
+
+            metadata = metadata_for(apk)
+            metadata["eventName"] = "schedule"
+            with self.assertRaisesRegex(CiCandidateError, "Unexpected GitHub eventName"):
+                verify_ci_candidate(metadata, apk)
+
+            metadata = metadata_for(apk)
+            metadata["ref"] = ""
+            with self.assertRaisesRegex(CiCandidateError, "refs/\*"):
                 verify_ci_candidate(metadata, apk)
 
     def test_rejects_git_sha_mismatch_shape(self):
