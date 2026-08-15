@@ -1,0 +1,208 @@
+name: UART005 Author Mobile LODs
+
+on:
+  push:
+    branches:
+      - agent/p1-production-world-hard-gate
+    paths:
+      - .github/workflows/uart005-author-mobile-lods.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: uart005-author-mobile-lods
+  cancel-in-progress: false
+
+jobs:
+  author:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/p1-production-world-hard-gate
+          fetch-depth: 0
+
+      - name: Author 22 distinct LOD1 and LOD2 static source assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/p1-production-world-hard-gate
+          git reset --hard origin/agent/p1-production-world-hard-gate
+          git fetch origin 5cf93078004fd511c84534a5a1af3c27e3849462
+          git show 5cf93078004fd511c84534a5a1af3c27e3849462:tools/android/surface_obj_candidate.py > /tmp/surface_obj_candidate.py
+
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import math
+          import subprocess
+          from pathlib import Path
+
+          root=Path('docs/assets/02_tracks_environments/cairo_street_kit/source')
+          helper=Path('/tmp/surface_obj_candidate.py')
+
+          class Mesh:
+              def __init__(self,name): self.name=name; self.vertices=[]; self.faces=[]
+              def v(self,x,y,z): self.vertices.append((x,y,z)); return len(self.vertices)
+              def box(self,cx,cy,cz,sx,sy,sz):
+                  x0,x1=cx-sx/2,cx+sx/2; y0,y1=cy-sy/2,cy+sy/2; z0,z1=cz-sz/2,cz+sz/2
+                  a,b,c,d,e,f,g,h=[self.v(*p) for p in ((x0,y0,z0),(x1,y0,z0),(x1,y1,z0),(x0,y1,z0),(x0,y0,z1),(x1,y0,z1),(x1,y1,z1),(x0,y1,z1))]
+                  self.faces += [(a,b,c),(a,c,d),(e,g,f),(e,h,g),(a,e,f),(a,f,b),(b,f,g),(b,g,c),(c,g,h),(c,h,d),(d,h,e),(d,e,a)]
+              def frustum(self,cx,cz,y0,y1,r0,r1,segments):
+                  bot=[]; top=[]
+                  for i in range(segments):
+                      a=2*math.pi*i/segments
+                      bot.append(self.v(cx+r0*math.cos(a),y0,cz+r0*math.sin(a)))
+                      top.append(self.v(cx+r1*math.cos(a),y1,cz+r1*math.sin(a)))
+                  bc=self.v(cx,y0,cz); tc=self.v(cx,y1,cz)
+                  for i in range(segments):
+                      j=(i+1)%segments
+                      self.faces += [(bot[i],bot[j],top[j]),(bot[i],top[j],top[i]),(bc,bot[j],bot[i]),(tc,top[i],top[j])]
+              def cyl(self,cx,cz,y0,y1,r,segments): self.frustum(cx,cz,y0,y1,r,r,segments)
+              def write(self,path):
+                  lines=[f'# UART-005 mobile LOD authored source: {self.name}',f'o {self.name}','s 1']
+                  lines += [f'v {x:.5f} {y:.5f} {z:.5f}' for x,y,z in self.vertices]
+                  lines += [f'f {a} {b} {c}' for a,b,c in self.faces]
+                  path.write_text('\n'.join(lines)+'\n',encoding='utf-8')
+
+          specs=[
+              dict(key='facade-a',base='SM_Env_CairoFacade_A',kind='facade_a',mat='Facade_Surface',tex='T_Env_CairoFacade_Surface_BC.png',lod0=204),
+              dict(key='facade-b',base='SM_Env_CairoFacade_B',kind='facade_b',mat='Facade_B_Surface',tex='T_Env_CairoFacade_B_BC.png',lod0=324),
+              dict(key='facade-c',base='SM_Env_CairoFacade_C',kind='facade_c',mat='Facade_C_Surface',tex='T_Env_CairoFacade_C_BC.png',lod0=300),
+              dict(key='awning-a',base='SM_Env_CairoAwning_A',kind='awning',mat='Awning_Surface',tex='T_Env_CairoAwning_Surface_BC.png',lod0=96),
+              dict(key='awning-b',base='SM_Env_CairoAwning_B',kind='awning_b',mat='Awning_B_Surface',tex='T_Env_CairoAwning_B_BC.png',lod0=132),
+              dict(key='lamp-a',base='SM_Prop_CairoLamp_A',kind='lamp',mat='Lamp_Surface',tex='T_Prop_CairoLamp_Surface_BC.png',lod0=112),
+              dict(key='barrier-a',base='SM_Prop_CairoBarrier_A',kind='barrier',mat='Barrier_Surface',tex='T_Prop_CairoBarrier_Surface_BC.png',lod0=92),
+              dict(key='sign-a',base='SM_Prop_CairoSign_A',kind='sign',mat='Sign_Surface',tex='T_Prop_CairoSign_A_BC.png',lod0=120),
+              dict(key='planter-a',base='SM_Prop_CairoPlanter_A',kind='planter',mat='Planter_Surface',tex='T_Prop_CairoPlanter_A_BC.png',lod0=300),
+              dict(key='crates-a',base='SM_Prop_CairoCrateStack_A',kind='crates',mat='Crate_Surface',tex='T_Prop_CairoCrateStack_A_BC.png',lod0=324),
+              dict(key='cafe-a',base='SM_Prop_CairoCafeTable_A',kind='cafe',mat='Cafe_Surface',tex='T_Prop_CairoCafeTable_A_BC.png',lod0=552),
+          ]
+
+          def build(kind,lod,name):
+              m=Mesh(name)
+              if kind.startswith('facade'):
+                  m.box(3,2.5,-.16,6,5,.32)
+                  if lod==1:
+                      m.box(.22,2.5,-.38,.22,5,.14); m.box(5.78,2.5,-.38,.22,5,.14); m.box(3,4.78,-.43,5.7,.20,.16)
+                      if kind=='facade_a':
+                          for x in (1.2,3.0,4.8): m.box(x,3.35,-.40,.88,1.20,.12)
+                          m.box(3,1.05,-.42,1.15,1.85,.14)
+                      elif kind=='facade_b':
+                          for x in (1.35,3.0,4.65): m.box(x,3.30,-.40,1.0,1.25,.12)
+                          m.box(3,2.55,-.50,4.8,.12,.22); m.box(3,1.10,-.42,1.35,1.95,.14)
+                      else:
+                          for x in (1.0,2.35,3.7,5.0): m.box(x,3.50,-.40,.72,1.30,.12)
+                          m.box(3,2.36,-.46,5.4,.12,.18); m.box(3,1.05,-.43,.82,1.90,.13)
+                  else:
+                      m.box(3,4.78,-.42,5.7,.18,.14)
+                      m.box(3,1.05,-.42,1.10,1.90,.12)
+              elif kind in ('awning','awning_b'):
+                  m.box(1.5,1.18,.75,3.0,.16,1.50)
+                  if lod==1:
+                      m.box(.08,.62,.75,.12,1.20,1.45); m.box(2.92,.62,.75,.12,1.20,1.45); m.box(1.5,1.05,.04,3.0,.15,.08)
+              elif kind=='lamp':
+                  m.cyl(0,0,0,.38,.25,8 if lod==1 else 6); m.cyl(0,0,.32,2.55,.06,8 if lod==1 else 6); m.box(0,2.55,0,.72,.08,.08)
+                  if lod==1:
+                      m.box(-.34,2.50,0,.20,.16,.18); m.box(.34,2.50,0,.20,.16,.18); m.box(0,2.76,0,.08,.32,.08)
+              elif kind=='barrier':
+                  m.box(0,.33,0,2.0,.55,.48)
+                  if lod==1:
+                      m.box(-.72,.07,0,.34,.14,.56); m.box(.72,.07,0,.34,.14,.56)
+              elif kind=='sign':
+                  m.box(.08,-1.28,1.25,.12,.92,1.52)
+                  if lod==1:
+                      m.box(.08,.02,.55,.14,.14,1.10); m.box(.08,-.58,1.10,.12,.90,.12)
+              elif kind=='planter':
+                  m.frustum(0,0,0,.68,.42,.51,10 if lod==1 else 8)
+                  if lod==1:
+                      m.cyl(0,0,.62,.74,.53,10)
+                      m.box(-.18,1.06,0,.36,.60,.18); m.box(.18,1.12,0,.36,.64,.18); m.box(0,1.30,.12,.28,.54,.20)
+              elif kind=='crates':
+                  if lod==1:
+                      for cx,cy,cz,sx,sy,sz in ((0,.28,0,.92,.54,.70),(.12,.83,.05,.86,.50,.66),(-.08,1.34,-.04,.78,.46,.60)): m.box(cx,cy,cz,sx,sy,sz)
+                  else:
+                      m.box(0,.30,0,.92,.58,.70); m.box(.08,.88,.02,.82,.54,.64)
+              elif kind=='cafe':
+                  m.cyl(0,0,0,.08,.46,10 if lod==1 else 8); m.cyl(0,0,.06,.76,.08,8); m.cyl(0,0,.70,.82,.56,12 if lod==1 else 8)
+                  if lod==1:
+                      for x in (-.76,.76):
+                          m.cyl(x,0,0,.46,.06,8); m.cyl(x,0,.42,.51,.28,10)
+              else: raise ValueError(kind)
+              return m
+
+          records=[]
+          for spec in specs:
+              lod_info=[]
+              mobile_mtl=f"{spec['base']}_MobileLOD.mtl"
+              for lod in (1,2):
+                  name=f"{spec['base']}_LOD{lod}"
+                  obj=root/f'{name}.obj'
+                  mesh=build(spec['kind'],lod,name)
+                  mesh.write(obj)
+                  subprocess.run(['python',str(helper),str(obj),'--material-file',mobile_mtl,'--material',spec['mat'],'--write'],check=True)
+                  lod_info.append(dict(lod=lod,model=obj.name,vertices=len(mesh.vertices),triangles=len(mesh.faces)))
+
+              (root/mobile_mtl).write_text(
+                  f"newmtl {spec['mat']}\nKa 0.050000 0.050000 0.050000\nKd 0.600000 0.600000 0.600000\nKs 0.160000 0.160000 0.160000\nNs 28.000000\nillum 2\nmap_Kd {spec['tex']}\n",
+                  encoding='utf-8')
+
+              for info in lod_info:
+                  subprocess.run(['python',str(helper),str(root/info['model']),'--material-file',mobile_mtl,'--material',spec['mat'],'--check'],check=True)
+
+              if not (spec['lod0'] > lod_info[0]['triangles'] > lod_info[1]['triangles'] > 0):
+                  raise SystemExit(f"{spec['key']}: LOD triangle monotonicity failed: {spec['lod0']} -> {lod_info[0]['triangles']} -> {lod_info[1]['triangles']}")
+              records.append(dict(
+                  key=spec['key'],
+                  lod0Model=f"{spec['base']}.obj",
+                  lod0Triangles=spec['lod0'],
+                  sharedMobileMaterial=mobile_mtl,
+                  texture=spec['tex'],
+                  materialName=spec['mat'],
+                  lod1=lod_info[0],lod2=lod_info[1],
+                  sourceState='STATIC_DISTINCT_MOBILE_LOD_CANDIDATE_PENDING_UNITY_INTEGRATION'))
+
+          manifest={
+              'taskId':'UART-005',
+              'scope':'mobile-lod-source-authoring',
+              'reviewState':'BLOCKED',
+              'sourceQuality':'authored-source-candidate',
+              'moduleCoverage':'11/11',
+              'distinctLodSourceAssets':22,
+              'sameMeshLodReuseAllowed':False,
+              'runtimeLodIntegrationImplemented':False,
+              'runtimeLodIntegrationVerified':False,
+              'modules':records,
+              'acceptancePending':[
+                  'stage and import all 22 distinct mobile LOD source assets in licensed Unity',
+                  'attach LODGroup runtime integration with source-backed LOD0/LOD1/LOD2 renderers',
+                  'verify transition distances and no same-mesh reuse',
+                  'performance/device review on exact Android candidate',
+                  'owner/Art Director Visual Gate acceptance'
+              ]
+          }
+          Path('docs/assets/02_tracks_environments/cairo_street_kit/MOBILE_LOD_MANIFEST.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
+
+          for r in records:
+              print(f"AFAREET_UART005_LOD_SOURCE_OK key={r['key']} triangles={r['lod0Triangles']}/{r['lod1']['triangles']}/{r['lod2']['triangles']}")
+          PY
+
+          python -m json.tool docs/assets/02_tracks_environments/cairo_street_kit/MOBILE_LOD_MANIFEST.json >/dev/null
+          git diff --check
+
+      - name: Commit mobile LOD source set and remove bootstrap workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "3Fareet UART-005 Agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/uart005-author-mobile-lods.yml
+          git add \
+            docs/assets/02_tracks_environments/cairo_street_kit/source \
+            docs/assets/02_tracks_environments/cairo_street_kit/MOBILE_LOD_MANIFEST.json
+          git status --short
+          git diff --cached --check
+          git commit -m "UART-005: add distinct mobile LOD source set"
+          git push origin HEAD:agent/p1-production-world-hard-gate
