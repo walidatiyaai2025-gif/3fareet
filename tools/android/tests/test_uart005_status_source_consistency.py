@@ -22,7 +22,12 @@ class Uart005StatusSourceConsistencyTests(unittest.TestCase):
         for document in (asset, clutter, clutter_runtime, mobile, mobile_runtime):
             self.assertEqual("UART-005", document["taskId"])
             self.assertEqual("BLOCKED", document["reviewState"])
-            self.assertFalse(document["runtimeIntegrationVerified"])
+
+        self.assertFalse(asset["runtimeIntegrationVerified"])
+        self.assertFalse(clutter["runtimeIntegrationVerified"])
+        self.assertFalse(clutter_runtime["runtimeIntegrationVerified"])
+        self.assertFalse(mobile["runtimeLodIntegrationVerified"])
+        self.assertFalse(mobile_runtime["runtimeLodIntegrationVerified"])
 
         self.assertTrue(asset["runtimeIntegrationImplemented"])
         self.assertTrue(clutter["runtimeIntegrationImplemented"])
