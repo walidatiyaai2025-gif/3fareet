@@ -14,10 +14,10 @@ TestEvidenceError = VERIFY.TestEvidenceError
 verify_artifact_tree = VERIFY.verify_artifact_tree
 
 
-def write_report(path: Path, *, total=3, passed=3, failed=0, skipped=0, result="Passed"):
+def write_report(path: Path, *, total=3, passed=3, failed=0, skipped=0, inconclusive=0, result="Passed"):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        f'<test-run total="{total}" passed="{passed}" failed="{failed}" skipped="{skipped}" result="{result}" />',
+        f'<test-run total="{total}" passed="{passed}" failed="{failed}" skipped="{skipped}" inconclusive="{inconclusive}" result="{result}" />',
         encoding="utf-8",
     )
 
@@ -48,6 +48,20 @@ class VerifyUnityTestResultsTests(unittest.TestCase):
             root = Path(tmp)
             write_report(root / "editmode" / "results.xml", total=4, passed=3, failed=1, result="Failed")
             with self.assertRaisesRegex(TestEvidenceError, "failed tests"):
+                verify_artifact_tree(root)
+
+    def test_rejects_inconclusive_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_report(root / "playmode" / "results.xml", total=5, passed=4, inconclusive=1)
+            with self.assertRaisesRegex(TestEvidenceError, "inconclusive tests"):
+                verify_artifact_tree(root)
+
+    def test_rejects_unaccounted_test_counter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_report(root / "editmode" / "results.xml", total=4, passed=3)
+            with self.assertRaisesRegex(TestEvidenceError, "do not account for every test"):
                 verify_artifact_tree(root)
 
     def test_ignores_non_test_xml_but_requires_nunit_report(self):
