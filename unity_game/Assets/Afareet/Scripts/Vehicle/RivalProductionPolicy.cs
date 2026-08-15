@@ -96,9 +96,14 @@ namespace Afareet.Vehicle
         public static bool IsSupportedAuthoredModelSource(string sourceAssetId)
         {
             if (string.IsNullOrWhiteSpace(sourceAssetId)) return false;
+
+            var normalized = sourceAssetId.Replace('\\', '/');
+            if (!normalized.StartsWith("Assets/", StringComparison.Ordinal)) return false;
+            if (normalized.IndexOf("../", StringComparison.Ordinal) >= 0) return false;
+
             foreach (var suffix in AuthoredModelSuffixes)
             {
-                if (sourceAssetId.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                if (normalized.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                     return true;
             }
             return false;
