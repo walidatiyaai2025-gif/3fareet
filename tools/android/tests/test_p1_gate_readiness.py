@@ -297,6 +297,91 @@ class P1GateReadinessTests(unittest.TestCase):
             self.assertFalse(payload["candidateBound"])
             self.assertFalse(payload["releaseReviewReady"])
 
+    def test_approval_template_pins_fingerprints_and_starts_all_false(self):
+        with tempfile.TemporaryDirectory() as temp:
+            session = Path(temp) / "session"
+            session.mkdir()
+            self._write_bound_session(session)
+            output = Path(temp) / "manual-approvals.json"
+            args = type("Args", (), {
+                "spec": str(SPEC_PATH),
+                "session": str(session),
+                "review_bundle": str(Path(temp) / "review"),
+                "output": str(output),
+            })()
+            review_result = {
+                "gitSha": self.git_sha,
+                "apkSha256": self.apk_sha,
+                "contentSetSha256": self.review_sha,
+                "verdict": "MANUAL_REVIEW_REQUIRED",
+                "verified": False,
+            }
+            with mock.patch.object(module, "verify_review_bundle", return_value=review_result):
+                self.assertEqual(0, module.command_approval_template(args))
+
+            payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(module.APPROVALS_SCHEMA_VERSION, payload["schemaVersion"])
+            self.assertEqual(self.git_sha, payload["gitSha"])
+            self.assertEqual(self.apk_sha, payload["apkSha256"])
+            self.assertEqual(self.review_sha, payload["reviewContentSetSha256"])
+            self.assertEqual(set(self.spec["gates"]), set(payload["approvals"]))
+            for record in payload["approvals"].values():
+                self.assertIs(record["approved"], False)
+                self.assertEqual("", record["reviewer"])
+
+    def test_approval_template_refuses_to_overwrite_existing_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            session = Path(temp) / "session"
+            session.mkdir()
+            self._write_bound_session(session)
+            output = Path(temp) / "manual-approvals.json"
+            output.write_text('{"preserve": true}\n', encoding="utf-8")
+            args = type("Args", (), {
+                "spec": str(SPEC_PATH),
+                "session": str(session),
+                "review_bundle": str(Path(temp) / "review"),
+                "output": str(output),
+            })()
+            review_result = {
+                "gitSha": self.git_sha,
+                "apkSha256": self.apk_sha,
+                "contentSetSha256": self.review_sha,
+                "verdict": "MANUAL_REVIEW_REQUIRED",
+                "verified": False,
+            }
+            with mock.patch.object(module, "verify_review_bundle", return_value=review_result):
+                with self.assertRaisesRegex(RuntimeError, "refusing to overwrite"):
+                    module.command_approval_template(args)
+            self.assertEqual('{"preserve": true}\n', output.read_text(encoding="utf-8"))
+
+    def test_approval_template_requires_complete_clean_evidence(self):
+        with tempfile.TemporaryDirectory() as temp:
+            session = Path(temp) / "session"
+            session.mkdir()
+            self._write_bound_session(session)
+            index_path = session / module.INDEX_FILE
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+            index["checkpoints"] = [item for item in index["checkpoints"] if item != "drift"]
+            index_path.write_text(json.dumps(index), encoding="utf-8")
+            output = Path(temp) / "manual-approvals.json"
+            args = type("Args", (), {
+                "spec": str(SPEC_PATH),
+                "session": str(session),
+                "review_bundle": str(Path(temp) / "review"),
+                "output": str(output),
+            })()
+            review_result = {
+                "gitSha": self.git_sha,
+                "apkSha256": self.apk_sha,
+                "contentSetSha256": self.review_sha,
+                "verdict": "MANUAL_REVIEW_REQUIRED",
+                "verified": False,
+            }
+            with mock.patch.object(module, "verify_review_bundle", return_value=review_result):
+                with self.assertRaisesRegex(RuntimeError, "complete clean evidence"):
+                    module.command_approval_template(args)
+            self.assertFalse(output.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
