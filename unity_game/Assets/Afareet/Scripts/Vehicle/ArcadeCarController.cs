@@ -96,6 +96,13 @@ namespace Afareet.Vehicle
                     return;
                 }
             }
+            else
+            {
+                // Never carry a partially accumulated stuck timer across countdown, pause,
+                // results or restart boundaries. A later recovery must be earned by a fresh
+                // continuous player drive-intent window.
+                stuckDriveSeconds = 0f;
+            }
 
             var surfaceResponse = config.SurfaceResponseFor(surfaceSensor.CurrentSurface);
             nitroCooldownRemaining = VehicleSpiritPolicy.AdvanceCooldown(nitroCooldownRemaining, Time.fixedDeltaTime);
@@ -279,9 +286,13 @@ namespace Afareet.Vehicle
                 source = "checkpoint";
             }
 
-            transform.SetPositionAndRotation(targetPosition, targetRotation);
+            // Teleport the physics body directly; using Transform.SetPositionAndRotation on
+            // an interpolated dynamic Rigidbody can leave the physics pose/contact state one
+            // simulation step behind the visual Transform.
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
+            body.position = targetPosition;
+            body.rotation = targetRotation;
             ClearDriveInputs();
             stuckDriveSeconds = 0f;
             recoveryInputLockRemaining = VehicleRecoveryPolicy.PostRecoveryInputLockSeconds;
