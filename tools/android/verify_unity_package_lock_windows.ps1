@@ -17,10 +17,10 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = (Resolve-Path $RepoRoot).Path
 }
 if ([string]::IsNullOrWhiteSpace($ManifestPath)) {
-    $ManifestPath = Join-Path $RepoRoot "unity_game\Packages\manifest.json"
+    $ManifestPath = Join-Path $RepoRoot "unity_game/Packages/manifest.json"
 }
 if ([string]::IsNullOrWhiteSpace($LockPath)) {
-    $LockPath = Join-Path $RepoRoot "unity_game\Packages\packages-lock.json"
+    $LockPath = Join-Path $RepoRoot "unity_game/Packages/packages-lock.json"
 }
 
 function Read-JsonObject([string]$Path, [string]$Label) {
