@@ -117,6 +117,16 @@ class VerifyLocalCandidateTests(unittest.TestCase):
             with self.assertRaisesRegex(CandidateError, "failed tests"):
                 verify_candidate(tests, build_metadata_for(apk), apk)
 
+    def test_rejects_all_skipped_unity_test_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            apk = self.make_apk(tmp)
+            tests = base_test_metadata()
+            tests["playMode"]["passed"] = 0
+            tests["playMode"]["skipped"] = tests["playMode"]["total"]
+            tests["playMode"]["result"] = "Passed"
+            with self.assertRaisesRegex(CandidateError, "no passing tests"):
+                verify_candidate(tests, build_metadata_for(apk), apk)
+
 
 if __name__ == "__main__":
     unittest.main()
