@@ -129,6 +129,8 @@ jobs:
             "'-testPlatform'",
             "'-testResults'",
             '$resultXml.''test-run''',
+            'Write-TestCaseDiagnostics',
+            'AFAREET_TEST_CASE result=',
             '$total -le 0',
             '$passed -le 0',
             '$failed -gt 0',
