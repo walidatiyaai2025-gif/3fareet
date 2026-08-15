@@ -68,10 +68,94 @@ jobs:
             'arm64-v8a',
             'READY_FOR_PHYSICAL_DEVICE_EVIDENCE',
             'verified = $false',
-            'Get-FileHash'
+            'Get-FileHash',
+            '$value -isnot [bool]'
           )) {
             if (-not $text.Contains($required)) {
               throw "Native candidate verifier missing contract marker: $required"
             }
           }
           Write-Host 'AFAREET_WINDOWS_NATIVE_CANDIDATE_CONTRACT_OK'
+
+      - name: Execute native candidate integrity fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'afareet-native-candidate-fixture'
+          Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+
+          $apk = Join-Path $root 'afareet-unity3d-debug.apk'
+          [System.IO.File]::WriteAllBytes($apk, [byte[]](1, 3, 3, 7, 42, 99, 5, 8))
+          $apkHash = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
+          $apkSize = (Get-Item -LiteralPath $apk).Length
+          $gitSha = ('a' * 40)
+
+          $tests = [ordered]@{
+            source = 'local-windows-licensed-unity-tests'
+            releaseEvidenceEligible = $true
+            dirtyTree = $false
+            gitSha = $gitSha
+            gitBranch = 'fixture'
+            unityVersion = '6000.5.8f1'
+            editMode = [ordered]@{
+              result = 'Passed'; total = 2; passed = 2; failed = 0; skipped = 0; inconclusive = 0
+            }
+            playMode = [ordered]@{
+              result = 'Passed'; total = 1; passed = 1; failed = 0; skipped = 0; inconclusive = 0
+            }
+          }
+          $build = [ordered]@{
+            source = 'local-windows-licensed-unity'
+            releaseEvidenceEligible = $true
+            gitDirty = $false
+            gitSha = $gitSha
+            gitBranch = 'fixture'
+            unityVersion = '6000.5.8f1'
+            artifact = 'afareet-unity3d-debug.apk'
+            packageId = 'com.fiftysolutions.afareetunity3d'
+            minSdk = 26
+            abi = 'arm64-v8a'
+            sha256 = $apkHash
+            sizeBytes = $apkSize
+          }
+
+          $testMetadata = Join-Path $root 'test-metadata.json'
+          $buildMetadata = Join-Path $root 'build-metadata.json'
+          $manifest = Join-Path $root 'candidate-manifest.json'
+          $tests | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $testMetadata -Encoding UTF8
+          $build | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $buildMetadata -Encoding UTF8
+
+          & ./tools/android/verify_local_candidate_windows.ps1 `
+            -TestMetadata $testMetadata `
+            -BuildMetadata $buildMetadata `
+            -Apk $apk `
+            -Output $manifest
+
+          $candidate = Get-Content -LiteralPath $manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($candidate.verified -ne $false) { throw 'Fixture candidate must remain verified=false.' }
+          if ($candidate.readyForDeviceEvidence -ne $true) { throw 'Fixture candidate must be readyForDeviceEvidence=true.' }
+          if ($candidate.verdict -ne 'READY_FOR_PHYSICAL_DEVICE_EVIDENCE') { throw 'Fixture candidate verdict mismatch.' }
+          if ($candidate.gitSha -ne $gitSha -or $candidate.apk.sha256 -ne $apkHash) { throw 'Fixture candidate provenance/hash mismatch.' }
+
+          $tests.releaseEvidenceEligible = 'true'
+          $badTestMetadata = Join-Path $root 'test-metadata-string-bool.json'
+          $badManifest = Join-Path $root 'bad-candidate-manifest.json'
+          $tests | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $badTestMetadata -Encoding UTF8
+          $rejected = $false
+          try {
+            & ./tools/android/verify_local_candidate_windows.ps1 `
+              -TestMetadata $badTestMetadata `
+              -BuildMetadata $buildMetadata `
+              -Apk $apk `
+              -Output $badManifest
+          } catch {
+            if ($_.Exception.Message -match 'must be JSON boolean') {
+              $rejected = $true
+            } else {
+              throw
+            }
+          }
+          if (-not $rejected) { throw 'Native candidate verifier accepted a string in place of a JSON boolean.' }
+
+          Write-Host 'AFAREET_WINDOWS_NATIVE_CANDIDATE_FIXTURE_OK'
