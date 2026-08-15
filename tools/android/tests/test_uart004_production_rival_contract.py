@@ -26,16 +26,21 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         self.assertIn("GameObject.CreatePrimitive(PrimitiveType.Cube)", text)
         self.assertIn("AFAREET_UART004_EDITOR_BLOCKOUT_RIVAL_ACTIVE", text)
 
-    def test_android_gate_requires_preexisting_external_authored_prefabs(self):
+    def test_android_gate_requires_preexisting_external_authored_prefabs_and_real_sources(self):
         text = self._read("unity_game/Assets/Afareet/Editor/RivalProductionBuildGate.cs")
         self.assertNotIn("RivalProductionAssetBuilder.BuildOrThrow", text)
         self.assertIn("RivalProductionPolicy.VariantCount", text)
         self.assertIn("RivalProductionPolicy.AssetPath", text)
         self.assertIn("ValidateProductionPrefab", text)
         self.assertIn("missing-external-authored-prefab", text)
+        self.assertIn("AssetDatabase.LoadMainAssetAtPath", text)
+        self.assertIn("metadata.SourceAssetId", text)
+        self.assertIn("missing-imported-authored-source", text)
+        self.assertIn("authored-source-path-mismatch", text)
         self.assertIn("AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED", text)
         self.assertIn("AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK", text)
         self.assertIn("external-authored-3d", text)
+        self.assertIn("importedSources=3", text)
 
     def test_rival_quality_contract_requires_surface_authoring_identity_and_external_model_source(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
@@ -53,6 +58,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "mesh.normals",
             "material.mainTexture",
             "IsSupportedAuthoredModelSource",
+            'StartsWith("Assets/"',
             '".fbx"',
             '".obj"',
             '".blend"',
