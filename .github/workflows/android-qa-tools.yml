@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'tools/android/**'
+      - 'unity_game/Assets/Afareet/Editor/AfareetBuild.cs'
       - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
       - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
       - 'docs/qa/UNITY_CI_UNBLOCK.md'
@@ -15,6 +16,7 @@ on:
       - main
     paths:
       - 'tools/android/**'
+      - 'unity_game/Assets/Afareet/Editor/AfareetBuild.cs'
       - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
       - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
       - 'docs/qa/UNITY_CI_UNBLOCK.md'
@@ -145,6 +147,25 @@ jobs:
           foreach ($required in $buildRequired) {
             if (-not $buildText.Contains($required)) {
               throw "Local Unity build fallback is missing required contract: $required"
+            }
+          }
+
+          $unityBuildText = Get-Content -Raw 'unity_game/Assets/Afareet/Editor/AfareetBuild.cs'
+          foreach ($required in @(
+            'AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath)',
+            'Build scene is missing or invalid'
+          )) {
+            if (-not $unityBuildText.Contains($required)) {
+              throw "Unity build source is missing immutable-scene contract: $required"
+            }
+          }
+          foreach ($forbidden in @(
+            'EditorSceneManager.NewScene',
+            'EditorSceneManager.SaveScene',
+            'SaveScene(scene, ScenePath)'
+          )) {
+            if ($unityBuildText.Contains($forbidden)) {
+              throw "Unity build must not regenerate or resave the tracked prototype scene: $forbidden"
             }
           }
 
