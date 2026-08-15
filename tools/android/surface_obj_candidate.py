@@ -236,15 +236,10 @@ def assert_surface_contract(text: str, *, material_file: str, material_name: str
         raise SurfaceAuthoringError(
             f"surface streams incomplete: vertices={len(geometry.vertices)} vt={vt_count} vn={vn_count}"
         )
-    for face in geometry.faces:
-        for token in lines[face.line_index + 2].split()[1:]:
-            # This positional check is intentionally not used for correctness because
-            # two declaration lines are injected at the file head. The authoritative
-            # token validation below scans every face line directly.
-            _ = token
-    for raw in lines:
-        if not raw.startswith("f "):
-            continue
+    face_lines = [line for line in lines if line.startswith("f ")]
+    if len(face_lines) != len(geometry.faces):
+        raise SurfaceAuthoringError("face count changed while validating surface contract")
+    for raw in face_lines:
         for token in raw.split()[1:]:
             fields = token.split("/")
             if len(fields) != 3 or not all(fields):
