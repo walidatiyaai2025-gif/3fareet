@@ -1,0 +1,8 @@
+# UART-005 surfaced source candidate
+newmtl Lamp_Surface
+Ka 0.080 0.070 0.060
+Kd 0.185 0.155 0.105
+Ks 0.280 0.220 0.120
+Ns 80.0
+illum 2
+map_Kd T_Prop_CairoLamp_Surface_BC.png
