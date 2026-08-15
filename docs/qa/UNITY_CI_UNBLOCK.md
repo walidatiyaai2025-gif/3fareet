@@ -56,14 +56,15 @@ The bridge rechecks repository/workflow/run provenance, package identity, full G
 
 A licensed Windows workstation with Unity `6000.5.8f1` may produce the exact-head candidate without storing Unity credentials in GitHub Actions.
 
-Prerequisites:
+The **candidate-generation chain is Python-free**. It uses native PowerShell verifiers for text normalization, Unity package consistency and final local-candidate integrity. Python remains used by separate cross-platform/device-evidence tooling after the candidate exists, but it is not a prerequisite for generating the Windows candidate APK/manifest.
+
+Prerequisites for candidate generation:
 
 1. Unity `6000.5.8f1` installed and activated.
 2. Android Build Support installed.
 3. Git available.
-4. Python 3 available as `python` or `py -3`.
-5. Exact production branch/commit checked out.
-6. Clean Git working tree.
+4. Exact production branch/commit checked out.
+5. Clean Git working tree.
 
 Refresh the workstation first:
 
@@ -86,30 +87,37 @@ powershell -ExecutionPolicy Bypass -File tools/android/run_local_candidate_windo
   -UnityPath 'C:\Program Files\Unity\Hub\Editor\6000.5.8f1\Editor\Unity.exe'
 ```
 
+Expected early native-verifier marker:
+
+```text
+AFAREET_WINDOWS_NATIVE_VERIFIERS_OK pythonRequired=False
+```
+
 ## Exact local orchestration sequence
 
-The local release-evidence path is now intentionally ordered as follows:
+The local release-evidence path is intentionally ordered as follows:
 
 1. resolve the full 40-character Git SHA;
 2. reject an already-dirty tree, preserving `INITIAL_TREE` status/patch/stderr evidence first;
 3. purge stale release-looking candidate evidence;
-4. **Unity text-normalization preflight**;
-5. Git cleanliness check after text normalization;
-6. **Unity package manifest/lock preflight**;
-7. Git cleanliness check after package verification;
-8. EditMode + PlayMode execution;
-9. Git cleanliness check after tests;
-10. Android build + APK inspection;
-11. Git cleanliness check after build;
-12. same-SHA candidate integrity verification;
-13. final Git cleanliness check;
-14. emit `AFAREET_LOCAL_CANDIDATE_OK` only when all stages succeed.
+4. confirm the native PowerShell verifier chain;
+5. **Unity text-normalization preflight**;
+6. Git cleanliness check after text normalization;
+7. **Unity package manifest/lock preflight**;
+8. Git cleanliness check after package verification;
+9. EditMode + PlayMode execution;
+10. Git cleanliness check after tests;
+11. Android build + APK inspection;
+12. Git cleanliness check after build;
+13. native same-SHA candidate integrity verification;
+14. final Git cleanliness check;
+15. emit `AFAREET_LOCAL_CANDIDATE_OK` only when all stages succeed.
 
-The two preflights are mandatory. Do not bypass them to save time.
+The preflights and candidate verifier are mandatory. Do not bypass them to save time.
 
 ### Text-normalization preflight
 
-`tools/android/verify_unity_text_normalization.py` checks every tracked file matching:
+`tools/android/verify_unity_text_normalization_windows.ps1` checks every tracked file matching:
 
 - `unity_game/ProjectSettings/*.asset`
 - `unity_game/ProjectSettings/*.txt`
@@ -136,7 +144,7 @@ Any failure stops before Unity starts.
 
 ### Package graph preflight
 
-`tools/android/verify_unity_package_lock.py` requires every direct `Packages/manifest.json` dependency to exist in `packages-lock.json` at the same version with `depth: 0`. Known Unity resolver child maps are also checked, including the resolved child packages themselves.
+`tools/android/verify_unity_package_lock_windows.ps1` requires every direct `Packages/manifest.json` dependency to exist in `packages-lock.json` at the same version with `depth: 0`. Known Unity resolver child maps are also checked, including the resolved child packages themselves.
 
 Expected markers:
 
@@ -147,6 +155,16 @@ AFAREET_PACKAGE_PREFLIGHT_OK
 ```
 
 Any mismatch stops before Unity starts.
+
+### Native Windows verifier CI
+
+`.github/workflows/windows-native-verifiers.yml` runs the native verifier chain on `windows-latest`. It parses all PowerShell scripts, executes the real repository LF/package checks and runs a candidate-integrity fixture that verifies:
+
+- valid same-SHA test/build/APK evidence produces a candidate with `readyForDeviceEvidence: true` and `verified: false`;
+- APK SHA-256/provenance are preserved;
+- release-evidence booleans must be real JSON booleans rather than strings such as `"true"`.
+
+A Green native-verifier workflow validates the tooling contract only. It does not replace the licensed Unity exact-head test/build run.
 
 ## Unity tests
 
@@ -211,9 +229,9 @@ A successful orchestrated local run produces:
 artifacts/local-candidate-manifest.json
 ```
 
-The candidate verifier requires:
+`tools/android/verify_local_candidate_windows.ps1` requires:
 
-- release-eligible clean test and build metadata;
+- release-eligible clean test and build metadata with real JSON boolean fields;
 - real passing EditMode + PlayMode evidence;
 - Unity `6000.5.8f1`;
 - one identical full Git SHA across test/build evidence;
@@ -234,6 +252,8 @@ verified: false
 ```
 
 ## Start physical-device evidence
+
+The device-evidence tools are Python-based and are a **separate post-candidate phase**. On the machine that will run physical-device evidence, make Python 3 and ADB available, then consume the already-generated candidate manifest rather than rebuilding or bypassing it.
 
 For the local candidate:
 
