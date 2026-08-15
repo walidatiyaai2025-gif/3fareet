@@ -1,4 +1,6 @@
 import json
+import math
+import re
 import unittest
 from pathlib import Path
 
@@ -12,6 +14,7 @@ PREPROCESSOR = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionTrackDr
 ANDROID_GATE = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingBuildGate.cs"
 ADAPTER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressing.cs"
 RUNTIME_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressingRuntimePass.cs"
+TRACK_BUILDER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoTrackBuilder.cs"
 
 
 EXPECTED_MODELS = {
@@ -34,6 +37,23 @@ def obj_stats(path: Path):
             if corners >= 3:
                 triangles += corners - 2
     return vertices, triangles
+
+
+def obj_vertex_bounds(path: Path):
+    vertices = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line.startswith("v "):
+            continue
+        fields = line.split()
+        vertices.append(tuple(float(value) for value in fields[1:4]))
+    if not vertices:
+        raise AssertionError(f"OBJ has no vertices: {path}")
+    return (
+        min(v[0] for v in vertices), max(v[0] for v in vertices),
+        min(v[1] for v in vertices), max(v[1] for v in vertices),
+        min(v[2] for v in vertices), max(v[2] for v in vertices),
+    )
 
 
 class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
@@ -62,6 +82,43 @@ class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
             vertices, triangles = obj_stats(source)
             self.assertGreaterEqual(vertices, module["productionMinVertices"], module["model"])
             self.assertGreaterEqual(triangles, module["productionMinTriangles"], module["model"])
+
+    def test_sector_beacon_placement_clears_rail_and_nearest_right_building(self):
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        track_builder = TRACK_BUILDER.read_text(encoding="utf-8")
+        match = re.search(r"SectorBeaconLateralOffset\s*=\s*([0-9.]+)f", adapter)
+        self.assertIsNotNone(match)
+        beacon_offset = float(match.group(1))
+
+        bounds = obj_vertex_bounds(SOURCE_ROOT / "SM_Track_SectorBeacon_A.obj")
+        beacon_half_width = max(abs(bounds[0]), abs(bounds[1]))
+        self.assertAlmostEqual(1.225, beacon_half_width, places=3)
+
+        self.assertIn("RoadWidth = 14f", track_builder)
+        self.assertIn("RoadWidth * .56f", track_builder)
+        self.assertIn("RoadWidth + 8f", track_builder)
+        self.assertIn("var width = 5f + (seed * 3 % 6);", track_builder)
+
+        road_width = 14.0
+        rail_offset = road_width * 0.56
+        right_building_center = road_width + 8.0
+        # The +right buildings coincident with beacon waypoints 0 and 36 use seed 0/36,
+        # both producing width=5. Use the square's worst-case rotated projected half-width.
+        building_half_diagonal = 5.0 * math.sqrt(2.0) / 2.0
+        minimum_building_inner_edge = right_building_center - building_half_diagonal
+
+        rail_clearance = (beacon_offset - beacon_half_width) - rail_offset
+        building_clearance = minimum_building_inner_edge - (beacon_offset + beacon_half_width)
+        self.assertGreaterEqual(rail_clearance, 5.0)
+        self.assertGreaterEqual(building_clearance, 2.0)
+        self.assertIn("anchor.right * SectorBeaconLateralOffset", adapter)
+        self.assertNotIn("anchor.right * 18f", adapter)
+
+    def test_finish_gate_span_matches_fourteen_meter_road(self):
+        bounds = obj_vertex_bounds(SOURCE_ROOT / "SM_Track_FinishGate_A.obj")
+        half_span = max(abs(bounds[0]), abs(bounds[1]))
+        self.assertGreaterEqual(half_span, 7.0)
+        self.assertLessEqual(half_span, 8.5)
 
     def test_stager_packages_models_and_material_dependencies_before_gate(self):
         stager = STAGER.read_text(encoding="utf-8")
