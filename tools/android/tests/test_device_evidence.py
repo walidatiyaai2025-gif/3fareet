@@ -26,6 +26,17 @@ emulator-5554\toffline transport_id:2
         self.assertEqual("Pixel_8", devices[0]["model"])
         self.assertEqual("offline", devices[1]["state"])
 
+    def test_parse_adb_devices_accepts_adb37_space_separated_columns(self):
+        output = """List of devices attached
+HONOR123       device product:ALI-NX1 model:ALI_NX1 device:HNALI-Q transport_id:2
+"""
+        devices = DEVICE_EVIDENCE.parse_adb_devices(output)
+        self.assertEqual(1, len(devices))
+        self.assertEqual("HONOR123", devices[0]["serial"])
+        self.assertEqual("device", devices[0]["state"])
+        self.assertEqual("ALI_NX1", devices[0]["model"])
+        self.assertEqual("2", devices[0]["transport_id"])
+
     def test_sanitize_label_is_stable_and_rejects_empty(self):
         self.assertEqual("race-results-1", DEVICE_EVIDENCE.sanitize_label("  race results #1  "))
         self.assertEqual("start_screen", DEVICE_EVIDENCE.sanitize_label("start_screen"))
