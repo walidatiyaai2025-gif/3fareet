@@ -34,12 +34,28 @@ Each prefab must contain exactly three mobile LODs, UV0, authored normals, textu
 
 `RivalProductionBuildGate` does **not** synthesize production art during Android builds. The three externally authored model-backed prefabs and their declared imported source assets must already exist and validate, otherwise the build fails closed.
 
+## Licensed Unity staging path
+
+`RivalProductionPrefabStager` provides an Editor-only assembly step for the three tracked source candidates. It does **not** create meshes, primitives or replacement geometry. It only:
+
+1. loads the already-imported tracked OBJ source from `Assets/Afareet/ArtSource/Vehicles/Rivals/`;
+2. instantiates that imported source while preserving the source-backed Mesh references;
+3. groups imported renderers by `_LOD0`, `_LOD1` and `_LOD2` object suffix;
+4. refuses renderers whose mesh does not resolve back to the exact declared OBJ source;
+5. refuses missing UV0, normals or texture-mapped materials;
+6. writes the corresponding tracked production prefab with a three-level `LODGroup`;
+7. delegates GUID/dependency-hash capture and final prefab validation to `RivalProductionSourceBinder`.
+
+Editor menu: `Afareet > Stage UART-004 > Stage + Bind All Rival Prefabs` (or the individual Rival 1/2/3 actions).
+
+This staging path still requires a licensed Unity Editor to import the OBJ/MTL/PNG dependencies, create stable Unity `.meta` provenance and execute the binder. Static repository presence of the stager does not promote the assets to accepted Production Art.
+
 ## Repository inventory at the current remediation head
 
 Three distinct static OBJ source **candidates** now exist under `Assets/Afareet/ArtSource/Vehicles/Rivals/`, each carrying LOD0/LOD1/LOD2 geometry, UV0, explicit normals, MTL material mappings and a tracked PNG base-color texture. Their exact source inventory and hashes are recorded in `SOURCE_CANDIDATES.json`.
 
-These source files are **not accepted Production Art yet**. The required Rival production prefabs are still absent, the sources have not been imported/bound by a licensed Unity Editor on the exact candidate, stable Unity source GUID/dependency provenance has not been captured, and no Android runtime visual proof or owner acceptance exists.
+These source files are **not accepted Production Art yet**. The required Rival production prefabs have not yet been staged/bound by a licensed Unity Editor on the exact candidate, stable Unity source GUID/dependency provenance has not been captured, and no Android runtime visual proof or owner acceptance exists.
 
 ## Acceptance state
 
-**BLOCKED.** UART-004 cannot leave BLOCKED until the actual external 3D models/prefabs exist, licensed Unity import/compile/render succeeds, an exact Android build shows all three rivals in-race with no primitive fallback, and owner/Art Director visual review explicitly accepts them.
+**BLOCKED.** UART-004 cannot leave BLOCKED until the three source-backed production prefabs exist and bind successfully, licensed Unity import/compile/render succeeds, an exact Android build shows all three rivals in-race with no primitive fallback, and owner/Art Director visual review explicitly accepts them.
