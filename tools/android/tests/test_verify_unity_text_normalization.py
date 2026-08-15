@@ -1,9 +1,15 @@
+import importlib.util
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from verify_unity_text_normalization import TextNormalizationError, verify
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "verify_unity_text_normalization.py"
+SPEC = importlib.util.spec_from_file_location("verify_unity_text_normalization", MODULE_PATH)
+MODULE = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+SPEC.loader.exec_module(MODULE)
 
 
 class UnityTextNormalizationTests(unittest.TestCase):
@@ -40,7 +46,7 @@ class UnityTextNormalizationTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self._write_contract_tree(root)
 
-        checked = verify(root)
+        checked = MODULE.verify(root)
 
         self.assertEqual(4, len(checked))
         self.assertIn("unity_game/ProjectSettings/TimeManager.asset", checked)
@@ -51,16 +57,16 @@ class UnityTextNormalizationTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self._write_contract_tree(root, include_attributes=False)
 
-        with self.assertRaisesRegex(TextNormalizationError, "expected 'set'"):
-            verify(root)
+        with self.assertRaisesRegex(MODULE.TextNormalizationError, "expected 'set'"):
+            MODULE.verify(root)
 
     def test_rejects_crlf_working_tree_bytes_even_when_attributes_are_lf(self):
         temp, root = self._repo()
         self.addCleanup(temp.cleanup)
         self._write_contract_tree(root, crlf=True)
 
-        with self.assertRaisesRegex(TextNormalizationError, "CRLF bytes"):
-            verify(root)
+        with self.assertRaisesRegex(MODULE.TextNormalizationError, "CRLF bytes"):
+            MODULE.verify(root)
 
 
 if __name__ == "__main__":
