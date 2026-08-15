@@ -61,21 +61,29 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
             self.assertGreater(module["productionMinVertices"], 0)
             self.assertGreater(module["productionMinTriangles"], 0)
 
-    def test_stager_and_build_preprocessor_package_all_tracked_sources(self):
+    def test_stager_and_build_preprocessor_package_source_and_material_dependencies(self):
         stager = STAGER.read_text(encoding="utf-8")
         for name in MODELS:
             self.assertIn(f'"{name}"', stager)
+        for required in ('case ".mtl"', 'case ".png"', 'case ".jpg"', 'case ".tga"', "RemoveStaleStageableFiles"):
+            self.assertIn(required, stager)
         self.assertIn("Resources.Load<GameObject>(resourcePath)", stager)
+        self.assertIn("companions=mtl-textures", stager)
+
         preprocessor = PREPROCESSOR.read_text(encoding="utf-8")
         self.assertIn("IPreprocessBuildWithReport", preprocessor)
         self.assertIn("P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow();", preprocessor)
 
-    def test_runtime_adapter_never_constructs_primitive_geometry(self):
+    def test_runtime_adapter_never_constructs_primitive_geometry_and_preserves_player_materials(self):
         adapter = ADAPTER.read_text(encoding="utf-8")
         self.assertNotIn("GameObject.CreatePrimitive", adapter)
         for method in ("TryBuildMinarets", "TryBuildDomeGate", "TryBuildPyramidPair", "TryBuildBridgeGantry"):
             self.assertIn(method, adapter)
         self.assertIn("AFAREET_UART006_AUTHORED_LANDMARKS_ACTIVE", adapter)
+        self.assertIn("ApplyMaterialsForEditorPreview", adapter)
+        self.assertIn("if (!Application.isEditor)", adapter)
+        self.assertIn("player-preserves-source-materials=true", adapter)
+        self.assertNotIn("private static void ApplyMaterials(GameObject", adapter)
 
     def test_player_path_is_fail_closed_and_primitives_are_editor_fallback_only(self):
         runtime = RUNTIME_PASS.read_text(encoding="utf-8")
@@ -97,17 +105,30 @@ class CairoAuthoredLandmarkContractTests(unittest.TestCase):
         self.assertIn("AFAREET_UART006_TRACK_PYRAMIDS_REPLACED", replacement)
         self.assertIn("AFAREET_UART006_PLAYER_PRIMITIVE_TRACK_PYRAMID_FALLBACK_DISABLED", replacement)
 
-    def test_android_gate_is_hard_blocked_until_landmark_production_acceptance(self):
+    def test_android_gate_requires_production_state_geometry_and_real_surface_authoring(self):
         gate = ANDROID_GATE.read_text(encoding="utf-8")
-        self.assertIn("IPreprocessBuildWithReport", gate)
-        self.assertIn("BuildTarget.Android", gate)
-        self.assertIn('ProductionReadyState = "PRODUCTION_READY"', gate)
-        self.assertIn('ProductionQuality = "authored-production"', gate)
-        self.assertIn("runtimeIntegrationVerified", gate)
-        self.assertIn("proceduralFallbackAllowedInCandidate", gate)
-        self.assertIn("AFAREET_P1_PRODUCTION_LANDMARK_GATE_BLOCKED", gate)
-        self.assertIn("productionMinVertices", gate)
-        self.assertIn("productionMinTriangles", gate)
+        for required in (
+            "IPreprocessBuildWithReport",
+            "BuildTarget.Android",
+            'ProductionReadyState = "PRODUCTION_READY"',
+            'ProductionQuality = "authored-production"',
+            "runtimeIntegrationVerified",
+            "proceduralFallbackAllowedInCandidate",
+            "AFAREET_P1_PRODUCTION_LANDMARK_GATE_BLOCKED",
+            "productionMinVertices",
+            "productionMinTriangles",
+            "TextureCoordinates",
+            "Normals",
+            "FacesWithUvAndNormal",
+            'line.StartsWith("vt ", StringComparison.Ordinal)',
+            'line.StartsWith("vn ", StringComparison.Ordinal)',
+            "mesh.uv",
+            "mesh.normals",
+            "material.mainTexture",
+            "authored-surface rejected",
+            "imported production surface rejected",
+        ):
+            self.assertIn(required, gate)
 
 
 if __name__ == "__main__":
