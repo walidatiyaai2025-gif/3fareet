@@ -63,10 +63,19 @@ class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
             self.assertGreaterEqual(vertices, module["productionMinVertices"], module["model"])
             self.assertGreaterEqual(triangles, module["productionMinTriangles"], module["model"])
 
-    def test_stager_packages_all_four_tracked_sources_before_gate(self):
+    def test_stager_packages_models_and_material_dependencies_before_gate(self):
         stager = STAGER.read_text(encoding="utf-8")
         for model in EXPECTED_MODELS:
             self.assertIn(f'"{model}"', stager)
+        for required in (
+            'case ".mtl"',
+            'case ".png"',
+            'case ".jpg"',
+            'case ".tga"',
+            "RemoveStaleStageableFiles",
+            "companions=mtl-textures",
+        ):
+            self.assertIn(required, stager)
         self.assertIn("Resources.Load<GameObject>(path)", stager)
         self.assertIn("ForceSynchronousImport", stager)
 
@@ -78,7 +87,7 @@ class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
         gate = ANDROID_GATE.read_text(encoding="utf-8")
         self.assertIn("callbackOrder => -840", gate)
 
-    def test_runtime_adapter_uses_resources_and_never_constructs_primitives(self):
+    def test_runtime_adapter_uses_resources_never_primitives_and_preserves_player_materials(self):
         adapter = ADAPTER.read_text(encoding="utf-8")
         self.assertNotIn("GameObject.CreatePrimitive", adapter)
         for method in ("TryCreateGround", "TryCreateFinishGate", "TryCreateRoadRune", "TryCreateSectorBeacon"):
@@ -91,6 +100,11 @@ class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
         ):
             self.assertIn(resource, adapter)
         self.assertIn("AFAREET_UART007_AUTHORED_TRACK_DRESSING_ACTIVE", adapter)
+        self.assertIn("ApplyByNameForEditorPreview", adapter)
+        self.assertIn("ApplySectorBeaconMaterialsForEditorPreview", adapter)
+        self.assertIn("if (!Application.isEditor)", adapter)
+        self.assertIn("player-preserves-source-materials=true", adapter)
+        self.assertNotIn("private static void ApplyByName(GameObject", adapter)
 
     def test_runtime_pass_replaces_legacy_visuals_and_player_is_fail_closed(self):
         runtime = RUNTIME_PASS.read_text(encoding="utf-8")
@@ -110,18 +124,31 @@ class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
         self.assertIn("AFAREET_UART007_PLAYER_PRIMITIVE_", runtime)
         self.assertIn("AFAREET_UART007_AUTHORED_TRACK_DRESSING_RUNTIME_OK", runtime)
 
-    def test_android_gate_requires_real_production_promotion_and_verified_runtime(self):
+    def test_android_gate_requires_real_production_promotion_verified_runtime_and_surface_authoring(self):
         gate = ANDROID_GATE.read_text(encoding="utf-8")
-        self.assertIn("IPreprocessBuildWithReport", gate)
-        self.assertIn("BuildTarget.Android", gate)
-        self.assertIn('ProductionReadyState = "PRODUCTION_READY"', gate)
-        self.assertIn('ProductionQuality = "authored-production"', gate)
-        self.assertIn("runtimeIntegrationVerified", gate)
-        self.assertIn("proceduralFallbackAllowedInCandidate", gate)
-        self.assertIn("productionMinVertices", gate)
-        self.assertIn("productionMinTriangles", gate)
-        self.assertIn("AFAREET_P1_PRODUCTION_TRACK_DRESSING_GATE_BLOCKED", gate)
-        self.assertIn("AFAREET_P1_PRODUCTION_TRACK_DRESSING_GATE_OK", gate)
+        for required in (
+            "IPreprocessBuildWithReport",
+            "BuildTarget.Android",
+            'ProductionReadyState = "PRODUCTION_READY"',
+            'ProductionQuality = "authored-production"',
+            "runtimeIntegrationVerified",
+            "proceduralFallbackAllowedInCandidate",
+            "productionMinVertices",
+            "productionMinTriangles",
+            "TextureCoordinates",
+            "Normals",
+            "FacesWithUvAndNormal",
+            'line.StartsWith("vt ", StringComparison.Ordinal)',
+            'line.StartsWith("vn ", StringComparison.Ordinal)',
+            "mesh.uv",
+            "mesh.normals",
+            "material.mainTexture",
+            "authored-surface rejected",
+            "imported production surface rejected",
+            "AFAREET_P1_PRODUCTION_TRACK_DRESSING_GATE_BLOCKED",
+            "AFAREET_P1_PRODUCTION_TRACK_DRESSING_GATE_OK",
+        ):
+            self.assertIn(required, gate)
 
 
 if __name__ == "__main__":
