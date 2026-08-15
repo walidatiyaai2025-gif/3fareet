@@ -74,13 +74,17 @@ def parse_adb_devices(output: str) -> list[dict[str, str]]:
     devices: list[dict[str, str]] = []
     for raw in output.splitlines():
         line = raw.strip()
-        if not line or line.startswith("List of devices") or "\t" not in line:
+        if not line or line.startswith("List of devices"):
             continue
-        serial, rest = line.split("\t", 1)
-        parts = rest.split()
-        state = parts[0] if parts else "unknown"
+
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+
+        serial = parts[0]
+        state = parts[1]
         metadata: dict[str, str] = {"serial": serial, "state": state}
-        for token in parts[1:]:
+        for token in parts[2:]:
             if ":" in token:
                 key, value = token.split(":", 1)
                 metadata[key] = value
