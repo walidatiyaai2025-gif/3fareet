@@ -29,7 +29,7 @@ class WindowsCandidateOrchestratorContractTests(unittest.TestCase):
 
     def test_initial_dirty_tree_is_preserved_before_cleanup_and_refusal(self):
         required = (
-            '$initialDirty = @(& git -C $RepoRoot status --porcelain 2>$null)',
+            '$initialDirty = @(& $git.Source -C $RepoRoot status --porcelain 2>$null)',
             'Preserve-DirtyTreeEvidence -Phase "INITIAL_TREE" -Changes $initialDirty',
             'INITIAL_TREE_DIRTY',
             'Initial dirty-tree status/patch/stderr evidence was preserved',
@@ -51,7 +51,8 @@ class WindowsCandidateOrchestratorContractTests(unittest.TestCase):
 
     def test_text_normalization_preflight_happens_before_package_and_unity(self):
         required = (
-            "verify_unity_text_normalization.py",
+            "verify_unity_text_normalization_windows.ps1",
+            "AFAREET_WINDOWS_NATIVE_VERIFIERS_OK pythonRequired=False",
             "AFAREET_TEXT_NORMALIZATION_PREFLIGHT_START",
             "AFAREET_TEXT_NORMALIZATION_PREFLIGHT_OK",
             'Assert-CleanTree "TEXT_NORMALIZATION_PREFLIGHT"',
@@ -73,7 +74,7 @@ class WindowsCandidateOrchestratorContractTests(unittest.TestCase):
 
     def test_package_preflight_happens_before_unity_execution(self):
         required = (
-            "verify_unity_package_lock.py",
+            "verify_unity_package_lock_windows.ps1",
             "AFAREET_PACKAGE_PREFLIGHT_START",
             "AFAREET_PACKAGE_PREFLIGHT_OK",
             'Assert-CleanTree "PACKAGE_PREFLIGHT"',
@@ -89,6 +90,18 @@ class WindowsCandidateOrchestratorContractTests(unittest.TestCase):
         build_start = self.text.index("& $buildScript @sharedParams")
         self.assertLess(preflight_ok, test_start)
         self.assertLess(preflight_ok, build_start)
+
+    def test_windows_candidate_chain_does_not_require_python(self):
+        for forbidden in (
+            "Resolve-Python3",
+            "Test-Python3Candidate",
+            "AFAREET_PYTHON_RESOLVED",
+            "verify_unity_text_normalization.py",
+            "verify_unity_package_lock.py",
+            "verify_local_candidate.py",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, self.text)
 
 
 if __name__ == "__main__":
