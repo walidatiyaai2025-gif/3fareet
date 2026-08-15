@@ -1,0 +1,9 @@
+# 3Fareet UART-005 awning surfaced-source candidate
+newmtl Awning_Surface
+Ka 0.120 0.090 0.160
+Kd 0.360 0.150 0.520
+Ks 0.180 0.140 0.220
+Ns 48.0
+d 1.0
+illum 2
+map_Kd T_Env_CairoAwning_Surface_BC.png

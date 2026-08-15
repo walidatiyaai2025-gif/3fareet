@@ -27,6 +27,7 @@ namespace Afareet.Editor
         {
             ConfigureAndroidToolchain();
             PrepareProject();
+            P1ProductionWorldBuildGate.ValidateAndroidCandidateOrThrow();
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             EditorUserBuildSettings.buildAppBundle = false;
@@ -58,6 +59,8 @@ namespace Afareet.Editor
         internal static void PrepareProject()
         {
             AfareetAssetSetup.EnsureConfigAssets();
+            P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow();
+
             PlayerSettings.companyName = "Afareet Studio";
             PlayerSettings.productName = "Afareet Asphalt Unity3D";
             PlayerSettings.SetApplicationIdentifier(

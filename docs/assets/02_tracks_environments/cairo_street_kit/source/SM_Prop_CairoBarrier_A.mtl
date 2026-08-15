@@ -1,0 +1,8 @@
+# UART-005 surfaced source candidate
+newmtl Barrier_Surface
+Ka 0.080 0.075 0.065
+Kd 0.560 0.490 0.330
+Ks 0.180 0.160 0.120
+Ns 40.0
+illum 2
+map_Kd T_Prop_CairoBarrier_Surface_BC.png
