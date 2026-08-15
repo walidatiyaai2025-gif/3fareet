@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,13 +26,23 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _git(repo: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
 class ProductionArtGateTests(unittest.TestCase):
     def _fixture(self, root: Path):
         repo = root / "repo"
         repo.mkdir()
         evidence_dir = root / "evidence"
         evidence_dir.mkdir()
-        git_sha = "a" * 40
         apk_sha = "b" * 64
 
         tasks = json.loads((TOOLS_DIR / "p1_production_art_spec.json").read_text(encoding="utf-8"))["requiredTasks"]
@@ -56,6 +67,13 @@ class ProductionArtGateTests(unittest.TestCase):
                 "runtimeAssets": [{"path": runtime.relative_to(repo).as_posix(), "sha256": _sha256(runtime)}],
                 "evidence": [{"kind": "screenshot", "path": shot.name, "sha256": _sha256(shot)}],
             }
+
+        _git(repo, "init")
+        _git(repo, "config", "user.name", "AFAREET Test")
+        _git(repo, "config", "user.email", "afareet-test@example.invalid")
+        _git(repo, "add", "Assets", "unity_game")
+        _git(repo, "commit", "-m", "production art fixture")
+        git_sha = _git(repo, "rev-parse", "HEAD").lower()
 
         manifest = {
             "schemaVersion": 2,
@@ -96,6 +114,9 @@ class ProductionArtGateTests(unittest.TestCase):
             self.assertEqual(6, result["evidenceCount"])
             self.assertEqual(18, result["artifactFingerprintCount"])
             self.assertTrue(result["artifactFingerprintsVerified"])
+            self.assertTrue(result["gitCandidateHeadVerified"])
+            self.assertEqual(12, result["gitTrackedArtifactCount"])
+            self.assertTrue(result["gitTrackedArtifactsVerified"])
             self.assertFalse(result["proceduralFallbackAccepted"])
 
     def test_blockout_quality_is_rejected(self):
@@ -206,6 +227,48 @@ class ProductionArtGateTests(unittest.TestCase):
             path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(GATE.ProductionArtGateError, "visual evidence file is reused"):
                 self._verify(repo, path, git_sha, apk_sha)
+
+    def test_repository_head_must_match_manifest_candidate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            marker = repo / "unrelated.txt"
+            marker.write_text("new commit", encoding="utf-8")
+            _git(repo, "add", "unrelated.txt")
+            _git(repo, "commit", "-m", "advance head")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "repository HEAD does not match"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_repo_artifact_must_be_tracked_by_candidate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            untracked = repo / "unity_game/Assets/UART-004/untracked.prefab"
+            untracked.parent.mkdir(parents=True, exist_ok=True)
+            untracked.write_bytes(b"untracked-runtime")
+            manifest["assets"]["UART-004"]["runtimeAssets"] = [{
+                "path": untracked.relative_to(repo).as_posix(),
+                "sha256": _sha256(untracked),
+            }]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "is not tracked by candidate Git commit"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_working_tree_artifact_cannot_differ_from_candidate_blob_even_with_updated_manifest_hash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            source_item = manifest["assets"]["UART-003"]["sourceFiles"][0]
+            source = repo / source_item["path"]
+            source.write_bytes(b"different-working-tree-source")
+            source_item["sha256"] = _sha256(source)
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "working-tree bytes do not match candidate Git blob"):
+                self._verify(repo, path, git_sha, apk_sha)
+
+    def test_repo_root_must_be_exact_git_worktree_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, _manifest, git_sha, apk_sha = self._fixture(Path(directory))
+            nested = repo / "Assets"
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "exact Git worktree root"):
+                GATE._verify_git_candidate_binding(nested, git_sha, [])
 
 
 if __name__ == "__main__":
