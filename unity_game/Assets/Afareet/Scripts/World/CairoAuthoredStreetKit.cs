@@ -14,8 +14,68 @@ namespace Afareet.World
         private const string AwningPath = ResourceRoot + "/SM_Env_CairoAwning_A";
         private const string LampPath = ResourceRoot + "/SM_Prop_CairoLamp_A";
         private const string BarrierPath = ResourceRoot + "/SM_Prop_CairoBarrier_A";
+        private const string RoadPath = ResourceRoot + "/SM_Track_CairoRoad_A";
+        private const string CurbPath = ResourceRoot + "/SM_Track_CairoCurb_A";
 
         private static bool activationLogged;
+        private static bool roadActivationLogged;
+
+        public static bool TryCreateRoadSegment(
+            Transform parent,
+            Vector3 center,
+            Quaternion rotation,
+            float length,
+            float roadWidth,
+            Material asphaltMaterial,
+            Material curbMaterial,
+            Material accentMaterial)
+        {
+            var roadSource = Resources.Load<GameObject>(RoadPath);
+            var curbSource = Resources.Load<GameObject>(CurbPath);
+            if (roadSource == null || curbSource == null)
+            {
+                if (roadSource == null) Missing(RoadPath);
+                if (curbSource == null) Missing(CurbPath);
+                return false;
+            }
+
+            var root = new GameObject("AUTHORED CAIRO ROAD SEGMENT").transform;
+            root.SetParent(parent, false);
+            root.SetPositionAndRotation(center, rotation);
+
+            var zScale = Mathf.Max(.05f, length / 10f);
+            var xScale = Mathf.Max(.05f, roadWidth / 14f);
+
+            var road = Object.Instantiate(roadSource, root, false);
+            road.name = "Authored Crowned Asphalt";
+            road.transform.localPosition = Vector3.zero;
+            road.transform.localRotation = Quaternion.identity;
+            road.transform.localScale = new Vector3(xScale, 1f, zScale);
+            ApplyNamedMaterials(road, asphaltMaterial, accentMaterial, "EdgeSeam", "CenterDetail", "Drainage");
+
+            var curbOffset = roadWidth * .5f + .28f;
+            var rightCurb = Object.Instantiate(curbSource, root, false);
+            rightCurb.name = "Authored Curb Right";
+            rightCurb.transform.localPosition = new Vector3(curbOffset, 0f, 0f);
+            rightCurb.transform.localRotation = Quaternion.identity;
+            rightCurb.transform.localScale = new Vector3(1f, 1f, zScale);
+            ApplyNamedMaterials(rightCurb, curbMaterial, accentMaterial, "Reflector", "NeonChannel");
+
+            var leftCurb = Object.Instantiate(curbSource, root, false);
+            leftCurb.name = "Authored Curb Left";
+            leftCurb.transform.localPosition = new Vector3(-curbOffset, 0f, 0f);
+            leftCurb.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            leftCurb.transform.localScale = new Vector3(1f, 1f, zScale);
+            ApplyNamedMaterials(leftCurb, curbMaterial, accentMaterial, "Reflector", "NeonChannel");
+
+            LogActivation();
+            if (!roadActivationLogged)
+            {
+                roadActivationLogged = true;
+                Debug.Log("AFAREET_UART005_AUTHORED_ROAD_ACTIVE source=tracked-obj road=SM_Track_CairoRoad_A curb=SM_Track_CairoCurb_A");
+            }
+            return true;
+        }
 
         public static bool TryCreateBuilding(
             Transform parent,
@@ -130,6 +190,33 @@ namespace Afareet.World
             panel.transform.localRotation = localRotation;
             panel.transform.localScale = localScale;
             ApplyMaterial(panel, material);
+        }
+
+        private static void ApplyNamedMaterials(GameObject instance, Material baseMaterial, Material accentMaterial, params string[] accentNameTokens)
+        {
+            if (instance == null) return;
+            foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                if (renderer == null) continue;
+                var selected = baseMaterial;
+                if (accentMaterial != null && accentNameTokens != null)
+                {
+                    var rendererName = renderer.gameObject.name;
+                    foreach (var token in accentNameTokens)
+                    {
+                        if (!string.IsNullOrEmpty(token) && rendererName.Contains(token))
+                        {
+                            selected = accentMaterial;
+                            break;
+                        }
+                    }
+                }
+                if (selected == null) continue;
+                var count = Mathf.Max(1, renderer.sharedMaterials == null ? 0 : renderer.sharedMaterials.Length);
+                var bindings = new Material[count];
+                for (var i = 0; i < bindings.Length; i++) bindings[i] = selected;
+                renderer.sharedMaterials = bindings;
+            }
         }
 
         private static void ApplyMaterial(GameObject instance, Material material)
