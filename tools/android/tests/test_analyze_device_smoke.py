@@ -25,15 +25,19 @@ class AnalyzeDeviceSmokeTests(unittest.TestCase):
         red_flags: int = 0,
         apk_sha: str = "a" * 64,
         device_sha: str = "b" * 64,
+        metadata_label: str | None = None,
+        include_red_flag_count: bool = True,
     ) -> None:
         checkpoint = root / "checkpoints" / label
         checkpoint.mkdir(parents=True, exist_ok=True)
-        (checkpoint / "checkpoint.json").write_text(json.dumps({
-            "label": label,
+        metadata = {
+            "label": label if metadata_label is None else metadata_label,
             "apkSha256": apk_sha,
             "deviceSerialSha256": device_sha,
-            "automatedRedFlagCount": red_flags,
-        }), encoding="utf-8")
+        }
+        if include_red_flag_count:
+            metadata["automatedRedFlagCount"] = red_flags
+        (checkpoint / "checkpoint.json").write_text(json.dumps(metadata), encoding="utf-8")
         (checkpoint / "meminfo.txt").write_text(f"TOTAL PSS: {pss_kib}\n", encoding="utf-8")
         (checkpoint / "gfxinfo.txt").write_text(
             f"95th percentile: {p95}ms\n99th percentile: {p99}ms\nJanky frames: 2 (1.0%)\n",
@@ -42,19 +46,32 @@ class AnalyzeDeviceSmokeTests(unittest.TestCase):
         (checkpoint / "thermalservice.txt").write_text(f"Thermal Status: {thermal}\n", encoding="utf-8")
         (checkpoint / "battery.txt").write_text("level: 80\nUSB powered: false\n", encoding="utf-8")
 
-    def _session(self, root: Path) -> None:
-        (root / "session.json").write_text(json.dumps({
-            "apk": {"sha256": "a" * 64},
-            "device": {"serialSha256": "b" * 64},
-        }), encoding="utf-8")
+    def _session(
+        self,
+        root: Path,
+        *,
+        apk_sha: str = "a" * 64,
+        device_sha: str = "b" * 64,
+        include_apk: bool = True,
+        include_device: bool = True,
+    ) -> None:
+        payload = {}
+        if include_apk:
+            payload["apk"] = {"sha256": apk_sha}
+        if include_device:
+            payload["device"] = {"serialSha256": device_sha}
+        (root / "session.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    def _write_clean_smoke_set(self, root: Path) -> None:
+        self._write_checkpoint(root, "smoke-cold-start", pss_kib=500 * 1024, p95=20, p99=25)
+        self._write_checkpoint(root, "smoke-warm-race", pss_kib=700 * 1024, p95=15, p99=20)
+        self._write_checkpoint(root, "smoke-after-restarts", pss_kib=728 * 1024, p95=16, p99=21)
 
     def test_mid_smoke_accepts_clean_android_observable_metrics_for_manual_review(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self._session(root)
-            self._write_checkpoint(root, "smoke-cold-start", pss_kib=500 * 1024, p95=20, p99=25)
-            self._write_checkpoint(root, "smoke-warm-race", pss_kib=700 * 1024, p95=15, p99=20)
-            self._write_checkpoint(root, "smoke-after-restarts", pss_kib=728 * 1024, p95=16, p99=21)
+            self._write_clean_smoke_set(root)
 
             result = MODULE.analyze(root, "mid")
             self.assertEqual("PASSABLE_FOR_MANUAL_REVIEW", result["verdict"])
@@ -112,6 +129,99 @@ class AnalyzeDeviceSmokeTests(unittest.TestCase):
             result = MODULE.analyze(root, "low")
             self.assertEqual("BLOCKED", result["verdict"])
             self.assertTrue(any("APK SHA does not match session" in item for item in result["blockers"]))
+
+    def test_missing_or_invalid_session_fingerprints_block(self):
+        cases = (
+            ({"include_apk": False}, "session: missing or invalid APK SHA-256 fingerprint"),
+            ({"include_device": False}, "session: missing or invalid device serial SHA-256 fingerprint"),
+            ({"apk_sha": "not-a-sha"}, "session: missing or invalid APK SHA-256 fingerprint"),
+            ({"device_sha": "1234"}, "session: missing or invalid device serial SHA-256 fingerprint"),
+        )
+        for session_kwargs, expected in cases:
+            with self.subTest(session_kwargs=session_kwargs), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                self._session(root, **session_kwargs)
+                self._write_clean_smoke_set(root)
+                result = MODULE.analyze(root, "mid")
+                self.assertEqual("BLOCKED", result["verdict"])
+                self.assertIn(expected, result["blockers"])
+
+    def test_missing_or_invalid_checkpoint_fingerprints_block(self):
+        cases = (
+            ({"apk_sha": ""}, "missing or invalid checkpoint APK SHA-256 fingerprint"),
+            ({"apk_sha": "z" * 64}, "missing or invalid checkpoint APK SHA-256 fingerprint"),
+            ({"device_sha": ""}, "missing or invalid checkpoint device SHA-256 fingerprint"),
+            ({"device_sha": "1234"}, "missing or invalid checkpoint device SHA-256 fingerprint"),
+        )
+        for checkpoint_kwargs, expected in cases:
+            with self.subTest(checkpoint_kwargs=checkpoint_kwargs), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                self._session(root)
+                self._write_clean_smoke_set(root)
+                self._write_checkpoint(
+                    root,
+                    "smoke-warm-race",
+                    pss_kib=700 * 1024,
+                    p95=15,
+                    p99=20,
+                    **checkpoint_kwargs,
+                )
+                result = MODULE.analyze(root, "mid")
+                self.assertEqual("BLOCKED", result["verdict"])
+                self.assertTrue(any(expected in item for item in result["blockers"]))
+
+    def test_checkpoint_label_mismatch_blocks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._session(root)
+            self._write_clean_smoke_set(root)
+            self._write_checkpoint(
+                root,
+                "smoke-warm-race",
+                pss_kib=700 * 1024,
+                p95=15,
+                p99=20,
+                metadata_label="smoke-after-restarts",
+            )
+            result = MODULE.analyze(root, "mid")
+            self.assertEqual("BLOCKED", result["verdict"])
+            self.assertTrue(any("checkpoint metadata label mismatch" in item for item in result["blockers"]))
+
+    def test_missing_or_invalid_red_flag_counter_blocks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._session(root)
+            self._write_clean_smoke_set(root)
+            self._write_checkpoint(
+                root,
+                "smoke-warm-race",
+                pss_kib=700 * 1024,
+                p95=15,
+                p99=20,
+                include_red_flag_count=False,
+            )
+            result = MODULE.analyze(root, "mid")
+            self.assertEqual("BLOCKED", result["verdict"])
+            self.assertTrue(any("automated red-flag count is missing or invalid" in item for item in result["blockers"]))
+
+            checkpoint_json = root / "checkpoints" / "smoke-warm-race" / "checkpoint.json"
+            metadata = json.loads(checkpoint_json.read_text(encoding="utf-8"))
+            metadata["automatedRedFlagCount"] = "not-a-number"
+            checkpoint_json.write_text(json.dumps(metadata), encoding="utf-8")
+            result = MODULE.analyze(root, "mid")
+            self.assertEqual("BLOCKED", result["verdict"])
+            self.assertTrue(any("automated red-flag count is missing or invalid" in item for item in result["blockers"]))
+
+    def test_zero_warm_pss_baseline_blocks_restart_growth(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._session(root)
+            self._write_checkpoint(root, "smoke-cold-start", pss_kib=500 * 1024, p95=20, p99=25)
+            self._write_checkpoint(root, "smoke-warm-race", pss_kib=0, p95=15, p99=20)
+            self._write_checkpoint(root, "smoke-after-restarts", pss_kib=10 * 1024, p95=16, p99=21)
+            result = MODULE.analyze(root, "mid")
+            self.assertEqual("BLOCKED", result["verdict"])
+            self.assertIn("smoke-warm-race: process PSS baseline must be greater than zero", result["blockers"])
 
 
 if __name__ == "__main__":
