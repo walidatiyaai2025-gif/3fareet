@@ -12,22 +12,33 @@ namespace Afareet.Editor
     /// substitute the deterministic preview mesh. A real externally-authored production
     /// prefab must already exist and remain traceable to its source model asset.
     ///
-    /// The only exception is the explicit experimental APK build scope. That scope is
-    /// process-local, non-nestable, and never used by the production BuildAndroid entry point.
+    /// The only exception is the explicit experimental APK build scope, and only when the
+    /// build is both Development and targets the dedicated experimental APK output path.
     /// </summary>
     public sealed class HeroCarProductionBuildPreprocessor : IPreprocessBuildWithReport
     {
+        private const string ExperimentalOutput = "Builds/Android/afareet-unity3d-experimental.apk";
+
         public int callbackOrder => -1000;
 
         public void OnPreprocessBuild(BuildReport report)
         {
             if (report.summary.platform != BuildTarget.Android) return;
 
-            if (AfareetBuildContext.IsExperimentalAndroidBuild)
+            var normalizedOutput = (report.summary.outputPath ?? string.Empty).Replace('\\', '/');
+            var isDevelopment = (report.summary.options & BuildOptions.Development) != 0;
+            var isDedicatedExperimentalOutput = normalizedOutput.EndsWith(
+                ExperimentalOutput,
+                StringComparison.OrdinalIgnoreCase
+            );
+
+            if (AfareetBuildContext.IsExperimentalAndroidBuild &&
+                isDevelopment &&
+                isDedicatedExperimentalOutput)
             {
                 Debug.LogWarning(
                     "AFAREET_UART003_EXPERIMENTAL_GATE_BYPASS " +
-                    "productionEvidence=false fallback=procedural-hero"
+                    $"productionEvidence=false fallback=procedural-hero output={normalizedOutput}"
                 );
                 return;
             }
