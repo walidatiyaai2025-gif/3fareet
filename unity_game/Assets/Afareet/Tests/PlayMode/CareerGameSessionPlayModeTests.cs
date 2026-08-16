@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Afareet.CareerRuntime;
 using Afareet.Progression;
@@ -65,7 +66,7 @@ namespace Afareet.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator FirstCircuitCompletion_PersistsProgressAndAdvancesToTimeTrial()
+        public IEnumerator FirstCircuitCompletion_PersistsProgressWalletAndAdvancesToTimeTrial()
         {
             Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r01"));
             CompleteCurrentRace();
@@ -76,11 +77,15 @@ namespace Afareet.Tests.PlayMode
             Assert.That(career.LastSettlement.NodeCompletedNow, Is.True);
             Assert.That(career.Progress.Stars, Is.EqualTo(3));
             Assert.That(career.Progress.IsNodeCompleted("c01_r01"), Is.True);
+            Assert.That(career.Profile.Coins, Is.EqualTo(250));
+            Assert.That(career.Profile.Spirit, Is.EqualTo(5));
             Assert.That(storage.Payload, Is.Not.Null.And.Not.Empty);
 
-            var persisted = new CareerSaveCodec().Decode(storage.Payload);
-            Assert.That(persisted.Stars, Is.EqualTo(3));
-            Assert.That(persisted.IsNodeCompleted("c01_r01"), Is.True);
+            var persisted = new CareerPlayerProfileCodec().Decode(storage.Payload);
+            Assert.That(persisted.Career.Stars, Is.EqualTo(3));
+            Assert.That(persisted.Career.IsNodeCompleted("c01_r01"), Is.True);
+            Assert.That(persisted.Coins, Is.EqualTo(250));
+            Assert.That(persisted.Spirit, Is.EqualTo(5));
 
             Assert.That(career.TryAdvanceToNextEvent(), Is.True);
             Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r02"));
@@ -89,14 +94,19 @@ namespace Afareet.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator SeededProgress_ResumesAtFirstPlayableIncompleteEvent()
+        public IEnumerator SeededProfile_ResumesAtFirstPlayableIncompleteEvent()
         {
-            var seeded = new CareerProgress(
+            var seededCareer = new CareerProgress(
                 CareerProgress.CurrentVersion,
                 3,
                 new[] { "c01_r01" },
                 new[] { "career:c01_r01:reward:00" });
-            storage.Payload = new CareerSaveCodec().Encode(seeded);
+            var seededProfile = new CareerPlayerProfile(
+                seededCareer,
+                250,
+                5,
+                Array.Empty<string>());
+            storage.Payload = new CareerPlayerProfileCodec().Encode(seededProfile);
 
             Object.Destroy(career);
             yield return null;
@@ -109,9 +119,11 @@ namespace Afareet.Tests.PlayMode
 
             Assert.That(career.Progress.Stars, Is.EqualTo(3));
             Assert.That(career.Progress.IsNodeCompleted("c01_r01"), Is.True);
+            Assert.That(career.Profile.Coins, Is.EqualTo(250));
+            Assert.That(career.Profile.Spirit, Is.EqualTo(5));
             Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r02"));
             Assert.That(career.RecoveredInvalidSave, Is.False);
-            Assert.That(new CareerSaveCodec().Decode(storage.Payload).Stars, Is.EqualTo(3));
+            Assert.That(new CareerPlayerProfileCodec().Decode(storage.Payload).Career.Stars, Is.EqualTo(3));
         }
 
         private void CompleteCurrentRace()
