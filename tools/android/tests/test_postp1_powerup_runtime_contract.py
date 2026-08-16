@@ -92,11 +92,15 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         ):
             self.assertIn(required, tests)
 
-    def test_compile_project_covers_all_runtime_dependencies(self):
+    def test_compile_projects_cover_all_runtime_dependencies(self):
         project = self._read("tools/android/contracts/PowerUpRuntimeCompile.csproj")
         runner_project = self._read("tools/android/contracts/PowerUpRuntimeContractRunner.csproj")
 
         self.assertIn("<TargetFramework>netstandard2.1</TargetFramework>", project)
+        self.assertIn("<TargetFramework>net8.0</TargetFramework>", runner_project)
+        self.assertIn("<BaseIntermediateOutputPath>obj/PowerUpRuntimeContractRunner/</BaseIntermediateOutputPath>", runner_project)
+        self.assertIn("<BaseOutputPath>bin/PowerUpRuntimeContractRunner/</BaseOutputPath>", runner_project)
+
         for source in (
             "PowerUpPresentationHooks.cs",
             "PowerUpEffectState.cs",
@@ -104,9 +108,11 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
             "PowerUpRaceRuntime.cs",
         ):
             self.assertIn(source, project)
+            self.assertIn(source, runner_project)
+
         self.assertIn("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>", project)
-        self.assertIn("<TargetFramework>net8.0</TargetFramework>", runner_project)
-        self.assertIn("<ProjectReference Include=\"PowerUpRuntimeCompile.csproj\" />", runner_project)
+        self.assertIn("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>", runner_project)
+        self.assertNotIn("ProjectReference", runner_project)
 
     def test_unity_metadata_is_present_for_runtime_and_tests(self):
         source_meta = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs.meta")
