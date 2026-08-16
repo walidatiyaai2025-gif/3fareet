@@ -32,6 +32,7 @@ namespace Afareet.Race
         private bool racersReleased;
         private bool powerUpRuntimeDirty = true;
         private double nextPowerUpDecisionRaceTime;
+        private RaceRewardSettlementSnapshot playerFinishRewardSnapshot;
 
         public RaceRoundPhase Phase => round?.Phase ?? RaceRoundPhase.Ready;
         public float RaceTime => PlayerRuntime?.Lap.ElapsedTime ?? 0f;
@@ -39,6 +40,8 @@ namespace Afareet.Race
         public bool IsStarted => Phase != RaceRoundPhase.Ready;
         public bool IsPaused { get; private set; }
         public bool HasPowerUpRuntime => powerUpRuntime != null && !powerUpRuntimeDirty;
+        public bool HasPlayerFinishRewardSnapshot => playerFinishRewardSnapshot != null;
+        public RaceRewardSettlementSnapshot PlayerFinishRewardSnapshot => playerFinishRewardSnapshot;
         public string CountdownText
         {
             get
@@ -69,6 +72,7 @@ namespace Afareet.Race
             powerUpRuntime = null;
             powerUpRuntimeDirty = true;
             nextPowerUpDecisionRaceTime = 0d;
+            playerFinishRewardSnapshot = null;
 
             PrepareRacer(player, "PLAYER", 0);
             for (var i = 0; i < registeredRivals.Count; i++)
@@ -110,6 +114,7 @@ namespace Afareet.Race
             if (round == null) throw new InvalidOperationException("RaceDirector must be configured before starting.");
             if (Phase != RaceRoundPhase.Ready) return;
 
+            playerFinishRewardSnapshot = null;
             EnsurePowerUpRuntime();
             ResetPowerUpDriveModifiers();
             nextPowerUpDecisionRaceTime = 0d;
@@ -141,6 +146,14 @@ namespace Afareet.Race
             ResetRacersToGrid();
             StartRace();
             return true;
+        }
+
+        public RaceRewardSettlement SettlePlayerFinishReward(int baseRewardUnits)
+        {
+            if (playerFinishRewardSnapshot == null)
+                throw new InvalidOperationException("Player finish reward snapshot is unavailable before race results.");
+
+            return playerFinishRewardSnapshot.Settle(baseRewardUnits);
         }
 
         internal AiPowerUpExecutionResult ExecuteBoundAiPowerUp(string racerId)
@@ -312,6 +325,17 @@ namespace Afareet.Race
             }
         }
 
+        private RaceRewardSettlementSnapshot CapturePlayerFinishRewardSnapshot(float finishTime)
+        {
+            var raceTimeSeconds = Math.Max(0d, finishTime);
+            if (powerUpRuntime == null || powerUpRuntimeDirty || PlayerRuntime == null)
+                return new RaceRewardSettlementSnapshot(raceTimeSeconds, 1d);
+
+            return powerUpRuntime.CaptureRewardSettlementSnapshot(
+                PlayerRuntime.RacerId,
+                raceTimeSeconds);
+        }
+
         private void ResetPowerUpDriveModifiers()
         {
             for (var i = 0; i < racers.Count; i++)
@@ -343,6 +367,7 @@ namespace Afareet.Race
 
         private void OnRoundResultsReady(float finishTime)
         {
+            playerFinishRewardSnapshot = CapturePlayerFinishRewardSnapshot(finishTime);
             SetPausedInternal(false);
             ResetPowerUpDriveModifiers();
             FreezeRacers();
@@ -353,6 +378,7 @@ namespace Afareet.Race
         {
             racersReleased = false;
             nextPowerUpDecisionRaceTime = 0d;
+            playerFinishRewardSnapshot = null;
             if (powerUpRuntime != null)
                 powerUpRuntime.ResetRace();
             ResetPowerUpDriveModifiers();
