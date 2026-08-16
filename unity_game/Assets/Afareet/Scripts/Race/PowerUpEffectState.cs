@@ -112,6 +112,19 @@ namespace Afareet.Race
     {
         private readonly Dictionary<PowerUpKind, ActivePowerUpEffect> activeEffects =
             new Dictionary<PowerUpKind, ActivePowerUpEffect>();
+        private readonly IPowerUpPresentationSink presentationSink;
+        private long nextPresentationSequenceId;
+        private double lastObservedRaceTimeSeconds;
+
+        public PowerUpEffectState()
+            : this(null)
+        {
+        }
+
+        public PowerUpEffectState(IPowerUpPresentationSink presentationSink)
+        {
+            this.presentationSink = presentationSink ?? NullPowerUpPresentationSink.Instance;
+        }
 
         public int ActiveCount => activeEffects.Count;
 
@@ -122,17 +135,27 @@ namespace Afareet.Race
                 throw new ArgumentNullException(nameof(spec));
             }
 
-            ValidateRaceTime(raceTimeSeconds);
+            ObserveRaceTime(raceTimeSeconds);
             RemoveExpired(raceTimeSeconds);
 
             if (PowerUpEffectPolicy.IsHostile(spec.Kind) && IsActive(PowerUpKind.EyeShield, raceTimeSeconds))
             {
+                EmitPresentation(
+                    PowerUpPresentationEventKind.Blocked,
+                    spec.Kind,
+                    raceTimeSeconds,
+                    spec.Magnitude);
                 return PowerUpApplyResult.BlockedByEyeShield;
             }
 
             if (!activeEffects.TryGetValue(spec.Kind, out var existing))
             {
                 activeEffects.Add(spec.Kind, new ActivePowerUpEffect(spec, raceTimeSeconds));
+                EmitPresentation(
+                    PowerUpPresentationEventKind.Applied,
+                    spec.Kind,
+                    raceTimeSeconds,
+                    spec.Magnitude);
                 return PowerUpApplyResult.Applied;
             }
 
@@ -140,6 +163,11 @@ namespace Afareet.Race
             {
                 case PowerUpRefreshPolicy.RefreshDuration:
                     activeEffects[spec.Kind] = new ActivePowerUpEffect(spec, raceTimeSeconds);
+                    EmitPresentation(
+                        PowerUpPresentationEventKind.Refreshed,
+                        spec.Kind,
+                        raceTimeSeconds,
+                        spec.Magnitude);
                     return PowerUpApplyResult.Refreshed;
 
                 case PowerUpRefreshPolicy.IgnoreWhileActive:
@@ -149,6 +177,11 @@ namespace Afareet.Race
                     if (spec.Magnitude > existing.Spec.Magnitude)
                     {
                         activeEffects[spec.Kind] = new ActivePowerUpEffect(spec, raceTimeSeconds);
+                        EmitPresentation(
+                            PowerUpPresentationEventKind.Replaced,
+                            spec.Kind,
+                            raceTimeSeconds,
+                            spec.Magnitude);
                         return PowerUpApplyResult.Replaced;
                     }
 
@@ -161,7 +194,7 @@ namespace Afareet.Race
 
         public bool IsActive(PowerUpKind kind, double raceTimeSeconds)
         {
-            ValidateRaceTime(raceTimeSeconds);
+            ObserveRaceTime(raceTimeSeconds);
             if (!Enum.IsDefined(typeof(PowerUpKind), kind))
             {
                 throw new ArgumentOutOfRangeException(nameof(kind));
@@ -178,6 +211,11 @@ namespace Afareet.Race
             }
 
             activeEffects.Remove(kind);
+            EmitPresentation(
+                PowerUpPresentationEventKind.Expired,
+                kind,
+                raceTimeSeconds,
+                effect.Spec.Magnitude);
             return false;
         }
 
@@ -188,7 +226,7 @@ namespace Afareet.Race
 
         public IReadOnlyList<ActivePowerUpEffect> Snapshot(double raceTimeSeconds)
         {
-            ValidateRaceTime(raceTimeSeconds);
+            ObserveRaceTime(raceTimeSeconds);
             RemoveExpired(raceTimeSeconds);
 
             var snapshot = new List<ActivePowerUpEffect>(activeEffects.Values);
@@ -198,13 +236,18 @@ namespace Afareet.Race
 
         public int Tick(double raceTimeSeconds)
         {
-            ValidateRaceTime(raceTimeSeconds);
+            ObserveRaceTime(raceTimeSeconds);
             return RemoveExpired(raceTimeSeconds);
         }
 
         public void ResetRace()
         {
             activeEffects.Clear();
+            EmitPresentation(
+                PowerUpPresentationEventKind.RaceReset,
+                null,
+                lastObservedRaceTimeSeconds,
+                0d);
         }
 
         private int RemoveExpired(double raceTimeSeconds)
@@ -226,10 +269,38 @@ namespace Afareet.Race
             expiredKinds.Sort();
             foreach (var kind in expiredKinds)
             {
+                var expiredEffect = activeEffects[kind];
                 activeEffects.Remove(kind);
+                EmitPresentation(
+                    PowerUpPresentationEventKind.Expired,
+                    kind,
+                    raceTimeSeconds,
+                    expiredEffect.Spec.Magnitude);
             }
 
             return expiredKinds.Count;
+        }
+
+        private void EmitPresentation(
+            PowerUpPresentationEventKind eventKind,
+            PowerUpKind? kind,
+            double raceTimeSeconds,
+            double magnitude)
+        {
+            nextPresentationSequenceId++;
+            presentationSink.Publish(
+                new PowerUpPresentationEvent(
+                    nextPresentationSequenceId,
+                    eventKind,
+                    kind,
+                    raceTimeSeconds,
+                    magnitude));
+        }
+
+        private void ObserveRaceTime(double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds);
+            lastObservedRaceTimeSeconds = raceTimeSeconds;
         }
 
         private static void ValidateRaceTime(double raceTimeSeconds)

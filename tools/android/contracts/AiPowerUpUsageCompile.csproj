@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpEffectState.cs" Link="PowerUpEffectState.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpPresentationHooks.cs" Link="PowerUpPresentationHooks.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs" Link="AiPowerUpUsagePolicy.cs" />
   </ItemGroup>
 </Project>
