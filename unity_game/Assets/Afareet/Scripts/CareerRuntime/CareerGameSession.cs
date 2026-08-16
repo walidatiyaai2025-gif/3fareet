@@ -12,7 +12,7 @@ namespace Afareet.CareerRuntime
         private readonly CareerEventSettlementService settlementService = new CareerEventSettlementService();
 
         private IReadOnlyList<CareerNodeDefinition> definitions;
-        private CareerProgressStore store;
+        private CareerPlayerProfileStore profileStore;
         private RaceRoundController round;
         private RaceDirector race;
         private RacePerformanceMetricsTracker performance;
@@ -20,7 +20,8 @@ namespace Afareet.CareerRuntime
         private CareerNodeDefinition activeDefinition;
         private bool configured;
 
-        public CareerProgress Progress { get; private set; }
+        public CareerPlayerProfile Profile { get; private set; }
+        public CareerProgress Progress => Profile?.Career;
         public CareerNodeDefinition ActiveDefinition => activeDefinition;
         public CareerEventSettlement LastSettlement { get; private set; }
         public bool HasActiveEvent => activeDefinition != null;
@@ -47,11 +48,11 @@ namespace Afareet.CareerRuntime
             round = roundController;
             race = director;
             performance = performanceTracker;
-            store = new CareerProgressStore(storage);
+            profileStore = new CareerPlayerProfileStore(storage);
             definitions = ChapterOneCareerEventContent.CreateDefinitions();
 
-            var load = store.Load();
-            Progress = load.Progress;
+            var load = profileStore.Load();
+            Profile = load.Profile;
             RecoveredInvalidSave = load.RecoveredFromInvalidPayload;
             SaveRecoveryError = load.Error;
             LastSettlement = null;
@@ -106,7 +107,7 @@ namespace Afareet.CareerRuntime
         public void SaveNow()
         {
             EnsureConfigured();
-            store.Save(Progress);
+            profileStore.Save(Profile);
         }
 
         private void OnResultsReady(float finishTime)
@@ -124,10 +125,10 @@ namespace Afareet.CareerRuntime
             var settlement = settlementService.Settle(activeDefinition, outcome, Progress);
             LastSettlement = settlement;
 
-            if (!ReferenceEquals(settlement.Progress, Progress))
+            if (!ReferenceEquals(settlement.Progress, Progress) || settlement.GrantedAnyReward)
             {
-                Progress = settlement.Progress;
-                store.Save(Progress);
+                Profile = Profile.Apply(settlement);
+                profileStore.Save(Profile);
                 ProgressChanged?.Invoke(Progress);
             }
 
@@ -178,7 +179,7 @@ namespace Afareet.CareerRuntime
 
         private void EnsureConfigured()
         {
-            if (!configured || round == null || race == null || store == null || Progress == null)
+            if (!configured || round == null || race == null || profileStore == null || Profile == null)
                 throw new InvalidOperationException("CareerGameSession must be configured before use.");
         }
 
