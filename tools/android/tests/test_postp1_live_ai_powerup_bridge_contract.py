@@ -111,8 +111,18 @@ class PostP1LiveAiPowerUpBridgeContractTests(unittest.TestCase):
         self.assertIn("PowerUpRuntimeDefaults.cs", compile_project)
         self.assertIn("AiPowerUpLiveSnapshotBuilder.cs", compile_project)
         self.assertIn("<TargetFramework>net8.0</TargetFramework>", runner_project)
-        self.assertIn("<BaseIntermediateOutputPath>obj/live-ai-powerup-bridge/</BaseIntermediateOutputPath>", runner_project)
-        self.assertIn("<ProjectReference Include=\"PowerUpRuntimeCompile.csproj\" />", runner_project)
+        self.assertIn("<BaseIntermediateOutputPath>obj/LiveAiPowerUpBridgeContractRunner/</BaseIntermediateOutputPath>", runner_project)
+        self.assertIn("<BaseOutputPath>bin/LiveAiPowerUpBridgeContractRunner/</BaseOutputPath>", runner_project)
+        self.assertNotIn("<ProjectReference", runner_project)
+        for source_name in (
+            "PowerUpPresentationHooks.cs",
+            "PowerUpEffectState.cs",
+            "AiPowerUpUsagePolicy.cs",
+            "PowerUpRaceRuntime.cs",
+            "PowerUpRuntimeDefaults.cs",
+            "AiPowerUpLiveSnapshotBuilder.cs",
+        ):
+            self.assertIn(source_name, runner_project)
 
         for required in (
             "PrototypeRulesContract();",
@@ -123,10 +133,21 @@ class PostP1LiveAiPowerUpBridgeContractTests(unittest.TestCase):
         ):
             self.assertIn(required, runner)
 
+    def test_unity_regression_source_covers_live_snapshot_and_defaults(self):
+        tests = self._read("unity_game/Assets/Afareet/Tests/EditMode/Race/LiveAiPowerUpBridgePolicyTests.cs")
+        for required in (
+            "PrototypeRuleset_CoversEveryRetainedPowerUpKind",
+            "SnapshotBuilder_UsesCheckpointSegmentAndRankTelemetry",
+            "SnapshotBuilder_EarlyProgressDoesNotFabricateFinalPushTime",
+            "SnapshotBuilder_InvalidCheckpointTelemetryFailsClosed",
+        ):
+            self.assertIn(required, tests)
+
     def test_new_unity_sources_have_metadata(self):
         for relative in (
             "unity_game/Assets/Afareet/Scripts/Race/PowerUpRuntimeDefaults.cs.meta",
             "unity_game/Assets/Afareet/Scripts/Race/AiPowerUpLiveSnapshotBuilder.cs.meta",
+            "unity_game/Assets/Afareet/Tests/EditMode/Race/LiveAiPowerUpBridgePolicyTests.cs.meta",
         ):
             content = self._read(relative)
             self.assertIn("fileFormatVersion: 2", content)
