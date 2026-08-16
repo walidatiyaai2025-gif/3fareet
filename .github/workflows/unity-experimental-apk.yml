@@ -8,6 +8,7 @@ on:
       - 'unity_game/Assets/Afareet/Editor/AfareetBuildContext.cs.meta'
       - 'unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs'
       - 'unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionVisualInstaller.cs'
+      - 'tools/android/build_experimental_windows.ps1'
       - '.github/scripts/verify-unity-experimental-apk.sh'
       - '.github/workflows/unity-experimental-apk.yml'
   workflow_dispatch:
@@ -39,16 +40,20 @@ jobs:
         run: |
           set -euo pipefail
           bash -n .github/scripts/verify-unity-experimental-apk.sh
+          pwsh -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile("tools/android/build_experimental_windows.ps1", [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }'
           grep -Fq 'public static void BuildAndroidExperimental()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'AfareetBuildContext.BeginExperimentalAndroidBuild()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'AFAREET_EXPERIMENTAL_APK' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'afareet-unity3d-experimental.apk' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
-          grep -Fq 'public static bool IsExperimentalAndroidBuild' unity_game/Assets/Afareet/Editor/AfareetBuildContext.cs
+          grep -Fq 'internal static bool IsExperimentalAndroidBuild' unity_game/Assets/Afareet/Editor/AfareetBuildContext.cs
           grep -Fq 'AfareetBuildContext.IsExperimentalAndroidBuild' unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs
+          grep -Fq 'BuildOptions.Development' unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs
+          grep -Fq 'ExperimentalOutput' unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs
           grep -Fq 'AFAREET_UART003_EXPERIMENTAL_GATE_BYPASS' unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs
           grep -Fq '#if AFAREET_EXPERIMENTAL_APK' unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionVisualInstaller.cs
           grep -Fq 'AFAREET_HERO_EXPERIMENTAL_BLOCKOUT_FALLBACK_ACTIVE' unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionVisualInstaller.cs
           grep -Fq 'releaseEvidenceEligible": False' .github/scripts/verify-unity-experimental-apk.sh
+          grep -Fq 'releaseEvidenceEligible = $false' tools/android/build_experimental_windows.ps1
           grep -Fq 'public static void BuildAndroid()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           grep -Fq 'P1ProductionWorldBuildGate.ValidateAndroidCandidateOrThrow();' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
           echo 'Experimental Android path is isolated; production Android remains fail-closed.'
