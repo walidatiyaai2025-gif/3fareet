@@ -8,7 +8,7 @@ internal static class CareerProgressionContractRunner
         try
         {
             var service = new CareerProgressionService();
-            var chapter = ChapterOneCareerContent.Build();
+            var chapter = ChapterOneCareerContent.CreateFoundation();
             var progress = CareerProgress.Empty();
 
             Require(service.CanEnter(chapter.Nodes[0], progress), "first node should be enterable at zero stars");
