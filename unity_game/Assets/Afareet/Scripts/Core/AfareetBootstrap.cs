@@ -79,10 +79,10 @@ namespace Afareet.Core
             controls.Configure(race, input);
 
             var productionHud = ProductionRaceHud.EnsureInstalled(transform);
-            productionHud.Configure(player, race);
+            productionHud.Configure(player, race, career);
 
             var flowOverlay = ProductionRaceFlowOverlay.EnsureInstalled(transform);
-            flowOverlay.Configure(race);
+            flowOverlay.Configure(race, career);
         }
 
         private static void SetupLighting()
