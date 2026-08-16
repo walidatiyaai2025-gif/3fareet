@@ -36,6 +36,11 @@ namespace Afareet.Editor
         public void OnPreprocessBuild(BuildReport report)
         {
             if (report == null || report.summary.platform != BuildTarget.Android) return;
+            if (AfareetBuildContext.IsDedicatedExperimentalAndroidBuild(report))
+            {
+                Debug.LogWarning("AFAREET_UART005_MATERIAL_EXPERIMENTAL_GATE_BYPASS productionEvidence=false");
+                return;
+            }
             ValidateAndroidCandidateOrThrow();
         }
 
@@ -50,8 +55,6 @@ namespace Afareet.Editor
             if (manifest == null || !string.Equals(manifest.taskId, "UART-005", StringComparison.Ordinal))
                 Fail("production manifest is invalid or has an unexpected task id");
 
-            // Current authored-source candidates are intentionally blocked by the main gate.
-            // Dependency provenance is mandatory once the task is promoted to authored-production.
             if (!string.Equals(manifest.reviewState, "PRODUCTION_READY", StringComparison.Ordinal) ||
                 !string.Equals(manifest.sourceQuality, "authored-production", StringComparison.Ordinal))
                 return;
