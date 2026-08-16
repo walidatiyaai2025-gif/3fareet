@@ -4,6 +4,23 @@ using Afareet.Race;
 
 namespace Afareet.CareerRuntime
 {
+    public sealed class RaceDirectorCareerMetricsSource : ICareerRaceMetricsSource
+    {
+        private readonly RaceDirector director;
+        private readonly RacePerformanceMetricsTracker performance;
+
+        public int FinalPosition => director.Position;
+        public int DriftScore => performance?.DriftScore ?? 0;
+
+        public RaceDirectorCareerMetricsSource(
+            RaceDirector director,
+            RacePerformanceMetricsTracker performance)
+        {
+            this.director = director ?? throw new ArgumentNullException(nameof(director));
+            this.performance = performance;
+        }
+    }
+
     public sealed class RaceRoundCareerSessionAdapter : IDisposable
     {
         private sealed class RaceRoundEventSource : ICareerRaceEventSource
@@ -43,14 +60,16 @@ namespace Afareet.CareerRuntime
 
         public RaceRoundCareerSessionAdapter(
             RaceRoundController round,
-            CareerNodeDefinition definition)
+            CareerNodeDefinition definition,
+            ICareerRaceMetricsSource metricsSource = null)
         {
             if (round == null)
                 throw new ArgumentNullException(nameof(round));
 
             coordinator = new CareerRaceSessionCoordinator(
                 new RaceRoundEventSource(round),
-                definition);
+                definition,
+                metricsSource);
         }
 
         public void ResetSession()
