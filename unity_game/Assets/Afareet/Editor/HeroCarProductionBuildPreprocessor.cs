@@ -11,6 +11,9 @@ namespace Afareet.Editor
     /// UART-003 Android production-art gate. Player builds may never generate or silently
     /// substitute the deterministic preview mesh. A real externally-authored production
     /// prefab must already exist and remain traceable to its source model asset.
+    ///
+    /// The only exception is the explicit experimental APK build scope. That scope is
+    /// process-local, non-nestable, and never used by the production BuildAndroid entry point.
     /// </summary>
     public sealed class HeroCarProductionBuildPreprocessor : IPreprocessBuildWithReport
     {
@@ -19,6 +22,15 @@ namespace Afareet.Editor
         public void OnPreprocessBuild(BuildReport report)
         {
             if (report.summary.platform != BuildTarget.Android) return;
+
+            if (AfareetBuildContext.IsExperimentalAndroidBuild)
+            {
+                Debug.LogWarning(
+                    "AFAREET_UART003_EXPERIMENTAL_GATE_BYPASS " +
+                    "productionEvidence=false fallback=procedural-hero"
+                );
+                return;
+            }
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(HeroCarLodPolicy.ProductionAssetPath);
             if (prefab == null)
