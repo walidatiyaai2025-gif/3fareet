@@ -10,5 +10,7 @@
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpEffectState.cs" Link="PowerUpEffectState.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs" Link="AiPowerUpUsagePolicy.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs" Link="PowerUpRaceRuntime.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpRuntimeDefaults.cs" Link="PowerUpRuntimeDefaults.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/AiPowerUpLiveSnapshotBuilder.cs" Link="AiPowerUpLiveSnapshotBuilder.cs" />
   </ItemGroup>
 </Project>
