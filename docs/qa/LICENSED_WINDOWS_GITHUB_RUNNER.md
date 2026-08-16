@@ -4,9 +4,12 @@
 
 ## What this solves
 
-Hosted `Unity Production CI` still requires GitHub secrets for Unity licensing. The Windows fallback can run Unity `6000.5.8f1`, tests, Android build and candidate verification on a self-hosted Windows x64 runner whose Unity installation is already licensed locally.
+Hosted `Unity Production CI` and `Unity Experimental APK` require GitHub secrets for Unity licensing. The Windows fallback can use Unity `6000.5.8f1` on a self-hosted Windows x64 runner whose Unity installation is already licensed locally.
 
-`.github/workflows/unity-licensed-windows-candidate.yml` bridges that gap by running the existing production candidate script and attaching exact-SHA evidence to GitHub Actions.
+`.github/workflows/unity-licensed-windows-candidate.yml` exposes two explicit modes:
+
+- `production` — the existing full tests + production Android candidate/evidence chain;
+- `experimental` — the isolated unified ARM64 development APK path, producing `afareet-unity3d-experimental.apk` without claiming release/device verification.
 
 The workflow does not request, echo, upload or commit Unity credentials.
 
@@ -33,7 +36,9 @@ The job fails before Unity starts unless:
 
 - the selected ref is one of the two approved production refs;
 - checked-out `HEAD` exactly matches the supplied 40-character `expected_sha`;
-- the working tree is clean.
+- the working tree is clean;
+- `candidate_mode` is exactly `production` or `experimental`;
+- the selected mode's runner script exists.
 
 `actions/checkout` uses `persist-credentials: false` on the self-hosted job.
 
@@ -59,30 +64,52 @@ The path can be changed at dispatch time without changing the workflow.
 
 Before every dispatch, read the current head of the intended allowed production ref from GitHub and review any commits that landed since the last inspected SHA. Do not reuse an old SHA from documentation, a previous workflow run or a previous chat message.
 
-For the current pre-merge remediation flow, use:
+For the current convergence flow, use:
 
 - `candidate_ref`: `agent/p1-remediation-convergence`;
 - `expected_sha`: the exact reviewed 40-character convergence head;
+- `candidate_mode`: `production` or `experimental`;
 - `unity_path`: the licensed Unity `6000.5.8f1` executable on that runner.
 
 For a later canonical integration proof, use:
 
 - `candidate_ref`: `agent/unblock-final-5`;
-- `expected_sha`: the exact reviewed canonical integration head.
+- `expected_sha`: the exact reviewed canonical integration head;
+- `candidate_mode`: the intended evidence class.
 
 If the selected branch moves between inspection and checkout, the dispatch fails closed. Review the new commits and start a new dispatch with the new SHA; never edit evidence to make an older run appear current.
 
+## Experimental APK mode
+
+Choose `candidate_mode=experimental` when the goal is the first current unified APK and hosted GameCI cannot run because Unity Actions credentials are absent.
+
+The workflow calls:
+
+`tools/android/build_experimental_windows.ps1`
+
+That path:
+
+1. requires a clean exact-SHA checkout and Unity `6000.5.8f1` with Android support;
+2. executes `Afareet.Editor.AfareetBuild.BuildAndroidExperimental`;
+3. builds `com.fiftysolutions.afareetunity3d` as API 26 / ARM64;
+4. preserves the explicit procedural Hero fallback only for the experimental build;
+5. validates package id, minSdk, ABI and `libunity.so`;
+6. computes SHA-256 and writes `artifacts/android-experimental/artifact-metadata.json`;
+7. forces `artifactClass=experimental`, `releaseEvidenceEligible=false` and `physicalDeviceVerified=false`.
+
+The workflow re-checks those metadata invariants before uploading the artifact. Experimental mode never emits the production candidate manifest and never promotes release/device state.
+
 ## Production-art staging boundary
 
-If the real Hero/Rival Unity import outputs have not yet been committed, first use the separate licensed staging handoff documented in `P1_LICENSED_STAGING_HANDOFF.md`.
+If the real Hero/Rival Unity import outputs have not yet been committed, first use the separate licensed staging handoff documented in `P1_LICENSED_STAGING_HANDOFF.md` before a `production` run.
 
-That phase may create tracked prefab/import metadata and must stop for review/commit. The licensed candidate workflow starts only after the approved staging outputs are committed to the selected ref and the selected exact SHA is clean.
+That phase may create tracked prefab/import metadata and must stop for review/commit. The production candidate workflow starts only after the approved staging outputs are committed to the selected ref and the selected exact SHA is clean.
 
-Do not run a candidate build from a working tree modified by tracked staging.
+The experimental mode does not convert blockout/procedural art into production evidence.
 
-## Execution chain
+## Production execution chain
 
-The workflow delegates production tests/build logic to:
+With `candidate_mode=production`, the workflow delegates to:
 
 `tools/android/run_local_candidate_windows.ps1`
 
@@ -113,16 +140,19 @@ It therefore cannot promote a candidate to VERIFIED.
 
 The workflow uploads, when present:
 
-- `artifacts/local-candidate-manifest.json`;
-- `artifacts/unity-local-tests/`;
-- `artifacts/android-local/` including APK and SHA-256 evidence;
-- `artifacts/logs/` including fail-closed dirty-tree diagnostics.
+- `artifacts/local-candidate-manifest.json` for production mode;
+- `artifacts/unity-local-tests/` for production mode;
+- `artifacts/android-local/` for production mode;
+- `artifacts/android-experimental/` for experimental mode, including APK, SHA-256 and metadata;
+- `artifacts/logs/` including Unity and fail-closed diagnostics.
 
-The artifact name is bound to the exact pinned Git SHA.
+The artifact name includes the selected mode and exact pinned Git SHA.
 
 ## Remaining gates
 
-A successful licensed Windows workflow means only that the exact candidate is **ready for physical-device evidence**. It does not complete:
+A successful `experimental` run means a current unified test APK exists; it does **not** make it release evidence or physical-device verified.
+
+A successful `production` licensed Windows workflow means only that the exact candidate is **ready for physical-device evidence**. It does not complete:
 
 - `UVEH-012` driving feel;
 - `URAC-012` lap/results/restart device verification;
