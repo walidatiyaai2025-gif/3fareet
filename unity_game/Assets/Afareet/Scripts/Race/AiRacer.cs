@@ -10,11 +10,16 @@ namespace Afareet.Race
         private readonly RaycastHit[] avoidanceHits = new RaycastHit[6];
         private IReadOnlyList<Transform> waypoints;
         private ArcadeCarController car;
+        private RaceDirector powerUpDirector;
+        private string powerUpRacerId;
         private int waypointIndex;
         private float skill;
         private float laneBias;
         private float aggression;
         private float overtakeSide;
+
+        public string PowerUpRacerId => powerUpRacerId;
+        public bool HasPowerUpRuntimeBinding => powerUpDirector != null && !string.IsNullOrWhiteSpace(powerUpRacerId);
 
         public void Configure(IReadOnlyList<Transform> path, int rivalIndex)
         {
@@ -25,6 +30,19 @@ namespace Afareet.Race
             overtakeSide = random.Next(0, 2) == 0 ? -1f : 1f;
             skill = Mathf.Clamp(.78f + rivalIndex * .07f + aggression * .08f, .80f, .98f);
             waypointIndex = (path.Count - rivalIndex * 2) % path.Count;
+        }
+
+        public void BindPowerUpRuntime(RaceDirector director, string racerId)
+        {
+            if (director == null) throw new System.ArgumentNullException(nameof(director));
+            powerUpDirector = director;
+            powerUpRacerId = PowerUpRaceRuntime.ValidateRacerId(racerId, nameof(racerId));
+        }
+
+        internal AiPowerUpExecutionResult EvaluateBoundPowerUpDecision()
+        {
+            if (!HasPowerUpRuntimeBinding || !isActiveAndEnabled) return null;
+            return powerUpDirector.ExecuteBoundAiPowerUp(powerUpRacerId);
         }
 
         private void Awake() => car = GetComponent<ArcadeCarController>();
