@@ -58,6 +58,25 @@ class LicensedWindowsWorkflowConvergenceRefContractTests(unittest.TestCase):
         self.assertNotRegex(expected_block, r"default:\s*['\"]?[0-9a-fA-F]{40}")
         self.assertIn("required: true", expected_block)
 
+    def test_experimental_mode_is_explicit_and_non_release(self):
+        text = WORKFLOW.read_text(encoding="utf-8")
+        for required in (
+            "candidate_mode:",
+            "default: 'production'",
+            "- 'production'",
+            "- 'experimental'",
+            "build_experimental_windows.ps1",
+            "inputs.candidate_mode == 'experimental'",
+            "artifactClass",
+            "releaseEvidenceEligible must remain JSON boolean false for experimental APKs.",
+            "physicalDeviceVerified must remain JSON boolean false until device evidence exists.",
+            "artifacts\\android-experimental",
+        ):
+            self.assertIn(required, text)
+
+        self.assertIn("inputs.candidate_mode == 'production'", text)
+        self.assertIn("run_local_candidate_windows.ps1", text)
+
     def test_documentation_explains_premerge_licensed_proof(self):
         text = DOC.read_text(encoding="utf-8")
         self.assertIn("agent/p1-remediation-convergence", text)
