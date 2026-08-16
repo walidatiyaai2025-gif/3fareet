@@ -32,7 +32,7 @@ namespace Afareet.CareerRuntime
             unlockedVehicleLookup = new HashSet<string>(StringComparer.Ordinal);
             foreach (var id in unlockedVehicleIds)
             {
-                CareerProgress.ValidateId(id, nameof(unlockedVehicleIds));
+                ValidateId(id, nameof(unlockedVehicleIds));
                 unlockedVehicleLookup.Add(id);
             }
 
@@ -46,7 +46,7 @@ namespace Afareet.CareerRuntime
 
         public bool IsVehicleUnlocked(string vehicleId)
         {
-            CareerProgress.ValidateId(vehicleId, nameof(vehicleId));
+            ValidateId(vehicleId, nameof(vehicleId));
             return unlockedVehicleLookup.Contains(vehicleId);
         }
 
@@ -71,6 +71,12 @@ namespace Afareet.CareerRuntime
                 nextCoins,
                 nextSpirit,
                 vehicles);
+        }
+
+        private static void ValidateId(string id, string parameterName)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("Career profile ids must be non-blank.", parameterName);
         }
     }
 
@@ -143,17 +149,20 @@ namespace Afareet.CareerRuntime
         public CareerPlayerProfile Profile { get; }
         public bool HasStoredPayload { get; }
         public bool RecoveredFromInvalidPayload { get; }
+        public bool MigratedLegacyCareerSave { get; }
         public string Error { get; }
 
         public CareerPlayerProfileLoadResult(
             CareerPlayerProfile profile,
             bool hasStoredPayload,
             bool recoveredFromInvalidPayload,
+            bool migratedLegacyCareerSave = false,
             string error = null)
         {
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
             HasStoredPayload = hasStoredPayload;
             RecoveredFromInvalidPayload = recoveredFromInvalidPayload;
+            MigratedLegacyCareerSave = migratedLegacyCareerSave;
             Error = error;
         }
     }
@@ -162,6 +171,7 @@ namespace Afareet.CareerRuntime
     {
         private readonly ICareerProgressStorage storage;
         private readonly CareerPlayerProfileCodec codec = new CareerPlayerProfileCodec();
+        private readonly CareerSaveCodec legacyCareerCodec = new CareerSaveCodec();
 
         public CareerPlayerProfileStore(ICareerProgressStorage storage)
         {
@@ -178,16 +188,31 @@ namespace Afareet.CareerRuntime
             {
                 return new CareerPlayerProfileLoadResult(codec.Decode(payload), true, false);
             }
-            catch (Exception exception) when (
-                exception is FormatException ||
-                exception is ArgumentException ||
-                exception is OverflowException)
+            catch (Exception profileException) when (
+                profileException is FormatException ||
+                profileException is ArgumentException ||
+                profileException is OverflowException)
             {
-                return new CareerPlayerProfileLoadResult(
-                    CareerPlayerProfile.Empty(),
-                    true,
-                    true,
-                    exception.Message);
+                try
+                {
+                    var legacyCareer = legacyCareerCodec.Decode(payload);
+                    return new CareerPlayerProfileLoadResult(
+                        new CareerPlayerProfile(legacyCareer, 0, 0, Array.Empty<string>()),
+                        true,
+                        false,
+                        migratedLegacyCareerSave: true);
+                }
+                catch (Exception legacyException) when (
+                    legacyException is FormatException ||
+                    legacyException is ArgumentException ||
+                    legacyException is OverflowException)
+                {
+                    return new CareerPlayerProfileLoadResult(
+                        CareerPlayerProfile.Empty(),
+                        true,
+                        true,
+                        error: profileException.Message);
+                }
             }
         }
 
