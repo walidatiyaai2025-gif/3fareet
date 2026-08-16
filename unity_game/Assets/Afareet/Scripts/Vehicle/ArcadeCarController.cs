@@ -274,7 +274,8 @@ namespace Afareet.Vehicle
 
         public void SetExternalDriveModifier(ArcadeDriveModifier modifier)
         {
-            externalDriveModifier = modifier ?? throw new System.ArgumentNullException(nameof(modifier));
+            ArcadeDriveModifier.ValidateInitialized(modifier, nameof(modifier));
+            externalDriveModifier = modifier;
         }
 
         public void ResetExternalDriveModifier()
