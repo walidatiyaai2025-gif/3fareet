@@ -21,6 +21,11 @@ namespace Afareet.Editor
         public void OnPreprocessBuild(BuildReport report)
         {
             if (report == null || report.summary.platform != BuildTarget.Android) return;
+            if (AfareetBuildContext.IsDedicatedExperimentalAndroidBuild(report))
+            {
+                Debug.LogWarning("AFAREET_UART005_ROAD_CURB_LOD_EXPERIMENTAL_GATE_BYPASS productionEvidence=false");
+                return;
+            }
             try
             {
                 P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow();
