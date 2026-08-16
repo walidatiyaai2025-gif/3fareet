@@ -89,7 +89,7 @@ namespace Afareet.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator FailedTimeTrial_DoesNotOverwriteCompletedProgressOrAdvance()
+        public IEnumerator SeededProgress_ResumesAtFirstPlayableIncompleteEvent()
         {
             var seeded = new CareerProgress(
                 CareerProgress.CurrentVersion,
@@ -106,19 +106,12 @@ namespace Afareet.Tests.PlayMode
                 race,
                 performance,
                 storage);
-            Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r02"));
 
-            race.StartRace();
-            var round = player.GetComponent<RaceRoundController>();
-            Assert.That(round.AdvanceCountdown(3f), Is.True);
-            Assert.That(round.AdvanceCountdown(95f), Is.False);
-            CompleteCheckpointsOnly();
-            yield return null;
-
-            // Lap elapsed time is driven by Unity time; force a policy-level slow outcome is covered in EditMode.
-            // This PlayMode case asserts that stored seed remains authoritative through session reconfiguration.
-            Assert.That(career.Progress.Stars, Is.GreaterThanOrEqualTo(3));
+            Assert.That(career.Progress.Stars, Is.EqualTo(3));
             Assert.That(career.Progress.IsNodeCompleted("c01_r01"), Is.True);
+            Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r02"));
+            Assert.That(career.RecoveredInvalidSave, Is.False);
+            Assert.That(new CareerSaveCodec().Decode(storage.Payload).Stars, Is.EqualTo(3));
         }
 
         private void CompleteCurrentRace()
