@@ -75,6 +75,9 @@ namespace Afareet.Core
             var input = gameObject.AddComponent<ProductionRaceInputController>();
             input.Configure(player, race);
 
+            var briefing = ProductionCareerBriefingOverlay.EnsureInstalled(transform);
+            briefing.Configure(career, race);
+
             var controls = ProductionRaceControlsOverlay.EnsureInstalled(transform);
             controls.Configure(race, input);
 
