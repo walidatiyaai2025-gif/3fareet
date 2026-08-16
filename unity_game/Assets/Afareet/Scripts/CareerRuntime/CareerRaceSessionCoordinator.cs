@@ -49,6 +49,7 @@ namespace Afareet.CareerRuntime
 
             source.ResultsReady -= OnResultsReady;
             source.RoundReset -= OnRoundReset;
+            lastEvaluation = null;
             EvaluationReady = null;
             disposed = true;
         }
