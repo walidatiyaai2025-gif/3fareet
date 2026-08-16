@@ -6,6 +6,7 @@ using UnityEngine;
 
 namespace Afareet.Race
 {
+    [DefaultExecutionOrder(-200)]
     public sealed class RaceDirector : MonoBehaviour
     {
         private const float P1RoadHalfWidth = 7f;
