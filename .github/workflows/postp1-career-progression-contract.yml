@@ -1,0 +1,40 @@
+name: Post-P1 Career Progression Contract
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Progression/**'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Progression/**'
+      - 'tools/android/contracts/CareerFoundationCompile.csproj'
+      - 'tools/android/contracts/CareerProgressionContractRunner.cs'
+      - 'tools/android/contracts/CareerProgressionContractRunner.csproj'
+      - 'tools/android/tests/test_postp1_career_progression_contract.py'
+      - '.github/workflows/postp1-career-progression-contract.yml'
+  push:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Progression/**'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Progression/**'
+      - 'tools/android/contracts/CareerFoundationCompile.csproj'
+      - 'tools/android/contracts/CareerProgressionContractRunner.cs'
+      - 'tools/android/contracts/CareerProgressionContractRunner.csproj'
+      - 'tools/android/tests/test_postp1_career_progression_contract.py'
+      - '.github/workflows/postp1-career-progression-contract.yml'
+  workflow_dispatch:
+
+jobs:
+  career-progression-contract:
+    name: Career progression compile + behavior contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile pure C# Career foundation plus progression
+        run: dotnet build tools/android/contracts/CareerFoundationCompile.csproj --configuration Release --nologo
+
+      - name: Run Career progression behavior contract
+        run: dotnet run --project tools/android/contracts/CareerProgressionContractRunner.csproj --configuration Release
+
+      - name: Run Career progression source contracts
+        run: python3 tools/android/tests/test_postp1_career_progression_contract.py
