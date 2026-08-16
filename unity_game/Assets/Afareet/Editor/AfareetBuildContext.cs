@@ -5,13 +5,13 @@ namespace Afareet.Editor
     /// <summary>
     /// Process-local build context used only while BuildPipeline.BuildPlayer is executing.
     /// Production builds remain fail-closed; the experimental Android scope is explicit,
-    /// non-nestable, and always reset through IDisposable/finally semantics.
+    /// non-nestable, internal to the editor assembly, and reset through IDisposable/finally semantics.
     /// </summary>
-    public static class AfareetBuildContext
+    internal static class AfareetBuildContext
     {
-        public static bool IsExperimentalAndroidBuild { get; private set; }
+        internal static bool IsExperimentalAndroidBuild { get; private set; }
 
-        public static IDisposable BeginExperimentalAndroidBuild()
+        internal static IDisposable BeginExperimentalAndroidBuild()
         {
             if (IsExperimentalAndroidBuild)
                 throw new InvalidOperationException("An experimental Android build scope is already active.");
