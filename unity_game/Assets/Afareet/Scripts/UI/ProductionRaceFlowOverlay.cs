@@ -1,4 +1,5 @@
 using System;
+using Afareet.CareerRuntime;
 using Afareet.Race;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,10 +11,12 @@ namespace Afareet.UI
         private const string HostName = "AFAREET RACE FLOW OVERLAY";
 
         private RaceDirector race;
+        private CareerGameSession career;
         private RectTransform safeRoot;
         private RectTransform pauseButtonRect;
         private RectTransform resumeButtonRect;
         private RectTransform restartButtonRect;
+        private RectTransform nextButtonRect;
         private GameObject pausePanel;
         private GameObject resultsPanel;
         private Text pauseButtonLabel;
@@ -22,7 +25,9 @@ namespace Afareet.UI
         private Text resultsTitle;
         private Text positionLabel;
         private Text timeLabel;
+        private Text settlementLabel;
         private Text restartLabel;
+        private Text nextLabel;
         private Rect lastSafeArea;
 
         public bool HasRuntimeBinding => race != null;
@@ -50,9 +55,10 @@ namespace Afareet.UI
             return host.AddComponent<ProductionRaceFlowOverlay>();
         }
 
-        public void Configure(RaceDirector director)
+        public void Configure(RaceDirector director, CareerGameSession careerSession = null)
         {
             race = director ?? throw new ArgumentNullException(nameof(director));
+            career = careerSession;
         }
 
         private void Update()
@@ -69,6 +75,7 @@ namespace Afareet.UI
         private bool ResolveRuntime()
         {
             if (race == null) race = FindFirstObjectByType<RaceDirector>();
+            if (career == null) career = FindFirstObjectByType<CareerGameSession>();
             return race != null;
         }
 
@@ -110,17 +117,26 @@ namespace Afareet.UI
                 new Vector2(280f, 72f),
                 out resumeLabel);
 
-            resultsPanel = CreateCenteredPanel("Results Panel", new Vector2(560f, 380f), out var resultsRoot);
-            resultsTitle = CreateText(resultsRoot, "Results Title", new Vector2(0f, 126f), new Vector2(480f, 58f), 32, FontStyle.Bold);
-            positionLabel = CreateText(resultsRoot, "Position", new Vector2(0f, 48f), new Vector2(440f, 46f), 24, FontStyle.Bold);
-            timeLabel = CreateText(resultsRoot, "Finish Time", new Vector2(0f, -4f), new Vector2(440f, 46f), 24, FontStyle.Bold);
+            resultsPanel = CreateCenteredPanel("Results Panel", new Vector2(650f, 470f), out var resultsRoot);
+            resultsTitle = CreateText(resultsRoot, "Results Title", new Vector2(0f, 174f), new Vector2(560f, 58f), 32, FontStyle.Bold);
+            positionLabel = CreateText(resultsRoot, "Position", new Vector2(0f, 102f), new Vector2(520f, 42f), 22, FontStyle.Bold);
+            timeLabel = CreateText(resultsRoot, "Finish Time", new Vector2(0f, 58f), new Vector2(520f, 42f), 22, FontStyle.Bold);
+            settlementLabel = CreateText(resultsRoot, "Career Settlement", new Vector2(0f, -4f), new Vector2(560f, 72f), 19, FontStyle.Bold);
+
             restartButtonRect = CreateButtonVisual(
                 resultsRoot,
                 "Restart Button",
                 new Vector2(.5f, .5f),
-                new Vector2(0f, -116f),
-                new Vector2(300f, 72f),
+                new Vector2(-155f, -154f),
+                new Vector2(270f, 70f),
                 out restartLabel);
+            nextButtonRect = CreateButtonVisual(
+                resultsRoot,
+                "Next Event Button",
+                new Vector2(.5f, .5f),
+                new Vector2(155f, -154f),
+                new Vector2(270f, 70f),
+                out nextLabel);
 
             pausePanel.SetActive(false);
             resultsPanel.SetActive(false);
@@ -199,11 +215,18 @@ namespace Afareet.UI
         private void HandleKeyboard()
         {
 #if UNITY_EDITOR || UNITY_STANDALONE
-            if (!Input.GetKeyDown(KeyCode.Escape) && !Input.GetKeyDown(KeyCode.P)) return;
-            if (RaceUiPresentationPolicy.CanPause(race.Phase, race.IsPaused))
-                race.SetPaused(true);
-            else if (RaceUiPresentationPolicy.CanResume(race.Phase, race.IsPaused))
-                race.SetPaused(false);
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P))
+            {
+                if (RaceUiPresentationPolicy.CanPause(race.Phase, race.IsPaused))
+                    race.SetPaused(true);
+                else if (RaceUiPresentationPolicy.CanResume(race.Phase, race.IsPaused))
+                    race.SetPaused(false);
+            }
+
+            if (race.Phase == RaceRoundPhase.Results && Input.GetKeyDown(KeyCode.R))
+                RestartRace();
+            if (race.Phase == RaceRoundPhase.Results && Input.GetKeyDown(KeyCode.N) && CanAdvanceCareer())
+                career.TryAdvanceToNextEvent();
 #endif
         }
 
@@ -235,6 +258,20 @@ namespace Afareet.UI
             }
 
             if (RaceUiPresentationPolicy.CanRestart(race.Phase) && Contains(restartButtonRect, screenPoint))
+            {
+                RestartRace();
+                return;
+            }
+
+            if (CanAdvanceCareer() && Contains(nextButtonRect, screenPoint))
+                career.TryAdvanceToNextEvent();
+        }
+
+        private void RestartRace()
+        {
+            if (career != null && career.HasActiveEvent)
+                career.RestartCurrentEvent();
+            else
                 race.RestartRace();
         }
 
@@ -248,10 +285,49 @@ namespace Afareet.UI
             pauseButtonLabel.text = RuntimeLocalization.Text("pause");
             pauseTitle.text = RuntimeLocalization.Text("pause");
             resumeLabel.text = RuntimeLocalization.Text("resume");
-            resultsTitle.text = RuntimeLocalization.Text("results");
-            restartLabel.text = RuntimeLocalization.Text("restart");
+            restartLabel.text = "RETRY";
+            nextLabel.text = "NEXT EVENT";
             positionLabel.text = $"{RuntimeLocalization.Text("position")}  {race.Position}/4";
             timeLabel.text = $"{RuntimeLocalization.Text("time")}  {Mathf.Max(0f, race.FinishTime):0.00} s";
+
+            if (career == null || career.LastSettlement == null)
+            {
+                resultsTitle.text = RuntimeLocalization.Text("results");
+                settlementLabel.text = string.Empty;
+                nextButtonRect.gameObject.SetActive(false);
+                return;
+            }
+
+            var settlement = career.LastSettlement;
+            var passed = career.ActiveDefinition != null &&
+                         career.Progress.IsNodeCompleted(career.ActiveDefinition.Node.Id);
+            resultsTitle.text = passed ? "EVENT CLEARED" : "EVENT FAILED";
+
+            if (passed)
+            {
+                var reward = settlement.GrantedAnyReward
+                    ? $"  •  +{settlement.CoinsGranted} COINS  +{settlement.SpiritGranted} SPIRIT"
+                    : string.Empty;
+                var stars = settlement.StarsEarned > 0
+                    ? $"+{settlement.StarsEarned} STARS"
+                    : "COMPLETED";
+                settlementLabel.text = $"{stars}{reward}";
+            }
+            else
+            {
+                settlementLabel.text = $"OBJECTIVES  {settlement.Evaluation.CompletedCount}/{settlement.Evaluation.Entries.Count}  •  RETRY TO ADVANCE";
+            }
+
+            nextButtonRect.gameObject.SetActive(CanAdvanceCareer());
+        }
+
+        private bool CanAdvanceCareer()
+        {
+            return career != null &&
+                   race.Phase == RaceRoundPhase.Results &&
+                   career.ActiveDefinition != null &&
+                   career.Progress.IsNodeCompleted(career.ActiveDefinition.Node.Id) &&
+                   !career.CampaignComplete;
         }
 
         private static bool Contains(RectTransform rect, Vector2 screenPoint) =>

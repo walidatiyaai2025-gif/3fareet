@@ -1,6 +1,6 @@
 {
   "name": "Afareet.Core",
   "rootNamespace": "Afareet.Core",
-  "references": ["Afareet.World", "Afareet.Vehicle", "Afareet.Race", "Afareet.UI"],
+  "references": ["Afareet.World", "Afareet.Vehicle", "Afareet.Race", "Afareet.UI", "Afareet.CareerRuntime"],
   "autoReferenced": true
 }

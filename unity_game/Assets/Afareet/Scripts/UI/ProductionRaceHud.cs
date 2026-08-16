@@ -1,4 +1,5 @@
 using System;
+using Afareet.CareerRuntime;
 using Afareet.Race;
 using Afareet.Vehicle;
 using UnityEngine;
@@ -12,11 +13,13 @@ namespace Afareet.UI
 
         private ArcadeCarController player;
         private RaceDirector race;
+        private CareerGameSession career;
         private RectTransform safeRoot;
         private Text positionText;
         private Text timeText;
         private Text speedText;
         private Text spiritText;
+        private Text careerText;
         private Image spiritFill;
         private Rect lastSafeArea;
 
@@ -45,10 +48,14 @@ namespace Afareet.UI
             return host.AddComponent<ProductionRaceHud>();
         }
 
-        public void Configure(ArcadeCarController playerCar, RaceDirector director)
+        public void Configure(
+            ArcadeCarController playerCar,
+            RaceDirector director,
+            CareerGameSession careerSession = null)
         {
             player = playerCar ?? throw new ArgumentNullException(nameof(playerCar));
             race = director ?? throw new ArgumentNullException(nameof(director));
+            career = careerSession;
         }
 
         private void Update()
@@ -62,6 +69,31 @@ namespace Afareet.UI
             speedText.text = $"{Mathf.Abs(player.SpeedKph):000}\nKM/H";
             spiritText.text = $"SPIRIT  {Mathf.RoundToInt(player.NitroEnergy * 100f)}%";
             spiritFill.fillAmount = Mathf.Clamp01(player.NitroEnergy);
+            RefreshCareer();
+        }
+
+        private void RefreshCareer()
+        {
+            if (careerText == null)
+                return;
+            if (career == null)
+            {
+                careerText.text = "AFAREET CAREER";
+                return;
+            }
+            if (career.CampaignComplete)
+            {
+                careerText.text = $"CHAPTER 1 COMPLETE  •  {career.Progress.Stars} STARS";
+                return;
+            }
+            if (career.ActiveDefinition == null)
+            {
+                careerText.text = $"CAREER  •  {career.Progress.Stars} STARS";
+                return;
+            }
+
+            var node = career.ActiveDefinition.Node;
+            careerText.text = $"{node.Id.ToUpperInvariant()}  •  {ModeLabel(node.Mode)}  •  {career.Progress.Stars} STARS";
         }
 
         private bool ResolveRuntime()
@@ -73,6 +105,7 @@ namespace Afareet.UI
             }
 
             if (race == null) race = FindFirstObjectByType<RaceDirector>();
+            if (career == null) career = FindFirstObjectByType<CareerGameSession>();
             return player != null && race != null;
         }
 
@@ -97,6 +130,7 @@ namespace Afareet.UI
             timeText = Panel("Time", new Vector2(-24, -24), new Vector2(210, 58), TextAnchor.MiddleCenter, false);
             speedText = Panel("Speed", new Vector2(-24, 24), new Vector2(230, 105), TextAnchor.MiddleCenter, false, true);
             spiritText = Panel("Spirit", new Vector2(24, 24), new Vector2(275, 74), TextAnchor.UpperCenter, true, true);
+            careerText = CenterTopPanel("Career", new Vector2(0f, -24f), new Vector2(440f, 58f));
 
             var fillBg = CreateImage("Spirit Bar BG", spiritText.transform.parent, new Color(.03f, .02f, .08f, .94f));
             SetAnchored(fillBg.rectTransform, new Vector2(16, 12), new Vector2(243, 16), new Vector2(0, 0), new Vector2(0, 0));
@@ -107,6 +141,29 @@ namespace Afareet.UI
             spiritFill.rectTransform.anchorMin = Vector2.zero;
             spiritFill.rectTransform.anchorMax = Vector2.one;
             spiritFill.rectTransform.offsetMin = spiritFill.rectTransform.offsetMax = Vector2.zero;
+        }
+
+        private Text CenterTopPanel(string panelName, Vector2 offset, Vector2 size)
+        {
+            var image = CreateImage(panelName, safeRoot, new Color(.018f, .012f, .045f, .88f));
+            var rect = image.rectTransform;
+            rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1f);
+            rect.pivot = new Vector2(.5f, 1f);
+            rect.anchoredPosition = offset;
+            rect.sizeDelta = size;
+
+            var text = new GameObject(panelName + " Text", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
+            text.transform.SetParent(image.transform, false);
+            text.rectTransform.anchorMin = Vector2.zero;
+            text.rectTransform.anchorMax = Vector2.one;
+            text.rectTransform.offsetMin = new Vector2(8f, 6f);
+            text.rectTransform.offsetMax = new Vector2(-8f, -6f);
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 18;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.white;
+            return text;
         }
 
         private Text Panel(string panelName, Vector2 offset, Vector2 size, TextAnchor alignment, bool left, bool bottom = false)
@@ -145,6 +202,19 @@ namespace Afareet.UI
             rect.pivot = new Vector2(min.x, min.y);
             rect.anchoredPosition = offset;
             rect.sizeDelta = size;
+        }
+
+        private static string ModeLabel(Afareet.Progression.CareerRaceMode mode)
+        {
+            switch (mode)
+            {
+                case Afareet.Progression.CareerRaceMode.Circuit: return "CIRCUIT";
+                case Afareet.Progression.CareerRaceMode.TimeTrial: return "TIME TRIAL";
+                case Afareet.Progression.CareerRaceMode.Elimination: return "ELIMINATION";
+                case Afareet.Progression.CareerRaceMode.DriftChallenge: return "DRIFT";
+                case Afareet.Progression.CareerRaceMode.Boss: return "BOSS";
+                default: return mode.ToString().ToUpperInvariant();
+            }
         }
 
         private void ApplySafeArea()

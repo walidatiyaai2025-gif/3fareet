@@ -1,3 +1,4 @@
+using Afareet.CareerRuntime;
 using Afareet.Race;
 using Afareet.UI;
 using Afareet.Vehicle;
@@ -33,7 +34,8 @@ namespace Afareet.Core
 
             var race = gameObject.AddComponent<RaceDirector>();
             race.Configure(player, track);
-            gameObject.AddComponent<RacePerformanceMetricsTracker>().Configure(player, race);
+            var performance = gameObject.AddComponent<RacePerformanceMetricsTracker>();
+            performance.Configure(player, race);
 
             for (var i = 0; i < 3; i++)
             {
@@ -42,8 +44,15 @@ namespace Afareet.Core
                 race.RegisterRival(ai);
             }
 
+            var career = gameObject.AddComponent<CareerGameSession>();
+            career.Configure(
+                player.GetComponent<RaceRoundController>(),
+                race,
+                performance,
+                new PlayerPrefsCareerProgressStorage());
+
             CreateCamera(player.transform, cameraConfig);
-            InstallRuntimeUi(player, race);
+            InstallRuntimeUi(player, race, career);
             gameObject.AddComponent<UnitySplashOverlay>();
         }
 
@@ -58,18 +67,25 @@ namespace Afareet.Core
             QualitySettings.vSyncCount = 0;
         }
 
-        private void InstallRuntimeUi(ArcadeCarController player, RaceDirector race)
+        private void InstallRuntimeUi(
+            ArcadeCarController player,
+            RaceDirector race,
+            CareerGameSession career)
         {
-            // PrototypeHud currently owns the legacy mobile touch/tilt input path in addition to drawing
-            // prototype presentation. Keep it wired until the dedicated production input controller lands.
-            var legacyInputBridge = gameObject.AddComponent<PrototypeHud>();
-            legacyInputBridge.Configure(player, race);
+            var input = gameObject.AddComponent<ProductionRaceInputController>();
+            input.Configure(player, race);
+
+            var briefing = ProductionCareerBriefingOverlay.EnsureInstalled(transform);
+            briefing.Configure(career, race);
+
+            var controls = ProductionRaceControlsOverlay.EnsureInstalled(transform);
+            controls.Configure(race, input);
 
             var productionHud = ProductionRaceHud.EnsureInstalled(transform);
-            productionHud.Configure(player, race);
+            productionHud.Configure(player, race, career);
 
             var flowOverlay = ProductionRaceFlowOverlay.EnsureInstalled(transform);
-            flowOverlay.Configure(race);
+            flowOverlay.Configure(race, career);
         }
 
         private static void SetupLighting()
