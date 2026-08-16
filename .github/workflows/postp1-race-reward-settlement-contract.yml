@@ -1,0 +1,54 @@
+name: Post-P1 Race Reward Settlement Contract
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceRewardSettlement.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceRewardSettlement.cs.meta'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRuntimeDefaults.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs.meta'
+      - 'tools/android/contracts/PowerUpRuntimeCompile.csproj'
+      - 'tools/android/contracts/RaceRewardSettlementContractRunner.cs'
+      - 'tools/android/contracts/RaceRewardSettlementContractRunner.csproj'
+      - 'tools/android/tests/test_postp1_race_reward_settlement_contract.py'
+      - '.github/workflows/postp1-race-reward-settlement-contract.yml'
+  push:
+    branches:
+      - main
+      - agent/p1-remediation-convergence
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceRewardSettlement.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceRewardSettlement.cs.meta'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRuntimeDefaults.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs.meta'
+      - 'tools/android/contracts/PowerUpRuntimeCompile.csproj'
+      - 'tools/android/contracts/RaceRewardSettlementContractRunner.cs'
+      - 'tools/android/contracts/RaceRewardSettlementContractRunner.csproj'
+      - 'tools/android/tests/test_postp1_race_reward_settlement_contract.py'
+      - '.github/workflows/postp1-race-reward-settlement-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reward-settlement-contract:
+    name: Reward settlement compile + behavior contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Compile pure C# power-up runtime with reward settlement
+        run: dotnet build tools/android/contracts/PowerUpRuntimeCompile.csproj --configuration Release --nologo
+
+      - name: Run race reward settlement behavior contract
+        run: dotnet run --project tools/android/contracts/RaceRewardSettlementContractRunner.csproj --configuration Release --nologo
+
+      - name: Run race reward settlement source contracts
+        run: python3 tools/android/tests/test_postp1_race_reward_settlement_contract.py
