@@ -33,6 +33,7 @@ namespace Afareet.Core
 
             var race = gameObject.AddComponent<RaceDirector>();
             race.Configure(player, track);
+            gameObject.AddComponent<RacePerformanceMetricsTracker>().Configure(player, race);
 
             for (var i = 0; i < 3; i++)
             {
