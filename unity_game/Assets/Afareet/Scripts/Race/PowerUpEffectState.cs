@@ -1,0 +1,262 @@
+using System;
+using System.Collections.Generic;
+
+namespace Afareet.Race
+{
+    public enum PowerUpKind
+    {
+        AsphaltShard = 0,
+        NitroSpirit = 1,
+        TrafficCurse = 2,
+        EnchantedPound = 3,
+        EyeShield = 4
+    }
+
+    public enum PowerUpRefreshPolicy
+    {
+        RefreshDuration = 0,
+        IgnoreWhileActive = 1,
+        ReplaceIfStronger = 2
+    }
+
+    public enum PowerUpApplyResult
+    {
+        Applied = 0,
+        Refreshed = 1,
+        Replaced = 2,
+        IgnoredWhileActive = 3,
+        BlockedByEyeShield = 4
+    }
+
+    public sealed class PowerUpEffectSpec
+    {
+        public PowerUpKind Kind { get; }
+        public double DurationSeconds { get; }
+        public double Magnitude { get; }
+        public PowerUpRefreshPolicy RefreshPolicy { get; }
+
+        public PowerUpEffectSpec(
+            PowerUpKind kind,
+            double durationSeconds,
+            double magnitude,
+            PowerUpRefreshPolicy refreshPolicy)
+        {
+            if (!Enum.IsDefined(typeof(PowerUpKind), kind))
+            {
+                throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+
+            if (!IsFinite(durationSeconds) || durationSeconds <= 0d)
+            {
+                throw new ArgumentOutOfRangeException(nameof(durationSeconds));
+            }
+
+            if (!IsFinite(magnitude) || magnitude < 0d)
+            {
+                throw new ArgumentOutOfRangeException(nameof(magnitude));
+            }
+
+            if (!Enum.IsDefined(typeof(PowerUpRefreshPolicy), refreshPolicy))
+            {
+                throw new ArgumentOutOfRangeException(nameof(refreshPolicy));
+            }
+
+            Kind = kind;
+            DurationSeconds = durationSeconds;
+            Magnitude = magnitude;
+            RefreshPolicy = refreshPolicy;
+        }
+
+        private static bool IsFinite(double value)
+        {
+            return !double.IsNaN(value) && !double.IsInfinity(value);
+        }
+    }
+
+    public sealed class ActivePowerUpEffect
+    {
+        public PowerUpEffectSpec Spec { get; }
+        public double AppliedAtSeconds { get; }
+        public double ExpiresAtSeconds { get; }
+
+        public ActivePowerUpEffect(PowerUpEffectSpec spec, double appliedAtSeconds)
+        {
+            Spec = spec ?? throw new ArgumentNullException(nameof(spec));
+            ValidateRaceTime(appliedAtSeconds, nameof(appliedAtSeconds));
+            AppliedAtSeconds = appliedAtSeconds;
+            ExpiresAtSeconds = appliedAtSeconds + spec.DurationSeconds;
+        }
+
+        public bool IsActiveAt(double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds, nameof(raceTimeSeconds));
+            return raceTimeSeconds < ExpiresAtSeconds;
+        }
+
+        public double RemainingSecondsAt(double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds, nameof(raceTimeSeconds));
+            return Math.Max(0d, ExpiresAtSeconds - raceTimeSeconds);
+        }
+
+        private static void ValidateRaceTime(double value, string paramName)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d)
+            {
+                throw new ArgumentOutOfRangeException(paramName);
+            }
+        }
+    }
+
+    public sealed class PowerUpEffectState
+    {
+        private readonly Dictionary<PowerUpKind, ActivePowerUpEffect> activeEffects =
+            new Dictionary<PowerUpKind, ActivePowerUpEffect>();
+
+        public int ActiveCount => activeEffects.Count;
+
+        public PowerUpApplyResult Apply(PowerUpEffectSpec spec, double raceTimeSeconds)
+        {
+            if (spec == null)
+            {
+                throw new ArgumentNullException(nameof(spec));
+            }
+
+            ValidateRaceTime(raceTimeSeconds);
+            RemoveExpired(raceTimeSeconds);
+
+            if (PowerUpEffectPolicy.IsHostile(spec.Kind) && IsActive(PowerUpKind.EyeShield, raceTimeSeconds))
+            {
+                return PowerUpApplyResult.BlockedByEyeShield;
+            }
+
+            if (!activeEffects.TryGetValue(spec.Kind, out var existing))
+            {
+                activeEffects.Add(spec.Kind, new ActivePowerUpEffect(spec, raceTimeSeconds));
+                return PowerUpApplyResult.Applied;
+            }
+
+            switch (spec.RefreshPolicy)
+            {
+                case PowerUpRefreshPolicy.RefreshDuration:
+                    activeEffects[spec.Kind] = new ActivePowerUpEffect(spec, raceTimeSeconds);
+                    return PowerUpApplyResult.Refreshed;
+
+                case PowerUpRefreshPolicy.IgnoreWhileActive:
+                    return PowerUpApplyResult.IgnoredWhileActive;
+
+                case PowerUpRefreshPolicy.ReplaceIfStronger:
+                    if (spec.Magnitude > existing.Spec.Magnitude)
+                    {
+                        activeEffects[spec.Kind] = new ActivePowerUpEffect(spec, raceTimeSeconds);
+                        return PowerUpApplyResult.Replaced;
+                    }
+
+                    return PowerUpApplyResult.IgnoredWhileActive;
+
+                default:
+                    throw new InvalidOperationException($"Unsupported refresh policy: {spec.RefreshPolicy}");
+            }
+        }
+
+        public bool IsActive(PowerUpKind kind, double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds);
+            if (!Enum.IsDefined(typeof(PowerUpKind), kind))
+            {
+                throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+
+            if (!activeEffects.TryGetValue(kind, out var effect))
+            {
+                return false;
+            }
+
+            if (effect.IsActiveAt(raceTimeSeconds))
+            {
+                return true;
+            }
+
+            activeEffects.Remove(kind);
+            return false;
+        }
+
+        public ActivePowerUpEffect GetActive(PowerUpKind kind, double raceTimeSeconds)
+        {
+            return IsActive(kind, raceTimeSeconds) ? activeEffects[kind] : null;
+        }
+
+        public IReadOnlyList<ActivePowerUpEffect> Snapshot(double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds);
+            RemoveExpired(raceTimeSeconds);
+
+            var snapshot = new List<ActivePowerUpEffect>(activeEffects.Values);
+            snapshot.Sort((left, right) => left.Spec.Kind.CompareTo(right.Spec.Kind));
+            return snapshot.AsReadOnly();
+        }
+
+        public int Tick(double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds);
+            return RemoveExpired(raceTimeSeconds);
+        }
+
+        public void ResetRace()
+        {
+            activeEffects.Clear();
+        }
+
+        private int RemoveExpired(double raceTimeSeconds)
+        {
+            if (activeEffects.Count == 0)
+            {
+                return 0;
+            }
+
+            var expiredKinds = new List<PowerUpKind>();
+            foreach (var pair in activeEffects)
+            {
+                if (!pair.Value.IsActiveAt(raceTimeSeconds))
+                {
+                    expiredKinds.Add(pair.Key);
+                }
+            }
+
+            expiredKinds.Sort();
+            foreach (var kind in expiredKinds)
+            {
+                activeEffects.Remove(kind);
+            }
+
+            return expiredKinds.Count;
+        }
+
+        private static void ValidateRaceTime(double raceTimeSeconds)
+        {
+            if (double.IsNaN(raceTimeSeconds) || double.IsInfinity(raceTimeSeconds) || raceTimeSeconds < 0d)
+            {
+                throw new ArgumentOutOfRangeException(nameof(raceTimeSeconds));
+            }
+        }
+    }
+
+    public static class PowerUpEffectPolicy
+    {
+        public static bool IsHostile(PowerUpKind kind)
+        {
+            switch (kind)
+            {
+                case PowerUpKind.AsphaltShard:
+                case PowerUpKind.TrafficCurse:
+                    return true;
+                case PowerUpKind.NitroSpirit:
+                case PowerUpKind.EnchantedPound:
+                case PowerUpKind.EyeShield:
+                    return false;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+        }
+    }
+}
