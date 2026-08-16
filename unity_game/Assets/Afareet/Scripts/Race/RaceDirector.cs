@@ -110,6 +110,7 @@ namespace Afareet.Race
             if (Phase != RaceRoundPhase.Ready) return;
 
             EnsurePowerUpRuntime();
+            ResetPowerUpDriveModifiers();
             nextPowerUpDecisionRaceTime = 0d;
             racersReleased = false;
             SetPausedInternal(false);
@@ -205,17 +206,33 @@ namespace Afareet.Race
                 return;
 
             var raceTimeSeconds = Math.Max(0d, RaceTime);
-            powerUpRuntime.TickAll(raceTimeSeconds);
-            if (raceTimeSeconds + .0001d < nextPowerUpDecisionRaceTime)
-                return;
-
-            nextPowerUpDecisionRaceTime = raceTimeSeconds + AiPowerUpDecisionCadenceSeconds;
-            for (var i = 1; i < racers.Count; i++)
+            var tickResults = powerUpRuntime.TickAll(raceTimeSeconds);
+            var driveProjectionDirty = false;
+            for (var i = 0; i < tickResults.Count; i++)
             {
-                var ai = racers[i].Car.GetComponent<AiRacer>();
-                if (ai != null)
-                    ai.EvaluateBoundPowerUpDecision();
+                if (tickResults[i].ExpiredEffectCount > 0)
+                {
+                    driveProjectionDirty = true;
+                    break;
+                }
             }
+
+            if (raceTimeSeconds + .0001d >= nextPowerUpDecisionRaceTime)
+            {
+                nextPowerUpDecisionRaceTime = raceTimeSeconds + AiPowerUpDecisionCadenceSeconds;
+                for (var i = 1; i < racers.Count; i++)
+                {
+                    var ai = racers[i].Car.GetComponent<AiRacer>();
+                    if (ai == null) continue;
+
+                    var execution = ai.EvaluateBoundPowerUpDecision();
+                    if (execution?.UseResult != null && execution.UseResult.Status == PowerUpRuntimeUseStatus.Used)
+                        driveProjectionDirty = true;
+                }
+            }
+
+            if (driveProjectionDirty)
+                ApplyPowerUpDriveModifiers(raceTimeSeconds);
         }
 
         private void PrepareRacer(ArcadeCarController car, string racerId, int stableOrder)
@@ -223,6 +240,8 @@ namespace Afareet.Race
             if (car == null) return;
             for (var i = 0; i < racers.Count; i++)
                 if (racers[i].Car == car) return;
+
+            car.ResetExternalDriveModifier();
 
             var checkpoints = car.GetComponent<RacerCheckpointTracker>();
             if (checkpoints == null) checkpoints = car.gameObject.AddComponent<RacerCheckpointTracker>();
@@ -250,6 +269,8 @@ namespace Afareet.Race
                 RacerId = racerId
             });
             powerUpRuntimeDirty = true;
+            if (powerUpRuntime != null)
+                ResetPowerUpDriveModifiers();
         }
 
         private void EnsurePowerUpRuntime()
@@ -266,6 +287,7 @@ namespace Afareet.Race
                 registrations);
             powerUpRuntimeDirty = false;
             nextPowerUpDecisionRaceTime = 0d;
+            ResetPowerUpDriveModifiers();
 
             for (var i = 1; i < racers.Count; i++)
             {
@@ -273,6 +295,26 @@ namespace Afareet.Race
                 if (ai != null)
                     ai.BindPowerUpRuntime(this, racers[i].RacerId);
             }
+        }
+
+        private void ApplyPowerUpDriveModifiers(double raceTimeSeconds)
+        {
+            for (var i = 0; i < racers.Count; i++)
+            {
+                var runtime = racers[i];
+                var projection = powerUpRuntime.GetVehicleEffectProjection(runtime.RacerId, raceTimeSeconds);
+                runtime.Car.SetExternalDriveModifier(new ArcadeDriveModifier(
+                    projection.AccelerationMultiplier,
+                    projection.MaxSpeedMultiplier,
+                    projection.SteeringAuthorityMultiplier,
+                    projection.GripMultiplier));
+            }
+        }
+
+        private void ResetPowerUpDriveModifiers()
+        {
+            for (var i = 0; i < racers.Count; i++)
+                racers[i].Car.ResetExternalDriveModifier();
         }
 
         private void BuildCheckpointVolumes()
@@ -301,6 +343,7 @@ namespace Afareet.Race
         private void OnRoundResultsReady(float finishTime)
         {
             SetPausedInternal(false);
+            ResetPowerUpDriveModifiers();
             FreezeRacers();
             ResultsReady?.Invoke(finishTime);
         }
@@ -311,6 +354,7 @@ namespace Afareet.Race
             nextPowerUpDecisionRaceTime = 0d;
             if (powerUpRuntime != null)
                 powerUpRuntime.ResetRace();
+            ResetPowerUpDriveModifiers();
             SetRivalRecoveryActive(false);
         }
 
@@ -347,6 +391,7 @@ namespace Afareet.Race
         private void FreezeRacer(ArcadeCarController car)
         {
             if (car == null) return;
+            car.ResetExternalDriveModifier();
             car.AcceptsPlayerInput = false;
             car.SetAiInput(0f, 0f, false, false, false);
             var body = car.GetComponent<Rigidbody>();
@@ -461,6 +506,7 @@ namespace Afareet.Race
 
         private void OnDestroy()
         {
+            ResetPowerUpDriveModifiers();
             UnsubscribeRound();
             if (IsPaused) Time.timeScale = 1f;
         }
