@@ -35,6 +35,30 @@ namespace Afareet.Tests.CareerRuntime
         }
 
         [Test]
+        public void Store_MigratesLegacyCareerSaveWithoutInventingWallet()
+        {
+            var legacy = new CareerProgress(
+                CareerProgress.CurrentVersion,
+                3,
+                new[] { "c01_r01" },
+                new[] { "career:c01_r01:reward:00" });
+            var storage = new MemoryStorage
+            {
+                Payload = new CareerSaveCodec().Encode(legacy)
+            };
+
+            var result = new CareerPlayerProfileStore(storage).Load();
+
+            Assert.That(result.RecoveredFromInvalidPayload, Is.False);
+            Assert.That(result.MigratedLegacyCareerSave, Is.True);
+            Assert.That(result.Profile.Career.Stars, Is.EqualTo(3));
+            Assert.That(result.Profile.Career.IsNodeCompleted("c01_r01"), Is.True);
+            Assert.That(result.Profile.Coins, Is.Zero);
+            Assert.That(result.Profile.Spirit, Is.Zero);
+            Assert.That(result.Profile.UnlockedVehicleIds, Is.Empty);
+        }
+
+        [Test]
         public void ApplySettlement_AddsGrantedWalletAndVehicleExactlyOncePerSettlement()
         {
             var definition = ChapterOneCareerEventContent.CreateDefinitions()[4];
@@ -59,6 +83,7 @@ namespace Afareet.Tests.CareerRuntime
             var result = new CareerPlayerProfileStore(storage).Load();
 
             Assert.That(result.RecoveredFromInvalidPayload, Is.True);
+            Assert.That(result.MigratedLegacyCareerSave, Is.False);
             Assert.That(result.Profile.Career.Stars, Is.Zero);
             Assert.That(result.Profile.Coins, Is.Zero);
             Assert.That(storage.Payload, Is.EqualTo("broken-profile"));
