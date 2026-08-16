@@ -2,17 +2,21 @@ using System;
 
 namespace Afareet.Vehicle
 {
-    public sealed class ArcadeDriveModifier
+    public readonly struct ArcadeDriveModifier
     {
         public const double MinimumMultiplier = .25d;
         public const double MaximumMultiplier = 2d;
+
+        private readonly bool initialized;
 
         public double AccelerationMultiplier { get; }
         public double MaxSpeedMultiplier { get; }
         public double SteeringAuthorityMultiplier { get; }
         public double GripMultiplier { get; }
+        public bool IsValid => initialized;
 
         public bool IsNeutral =>
+            initialized &&
             ApproximatelyOne(AccelerationMultiplier) &&
             ApproximatelyOne(MaxSpeedMultiplier) &&
             ApproximatelyOne(SteeringAuthorityMultiplier) &&
@@ -33,11 +37,20 @@ namespace Afareet.Vehicle
             MaxSpeedMultiplier = maxSpeedMultiplier;
             SteeringAuthorityMultiplier = steeringAuthorityMultiplier;
             GripMultiplier = gripMultiplier;
+            initialized = true;
         }
 
         public static ArcadeDriveModifier Neutral()
         {
             return new ArcadeDriveModifier(1d, 1d, 1d, 1d);
+        }
+
+        public static void ValidateInitialized(ArcadeDriveModifier modifier, string paramName)
+        {
+            if (!modifier.initialized)
+            {
+                throw new ArgumentException("Drive modifier must be created through its validated constructor.", paramName);
+            }
         }
 
         private static void ValidateMultiplier(double value, string paramName)
