@@ -18,25 +18,36 @@ namespace Afareet.Tests.PlayMode
 
             var runtimeRoot = new GameObject("TEST AFAREET RUNTIME");
             var playerHost = new GameObject("TEST PLAYER");
+            playerHost.AddComponent<Rigidbody>();
             var player = playerHost.AddComponent<ArcadeCarController>();
             var race = runtimeRoot.AddComponent<RaceDirector>();
+            var input = runtimeRoot.AddComponent<ProductionRaceInputController>();
+            input.Configure(player, race);
 
             var firstHud = ProductionRaceHud.EnsureInstalled(runtimeRoot.transform);
             var secondHud = ProductionRaceHud.EnsureInstalled(runtimeRoot.transform);
             var firstOverlay = ProductionRaceFlowOverlay.EnsureInstalled(runtimeRoot.transform);
             var secondOverlay = ProductionRaceFlowOverlay.EnsureInstalled(runtimeRoot.transform);
+            var firstControls = ProductionRaceControlsOverlay.EnsureInstalled(runtimeRoot.transform);
+            var secondControls = ProductionRaceControlsOverlay.EnsureInstalled(runtimeRoot.transform);
 
             firstHud.Configure(player, race);
             firstOverlay.Configure(race);
+            firstControls.Configure(race, input);
 
             Assert.That(secondHud, Is.SameAs(firstHud));
             Assert.That(secondOverlay, Is.SameAs(firstOverlay));
+            Assert.That(secondControls, Is.SameAs(firstControls));
             Assert.That(firstHud.transform.parent, Is.SameAs(runtimeRoot.transform));
             Assert.That(firstOverlay.transform.parent, Is.SameAs(runtimeRoot.transform));
+            Assert.That(firstControls.transform.parent, Is.SameAs(runtimeRoot.transform));
             Assert.That(firstHud.HasRuntimeBinding, Is.True);
             Assert.That(firstOverlay.HasRuntimeBinding, Is.True);
+            Assert.That(runtimeRoot.GetComponent<ProductionRaceInputController>(), Is.SameAs(input));
+            Assert.That(runtimeRoot.GetComponent<PrototypeHud>(), Is.Null);
             Assert.That(Object.FindObjectsByType<ProductionRaceHud>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
             Assert.That(Object.FindObjectsByType<ProductionRaceFlowOverlay>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+            Assert.That(Object.FindObjectsByType<ProductionRaceControlsOverlay>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
 
             Object.Destroy(runtimeRoot);
             Object.Destroy(playerHost);
@@ -62,6 +73,10 @@ namespace Afareet.Tests.PlayMode
             var overlays = Object.FindObjectsByType<ProductionRaceFlowOverlay>(FindObjectsSortMode.None);
             for (var i = 0; i < overlays.Length; i++)
                 if (overlays[i] != null) Object.DestroyImmediate(overlays[i].gameObject);
+
+            var controls = Object.FindObjectsByType<ProductionRaceControlsOverlay>(FindObjectsSortMode.None);
+            for (var i = 0; i < controls.Length; i++)
+                if (controls[i] != null) Object.DestroyImmediate(controls[i].gameObject);
         }
     }
 }
