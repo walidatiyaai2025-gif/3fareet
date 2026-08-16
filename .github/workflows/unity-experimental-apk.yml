@@ -1,0 +1,134 @@
+name: Unity Experimental APK
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Editor/AfareetBuild.cs'
+      - 'unity_game/Assets/Afareet/Editor/AfareetBuildContext.cs'
+      - 'unity_game/Assets/Afareet/Editor/AfareetBuildContext.cs.meta'
+      - 'unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionVisualInstaller.cs'
+      - '.github/scripts/verify-unity-experimental-apk.sh'
+      - '.github/workflows/unity-experimental-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unity-experimental-apk-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UNITY_PROJECT_PATH: unity_game
+  UNITY_VERSION: 6000.5.8f1
+
+jobs:
+  static-contract:
+    name: Experimental APK static contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Validate isolated experimental build contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/scripts/verify-unity-experimental-apk.sh
+          grep -Fq 'public static void BuildAndroidExperimental()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'AfareetBuildContext.BeginExperimentalAndroidBuild()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'AFAREET_EXPERIMENTAL_APK' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'afareet-unity3d-experimental.apk' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'public static bool IsExperimentalAndroidBuild' unity_game/Assets/Afareet/Editor/AfareetBuildContext.cs
+          grep -Fq 'AfareetBuildContext.IsExperimentalAndroidBuild' unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs
+          grep -Fq 'AFAREET_UART003_EXPERIMENTAL_GATE_BYPASS' unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs
+          grep -Fq '#if AFAREET_EXPERIMENTAL_APK' unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionVisualInstaller.cs
+          grep -Fq 'AFAREET_HERO_EXPERIMENTAL_BLOCKOUT_FALLBACK_ACTIVE' unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionVisualInstaller.cs
+          grep -Fq 'releaseEvidenceEligible": False' .github/scripts/verify-unity-experimental-apk.sh
+          grep -Fq 'public static void BuildAndroid()' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          grep -Fq 'P1ProductionWorldBuildGate.ValidateAndroidCandidateOrThrow();' unity_game/Assets/Afareet/Editor/AfareetBuild.cs
+          echo 'Experimental Android path is isolated; production Android remains fail-closed.'
+
+  license-preflight:
+    name: Unity license preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: static-contract
+    steps:
+      - name: Validate Unity CI credentials
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        run: |
+          set -euo pipefail
+          has_email=false
+          has_password=false
+          has_license=false
+          has_serial=false
+          [[ -n "${UNITY_EMAIL:-}" ]] && has_email=true
+          [[ -n "${UNITY_PASSWORD:-}" ]] && has_password=true
+          [[ -n "${UNITY_LICENSE:-}" ]] && has_license=true
+          [[ -n "${UNITY_SERIAL:-}" ]] && has_serial=true
+
+          if [[ "$has_license" == true && "$has_email" == true && "$has_password" == true ]]; then
+            echo 'Unity Personal/file-license credential set is configured.'
+            exit 0
+          fi
+          if [[ "$has_serial" == true && "$has_email" == true && "$has_password" == true ]]; then
+            echo 'Unity Professional serial credential set is configured.'
+            exit 0
+          fi
+
+          echo '::error::Experimental APK code path is ready, but hosted Unity licensing is not configured.'
+          echo "::notice::Present flags: UNITY_LICENSE=$has_license UNITY_SERIAL=$has_serial UNITY_EMAIL=$has_email UNITY_PASSWORD=$has_password"
+          exit 1
+
+  android-experimental:
+    name: Unity Android ARM64 experimental APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    needs: license-preflight
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Build unified experimental APK
+        uses: game-ci/unity-builder@v5.0.0
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          projectPath: ${{ env.UNITY_PROJECT_PATH }}
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: Android
+          androidExportType: androidPackage
+          buildMethod: Afareet.Editor.AfareetBuild.BuildAndroidExperimental
+
+      - name: Verify APK identity, ARM64 payload and SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/verify-unity-experimental-apk.sh \
+            unity_game/Builds/Android/afareet-unity3d-experimental.apk \
+            artifacts/android-experimental
+
+      - name: Upload experimental APK and evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: afareet-unity3d-experimental-${{ github.sha }}
+          path: |
+            unity_game/Builds/Android/afareet-unity3d-experimental.apk
+            artifacts/android-experimental/
+          if-no-files-found: error
+          retention-days: 14
