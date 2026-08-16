@@ -76,7 +76,7 @@ namespace Afareet.CareerRuntime
         public bool TryAdvanceToNextEvent()
         {
             EnsureConfigured();
-            if (activeDefinition == null || race.Phase != RaceRoundPhase.Results)
+            if (CampaignComplete || activeDefinition == null || race.Phase != RaceRoundPhase.Results)
                 return false;
             if (!Progress.IsNodeCompleted(activeDefinition.Node.Id))
                 return false;
@@ -84,9 +84,7 @@ namespace Afareet.CareerRuntime
             var next = FindFirstPlayableIncomplete();
             if (next == null)
             {
-                CampaignComplete = AreAllNodesCompleted();
-                if (CampaignComplete)
-                    CampaignCompleted?.Invoke();
+                MarkCampaignCompleteIfNeeded();
                 return false;
             }
 
@@ -133,7 +131,16 @@ namespace Afareet.CareerRuntime
                 ProgressChanged?.Invoke(Progress);
             }
 
+            MarkCampaignCompleteIfNeeded();
             SettlementReady?.Invoke(settlement);
+        }
+
+        private void MarkCampaignCompleteIfNeeded()
+        {
+            if (CampaignComplete || !AreAllNodesCompleted())
+                return;
+            CampaignComplete = true;
+            CampaignCompleted?.Invoke();
         }
 
         private void BindAdapter(CareerNodeDefinition definition)
