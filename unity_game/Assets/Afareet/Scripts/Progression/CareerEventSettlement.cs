@@ -87,15 +87,17 @@ namespace Afareet.Progression
                 throw new ArgumentNullException(nameof(progress));
 
             var evaluation = CareerObjectiveEvaluationPolicy.Evaluate(definition, outcome);
+            if (!outcome.Finished)
+                return EmptySettlement(evaluation, progress);
+
             var nodeId = definition.Node.Id;
             var alreadyCompleted = progress.IsNodeCompleted(nodeId);
-            if (!outcome.Finished || alreadyCompleted)
-            {
-                return EmptySettlement(evaluation, progress);
-            }
-
-            var starsEarned = CareerStarAwardPolicy.Resolve(outcome, evaluation);
-            var updatedProgress = progression.CompleteNode(progress, nodeId, starsEarned);
+            var starsEarned = alreadyCompleted
+                ? 0
+                : CareerStarAwardPolicy.Resolve(outcome, evaluation);
+            var updatedProgress = alreadyCompleted
+                ? progress
+                : progression.CompleteNode(progress, nodeId, starsEarned);
             var rewards = new List<CareerReward>();
             var rewardIds = new List<string>();
 
@@ -113,7 +115,7 @@ namespace Afareet.Progression
             return new CareerEventSettlement(
                 evaluation,
                 updatedProgress,
-                nodeCompletedNow: true,
+                nodeCompletedNow: !alreadyCompleted,
                 starsEarned,
                 rewards,
                 rewardIds);
