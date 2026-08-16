@@ -28,14 +28,43 @@ namespace Afareet.Editor
             ConfigureAndroidToolchain();
             PrepareProject();
             P1ProductionWorldBuildGate.ValidateAndroidCandidateOrThrow();
-            PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
-            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
-            EditorUserBuildSettings.buildAppBundle = false;
+            ConfigureAndroidPlayer();
             Build(
                 BuildTarget.Android,
                 "Builds/Android/afareet-unity3d-debug.apk",
                 BuildOptions.None
             );
+        }
+
+        /// <summary>
+        /// Produces a unified ARM64 development APK from the current code/content snapshot
+        /// without claiming production visual or device-evidence readiness. Production
+        /// Android remains fail-closed through BuildAndroid().
+        /// </summary>
+        public static void BuildAndroidExperimental()
+        {
+            ConfigureAndroidToolchain();
+            PrepareProject();
+            ConfigureAndroidPlayer();
+
+            using (AfareetBuildContext.BeginExperimentalAndroidBuild())
+            {
+                Build(
+                    BuildTarget.Android,
+                    "Builds/Android/afareet-unity3d-experimental.apk",
+                    BuildOptions.Development,
+                    new[] { "AFAREET_EXPERIMENTAL_APK" }
+                );
+            }
+
+            Debug.Log("AFAREET_EXPERIMENTAL_APK_READY productionEvidence=false");
+        }
+
+        private static void ConfigureAndroidPlayer()
+        {
+            PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
+            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            EditorUserBuildSettings.buildAppBundle = false;
         }
 
         internal static void ConfigureAndroidToolchain()
@@ -131,7 +160,12 @@ namespace Afareet.Editor
             }
         }
 
-        internal static void Build(BuildTarget target, string outputPath, BuildOptions options)
+        internal static void Build(
+            BuildTarget target,
+            string outputPath,
+            BuildOptions options,
+            string[] extraScriptingDefines = null
+        )
         {
             var directory = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
@@ -141,7 +175,8 @@ namespace Afareet.Editor
                 scenes = new[] { ScenePath },
                 locationPathName = outputPath,
                 target = target,
-                options = options
+                options = options,
+                extraScriptingDefines = extraScriptingDefines ?? Array.Empty<string>()
             });
 
             if (report.summary.result != BuildResult.Succeeded)
