@@ -70,7 +70,7 @@ class PostP1ApplyDriveModifiersContractTests(unittest.TestCase):
 
         self.assertNotIn("projection.RewardMultiplier", source)
 
-    def test_projection_recomputes_only_on_effect_change_and_resets_on_boundaries(self):
+    def test_projection_recomputes_on_player_use_ai_use_and_expiry_then_resets_on_boundaries(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs")
 
         for required in (
@@ -82,14 +82,22 @@ class PostP1ApplyDriveModifiersContractTests(unittest.TestCase):
             "car.ResetExternalDriveModifier();",
             "ResetPowerUpDriveModifiers();",
             "powerUpRuntime.ResetRace();",
+            "public PowerUpRuntimeUseResult TryUsePlayerPowerUp(PowerUpKind kind)",
+            "if (result.Status == PowerUpRuntimeUseStatus.Used)",
         ):
             self.assertIn(required, source)
 
+        player_use_index = source.index("public PowerUpRuntimeUseResult TryUsePlayerPowerUp(PowerUpKind kind)")
+        player_used_index = source.index("if (result.Status == PowerUpRuntimeUseStatus.Used)", player_use_index)
+        player_apply_index = source.index("ApplyPowerUpDriveModifiers(raceTimeSeconds);", player_used_index)
+        self.assertLess(player_use_index, player_used_index)
+        self.assertLess(player_used_index, player_apply_index)
+
         tick_index = source.index("var tickResults = powerUpRuntime.TickAll(raceTimeSeconds);")
-        decision_index = source.index("var execution = ai.EvaluateBoundPowerUpDecision();")
-        apply_index = source.index("ApplyPowerUpDriveModifiers(raceTimeSeconds);")
+        decision_index = source.index("var execution = ai.EvaluateBoundPowerUpDecision();", tick_index)
+        dirty_apply_index = source.index("ApplyPowerUpDriveModifiers(raceTimeSeconds);", decision_index)
         self.assertLess(tick_index, decision_index)
-        self.assertLess(decision_index, apply_index)
+        self.assertLess(decision_index, dirty_apply_index)
 
     def test_modifier_compile_and_behavior_contracts_are_independent(self):
         compile_project = self._read("tools/android/contracts/ArcadeDriveModifierCompile.csproj")
