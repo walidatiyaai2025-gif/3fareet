@@ -11,17 +11,11 @@ namespace Afareet.Core
         private const string RootName = "AFAREET_RUNTIME";
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void CreatePrototype()
+        private static void CreateRuntime()
         {
             if (GameObject.Find(RootName) != null) return;
 
-            Application.targetFrameRate = 60;
-            Screen.autorotateToPortrait = false;
-            Screen.autorotateToPortraitUpsideDown = false;
-            Screen.autorotateToLandscapeLeft = true;
-            Screen.autorotateToLandscapeRight = true;
-            Screen.orientation = ScreenOrientation.AutoRotation;
-            QualitySettings.vSyncCount = 0;
+            ConfigureApplicationRuntime();
 
             var root = new GameObject(RootName);
             DontDestroyOnLoad(root);
@@ -32,6 +26,7 @@ namespace Afareet.Core
         {
             var vehicleConfig = LoadConfig<ArcadeCarConfig>("Config/ArcadeCarConfig");
             var cameraConfig = LoadConfig<ChaseCameraConfig>("Config/ChaseCameraConfig");
+
             SetupLighting();
             var track = CairoTrackBuilder.Build(transform);
             var player = CarFactory.CreatePlayer(track.StartPosition, track.StartRotation, transform, vehicleConfig);
@@ -47,8 +42,33 @@ namespace Afareet.Core
             }
 
             CreateCamera(player.transform, cameraConfig);
-            gameObject.AddComponent<PrototypeHud>().Configure(player, race);
+            InstallRuntimeUi(player, race);
             gameObject.AddComponent<UnitySplashOverlay>();
+        }
+
+        private static void ConfigureApplicationRuntime()
+        {
+            Application.targetFrameRate = 60;
+            Screen.autorotateToPortrait = false;
+            Screen.autorotateToPortraitUpsideDown = false;
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = true;
+            Screen.orientation = ScreenOrientation.AutoRotation;
+            QualitySettings.vSyncCount = 0;
+        }
+
+        private void InstallRuntimeUi(ArcadeCarController player, RaceDirector race)
+        {
+            // PrototypeHud currently owns the legacy mobile touch/tilt input path in addition to drawing
+            // prototype presentation. Keep it wired until the dedicated production input controller lands.
+            var legacyInputBridge = gameObject.AddComponent<PrototypeHud>();
+            legacyInputBridge.Configure(player, race);
+
+            var productionHud = ProductionRaceHud.EnsureInstalled(transform);
+            productionHud.Configure(player, race);
+
+            var flowOverlay = ProductionRaceFlowOverlay.EnsureInstalled(transform);
+            flowOverlay.Configure(race);
         }
 
         private static void SetupLighting()

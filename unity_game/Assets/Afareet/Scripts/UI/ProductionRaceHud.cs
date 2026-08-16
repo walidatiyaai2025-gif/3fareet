@@ -1,3 +1,4 @@
+using System;
 using Afareet.Race;
 using Afareet.Vehicle;
 using UnityEngine;
@@ -7,6 +8,8 @@ namespace Afareet.UI
 {
     public sealed class ProductionRaceHud : MonoBehaviour
     {
+        private const string HostName = "AFAREET PRODUCTION RACE HUD";
+
         private ArcadeCarController player;
         private RaceDirector race;
         private RectTransform safeRoot;
@@ -17,12 +20,35 @@ namespace Afareet.UI
         private Image spiritFill;
         private Rect lastSafeArea;
 
+        public bool HasRuntimeBinding => player != null && race != null;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
         {
-            var host = new GameObject("AFAREET PRODUCTION RACE HUD");
-            Object.DontDestroyOnLoad(host);
-            host.AddComponent<ProductionRaceHud>();
+            EnsureInstalled();
+        }
+
+        public static ProductionRaceHud EnsureInstalled(Transform parent = null)
+        {
+            var existing = FindFirstObjectByType<ProductionRaceHud>();
+            if (existing != null)
+            {
+                if (parent != null && existing.transform.parent != parent)
+                    existing.transform.SetParent(parent, false);
+                return existing;
+            }
+
+            var host = new GameObject(HostName);
+            if (parent != null)
+                host.transform.SetParent(parent, false);
+
+            return host.AddComponent<ProductionRaceHud>();
+        }
+
+        public void Configure(ArcadeCarController playerCar, RaceDirector director)
+        {
+            player = playerCar ?? throw new ArgumentNullException(nameof(playerCar));
+            race = director ?? throw new ArgumentNullException(nameof(director));
         }
 
         private void Update()
@@ -45,6 +71,7 @@ namespace Afareet.UI
                 var hero = GameObject.Find("PLAYER HERO — AFAREET");
                 if (hero != null) player = hero.GetComponent<ArcadeCarController>();
             }
+
             if (race == null) race = FindFirstObjectByType<RaceDirector>();
             return player != null && race != null;
         }

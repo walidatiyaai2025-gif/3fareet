@@ -1,3 +1,4 @@
+using System;
 using Afareet.Race;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,6 +7,8 @@ namespace Afareet.UI
 {
     public sealed class ProductionRaceFlowOverlay : MonoBehaviour
     {
+        private const string HostName = "AFAREET RACE FLOW OVERLAY";
+
         private RaceDirector race;
         private RectTransform safeRoot;
         private RectTransform pauseButtonRect;
@@ -22,13 +25,34 @@ namespace Afareet.UI
         private Text restartLabel;
         private Rect lastSafeArea;
 
+        public bool HasRuntimeBinding => race != null;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
         {
-            if (FindFirstObjectByType<ProductionRaceFlowOverlay>() != null) return;
-            var host = new GameObject("AFAREET RACE FLOW OVERLAY");
-            DontDestroyOnLoad(host);
-            host.AddComponent<ProductionRaceFlowOverlay>();
+            EnsureInstalled();
+        }
+
+        public static ProductionRaceFlowOverlay EnsureInstalled(Transform parent = null)
+        {
+            var existing = FindFirstObjectByType<ProductionRaceFlowOverlay>();
+            if (existing != null)
+            {
+                if (parent != null && existing.transform.parent != parent)
+                    existing.transform.SetParent(parent, false);
+                return existing;
+            }
+
+            var host = new GameObject(HostName);
+            if (parent != null)
+                host.transform.SetParent(parent, false);
+
+            return host.AddComponent<ProductionRaceFlowOverlay>();
+        }
+
+        public void Configure(RaceDirector director)
+        {
+            race = director ?? throw new ArgumentNullException(nameof(director));
         }
 
         private void Update()
