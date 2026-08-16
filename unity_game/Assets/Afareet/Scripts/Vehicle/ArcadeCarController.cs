@@ -21,6 +21,7 @@ namespace Afareet.Vehicle
         private float nitroCooldownRemaining;
         private float stuckDriveSeconds;
         private float recoveryInputLockRemaining;
+        private ArcadeDriveModifier externalDriveModifier = ArcadeDriveModifier.Neutral();
 
         public bool AcceptsPlayerInput { get; set; }
         public float SpeedKph => body == null ? 0f : Vector3.Dot(body.linearVelocity, transform.forward) * 3.6f;
@@ -51,6 +52,7 @@ namespace Afareet.Vehicle
         public float CurrentThrottleInput => throttleInput;
         public bool CurrentBrakeInput => brakeInput;
         public float RecoveryInputLockRemaining => recoveryInputLockRemaining;
+        public ArcadeDriveModifier ExternalDriveModifier => externalDriveModifier;
 
         private void Awake()
         {
@@ -105,6 +107,7 @@ namespace Afareet.Vehicle
             }
 
             var surfaceResponse = config.SurfaceResponseFor(surfaceSensor.CurrentSurface);
+            var driveModifier = externalDriveModifier;
             nitroCooldownRemaining = VehicleSpiritPolicy.AdvanceCooldown(nitroCooldownRemaining, Time.fixedDeltaTime);
 
             var localVelocity = transform.InverseTransformDirection(body.linearVelocity);
@@ -146,8 +149,12 @@ namespace Afareet.Vehicle
                 lateralSlip,
                 config.tractionSlipThresholdMetersPerSecond,
                 config.tractionStrength);
-            var accelerating = (tractionDrive >= 0f ? config.acceleration : config.reverseAcceleration) * surfaceResponse.AccelerationMultiplier;
-            var surfaceMaxSpeed = config.maxSpeedMetersPerSecond * surfaceResponse.MaxSpeedMultiplier;
+            var accelerating = (tractionDrive >= 0f ? config.acceleration : config.reverseAcceleration) *
+                               surfaceResponse.AccelerationMultiplier *
+                               (float)driveModifier.AccelerationMultiplier;
+            var surfaceMaxSpeed = config.maxSpeedMetersPerSecond *
+                                  surfaceResponse.MaxSpeedMultiplier *
+                                  (float)driveModifier.MaxSpeedMultiplier;
             if (grounded &&
                 (Mathf.Abs(forwardSpeed) < surfaceMaxSpeed || Mathf.Sign(tractionDrive) != Mathf.Sign(forwardSpeed)))
             {
@@ -196,7 +203,11 @@ namespace Afareet.Vehicle
             {
                 var speedFactor = VehicleHandlingPolicy.SteeringSpeedFactor(forwardSpeed);
                 var direction = forwardSpeed < -0.5f ? -1f : 1f;
-                body.MoveRotation(body.rotation * Quaternion.Euler(0f, steerInput * config.steerStrengthDegrees * speedFactor * direction * Time.fixedDeltaTime, 0f));
+                body.MoveRotation(body.rotation * Quaternion.Euler(
+                    0f,
+                    steerInput * config.steerStrengthDegrees * speedFactor * direction *
+                    (float)driveModifier.SteeringAuthorityMultiplier * Time.fixedDeltaTime,
+                    0f));
 
                 var driftBlend = VehicleHandlingPolicy.DriftBlend(
                     driftInput,
@@ -205,16 +216,18 @@ namespace Afareet.Vehicle
                     config.driftGripMinimumSteer,
                     config.driftGripFullSlipMetersPerSecond);
                 var effectiveGrip = VehicleHandlingPolicy.EffectiveGrip(
-                    config.grip,
-                    config.driftGrip,
-                    driftBlend,
-                    surfaceResponse.GripMultiplier);
+                                        config.grip,
+                                        config.driftGrip,
+                                        driftBlend,
+                                        surfaceResponse.GripMultiplier) *
+                                    (float)driveModifier.GripMultiplier;
                 localVelocity.x = Mathf.Lerp(localVelocity.x, 0f, effectiveGrip * Time.fixedDeltaTime);
             }
 
             var maxForwardSpeed = config.maxSpeedMetersPerSecond *
                                   (grounded ? surfaceResponse.MaxSpeedMultiplier : 1f) *
-                                  (nitroActive ? 1.22f : 1f);
+                                  (nitroActive ? 1.22f : 1f) *
+                                  (float)driveModifier.MaxSpeedMultiplier;
             localVelocity.z = Mathf.Clamp(localVelocity.z, -config.maxSpeedMetersPerSecond * 0.3f, maxForwardSpeed);
             body.linearVelocity = transform.TransformDirection(localVelocity);
 
@@ -252,10 +265,22 @@ namespace Afareet.Vehicle
                 throw new System.ArgumentException(error, nameof(vehicleConfig));
 
             config = vehicleConfig;
+            ResetExternalDriveModifier();
             body.mass = config.massKilograms;
             body.linearDamping = config.linearDamping;
             body.angularDamping = config.angularDamping;
             body.centerOfMass = config.centerOfMass;
+        }
+
+        public void SetExternalDriveModifier(ArcadeDriveModifier modifier)
+        {
+            ArcadeDriveModifier.ValidateInitialized(modifier, nameof(modifier));
+            externalDriveModifier = modifier;
+        }
+
+        public void ResetExternalDriveModifier()
+        {
+            externalDriveModifier = ArcadeDriveModifier.Neutral();
         }
 
         public void SetAiInput(float throttle, float steer, bool drift, bool nitro, bool brake = false)
