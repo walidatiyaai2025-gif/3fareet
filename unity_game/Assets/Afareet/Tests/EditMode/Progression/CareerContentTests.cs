@@ -7,20 +7,21 @@ namespace Afareet.Tests.Progression
     public sealed class CareerContentTests
     {
         [Test]
-        public void ChapterOneContent_PreservesExactLegacyObjectivesAndRewards()
+        public void ChapterOneContent_PreservesRewardsAndAddsModeObjectives()
         {
             var definitions = ChapterOneCareerEventContent.CreateDefinitions();
             var expectedNodeIds = new[] { "c01_r01", "c01_r02", "c01_r03", "c01_r04", "c01_boss" };
             var expectedCoins = new[] { 250, 350, 450, 550, 650 };
             var expectedSpirit = new[] { 5, 6, 7, 8, 9 };
+            var expectedModeObjectivePrefixes = new string[] { null, "time_", "win_", "drift_", "win_" };
 
             Assert.That(definitions.Count, Is.EqualTo(5));
             for (var index = 0; index < definitions.Count; index++)
             {
                 var definition = definitions[index];
-                Assert.That(definition.Node.Id, Is.EqualTo(expectedNodeIds[index]));
-                Assert.That(definition.Objectives[0].Id, Is.EqualTo($"finish_{expectedNodeIds[index]}"));
-                Assert.That(definition.Objectives[0].Description, Is.EqualTo("Finish the event"));
+                var nodeId = expectedNodeIds[index];
+                Assert.That(definition.Node.Id, Is.EqualTo(nodeId));
+                Assert.That(definition.Objectives[0].Id, Is.EqualTo($"finish_{nodeId}"));
                 Assert.That(definition.Objectives[0].Target, Is.EqualTo(1d));
                 Assert.That(definition.Rewards[0].Coins, Is.EqualTo(expectedCoins[index]));
                 Assert.That(definition.Rewards[0].Spirit, Is.EqualTo(expectedSpirit[index]));
@@ -28,15 +29,27 @@ namespace Afareet.Tests.Progression
                 if (index == 0)
                 {
                     Assert.That(definition.Objectives.Count, Is.EqualTo(1));
+                    continue;
                 }
-                else
-                {
-                    Assert.That(definition.Objectives.Count, Is.EqualTo(2));
-                    Assert.That(definition.Objectives[1].Id, Is.EqualTo($"clean_{expectedNodeIds[index]}"));
-                    Assert.That(definition.Objectives[1].Description, Is.EqualTo("Finish without restart"));
-                    Assert.That(definition.Objectives[1].Target, Is.EqualTo(1d));
-                }
+
+                Assert.That(definition.Objectives.Count, Is.EqualTo(3));
+                Assert.That(definition.Objectives[1].Id, Is.EqualTo($"clean_{nodeId}"));
+                Assert.That(definition.Objectives[1].Target, Is.EqualTo(1d));
+                Assert.That(
+                    definition.Objectives[2].Id,
+                    Is.EqualTo($"{expectedModeObjectivePrefixes[index]}{nodeId}"));
+                Assert.That(definition.Objectives[2].Target, Is.EqualTo(1d));
             }
+        }
+
+        [Test]
+        public void ModeObjectives_ReflectConfiguredTargets()
+        {
+            var definitions = ChapterOneCareerEventContent.CreateDefinitions();
+            Assert.That(definitions[1].Objectives[2].Description, Does.Contain("92"));
+            Assert.That(definitions[3].Objectives[2].Description, Does.Contain("12000"));
+            Assert.That(definitions[2].Objectives[2].Description, Does.Contain("first place"));
+            Assert.That(definitions[4].Objectives[2].Description, Does.Contain("boss"));
         }
 
         [Test]
