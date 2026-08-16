@@ -9,9 +9,16 @@ namespace Afareet.CareerRuntime
         event Action RoundReset;
     }
 
+    public interface ICareerRaceMetricsSource
+    {
+        int FinalPosition { get; }
+        int DriftScore { get; }
+    }
+
     public sealed class CareerRaceSessionCoordinator : IDisposable
     {
         private readonly ICareerRaceEventSource source;
+        private readonly ICareerRaceMetricsSource metricsSource;
         private readonly CareerNodeDefinition definition;
         private CareerObjectiveEvaluation lastEvaluation;
         private int restartCount;
@@ -26,10 +33,12 @@ namespace Afareet.CareerRuntime
 
         public CareerRaceSessionCoordinator(
             ICareerRaceEventSource source,
-            CareerNodeDefinition definition)
+            CareerNodeDefinition definition,
+            ICareerRaceMetricsSource metricsSource = null)
         {
             this.source = source ?? throw new ArgumentNullException(nameof(source));
             this.definition = definition ?? throw new ArgumentNullException(nameof(definition));
+            this.metricsSource = metricsSource;
 
             source.ResultsReady += OnResultsReady;
             source.RoundReset += OnRoundReset;
@@ -54,14 +63,17 @@ namespace Afareet.CareerRuntime
             disposed = true;
         }
 
-        private void OnResultsReady(float _)
+        private void OnResultsReady(float finishTime)
         {
             if (disposed)
                 return;
 
             var outcome = new CareerEventOutcome(
                 finished: true,
-                restartCount: restartCount);
+                restartCount: restartCount,
+                finishTimeSeconds: Math.Max(0d, finishTime),
+                finalPosition: metricsSource?.FinalPosition,
+                driftScore: metricsSource?.DriftScore ?? 0);
             var evaluation = CareerObjectiveEvaluationPolicy.Evaluate(definition, outcome);
             lastEvaluation = evaluation;
             EvaluationReady?.Invoke(evaluation);

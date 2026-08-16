@@ -33,10 +33,8 @@ namespace Afareet.Progression
 
         public CareerReward(int coins = 0, int spirit = 0, string unlockVehicleId = null)
         {
-            if (coins < 0)
-                throw new ArgumentOutOfRangeException(nameof(coins));
-            if (spirit < 0)
-                throw new ArgumentOutOfRangeException(nameof(spirit));
+            if (coins < 0) throw new ArgumentOutOfRangeException(nameof(coins));
+            if (spirit < 0) throw new ArgumentOutOfRangeException(nameof(spirit));
             if (unlockVehicleId != null && string.IsNullOrWhiteSpace(unlockVehicleId))
                 throw new ArgumentException("Career reward vehicle unlock id must be non-blank when supplied.", nameof(unlockVehicleId));
             if (coins == 0 && spirit == 0 && unlockVehicleId == null)
@@ -52,26 +50,19 @@ namespace Afareet.Progression
     {
         private readonly IReadOnlyList<CareerObjective> objectives;
         private readonly IReadOnlyList<CareerReward> rewards;
-
         public CareerRaceNode Node { get; }
         public IReadOnlyList<CareerObjective> Objectives => objectives;
         public IReadOnlyList<CareerReward> Rewards => rewards;
 
-        public CareerNodeDefinition(
-            CareerRaceNode node,
-            IEnumerable<CareerObjective> objectives,
-            IEnumerable<CareerReward> rewards)
+        public CareerNodeDefinition(CareerRaceNode node, IEnumerable<CareerObjective> objectives, IEnumerable<CareerReward> rewards)
         {
             CareerDefinitionPolicy.ValidateNodeOrThrow(node);
-            if (objectives == null)
-                throw new ArgumentNullException(nameof(objectives));
-            if (rewards == null)
-                throw new ArgumentNullException(nameof(rewards));
+            if (objectives == null) throw new ArgumentNullException(nameof(objectives));
+            if (rewards == null) throw new ArgumentNullException(nameof(rewards));
 
             var objectiveList = new List<CareerObjective>(objectives);
             if (objectiveList.Count == 0)
                 throw new ArgumentException($"Career node '{node.Id}' requires at least one objective.", nameof(objectives));
-
             var objectiveIds = new HashSet<string>(StringComparer.Ordinal);
             for (var index = 0; index < objectiveList.Count; index++)
             {
@@ -79,9 +70,7 @@ namespace Afareet.Progression
                 if (objective == null)
                     throw new ArgumentException($"Career node '{node.Id}' contains a null objective.", nameof(objectives));
                 if (!objectiveIds.Add(objective.Id))
-                    throw new ArgumentException(
-                        $"Career node '{node.Id}' contains duplicate objective id '{objective.Id}'.",
-                        nameof(objectives));
+                    throw new ArgumentException($"Career node '{node.Id}' contains duplicate objective id '{objective.Id}'.", nameof(objectives));
             }
 
             var rewardList = new List<CareerReward>(rewards);
@@ -123,6 +112,22 @@ namespace Afareet.Progression
                         target: 1d));
                 }
 
+                switch (node.Mode)
+                {
+                    case CareerRaceMode.TimeTrial:
+                        objectives.Add(Binary($"time_{node.Id}", $"Finish in {node.TargetTimeSeconds.Value:0.#} seconds or less"));
+                        break;
+                    case CareerRaceMode.Elimination:
+                        objectives.Add(Binary($"win_{node.Id}", "Finish in first place"));
+                        break;
+                    case CareerRaceMode.DriftChallenge:
+                        objectives.Add(Binary($"drift_{node.Id}", $"Reach {node.TargetDriftScore.Value} drift score"));
+                        break;
+                    case CareerRaceMode.Boss:
+                        objectives.Add(Binary($"win_{node.Id}", "Defeat the boss and finish first"));
+                        break;
+                }
+
                 var rewards = new List<CareerReward>
                 {
                     new CareerReward(
@@ -138,5 +143,8 @@ namespace Afareet.Progression
 
             return definitions.AsReadOnly();
         }
+
+        private static CareerObjective Binary(string id, string description) =>
+            new CareerObjective(id, description, 1d);
     }
 }

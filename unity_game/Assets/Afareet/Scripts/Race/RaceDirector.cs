@@ -156,6 +156,39 @@ namespace Afareet.Race
             return playerFinishRewardSnapshot.Settle(baseRewardUnits);
         }
 
+        public IReadOnlyList<PowerUpInventorySnapshot> GetPlayerPowerUpInventory()
+        {
+            var source = PlayerRuntime;
+            if (source == null || powerUpRuntime == null || powerUpRuntimeDirty)
+                return Array.Empty<PowerUpInventorySnapshot>();
+
+            var raceTimeSeconds = Math.Max(0d, source.Lap.ElapsedTime);
+            return powerUpRuntime.GetInventorySnapshot(source.RacerId, raceTimeSeconds);
+        }
+
+        public PowerUpRuntimeUseResult TryUsePlayerPowerUp(PowerUpKind kind)
+        {
+            if (Phase != RaceRoundPhase.Racing || IsPaused || powerUpRuntime == null || powerUpRuntimeDirty)
+                return null;
+
+            var source = PlayerRuntime;
+            if (source == null || source.Lap.IsFinished)
+                return null;
+
+            var raceTimeSeconds = Math.Max(0d, source.Lap.ElapsedTime);
+            var targetRacerId = ResolvePlayerPowerUpTarget(kind);
+            var result = powerUpRuntime.TryUse(
+                source.RacerId,
+                kind,
+                targetRacerId,
+                raceTimeSeconds);
+
+            if (result.Status == PowerUpRuntimeUseStatus.Used)
+                ApplyPowerUpDriveModifiers(raceTimeSeconds);
+
+            return result;
+        }
+
         internal AiPowerUpExecutionResult ExecuteBoundAiPowerUp(string racerId)
         {
             if (Phase != RaceRoundPhase.Racing || IsPaused || powerUpRuntime == null || powerUpRuntimeDirty)
@@ -334,6 +367,37 @@ namespace Afareet.Race
             return powerUpRuntime.CaptureRewardSettlementSnapshot(
                 PlayerRuntime.RacerId,
                 raceTimeSeconds);
+        }
+
+        private string ResolvePlayerPowerUpTarget(PowerUpKind kind)
+        {
+            if (kind != PowerUpKind.AsphaltShard && kind != PowerUpKind.TrafficCurse)
+                return null;
+
+            var source = PlayerRuntime;
+            if (source == null)
+                return null;
+
+            var ranked = BuildRankedRace();
+            var sourceIndex = -1;
+            for (var index = 0; index < ranked.Count; index++)
+            {
+                if (StringComparer.Ordinal.Equals(ranked[index].Progress.RacerId, source.RacerId))
+                {
+                    sourceIndex = index;
+                    break;
+                }
+            }
+
+            if (sourceIndex < 0)
+                return null;
+
+            if (kind == PowerUpKind.TrafficCurse)
+                return sourceIndex > 0 ? ranked[sourceIndex - 1].Progress.RacerId : null;
+
+            return sourceIndex + 1 < ranked.Count
+                ? ranked[sourceIndex + 1].Progress.RacerId
+                : null;
         }
 
         private void ResetPowerUpDriveModifiers()

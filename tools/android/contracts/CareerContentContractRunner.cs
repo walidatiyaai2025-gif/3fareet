@@ -11,13 +11,15 @@ internal static class CareerContentContractRunner
             var expectedNodeIds = new[] { "c01_r01", "c01_r02", "c01_r03", "c01_r04", "c01_boss" };
             var expectedCoins = new[] { 250, 350, 450, 550, 650 };
             var expectedSpirit = new[] { 5, 6, 7, 8, 9 };
+            var expectedModePrefixes = new string[] { null, "time_", "win_", "drift_", "win_" };
 
             Require(definitions.Count == 5, "Chapter 1 content must contain exactly five definitions");
             for (var index = 0; index < definitions.Count; index++)
             {
                 var definition = definitions[index];
-                Require(definition.Node.Id == expectedNodeIds[index], "node ordering/id parity drifted");
-                Require(definition.Objectives[0].Id == $"finish_{expectedNodeIds[index]}", "finish objective id parity drifted");
+                var nodeId = expectedNodeIds[index];
+                Require(definition.Node.Id == nodeId, "node ordering/id parity drifted");
+                Require(definition.Objectives[0].Id == $"finish_{nodeId}", "finish objective id parity drifted");
                 Require(definition.Objectives[0].Description == "Finish the event", "finish objective copy parity drifted");
                 Require(definition.Objectives[0].Target == 1d, "finish objective target parity drifted");
                 Require(definition.Rewards[0].Coins == expectedCoins[index], "coin reward parity drifted");
@@ -25,16 +27,21 @@ internal static class CareerContentContractRunner
 
                 if (index == 0)
                 {
-                    Require(definition.Objectives.Count == 1, "first node must not have clean-run objective");
+                    Require(definition.Objectives.Count == 1, "first circuit node must retain its single finish objective");
+                    continue;
                 }
-                else
-                {
-                    Require(definition.Objectives.Count == 2, "later nodes must have two objectives");
-                    Require(definition.Objectives[1].Id == $"clean_{expectedNodeIds[index]}", "clean objective id parity drifted");
-                    Require(definition.Objectives[1].Description == "Finish without restart", "clean objective copy parity drifted");
-                    Require(definition.Objectives[1].Target == 1d, "clean objective target parity drifted");
-                }
+
+                Require(definition.Objectives.Count == 3, "specialized Chapter 1 nodes must expose finish, clean and mode objectives");
+                Require(definition.Objectives[1].Id == $"clean_{nodeId}", "clean objective id parity drifted");
+                Require(definition.Objectives[1].Description == "Finish without restart", "clean objective copy parity drifted");
+                Require(definition.Objectives[1].Target == 1d, "clean objective target parity drifted");
+                Require(definition.Objectives[2].Id == $"{expectedModePrefixes[index]}{nodeId}", "mode objective id contract drifted");
+                Require(definition.Objectives[2].Target == 1d, "mode objective target must remain binary");
             }
+
+            Require(definitions[1].Node.Mode == CareerRaceMode.TimeTrial, "second node must remain time trial");
+            Require(definitions[2].Node.Mode == CareerRaceMode.Elimination, "third node must remain elimination");
+            Require(definitions[3].Node.Mode == CareerRaceMode.DriftChallenge, "fourth node must remain drift challenge");
 
             var boss = definitions[4];
             Require(boss.Node.Mode == CareerRaceMode.Boss, "final Chapter 1 definition must remain boss mode");
@@ -64,21 +71,13 @@ internal static class CareerContentContractRunner
 
     private static void Require(bool condition, string message)
     {
-        if (!condition)
-            throw new InvalidOperationException(message);
+        if (!condition) throw new InvalidOperationException(message);
     }
 
     private static void Expect<TException>(Action action, string message) where TException : Exception
     {
-        try
-        {
-            action();
-        }
-        catch (TException)
-        {
-            return;
-        }
-
+        try { action(); }
+        catch (TException) { return; }
         throw new InvalidOperationException(message);
     }
 }
