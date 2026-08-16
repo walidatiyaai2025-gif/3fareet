@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace Afareet.Tests.Progression
@@ -26,7 +25,7 @@ namespace Afareet.Tests.Progression
         public void CanEnter_UsesRequiredStarsFromCareerDefinition()
         {
             var service = new CareerProgressionService();
-            var chapter = ChapterOneCareerContent.Build();
+            var chapter = ChapterOneCareerContent.CreateFoundation();
             var progress = CareerProgress.Empty();
 
             Assert.That(service.CanEnter(chapter.Nodes[0], progress), Is.True);
@@ -56,7 +55,7 @@ namespace Afareet.Tests.Progression
         public void ChapterComplete_RequiresEveryChapterNode()
         {
             var service = new CareerProgressionService();
-            var chapter = ChapterOneCareerContent.Build();
+            var chapter = ChapterOneCareerContent.CreateFoundation();
             var progress = CareerProgress.Empty();
 
             Assert.That(service.ChapterComplete(chapter, progress), Is.False);
