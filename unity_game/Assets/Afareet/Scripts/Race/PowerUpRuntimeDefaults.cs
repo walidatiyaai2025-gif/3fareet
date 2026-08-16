@@ -5,6 +5,7 @@ namespace Afareet.Race
     public static class PowerUpRuntimeDefaults
     {
         // Prototype tuning only. Values are deterministic bootstrap defaults, not final balance approval.
+        // Enchanted Pound's x2 reward multiplier is retained behavioral parity from legacy PR #9.
         public static PowerUpRuntimeRuleset CreatePrototypeRuleset()
         {
             return new PowerUpRuntimeRuleset(new List<PowerUpRuntimeRule>
@@ -38,7 +39,7 @@ namespace Afareet.Race
                     initialCharges: 1,
                     cooldownSeconds: 12d,
                     durationSeconds: 8d,
-                    magnitude: 1.5d,
+                    magnitude: 2d,
                     refreshPolicy: PowerUpRefreshPolicy.IgnoreWhileActive,
                     targetMode: PowerUpRuntimeTargetMode.Self),
                 Rule(
