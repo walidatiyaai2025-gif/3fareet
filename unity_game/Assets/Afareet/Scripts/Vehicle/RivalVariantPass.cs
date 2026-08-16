@@ -76,7 +76,7 @@ namespace Afareet.Vehicle
 #if UNITY_EDITOR || AFAREET_EXPERIMENTAL_APK
             foreach (var renderer in primitiveRenderers)
                 if (renderer != null) renderer.enabled = true;
-            ApplyBlockoutVariant(rival, index);
+            ApplyEditorBlockoutVariant(rival, index);
 #if AFAREET_EXPERIMENTAL_APK
             Debug.LogWarning(
                 $"AFAREET_UART004_EXPERIMENTAL_BLOCKOUT_RIVAL_ACTIVE variant={index + 1} " +
@@ -94,7 +94,7 @@ namespace Afareet.Vehicle
         }
 
 #if UNITY_EDITOR || AFAREET_EXPERIMENTAL_APK
-        private static void ApplyBlockoutVariant(Transform rival, int index)
+        private static void ApplyEditorBlockoutVariant(Transform rival, int index)
         {
             if (rival.Find("Rival Variant Stripe") != null) return;
             var primary = Primary[index % Primary.Length];
