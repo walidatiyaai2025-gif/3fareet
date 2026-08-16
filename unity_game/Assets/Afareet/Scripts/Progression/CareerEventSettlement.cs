@@ -55,7 +55,6 @@ namespace Afareet.Progression
                     coins += reward.Coins;
                     spirit += reward.Spirit;
                 }
-
                 if (reward.HasVehicleUnlock)
                     vehicleIds.Add(reward.UnlockVehicleId);
             }
@@ -79,22 +78,20 @@ namespace Afareet.Progression
             CareerEventOutcome outcome,
             CareerProgress progress)
         {
-            if (definition == null)
-                throw new ArgumentNullException(nameof(definition));
-            if (outcome == null)
-                throw new ArgumentNullException(nameof(outcome));
-            if (progress == null)
-                throw new ArgumentNullException(nameof(progress));
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            if (outcome == null) throw new ArgumentNullException(nameof(outcome));
+            if (progress == null) throw new ArgumentNullException(nameof(progress));
 
             var evaluation = CareerObjectiveEvaluationPolicy.Evaluate(definition, outcome);
-            if (!outcome.Finished)
-                return EmptySettlement(evaluation, progress);
-
             var nodeId = definition.Node.Id;
             var alreadyCompleted = progress.IsNodeCompleted(nodeId);
-            var starsEarned = alreadyCompleted
-                ? 0
-                : CareerStarAwardPolicy.Resolve(outcome, evaluation);
+
+            // A previously completed node may still recover deterministic unclaimed rewards
+            // after an interrupted save. A new completion must first satisfy its mode contract.
+            if (!alreadyCompleted && !CareerEventCompletionPolicy.CanComplete(definition, outcome))
+                return EmptySettlement(evaluation, progress);
+
+            var starsEarned = alreadyCompleted ? 0 : CareerStarAwardPolicy.Resolve(outcome, evaluation);
             var updatedProgress = alreadyCompleted
                 ? progress
                 : progression.CompleteNode(progress, nodeId, starsEarned);
@@ -124,8 +121,7 @@ namespace Afareet.Progression
         public static string BuildRewardId(string nodeId, int rewardIndex)
         {
             CareerProgress.ValidateId(nodeId, nameof(nodeId));
-            if (rewardIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(rewardIndex));
+            if (rewardIndex < 0) throw new ArgumentOutOfRangeException(nameof(rewardIndex));
             return $"career:{nodeId}:reward:{rewardIndex:00}";
         }
 
@@ -143,23 +139,45 @@ namespace Afareet.Progression
         }
     }
 
+    public static class CareerEventCompletionPolicy
+    {
+        public static bool CanComplete(CareerNodeDefinition definition, CareerEventOutcome outcome)
+        {
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            if (outcome == null) throw new ArgumentNullException(nameof(outcome));
+            if (!outcome.Finished) return false;
+
+            var node = definition.Node;
+            switch (node.Mode)
+            {
+                case CareerRaceMode.Circuit:
+                    return true;
+                case CareerRaceMode.TimeTrial:
+                    return node.TargetTimeSeconds.HasValue &&
+                           outcome.FinishTimeSeconds.HasValue &&
+                           outcome.FinishTimeSeconds.Value <= node.TargetTimeSeconds.Value;
+                case CareerRaceMode.Elimination:
+                case CareerRaceMode.Boss:
+                    return outcome.FinalPosition == 1;
+                case CareerRaceMode.DriftChallenge:
+                    return node.TargetDriftScore.HasValue && outcome.DriftScore >= node.TargetDriftScore.Value;
+                default:
+                    throw new InvalidOperationException($"Unsupported Career mode '{node.Mode}'.");
+            }
+        }
+    }
+
     public static class CareerStarAwardPolicy
     {
-        private const int FinishStars = 2;
+        private const int PassStars = 2;
         private const int PerfectStars = 3;
 
-        public static int Resolve(
-            CareerEventOutcome outcome,
-            CareerObjectiveEvaluation evaluation)
+        public static int Resolve(CareerEventOutcome outcome, CareerObjectiveEvaluation evaluation)
         {
-            if (outcome == null)
-                throw new ArgumentNullException(nameof(outcome));
-            if (evaluation == null)
-                throw new ArgumentNullException(nameof(evaluation));
-            if (!outcome.Finished)
-                return 0;
-
-            return evaluation.AllCompleted ? PerfectStars : FinishStars;
+            if (outcome == null) throw new ArgumentNullException(nameof(outcome));
+            if (evaluation == null) throw new ArgumentNullException(nameof(evaluation));
+            if (!outcome.Finished) return 0;
+            return evaluation.AllCompleted ? PerfectStars : PassStars;
         }
     }
 }
