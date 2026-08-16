@@ -8,5 +8,6 @@
   <ItemGroup>
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerDefinition.cs" Link="CareerDefinition.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/ChapterOneCareerContent.cs" Link="ChapterOneCareerContent.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerProgression.cs" Link="CareerProgression.cs" />
   </ItemGroup>
 </Project>
