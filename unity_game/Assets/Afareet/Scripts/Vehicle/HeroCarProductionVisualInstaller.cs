@@ -39,6 +39,17 @@ namespace Afareet.Vehicle
                 return;
             }
 
+#if AFAREET_EXPERIMENTAL_APK
+            foreach (var renderer in proceduralRenderers)
+                if (renderer != null) renderer.enabled = true;
+            Debug.LogWarning(
+                $"AFAREET_HERO_EXPERIMENTAL_BLOCKOUT_FALLBACK_ACTIVE " +
+                $"renderers={proceduralRenderers.Length} production=false"
+            );
+            complete = true;
+            return;
+#endif
+
             if (Application.isEditor)
             {
                 foreach (var renderer in proceduralRenderers)
