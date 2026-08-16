@@ -7,14 +7,36 @@ namespace Afareet.Progression
     {
         public bool Finished { get; }
         public int RestartCount { get; }
+        public double? FinishTimeSeconds { get; }
+        public int? FinalPosition { get; }
+        public int DriftScore { get; }
 
-        public CareerEventOutcome(bool finished, int restartCount)
+        public CareerEventOutcome(
+            bool finished,
+            int restartCount,
+            double? finishTimeSeconds = null,
+            int? finalPosition = null,
+            int driftScore = 0)
         {
             if (restartCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(restartCount));
+            if (finishTimeSeconds.HasValue &&
+                (double.IsNaN(finishTimeSeconds.Value) ||
+                 double.IsInfinity(finishTimeSeconds.Value) ||
+                 finishTimeSeconds.Value < 0d))
+            {
+                throw new ArgumentOutOfRangeException(nameof(finishTimeSeconds));
+            }
+            if (finalPosition.HasValue && finalPosition.Value < 1)
+                throw new ArgumentOutOfRangeException(nameof(finalPosition));
+            if (driftScore < 0)
+                throw new ArgumentOutOfRangeException(nameof(driftScore));
 
             Finished = finished;
             RestartCount = restartCount;
+            FinishTimeSeconds = finishTimeSeconds;
+            FinalPosition = finalPosition;
+            DriftScore = driftScore;
         }
     }
 
@@ -88,8 +110,12 @@ namespace Afareet.Progression
             if (outcome == null)
                 throw new ArgumentNullException(nameof(outcome));
 
-            var finishId = $"finish_{definition.Node.Id}";
-            var cleanId = $"clean_{definition.Node.Id}";
+            var node = definition.Node;
+            var finishId = $"finish_{node.Id}";
+            var cleanId = $"clean_{node.Id}";
+            var timeId = $"time_{node.Id}";
+            var driftId = $"drift_{node.Id}";
+            var winId = $"win_{node.Id}";
             var entries = new List<CareerObjectiveEvaluationEntry>(definition.Objectives.Count);
 
             for (var index = 0; index < definition.Objectives.Count; index++)
@@ -108,10 +134,31 @@ namespace Afareet.Progression
                 {
                     value = outcome.Finished && outcome.RestartCount == 0 ? 1d : 0d;
                 }
+                else if (StringComparer.Ordinal.Equals(objective.Id, timeId))
+                {
+                    if (!node.TargetTimeSeconds.HasValue)
+                        throw new InvalidOperationException($"Time objective requires target time for node '{node.Id}'.");
+                    value = outcome.Finished && outcome.FinishTimeSeconds.HasValue &&
+                            outcome.FinishTimeSeconds.Value <= node.TargetTimeSeconds.Value
+                        ? 1d
+                        : 0d;
+                }
+                else if (StringComparer.Ordinal.Equals(objective.Id, driftId))
+                {
+                    if (!node.TargetDriftScore.HasValue)
+                        throw new InvalidOperationException($"Drift objective requires target score for node '{node.Id}'.");
+                    value = outcome.Finished && outcome.DriftScore >= node.TargetDriftScore.Value
+                        ? 1d
+                        : 0d;
+                }
+                else if (StringComparer.Ordinal.Equals(objective.Id, winId))
+                {
+                    value = outcome.Finished && outcome.FinalPosition == 1 ? 1d : 0d;
+                }
                 else
                 {
                     throw new InvalidOperationException(
-                        $"Career objective '{objective.Id}' is not supported for node '{definition.Node.Id}'.");
+                        $"Career objective '{objective.Id}' is not supported for node '{node.Id}'.");
                 }
 
                 entries.Add(new CareerObjectiveEvaluationEntry(
