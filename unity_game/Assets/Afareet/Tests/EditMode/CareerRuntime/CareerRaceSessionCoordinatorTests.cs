@@ -106,10 +106,13 @@ namespace Afareet.Tests.CareerRuntime
         }
 
         [Test]
-        public void Dispose_UnsubscribesAndIsIdempotent()
+        public void Dispose_ClearsStaleEvaluation_UnsubscribesAndIsIdempotent()
         {
             var source = new FakeRaceEventSource();
             var coordinator = new CareerRaceSessionCoordinator(source, DefinitionWithCleanObjective());
+
+            source.EmitResults();
+            Assert.That(coordinator.HasEvaluation, Is.True);
 
             coordinator.Dispose();
             coordinator.Dispose();
@@ -119,6 +122,7 @@ namespace Afareet.Tests.CareerRuntime
             Assert.That(coordinator.IsDisposed, Is.True);
             Assert.That(coordinator.RestartCount, Is.EqualTo(0));
             Assert.That(coordinator.HasEvaluation, Is.False);
+            Assert.That(coordinator.LastEvaluation, Is.Null);
             Assert.Throws<ObjectDisposedException>(() => coordinator.ResetSession());
         }
 
