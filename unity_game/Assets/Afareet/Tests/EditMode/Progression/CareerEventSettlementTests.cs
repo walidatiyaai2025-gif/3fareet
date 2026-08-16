@@ -75,6 +75,33 @@ namespace Afareet.Tests.Progression
         }
 
         [Test]
+        public void Settle_CompletedButUnclaimedProgress_RecoversRewardsWithoutStars()
+        {
+            var definition = ChapterOneCareerEventContent.CreateDefinitions()[0];
+            var progression = new CareerProgressionService();
+            var completedWithoutClaim = progression.CompleteNode(
+                CareerProgress.Empty(),
+                definition.Node.Id,
+                3);
+            var service = new CareerEventSettlementService();
+
+            var settlement = service.Settle(
+                definition,
+                new CareerEventOutcome(finished: true, restartCount: 0),
+                completedWithoutClaim);
+
+            Assert.That(settlement.NodeCompletedNow, Is.False);
+            Assert.That(settlement.StarsEarned, Is.Zero);
+            Assert.That(settlement.Progress.Stars, Is.EqualTo(3));
+            Assert.That(settlement.GrantedAnyReward, Is.True);
+            Assert.That(settlement.CoinsGranted, Is.EqualTo(250));
+            Assert.That(
+                settlement.Progress.IsRewardClaimed(
+                    CareerEventSettlementService.BuildRewardId(definition.Node.Id, 0)),
+                Is.True);
+        }
+
+        [Test]
         public void PerfectFirstEvent_UnlocksSecondChapterNode()
         {
             var definitions = ChapterOneCareerEventContent.CreateDefinitions();
