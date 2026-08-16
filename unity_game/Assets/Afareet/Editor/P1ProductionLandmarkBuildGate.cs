@@ -65,6 +65,11 @@ namespace Afareet.Editor
         public void OnPreprocessBuild(BuildReport report)
         {
             if (report == null || report.summary.platform != BuildTarget.Android) return;
+            if (AfareetBuildContext.IsDedicatedExperimentalAndroidBuild(report))
+            {
+                Debug.LogWarning("AFAREET_UART006_EXPERIMENTAL_GATE_BYPASS productionEvidence=false");
+                return;
+            }
             ValidateAndroidCandidateOrThrow();
         }
 
@@ -202,21 +207,9 @@ namespace Afareet.Editor
             foreach (var raw in File.ReadLines(path))
             {
                 var line = raw.Trim();
-                if (line.StartsWith("v ", StringComparison.Ordinal))
-                {
-                    vertices++;
-                    continue;
-                }
-                if (line.StartsWith("vt ", StringComparison.Ordinal))
-                {
-                    textureCoordinates++;
-                    continue;
-                }
-                if (line.StartsWith("vn ", StringComparison.Ordinal))
-                {
-                    normals++;
-                    continue;
-                }
+                if (line.StartsWith("v ", StringComparison.Ordinal)) { vertices++; continue; }
+                if (line.StartsWith("vt ", StringComparison.Ordinal)) { textureCoordinates++; continue; }
+                if (line.StartsWith("vn ", StringComparison.Ordinal)) { normals++; continue; }
                 if (!line.StartsWith("f ", StringComparison.Ordinal)) continue;
 
                 var tokens = line.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
