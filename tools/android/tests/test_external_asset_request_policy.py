@@ -5,6 +5,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 LEDGER = REPO_ROOT / "EXTERNAL_ASSET_REQUESTS.txt"
+AGENTS = REPO_ROOT / "AGENTS.md"
 
 
 class ExternalAssetRequestPolicyTests(unittest.TestCase):
@@ -20,6 +21,19 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
             "Do NOT use a script to pretend procedural/generated art is externally authored production art",
             "Production source must have a clear license/ownership statement",
             "PROGRAMMING-ONLY WORK — DO NOT ADD AS EXTERNAL ASSET REQUESTS",
+        ):
+            self.assertIn(required, text)
+
+    def test_agents_instructions_require_the_external_asset_ledger(self):
+        self.assertTrue(AGENTS.is_file())
+        text = AGENTS.read_text(encoding="utf-8")
+        for required in (
+            "EXTERNAL_ASSET_REQUESTS.txt",
+            "Never silently substitute a primitive, generated mesh, procedural placeholder",
+            "add or update the corresponding request",
+            "copy-ready creation prompt",
+            "provenance/license requirement",
+            "close programming, automation, validation and test gaps before visual polish",
         ):
             self.assertIn(required, text)
 
