@@ -17,11 +17,11 @@ namespace Afareet.World
         private const float RetryDelaySeconds = 5.0f;
         private const int ExpectedLodLevels = 3;
 
-        private readonly HashSet<int> configuredInstanceIds = new();
+        private readonly HashSet<Transform> configuredInstances = new();
         private readonly HashSet<string> missingLogged = new(StringComparer.Ordinal);
         private readonly HashSet<string> bindingFailureLogged = new(StringComparer.Ordinal);
-        private readonly HashSet<int> invalidExistingGroupLogged = new();
-        private readonly Dictionary<int, float> retryAfterByInstance = new();
+        private readonly HashSet<Transform> invalidExistingGroupLogged = new();
+        private readonly Dictionary<Transform, float> retryAfterByInstance = new();
         private readonly Dictionary<string, GameObject> resourceCache = new(StringComparer.Ordinal);
         private float nextScanAt;
         private static bool activationLogged;
@@ -57,9 +57,8 @@ namespace Afareet.World
                 var baseName = ResolveSourceBaseName(target.name);
                 if (string.IsNullOrEmpty(baseName)) continue;
 
-                var id = target.gameObject.GetInstanceID();
-                if (configuredInstanceIds.Contains(id)) continue;
-                if (retryAfterByInstance.TryGetValue(id, out var retryAt) && Time.unscaledTime < retryAt)
+                if (configuredInstances.Contains(target)) continue;
+                if (retryAfterByInstance.TryGetValue(target, out var retryAt) && Time.unscaledTime < retryAt)
                     continue;
 
                 var existingGroup = target.GetComponent<LODGroup>();
@@ -67,24 +66,24 @@ namespace Afareet.World
                 {
                     if (TryValidateExistingGroup(target, baseName, existingGroup))
                     {
-                        configuredInstanceIds.Add(id);
-                        retryAfterByInstance.Remove(id);
+                        configuredInstances.Add(target);
+                        retryAfterByInstance.Remove(target);
                     }
                     else
                     {
-                        retryAfterByInstance[id] = Time.unscaledTime + RetryDelaySeconds;
+                        retryAfterByInstance[target] = Time.unscaledTime + RetryDelaySeconds;
                     }
                     continue;
                 }
 
                 if (TryAttachDistinctLods(target, baseName))
                 {
-                    configuredInstanceIds.Add(id);
-                    retryAfterByInstance.Remove(id);
+                    configuredInstances.Add(target);
+                    retryAfterByInstance.Remove(target);
                 }
                 else
                 {
-                    retryAfterByInstance[id] = Time.unscaledTime + RetryDelaySeconds;
+                    retryAfterByInstance[target] = Time.unscaledTime + RetryDelaySeconds;
                 }
             }
         }
@@ -200,8 +199,7 @@ namespace Afareet.World
             }
             catch (Exception ex)
             {
-                var id = target.gameObject.GetInstanceID();
-                if (invalidExistingGroupLogged.Add(id))
+                if (invalidExistingGroupLogged.Add(target))
                     Debug.LogError($"AFAREET_UART005_MOBILE_LOD_EXISTING_BLOCKED source={baseName} reason={ex.Message}");
                 return false;
             }
