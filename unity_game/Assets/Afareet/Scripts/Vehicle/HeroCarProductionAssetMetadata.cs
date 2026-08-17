@@ -5,8 +5,9 @@ namespace Afareet.Vehicle
 {
     /// <summary>
     /// Explicit authoring provenance attached to the real UART-003 production prefab.
-    /// The generated Editor preview intentionally does not carry this component.
-    /// Human/owner visual acceptance is still required separately by UPER-009.
+    /// Generated, preview, refinement and blockout sources intentionally cannot satisfy
+    /// this metadata contract. Human/owner visual acceptance is still required separately
+    /// by UPER-009.
     /// </summary>
     public sealed class HeroCarProductionAssetMetadata : MonoBehaviour
     {
@@ -34,6 +35,7 @@ namespace Afareet.Vehicle
             normalsAuthored &&
             textureMappedMaterials &&
             IsSupportedExternalModelSource(sourceAssetId) &&
+            !IsNonProductionSourcePath(sourceAssetId) &&
             !string.IsNullOrWhiteSpace(assetVersion) &&
             !string.IsNullOrWhiteSpace(sourceGuid) &&
             !string.IsNullOrWhiteSpace(sourceDependencyHash);
@@ -45,6 +47,29 @@ namespace Afareet.Vehicle
             foreach (var extension in new[] { ".fbx", ".obj", ".blend", ".glb", ".gltf" })
             {
                 if (assetPath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        public static bool IsNonProductionSourcePath(string assetPath)
+        {
+            if (string.IsNullOrWhiteSpace(assetPath)) return true;
+
+            var normalized = assetPath.Replace('\\', '/');
+            foreach (var segment in new[]
+                     {
+                         "/Generated/",
+                         "/Preview/",
+                         "/Previews/",
+                         "/Refinement/",
+                         "/RefinementCandidates/",
+                         "/Blockout/",
+                         "/Blockouts/"
+                     })
+            {
+                if (normalized.IndexOf(segment, StringComparison.OrdinalIgnoreCase) >= 0)
                     return true;
             }
 

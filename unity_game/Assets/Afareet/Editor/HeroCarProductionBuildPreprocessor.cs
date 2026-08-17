@@ -9,8 +9,8 @@ namespace Afareet.Editor
 {
     /// <summary>
     /// UART-003 Android production-art gate. Player builds may never generate or silently
-    /// substitute the deterministic preview mesh. A real externally-authored production
-    /// prefab must already exist and remain traceable to its source model asset.
+    /// substitute preview/refinement meshes. A real externally-authored production prefab
+    /// must already exist and remain traceable to its source model asset.
     ///
     /// The only exception is the explicit experimental APK build scope, and only when the
     /// build is both Development and targets the dedicated experimental APK output path.
@@ -38,10 +38,13 @@ namespace Afareet.Editor
             {
                 Debug.LogWarning(
                     "AFAREET_UART003_EXPERIMENTAL_GATE_BYPASS " +
-                    $"productionEvidence=false fallback=procedural-hero output={normalizedOutput}"
+                    $"productionEvidence=false output={normalizedOutput}"
                 );
                 return;
             }
+
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(HeroCarLodPolicy.RefinementCandidateAssetPath) != null)
+                Fail($"refinement-candidate-must-not-ship path={HeroCarLodPolicy.RefinementCandidateAssetPath}");
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(HeroCarLodPolicy.ProductionAssetPath);
             if (prefab == null)
@@ -68,8 +71,8 @@ namespace Afareet.Editor
             var sourcePath = (metadata.SourceAssetId ?? string.Empty).Replace('\\', '/');
             if (!sourcePath.StartsWith("Assets/", StringComparison.Ordinal))
                 Fail($"source-must-be-project-asset path={sourcePath}");
-            if (sourcePath.IndexOf("/Generated/", StringComparison.OrdinalIgnoreCase) >= 0)
-                Fail($"generated-source-is-not-production path={sourcePath}");
+            if (HeroCarProductionAssetMetadata.IsNonProductionSourcePath(sourcePath))
+                Fail($"non-production-source-is-not-production path={sourcePath}");
             if (!HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath))
                 Fail($"unsupported-external-model-source path={sourcePath}");
 

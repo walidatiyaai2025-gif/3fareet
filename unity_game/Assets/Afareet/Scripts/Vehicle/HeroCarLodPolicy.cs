@@ -6,8 +6,11 @@ namespace Afareet.Vehicle
     {
         public const string ProductionResourcePath = "Art/Vehicles/HeroCar/Production/PF_Vehicle_AfareetKing_Production";
         public const string GeneratedPreviewResourcePath = "Art/Vehicles/HeroCar/Generated/PF_Vehicle_AfareetKing_PreviewV2";
+        public const string RefinementCandidateResourcePath = "Art/Vehicles/HeroCar/Refinement/PF_Vehicle_AfareetKing_RefinementCandidate";
         public const string ResourcePath = ProductionResourcePath;
         public const string ProductionAssetPath = "Assets/Afareet/Resources/Art/Vehicles/HeroCar/Production/PF_Vehicle_AfareetKing_Production.prefab";
+        public const string RefinementCandidateAssetPath = "Assets/Afareet/Resources/Art/Vehicles/HeroCar/Refinement/PF_Vehicle_AfareetKing_RefinementCandidate.prefab";
+        public const string RefinementCandidateSourcePath = "Assets/Afareet/ArtSource/Vehicles/RefinementCandidates/AfareetKing_Hero.fbx";
 
         public const float Lod0Transition = 0.18f;
         public const float Lod1Transition = 0.07f;

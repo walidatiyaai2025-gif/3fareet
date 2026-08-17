@@ -32,6 +32,18 @@ namespace Afareet.Vehicle
                 return;
             }
 
+#if UNITY_EDITOR || AFAREET_EXPERIMENTAL_APK
+            if (HeroCarProductionVisual.TryAttachRefinementCandidate(hero.transform))
+            {
+                Debug.Log(
+                    $"AFAREET_HERO_REFINEMENT_CANDIDATE_ACTIVE " +
+                    $"hiddenProceduralRenderers={proceduralRenderers.Length} production=false p1Gate=false"
+                );
+                complete = true;
+                return;
+            }
+#endif
+
             if (Application.isEditor && HeroCarProductionVisual.TryAttachGeneratedPreview(hero.transform))
             {
                 Debug.Log($"AFAREET_HERO_EDITOR_GENERATED_PREVIEW_ACTIVE hiddenProceduralRenderers={proceduralRenderers.Length} production=false");

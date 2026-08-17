@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "classification": "REFINEMENT_CANDIDATE",
+  "sourceFileName": "AfareetKing_Hero.fbx",
+  "unityDestination": "unity_game/Assets/Afareet/ArtSource/Vehicles/RefinementCandidates/AfareetKing_Hero.fbx",
+  "sha256": "97b02c87118c451d068c881fc551787d6e468ec8002cce7802db62258cc4cda2",
+  "sizeBytes": 1475244,
+  "productionGate": false,
+  "visualAcceptance": false,
+  "notes": [
+    "Blender-generated visual refinement candidate only.",
+    "Must not be moved or rebound as UART-003 production art without artist refinement, mobile optimization and owner/Art Director acceptance."
+  ]
+}
