@@ -6,7 +6,10 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 PREFLIGHT_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionSourcePreflight.cs"
 STAGER_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs"
 RESOLVER_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalImportedLodResolver.cs"
+REVIEW_STAGER_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalAuthoredReviewPrefabStager.cs"
 STACK_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1RaceVisualStackStager.cs"
+RUNTIME_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Vehicle/RivalVariantPass.cs"
+MARKER_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Vehicle/RivalAuthoredReviewCandidateMarker.cs"
 
 
 class RivalSourcePreflightContractTests(unittest.TestCase):
@@ -77,15 +80,13 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
         for token in required:
             self.assertIn(token, resolver)
 
-        # The final fallback must be an exact source-derived identity match, not a broad
-        # production quality range that could assign one imported mesh to several LODs.
         self.assertNotIn("MeetsProductionFloor", resolver)
         self.assertNotIn("MinimumTriangles[lod] <=", resolver)
         self.assertNotIn("MaximumTriangles[lod] >=", resolver)
         self.assertNotIn("new Mesh(", resolver)
         self.assertNotIn("GameObject.CreatePrimitive", resolver)
 
-    def test_preflight_and_stager_use_the_same_shared_subasset_resolver(self):
+    def test_preflight_and_production_stager_keep_the_same_shared_subasset_resolver(self):
         preflight = PREFLIGHT_PATH.read_text(encoding="utf-8")
         stager = STAGER_PATH.read_text(encoding="utf-8")
         for source in (preflight, stager):
@@ -94,17 +95,60 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
             self.assertIn("RivalImportedLodResolver.ResolveImportedMaterialsOrThrow(sourcePath, sourceModel, signature)", source)
             self.assertIn("resolver=imported-mesh-subassets+exact-source-signature", source)
 
-    def test_full_visual_stack_runs_all_preflights_before_first_mutating_stage(self):
+    def test_authored_review_packaging_is_source_exact_local_only_and_non_production(self):
+        stager = REVIEW_STAGER_PATH.read_text(encoding="utf-8")
+        marker = MARKER_PATH.read_text(encoding="utf-8")
+        runtime = RUNTIME_PATH.read_text(encoding="utf-8")
+        ignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+
+        for required in (
+            "RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)",
+            "WriteExactLodPackageOrThrow",
+            'line.StartsWith("v ", StringComparison.Ordinal)',
+            'line.StartsWith("vt ", StringComparison.Ordinal)',
+            'line.StartsWith("vn ", StringComparison.Ordinal)',
+            'line.StartsWith("f ", StringComparison.Ordinal)',
+            "source triangle identity mismatch",
+            "ReviewPackaging",
+            "PF_Rival_{variant + 1:00}_AuthoredReview",
+            "RivalAuthoredReviewCandidateMarker",
+            "geometryChanged=false",
+            "productionGate=false",
+            "p1Gate=false",
+        ):
+            self.assertIn(required, stager)
+
+        for forbidden in (
+            "GameObject.CreatePrimitive",
+            "new Mesh(",
+            "RivalProductionSourceBinder.BindSource",
+            "RivalProductionAssetMetadata>() ??",
+        ):
+            self.assertNotIn(forbidden, stager)
+
+        self.assertIn('ExpectedClassification = "AUTHORED_REVIEW_CANDIDATE"', marker)
+        self.assertIn("CanSatisfyProductionGate => false", marker)
+        self.assertIn("AFAREET_UART004_AUTHORED_REVIEW_RIVAL_ACTIVE", runtime)
+        self.assertIn("TryValidateAuthoredReview", runtime)
+        self.assertIn("production=false p1Gate=false", runtime)
+        self.assertIn("Assets/Afareet/ArtSource/Vehicles/Rivals/ReviewPackaging/", ignore)
+        self.assertIn("Assets/Afareet/Resources/Art/Vehicles/Rivals/Review/", ignore)
+
+    def test_full_visual_stack_uses_review_preflight_before_first_mutation_and_never_promotes_uart004(self):
         source = STACK_PATH.read_text(encoding="utf-8")
         hero = source.index("HeroCarRefinementCandidateStager.ValidateCurrentCandidateSourceOrThrow")
-        rival = source.index("RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow")
+        rival = source.index("RivalAuthoredReviewPrefabStager.ValidateCurrentSourcesOrThrow")
         first_stage = source.index("P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow")
-        rival_stage = source.index("RivalProductionPrefabStager.StageAndBindAll")
+        rival_stage = source.index("RivalAuthoredReviewPrefabStager.StageAll")
 
         self.assertLess(hero, rival)
         self.assertLess(rival, first_stage)
         self.assertLess(first_stage, rival_stage)
-        self.assertIn('"UART-004 rival authored model sources"', source)
+        self.assertIn('"UART-004 rival tracked OBJ review sources"', source)
+        self.assertIn("uart004=authored-review-candidates", source)
+        self.assertIn("productionGate=false", source)
+        self.assertNotIn("RivalProductionPrefabStager.StageAndBindAll", source)
+        self.assertNotIn("RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow", source)
 
 
 if __name__ == "__main__":
