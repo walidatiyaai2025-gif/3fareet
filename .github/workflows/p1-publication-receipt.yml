@@ -1,0 +1,55 @@
+name: P1 Publication Receipt Reconciliation
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/verify_p1_publication_receipt.py'
+      - 'tools/android/tests/test_verify_p1_publication_receipt.py'
+      - 'tools/android/tests/test_p1_publication_receipt_policy.py'
+      - 'docs/releases/LAST_VERIFIED_APK.md'
+      - 'docs/RELEASE_POLICY.md'
+      - '.github/workflows/p1-publication-receipt.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publication-receipt:
+    name: Read-only P1 publication receipt contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Python syntax and CLI contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/android/verify_p1_publication_receipt.py
+          python3 tools/android/verify_p1_publication_receipt.py --help >/dev/null
+
+      - name: Execute publication-receipt regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_verify_p1_publication_receipt.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_publication_receipt_policy.py' -v
+
+      - name: Prove reconciliation remains non-publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from tools.android.p1_safety_sentinel import scan_python
+
+          relative = 'tools/android/verify_p1_publication_receipt.py'
+          violations = scan_python(Path(relative), relative)
+          if violations:
+              for violation in violations:
+                  print(violation.render())
+              raise SystemExit(1)
+          print('AFAREET_P1_PUBLICATION_RECEIPT_READ_ONLY_OK publicationPerformedByTool=false verified=false')
+          PY

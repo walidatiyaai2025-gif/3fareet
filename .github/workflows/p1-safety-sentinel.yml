@@ -21,6 +21,8 @@ on:
       - 'tools/android/verify_p1_device_review_bundle.py'
       - 'tools/android/p1_lineage_gate_readiness.py'
       - 'tools/android/verify_p1_release_publication.py'
+      - 'tools/android/verify_p1_publication_receipt.py'
+      - 'tools/android/tests/test_verify_p1_publication_receipt.py'
       - 'unity_game/Assets/Afareet/Editor/P1ProductionCandidateStagingHandoff.cs'
       - '.github/workflows/p1-safety-sentinel.yml'
 
@@ -39,17 +41,36 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile tools/android/p1_safety_sentinel.py
+          python3 -m py_compile tools/android/p1_safety_sentinel.py tools/android/verify_p1_publication_receipt.py
           python3 tools/android/p1_safety_sentinel.py --help >/dev/null
+          python3 tools/android/verify_p1_publication_receipt.py --help >/dev/null
 
       - name: Execute safety-sentinel regressions
         shell: bash
         run: |
           set -euo pipefail
           python3 -m unittest discover -s tools/android/tests -p 'test_p1_safety_sentinel.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_verify_p1_publication_receipt.py' -v
 
       - name: Scan authoritative P1 production tooling
         shell: bash
         run: |
           set -euo pipefail
           python3 tools/android/p1_safety_sentinel.py
+
+      - name: Scan post-publication receipt reconciliation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from tools.android.p1_safety_sentinel import scan_python
+
+          relative = 'tools/android/verify_p1_publication_receipt.py'
+          violations = scan_python(Path(relative), relative)
+          if violations:
+              for violation in violations:
+                  print(f'AFAREET_P1_RECEIPT_SAFETY_VIOLATION {violation.render()}')
+              raise SystemExit(1)
+          print('AFAREET_P1_RECEIPT_SAFETY_OK publicationPerformedByTool=false verified=false')
+          PY
