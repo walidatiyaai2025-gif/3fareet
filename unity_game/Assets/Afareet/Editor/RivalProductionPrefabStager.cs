@@ -28,10 +28,7 @@ namespace Afareet.Editor
         private static readonly float[] TransitionHeights = { 0.60f, 0.28f, 0.08f };
 
         [MenuItem(MenuRoot + "Stage + Bind All Rival Prefabs")]
-        private static void StageAndBindAllMenu()
-        {
-            StageAndBindAll();
-        }
+        private static void StageAndBindAllMenu() => StageAndBindAll();
 
         [MenuItem(MenuRoot + "Stage + Bind Rival 1")]
         private static void StageAndBindRival1() => StageAndBind(0);
@@ -53,6 +50,7 @@ namespace Afareet.Editor
             AssetDatabase.SaveAssets();
             Debug.Log(
                 "AFAREET_UART004_PREFAB_STAGE_ALL_OK variants=3 source=tracked-imported-models " +
+                "resolver=authored-name-or-exact-source-triangle-signature " +
                 "geometryGenerated=false primitiveCreated=false bindingDelegated=true");
         }
 
@@ -78,14 +76,12 @@ namespace Afareet.Editor
                 throw new InvalidOperationException(
                     $"UART-004 imported source has no Unity GUID: variant={variant + 1} source={sourcePath}");
 
+            var signature = RivalImportedLodResolver.ParseSourceOrThrow(sourcePath);
             var prefabPath = RivalProductionPolicy.AssetPath(variant);
             EnsureAssetDirectory(prefabPath);
-            StagePrefabFromImportedSource(variant, sourcePath, sourceModel, prefabPath);
+            StagePrefabFromImportedSource(variant, sourcePath, sourceModel, signature, prefabPath);
             AssetDatabase.ImportAsset(prefabPath, ImportAssetOptions.ForceSynchronousImport);
 
-            // Binder is the single authority that captures GUID/dependency provenance and
-            // refuses the prefab unless UV0, normals, texture mapping, LOD budgets and
-            // exact source-backed meshes all validate.
             RivalProductionSourceBinder.BindSource(variant, sourcePath);
 
             var staged = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
@@ -95,13 +91,17 @@ namespace Afareet.Editor
 
             Debug.Log(
                 $"AFAREET_UART004_PREFAB_STAGE_OK variant={variant + 1} source={sourcePath} " +
-                $"guid={sourceGuid} prefab={prefabPath} geometryGenerated=false primitiveCreated=false");
+                $"guid={sourceGuid} prefab={prefabPath} " +
+                $"sourceSignatures={signature.Triangles[0]}/{signature.Triangles[1]}/{signature.Triangles[2]} " +
+                "resolver=authored-name-or-exact-source-triangle-signature " +
+                "geometryGenerated=false primitiveCreated=false");
         }
 
         private static void StagePrefabFromImportedSource(
             int variant,
             string sourcePath,
             GameObject sourceModel,
+            RivalImportedLodResolver.SourceSignature signature,
             string prefabPath)
         {
             GameObject root = null;
@@ -125,8 +125,7 @@ namespace Afareet.Editor
 
                 foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true))
                 {
-                    var mesh = RivalProductionPolicy.MeshFor(renderer);
-                    var lod = ResolveLod(renderer.transform, instance.transform, mesh);
+                    var lod = RivalImportedLodResolver.Resolve(renderer, instance.transform, signature);
                     if (lod < 0) continue;
 
                     ValidateRendererSource(renderer, sourcePath, variant, lod);
@@ -138,9 +137,9 @@ namespace Afareet.Editor
                 {
                     if (lodRenderers[lod].Count == 0)
                         throw new InvalidOperationException(
-                            $"UART-004 imported source contains no renderer for LOD{lod}: " +
-                            $"variant={variant + 1} source={sourcePath} expectedObjectSuffix=_LOD{lod} " +
-                            "resolver=transform-or-source-mesh-name");
+                            $"UART-004 imported source contains no renderer for LOD{lod}: variant={variant + 1} source={sourcePath} " +
+                            $"authoredObject={signature.ObjectNames[lod]} sourceTriangles={signature.Triangles[lod]} " +
+                            "resolver=transform-or-mesh-name-or-exact-source-triangle-signature");
 
                     lods[lod] = new LOD(TransitionHeights[lod], lodRenderers[lod].ToArray());
                 }
@@ -161,47 +160,6 @@ namespace Afareet.Editor
                 if (root != null)
                     UnityEngine.Object.DestroyImmediate(root);
             }
-        }
-
-        private static int ResolveLod(Transform rendererTransform, Transform importedRoot, Mesh mesh)
-        {
-            for (var current = rendererTransform; current != null; current = current.parent)
-            {
-                var transformLod = ResolveLodFromName(current.name);
-                if (transformLod >= 0)
-                    return transformLod;
-
-                if (current == importedRoot) break;
-            }
-
-            // Unity 6000.5 can flatten OBJ object names from the instance Transform hierarchy
-            // while retaining the authored `o ..._LOD#` identity on each source Mesh sub-asset.
-            return ResolveLodFromName(mesh == null ? string.Empty : mesh.name);
-        }
-
-        private static int ResolveLodFromName(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name))
-                return -1;
-
-            for (var lod = 0; lod < RivalProductionPolicy.MinimumTriangles.Length; lod++)
-            {
-                var token = $"_LOD{lod}";
-                var searchIndex = 0;
-                while (searchIndex < name.Length)
-                {
-                    var index = name.IndexOf(token, searchIndex, StringComparison.OrdinalIgnoreCase);
-                    if (index < 0) break;
-
-                    var suffixEnd = index + token.Length;
-                    if (suffixEnd == name.Length || !char.IsDigit(name[suffixEnd]))
-                        return lod;
-
-                    searchIndex = suffixEnd;
-                }
-            }
-
-            return -1;
         }
 
         private static void ValidateRendererSource(Renderer renderer, string sourcePath, int variant, int lod)
@@ -227,11 +185,9 @@ namespace Afareet.Editor
             var hasMappedTexture = false;
             foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
             {
-                if (HasAssignedTexture(material))
-                {
-                    hasMappedTexture = true;
-                    break;
-                }
+                if (!HasAssignedTexture(material)) continue;
+                hasMappedTexture = true;
+                break;
             }
             if (!hasMappedTexture)
                 throw new InvalidOperationException(
