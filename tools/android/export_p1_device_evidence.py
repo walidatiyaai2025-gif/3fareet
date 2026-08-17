@@ -22,11 +22,20 @@ if str(SCRIPT_DIR) not in sys.path:
 
 import export_device_evidence
 import prepare_p1_candidate_device
+import verify_device_review_bundle
 
 P1_REVIEW_LINEAGE_FILE = "p1-review-lineage.json"
 P1_REVIEW_STATE = "SANITIZED_P1_REVIEW_LINEAGE"
 P1_REVIEW_PROFILE = "p1-final-gate-lineage-v1"
 EXPECTED_TASKS = list(prepare_p1_candidate_device.EXPECTED_TASKS)
+EXPECTED_TASK_STATES = {
+    "UART-003": "LICENSED_UNITY_STAGE_AND_BIND_OK",
+    "UART-004": "LICENSED_UNITY_STAGE_AND_BIND_OK",
+    "UART-005": "LICENSED_UNITY_IMPORT_STAGE_OK",
+    "UART-006": "LICENSED_UNITY_IMPORT_STAGE_OK",
+    "UART-007": "LICENSED_UNITY_IMPORT_STAGE_OK",
+    "URAC-011": "LICENSED_UNITY_TRACKED_LAYOUT_IMPORT_OK",
+}
 REQUIRED_SESSION_FILES = {
     "p1Manifest": prepare_p1_candidate_device.BOUND_P1_MANIFEST_FILE,
     "stagingReport": prepare_p1_candidate_device.BOUND_STAGING_REPORT_FILE,
@@ -81,6 +90,48 @@ def _require_tasks(value: Any, label: str) -> list[str]:
     return list(value)
 
 
+def _validate_task_evidence(staging: dict[str, Any]) -> None:
+    entries = staging.get("taskEvidence")
+    if not isinstance(entries, list) or len(entries) != len(EXPECTED_TASKS):
+        raise P1EvidenceExportError("Bound staging report must contain exactly six taskEvidence records")
+    seen: set[str] = set()
+    for item in entries:
+        if not isinstance(item, dict):
+            raise P1EvidenceExportError("Bound staging taskEvidence entries must be JSON objects")
+        task_id = str(item.get("taskId") or "")
+        if task_id not in EXPECTED_TASKS or task_id in seen:
+            raise P1EvidenceExportError(f"Invalid or duplicate bound staging taskEvidence taskId: {task_id!r}")
+        seen.add(task_id)
+        if item.get("state") != EXPECTED_TASK_STATES[task_id]:
+            raise P1EvidenceExportError(
+                f"Bound staging taskEvidence state mismatch for {task_id}: "
+                f"expected={EXPECTED_TASK_STATES[task_id]!r} actual={item.get('state')!r}"
+            )
+        if not str(item.get("sourceEvidence") or "").strip() or not str(item.get("runtimeEvidence") or "").strip():
+            raise P1EvidenceExportError(f"Bound staging taskEvidence is missing source/runtime evidence for {task_id}")
+        for key in ("verified", "runtimeVerified", "ownerAccepted"):
+            _require_false(item, key, f"boundStaging.taskEvidence[{task_id}]")
+    if seen != set(EXPECTED_TASKS):
+        raise P1EvidenceExportError("Bound staging taskEvidence scope is incomplete")
+
+
+def _validate_generic_bound_manifest(manifest: dict[str, Any], *, candidate_sha: str, apk_sha: str) -> None:
+    if manifest.get("schemaVersion") != 1:
+        raise P1EvidenceExportError("Bound generic candidate manifest schemaVersion must be 1")
+    if manifest.get("candidateType") != prepare_p1_candidate_device.prepare_candidate_device.LOCAL_CANDIDATE_TYPE:
+        raise P1EvidenceExportError("Bound generic candidate manifest is not the local licensed-Windows type")
+    if _sha40(manifest.get("gitSha"), "boundCandidateManifest.gitSha") != candidate_sha:
+        raise P1EvidenceExportError("Bound generic candidate manifest Git SHA differs from P1 lineage")
+    if manifest.get("releaseEvidenceEligible") is not True or manifest.get("readyForDeviceEvidence") is not True:
+        raise P1EvidenceExportError("Bound generic candidate manifest is not release/device-evidence eligible")
+    _require_false(manifest, "verified", "boundCandidateManifest")
+    if manifest.get("verdict") != prepare_p1_candidate_device.prepare_candidate_device.EXPECTED_VERDICT:
+        raise P1EvidenceExportError("Bound generic candidate manifest verdict is unexpected")
+    apk = manifest.get("apk")
+    if not isinstance(apk, dict) or _sha256(apk.get("sha256"), "boundCandidateManifest.apk.sha256") != apk_sha:
+        raise P1EvidenceExportError("Bound generic candidate manifest APK SHA differs from P1 lineage")
+
+
 def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     session_dir = session_dir.expanduser().resolve()
     session = _read_json(session_dir / export_device_evidence.SESSION_FILE, "P1 device session")
@@ -90,7 +141,9 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
             "Device session has no p1Lineage binding; prepare it with prepare_p1_candidate_device.py before P1 export"
         )
     if p1.get("schemaVersion") != 1 or p1.get("state") != "P1_LINEAGE_BOUND_FOR_PHYSICAL_DEVICE_EVIDENCE":
-        raise P1EvidenceExportError(f"Unsupported session.p1Lineage schema/state: {p1.get('schemaVersion')!r}/{p1.get('state')!r}")
+        raise P1EvidenceExportError(
+            f"Unsupported session.p1Lineage schema/state: {p1.get('schemaVersion')!r}/{p1.get('state')!r}"
+        )
     _require_true(p1, "readyForCheckpointCapture", "session.p1Lineage")
     for key in ("verified", "runtimeVerified", "ownerAccepted", "publicationEligible"):
         _require_false(p1, key, "session.p1Lineage")
@@ -102,7 +155,8 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     apk_sha = _sha256(p1.get("apkSha256"), "session.p1Lineage.apkSha256")
     if candidate_sha == staging_source_sha or direct_parent_sha != staging_source_sha:
         raise P1EvidenceExportError(
-            f"P1 lineage relation is invalid: stagingSource={staging_source_sha} directParent={direct_parent_sha} candidate={candidate_sha}"
+            f"P1 lineage relation is invalid: stagingSource={staging_source_sha} "
+            f"directParent={direct_parent_sha} candidate={candidate_sha}"
         )
 
     candidate = session.get("candidate")
@@ -134,7 +188,8 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
             raise P1EvidenceExportError(f"session.p1Lineage.files.{key} is missing")
         if record.get("fileName") != expected_name:
             raise P1EvidenceExportError(
-                f"session.p1Lineage.files.{key}.fileName mismatch: expected={expected_name!r} actual={record.get('fileName')!r}"
+                f"session.p1Lineage.files.{key}.fileName mismatch: "
+                f"expected={expected_name!r} actual={record.get('fileName')!r}"
             )
         declared_hash = _sha256(record.get("sha256"), f"session.p1Lineage.files.{key}.sha256")
         path = session_dir / expected_name
@@ -152,11 +207,13 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
         "session.candidate.manifest.sha256",
     )
     if file_hashes["candidateManifest"] != candidate_manifest_hash:
-        raise P1EvidenceExportError("P1 bound generic candidate-manifest hash differs from session.candidate.manifest.sha256")
+        raise P1EvidenceExportError(
+            "P1 bound generic candidate-manifest hash differs from session.candidate.manifest.sha256"
+        )
 
-    # Re-validate the bound P1 JSON semantics so matching session hashes cannot mask
-    # a jointly-tampered provenance set.
-    envelope = _read_json(session_dir / REQUIRED_SESSION_FILES["p1Manifest"], "Bound P1 staged-candidate manifest")
+    envelope = _read_json(
+        session_dir / REQUIRED_SESSION_FILES["p1Manifest"], "Bound P1 staged-candidate manifest"
+    )
     if envelope.get("schemaVersion") != 1 or envelope.get("candidateType") != prepare_p1_candidate_device.P1_CANDIDATE_TYPE:
         raise P1EvidenceExportError("Bound P1 staged-candidate manifest has an unsupported schema/candidateType")
     if envelope.get("verdict") != prepare_p1_candidate_device.P1_VERDICT:
@@ -174,18 +231,27 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     if _sha256(envelope.get("apkSha256"), "boundP1Manifest.apkSha256") != apk_sha:
         raise P1EvidenceExportError("Bound P1 manifest APK SHA differs from session.p1Lineage")
 
-    for envelope_key, session_key in (
-        ("stagingReport", "stagingReport"),
-        ("stagingLineage", "stagingLineage"),
-        ("localCandidateManifest", "candidateManifest"),
-    ):
+    envelope_expectations = {
+        "stagingReport": ("stagingReport", 2, None),
+        "stagingLineage": ("stagingLineage", None, prepare_p1_candidate_device.P1_LINEAGE_STATE),
+        "localCandidateManifest": ("candidateManifest", None, None),
+    }
+    for envelope_key, (session_key, schema_version, state) in envelope_expectations.items():
         record = envelope.get(envelope_key)
         if not isinstance(record, dict):
             raise P1EvidenceExportError(f"Bound P1 manifest is missing {envelope_key}")
         if _sha256(record.get("sha256"), f"boundP1Manifest.{envelope_key}.sha256") != file_hashes[session_key]:
-            raise P1EvidenceExportError(f"Bound P1 manifest {envelope_key} hash differs from the session-bound bytes")
+            raise P1EvidenceExportError(
+                f"Bound P1 manifest {envelope_key} hash differs from the session-bound bytes"
+            )
+        if schema_version is not None and record.get("schemaVersion") != schema_version:
+            raise P1EvidenceExportError(f"Bound P1 manifest {envelope_key}.schemaVersion mismatch")
+        if state is not None and record.get("state") != state:
+            raise P1EvidenceExportError(f"Bound P1 manifest {envelope_key}.state mismatch")
 
-    staging = _read_json(session_dir / REQUIRED_SESSION_FILES["stagingReport"], "Bound P1 staging report")
+    staging = _read_json(
+        session_dir / REQUIRED_SESSION_FILES["stagingReport"], "Bound P1 staging report"
+    )
     if staging.get("schemaVersion") != 2 or staging.get("state") != prepare_p1_candidate_device.STAGING_STATE:
         raise P1EvidenceExportError("Bound P1 staging report has an unsupported schema/state")
     if _sha40(staging.get("gitSha"), "boundStaging.gitSha") != staging_source_sha:
@@ -193,8 +259,11 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     _require_tasks(staging.get("coveredTasks"), "boundStaging.coveredTasks")
     for key in ("verified", "runtimeVerified", "ownerAccepted", "publicationEligible", "candidateBuildStarted"):
         _require_false(staging, key, "boundStaging")
+    _validate_task_evidence(staging)
 
-    lineage = _read_json(session_dir / REQUIRED_SESSION_FILES["stagingLineage"], "Bound P1 staging lineage")
+    lineage = _read_json(
+        session_dir / REQUIRED_SESSION_FILES["stagingLineage"], "Bound P1 staging lineage"
+    )
     if lineage.get("schemaVersion") != 1 or lineage.get("state") != prepare_p1_candidate_device.P1_LINEAGE_STATE:
         raise P1EvidenceExportError("Bound P1 staging lineage has an unsupported schema/state")
     if _sha40(lineage.get("stagingSourceGitSha"), "boundLineage.stagingSourceGitSha") != staging_source_sha:
@@ -204,11 +273,25 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     if _sha40(lineage.get("directParentGitSha"), "boundLineage.directParentGitSha") != direct_parent_sha:
         raise P1EvidenceExportError("Bound lineage direct-parent SHA differs from session.p1Lineage")
     if _sha256(lineage.get("stagingReportSha256"), "boundLineage.stagingReportSha256") != file_hashes["stagingReport"]:
-        raise P1EvidenceExportError("Bound lineage staging-report hash differs from the exact session-bound staging report")
+        raise P1EvidenceExportError(
+            "Bound lineage staging-report hash differs from the exact session-bound staging report"
+        )
     _require_tasks(lineage.get("coveredTasks"), "boundLineage.coveredTasks")
     _require_true(lineage, "readyForLicensedCandidateTests", "boundLineage")
     for key in ("verified", "runtimeVerified", "ownerAccepted", "publicationEligible"):
         _require_false(lineage, key, "boundLineage")
+    changed_paths = lineage.get("candidateCommitChangedPaths")
+    if not isinstance(changed_paths, list) or not changed_paths:
+        raise P1EvidenceExportError("Bound lineage candidateCommitChangedPaths must be a non-empty list")
+    for value in changed_paths:
+        path = str(value or "").strip().replace("\\", "/")
+        if not path.startswith("unity_game/Assets/"):
+            raise P1EvidenceExportError(f"Bound lineage contains a non-Assets staging path: {path!r}")
+
+    bound_candidate = _read_json(
+        session_dir / REQUIRED_SESSION_FILES["candidateManifest"], "Bound generic candidate manifest"
+    )
+    _validate_generic_bound_manifest(bound_candidate, candidate_sha=candidate_sha, apk_sha=apk_sha)
 
     return {
         "stagingSourceGitSha": staging_source_sha,
@@ -221,7 +304,9 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     }
 
 
-def _write_p1_summary(output_dir: Path, review_manifest: dict[str, Any], p1: dict[str, Any]) -> dict[str, Any]:
+def _write_p1_summary(
+    output_dir: Path, review_manifest: dict[str, Any], p1: dict[str, Any]
+) -> dict[str, Any]:
     summary = {
         "schemaVersion": 1,
         "state": P1_REVIEW_STATE,
@@ -321,11 +406,9 @@ def export_p1_bundle(session_dir: Path, output_dir: Path, *, force: bool = False
                 "sanitizedP1LineageIncluded": True,
             }
         )
-        export_device_evidence.write_json(output_dir / export_device_evidence.REVIEW_MANIFEST_FILE, review_manifest)
-
-        # Generic integrity verification remains applicable after adding the P1 summary
-        # because it is added to the same contentFiles/contentSet contract.
-        import verify_device_review_bundle
+        export_device_evidence.write_json(
+            output_dir / export_device_evidence.REVIEW_MANIFEST_FILE, review_manifest
+        )
 
         generic_verified = verify_device_review_bundle.verify_bundle(
             output_dir,
@@ -333,9 +416,13 @@ def export_p1_bundle(session_dir: Path, output_dir: Path, *, force: bool = False
             expected_apk_sha=p1["apkSha256"],
         )
         if generic_verified["contentSetSha256"] != content_set_sha:
-            raise P1EvidenceExportError("Generic verification returned a different contentSetSha256 after P1 augmentation")
+            raise P1EvidenceExportError(
+                "Generic verification returned a different contentSetSha256 after P1 augmentation"
+            )
         if summary["deviceSerialSha256"] != generic_verified["deviceSerialSha256"]:
-            raise P1EvidenceExportError("Sanitized P1 summary device hash differs from generic verified bundle")
+            raise P1EvidenceExportError(
+                "Sanitized P1 summary device hash differs from generic verified bundle"
+            )
         return review_manifest
     except Exception:
         if created_output and output_dir.is_dir():
@@ -345,7 +432,9 @@ def export_p1_bundle(session_dir: Path, output_dir: Path, *, force: bool = False
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--session", required=True, help="Raw Step 11 P1 physical-device evidence session")
+    parser.add_argument(
+        "--session", required=True, help="Raw Step 11 P1 physical-device evidence session"
+    )
     parser.add_argument("--output", required=True, help="Destination sanitized P1 review bundle")
     parser.add_argument("--force", action="store_true", help="Replace an existing output directory")
     return parser
@@ -361,12 +450,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "AFAREET_P1_DEVICE_REVIEW_BUNDLE_EXPORTED "
             f"stagingSourceGitSha={p1['stagingSourceGitSha']} candidateGitSha={p1['candidateGitSha']} "
             f"apkSha256={p1['apkSha256']} checkpoints={manifest['checkpointCount']} "
-            f"contentSetSha256={manifest['contentSetSha256']} tasks=6 verdict={manifest['verdict']} verified=false"
+            f"contentSetSha256={manifest['contentSetSha256']} tasks=6 "
+            f"verdict={manifest['verdict']} verified=false"
         )
         return 2 if red_flags > 0 else 0
     except (
         P1EvidenceExportError,
         export_device_evidence.EvidenceExportError,
+        verify_device_review_bundle.ReviewBundleVerificationError,
         OSError,
         ValueError,
     ) as exc:
