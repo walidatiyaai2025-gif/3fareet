@@ -33,6 +33,14 @@ function Normalize-Sha($Value, [string]$Label) {
     return $sha
 }
 
+function Normalize-Sha256($Value, [string]$Label) {
+    $sha = ([string]$Value).Trim().ToLowerInvariant()
+    if ($sha -notmatch '^[0-9a-f]{64}$') {
+        Fail "$Label must be a SHA-256 hex digest, found '$Value'"
+    }
+    return $sha
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {
@@ -53,8 +61,6 @@ $gitTopOk = $?
 if (-not $gitTopOk -or [string]::IsNullOrWhiteSpace($gitTop)) {
     Fail "Unable to resolve Git worktree root: $RepoRoot"
 }
-# Canonicalize to Git's own top-level representation so Windows 8.3 aliases
-# (for example RUNNER~1 vs runneradmin) cannot create a false root mismatch.
 $RepoRoot = (Resolve-Path $gitTop.Trim()).Path
 
 $dirty = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
@@ -78,7 +84,7 @@ try {
 } catch {
     Fail "Staging report is not valid JSON: $($_.Exception.Message)"
 }
-if ($report.schemaVersion -ne 2) { Fail "Staging report schema must be 2, found '$($report.schemaVersion)'" }
+if ($report.schemaVersion -ne 3) { Fail "Staging report schema must be 3, found '$($report.schemaVersion)'" }
 if ($report.state -ne 'STAGED_FOR_COMMIT_NOT_CANDIDATE') { Fail "Unexpected staging report state: '$($report.state)'" }
 Require-Bool $report 'verified' $false 'stagingReport'
 Require-Bool $report 'runtimeVerified' $false 'stagingReport'
@@ -87,6 +93,14 @@ Require-Bool $report 'publicationEligible' $false 'stagingReport'
 Require-Bool $report 'candidateBuildStarted' $false 'stagingReport'
 
 $stagingSourceSha = Normalize-Sha (Get-Value $report 'gitSha') 'stagingReport.gitSha'
+$authorizationSourceSha = Normalize-Sha (Get-Value $report 'authorizationSourceGitSha') 'stagingReport.authorizationSourceGitSha'
+if ($authorizationSourceSha -ne $stagingSourceSha) {
+    Fail "Staging authorization source SHA must equal staging report gitSha. authorization=$authorizationSourceSha staging=$stagingSourceSha"
+}
+$handoffPacketSha256 = Normalize-Sha256 (Get-Value $report 'handoffPacketSha256') 'stagingReport.handoffPacketSha256'
+$nativeHandoffVerificationSha256 = Normalize-Sha256 (Get-Value $report 'nativeHandoffVerificationSha256') 'stagingReport.nativeHandoffVerificationSha256'
+$operatorChainSha256 = Normalize-Sha256 (Get-Value $report 'operatorChainSha256') 'stagingReport.operatorChainSha256'
+
 if ($stagingSourceSha -eq $candidateSha) {
     Fail "P1 staged candidate must be a new reviewed commit after staging; stagingSourceGitSha equals candidateGitSha=$candidateSha"
 }
@@ -156,7 +170,13 @@ $lineage = [ordered]@{
     directParentGitSha = $directParentSha
     stagingReportPath = $StagingReport
     stagingReportSha256 = $stagingReportHash
-    stagingReportSchemaVersion = 2
+    stagingReportSchemaVersion = 3
+    stagingAuthorization = [ordered]@{
+        authorizationSourceGitSha = $authorizationSourceSha
+        handoffPacketSha256 = $handoffPacketSha256
+        nativeHandoffVerificationSha256 = $nativeHandoffVerificationSha256
+        operatorChainSha256 = $operatorChainSha256
+    }
     coveredTasks = $expectedTasks
     candidateCommitChangedPaths = @($changedPaths | ForEach-Object { ([string]$_).Trim().Replace('\\', '/') })
     readyForLicensedCandidateTests = $true
@@ -164,7 +184,7 @@ $lineage = [ordered]@{
     runtimeVerified = $false
     ownerAccepted = $false
     publicationEligible = $false
-    nextAction = 'Run licensed Unity tests/build on candidateGitSha, then bind the resulting candidate manifest to this lineage before physical-device evidence.'
+    nextAction = 'Run licensed Unity tests/build on candidateGitSha, then bind the resulting candidate manifest and staging authorization fingerprints before physical-device evidence.'
 }
 
 if (-not [string]::IsNullOrWhiteSpace($Output)) {
@@ -179,5 +199,5 @@ if (-not [string]::IsNullOrWhiteSpace($Output)) {
     $lineage | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $outputPath -Encoding UTF8
 }
 
-Write-Host "AFAREET_P1_STAGING_LINEAGE_OK stagingSourceGitSha=$stagingSourceSha candidateGitSha=$candidateSha reportSha256=$stagingReportHash tasks=6 verified=false"
+Write-Host "AFAREET_P1_STAGING_LINEAGE_OK stagingSourceGitSha=$stagingSourceSha candidateGitSha=$candidateSha reportSha256=$stagingReportHash packetSha256=$handoffPacketSha256 nativeVerificationSha256=$nativeHandoffVerificationSha256 operatorChainSha256=$operatorChainSha256 tasks=6 verified=false"
 $lineage | ConvertTo-Json -Depth 10

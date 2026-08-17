@@ -11,6 +11,12 @@ function Fail([string]$Message) {
     throw "AFAREET_P1_STAGED_CANDIDATE_ERROR: $Message"
 }
 
+function Normalize-Sha256($Value, [string]$Label) {
+    $sha = ([string]$Value).Trim().ToLowerInvariant()
+    if ($sha -notmatch '^[0-9a-f]{64}$') { Fail "$Label must be a SHA-256 hex digest." }
+    return $sha
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {
@@ -58,8 +64,11 @@ try {
 } catch {
     Fail "P1 lineage report is not valid JSON: $($_.Exception.Message)"
 }
-if ($lineage.state -ne 'STAGING_PARENT_BOUND_TO_CANDIDATE' -or $lineage.candidateGitSha -ne $currentSha) {
-    Fail "P1 lineage report is not bound to the current candidate SHA. state=$($lineage.state) candidate=$($lineage.candidateGitSha) expected=$currentSha"
+if ($lineage.schemaVersion -ne 1 -or $lineage.state -ne 'STAGING_PARENT_BOUND_TO_CANDIDATE' -or $lineage.candidateGitSha -ne $currentSha) {
+    Fail "P1 lineage report is not bound to the current candidate SHA/schema. state=$($lineage.state) candidate=$($lineage.candidateGitSha) expected=$currentSha"
+}
+if ($lineage.stagingReportSchemaVersion -ne 3) {
+    Fail "P1 lineage must be derived from staging report schema 3. actual=$($lineage.stagingReportSchemaVersion)"
 }
 if ($lineage.readyForLicensedCandidateTests -ne $true -or
     $lineage.verified -ne $false -or
@@ -68,7 +77,15 @@ if ($lineage.readyForLicensedCandidateTests -ne $true -or
     $lineage.publicationEligible -ne $false) {
     Fail "P1 lineage report crossed its tests-only/unverified boundary."
 }
-Write-Host "AFAREET_P1_STAGED_CANDIDATE_LINEAGE_OK stagingSourceGitSha=$($lineage.stagingSourceGitSha) candidateGitSha=$currentSha verified=false"
+$authorization = $lineage.stagingAuthorization
+if ($null -eq $authorization) { Fail "P1 lineage report is missing stagingAuthorization." }
+if (([string]$authorization.authorizationSourceGitSha).ToLowerInvariant() -ne ([string]$lineage.stagingSourceGitSha).ToLowerInvariant()) {
+    Fail "P1 lineage stagingAuthorization source SHA does not match stagingSourceGitSha."
+}
+$handoffPacketSha256 = Normalize-Sha256 $authorization.handoffPacketSha256 'lineage.stagingAuthorization.handoffPacketSha256'
+$nativeHandoffVerificationSha256 = Normalize-Sha256 $authorization.nativeHandoffVerificationSha256 'lineage.stagingAuthorization.nativeHandoffVerificationSha256'
+$operatorChainSha256 = Normalize-Sha256 $authorization.operatorChainSha256 'lineage.stagingAuthorization.operatorChainSha256'
+Write-Host "AFAREET_P1_STAGED_CANDIDATE_LINEAGE_OK stagingSourceGitSha=$($lineage.stagingSourceGitSha) candidateGitSha=$currentSha packetSha256=$handoffPacketSha256 verified=false"
 
 $genericParams = @{ RepoRoot = $RepoRoot }
 if (-not [string]::IsNullOrWhiteSpace($UnityPath)) { $genericParams.UnityPath = $UnityPath }
@@ -106,10 +123,16 @@ $link = [ordered]@{
     stagingSourceGitSha = $lineage.stagingSourceGitSha
     candidateGitSha = $currentSha
     directParentGitSha = $lineage.directParentGitSha
+    stagingAuthorization = [ordered]@{
+        authorizationSourceGitSha = ([string]$authorization.authorizationSourceGitSha).ToLowerInvariant()
+        handoffPacketSha256 = $handoffPacketSha256
+        nativeHandoffVerificationSha256 = $nativeHandoffVerificationSha256
+        operatorChainSha256 = $operatorChainSha256
+    }
     stagingReport = [ordered]@{
         path = $StagingReport
         sha256 = $stagingReportHash
-        schemaVersion = 2
+        schemaVersion = 3
     }
     stagingLineage = [ordered]@{
         path = $lineageReport
@@ -129,11 +152,11 @@ $link = [ordered]@{
     publicationEligible = $false
     verdict = 'P1_STAGED_CANDIDATE_READY_FOR_PHYSICAL_DEVICE_EVIDENCE'
     notes = @(
-        'This envelope binds the reviewed staging parent, exact candidate commit, staging report, local candidate manifest, and APK hash.',
+        'This envelope binds the READY handoff authorization, reviewed staging parent, exact candidate commit, staging report, local candidate manifest, and APK hash.',
         'It does not mark UART/URAC runtime proof, physical-device evidence, owner approval, or publication as complete.'
     )
 }
 $link | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $linkManifest -Encoding UTF8
 
-Write-Host "AFAREET_P1_STAGED_CANDIDATE_OK stagingSourceGitSha=$($lineage.stagingSourceGitSha) candidateGitSha=$currentSha apkSha256=$apkHash manifest=$linkManifest verified=false"
-Write-Host "Next: bind physical Android device evidence to artifacts/local-candidate-manifest.json and preserve this P1 lineage envelope for visual/runtime review."
+Write-Host "AFAREET_P1_STAGED_CANDIDATE_OK stagingSourceGitSha=$($lineage.stagingSourceGitSha) candidateGitSha=$currentSha apkSha256=$apkHash packetSha256=$handoffPacketSha256 manifest=$linkManifest verified=false"
+Write-Host "Next: bind physical Android device evidence to artifacts/local-candidate-manifest.json and preserve this P1 authorization + lineage envelope for visual/runtime review."

@@ -17,8 +17,16 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "public static void StageForCommit()",
             'private const string HeroSourceArgument = "-afareetHeroSource"',
             'private const string GitShaArgument = "-afareetGitSha"',
-            "internal static void StageForCommit(string heroSourcePath, string gitSha)",
+            'private const string HandoffPacketSha256Argument = "-afareetHandoffPacketSha256"',
+            'private const string NativeHandoffVerificationSha256Argument = "-afareetNativeHandoffVerificationSha256"',
+            'private const string OperatorChainSha256Argument = "-afareetOperatorChainSha256"',
+            "string handoffPacketSha256",
+            "string nativeHandoffVerificationSha256",
+            "string operatorChainSha256",
             "gitSha = NormalizeGitSha(gitSha)",
+            'NormalizeSha256(handoffPacketSha256, "handoff packet")',
+            'NormalizeSha256(nativeHandoffVerificationSha256, "native handoff verification")',
+            'NormalizeSha256(operatorChainSha256, "operator chain")',
             "ValidateHeroSourceBeforeMutation(heroSourcePath)",
             "P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow()",
             "P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow()",
@@ -26,7 +34,11 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "RivalProductionPrefabStager.StageAndBindAll()",
             "HeroCarProductionPrefabStager.StageAndBind(heroSourcePath)",
             "BuildTaskEvidence(heroSourcePath)",
-            "schemaVersion = 2",
+            "schemaVersion = 3",
+            "authorizationSourceGitSha",
+            "handoffPacketSha256",
+            "nativeHandoffVerificationSha256",
+            "operatorChainSha256",
             '"UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"',
             "LICENSED_UNITY_STAGE_AND_BIND_OK",
             "LICENSED_UNITY_IMPORT_STAGE_OK",
@@ -76,10 +88,13 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
         self.assertNotIn("GameObject.CreatePrimitive", rivals)
         self.assertNotIn("new Mesh(", rivals)
 
-    def test_windows_handoff_requires_clean_tracked_hero_and_never_commits_or_builds(self):
+    def test_windows_handoff_requires_authorization_clean_tracked_hero_and_never_commits_or_builds(self):
         text = (TOOLS / "stage_production_candidate_windows.ps1").read_text(encoding="utf-8")
 
         for required in (
+            "[string]$HandoffPacketSha256",
+            "[string]$NativeHandoffVerificationSha256",
+            "[string]$OperatorChainSha256",
             "Staging handoff requires a clean Git tree.",
             "ls-files --error-unmatch",
             "Hero source must already be tracked in the clean starting commit",
@@ -92,9 +107,16 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "Afareet.Editor.P1ProductionCandidateStagingHandoff.StageForCommit",
             "-afareetHeroSource",
             "-afareetGitSha",
-            "schemaVersion -ne 2",
+            "-afareetHandoffPacketSha256",
+            "-afareetNativeHandoffVerificationSha256",
+            "-afareetOperatorChainSha256",
+            "schemaVersion -ne 3",
             "handoffReport.gitSha -ne $gitSha",
             "handoffReport.heroSource -ne $HeroSource",
+            "handoffReport.handoffPacketSha256",
+            "handoffReport.nativeHandoffVerificationSha256",
+            "handoffReport.operatorChainSha256",
+            "handoffReport.authorizationSourceGitSha",
             "AFAREET_P1_STAGING_REPORT_BINDING_OK",
             "runtimeVerified=false",
             "ownerAccepted=false",
@@ -103,7 +125,7 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "AFAREET_P1_STAGING_COMMIT_REQUIRED",
             "unity_game/Assets/",
             "Do not commit blindly",
-            "run_local_candidate_windows.ps1 from the new clean SHA",
+            "run_p1_staged_candidate_windows.ps1 from the new clean SHA",
         ):
             self.assertIn(required, text)
 
@@ -130,6 +152,19 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
         self.assertLess(unity_start, report_binding)
         self.assertLess(report_binding, status_capture)
 
+    def test_authoritative_wrapper_forwards_authorization_before_low_level_staging(self):
+        text = (TOOLS / "run_p1_licensed_staging_windows.ps1").read_text(encoding="utf-8")
+        for marker in (
+            "verification.packetSha256",
+            "verification.operatorChainSha256",
+            "Get-FileHash -Algorithm SHA256 -LiteralPath $verifyOutput",
+            "HandoffPacketSha256 = $handoffPacketSha256",
+            "NativeHandoffVerificationSha256 = $nativeVerificationSha256",
+            "OperatorChainSha256 = $operatorChainSha256",
+        ):
+            self.assertIn(marker, text)
+        self.assertLess(text.index("& $verifyScript"), text.index("& $stageScript"))
+
     def test_exact_candidate_runner_remains_separate_and_clean_sha_locked(self):
         candidate = (TOOLS / "run_local_candidate_windows.ps1").read_text(encoding="utf-8")
         self.assertIn("Candidate orchestration requires a clean Git working tree before Unity starts.", candidate)
@@ -152,6 +187,7 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             self.skipTest("pwsh is not installed in this environment")
 
         for script in (
+            TOOLS / "run_p1_licensed_staging_windows.ps1",
             TOOLS / "stage_production_candidate_windows.ps1",
             TOOLS / "validate_hero_asset_intake_windows.ps1",
         ):

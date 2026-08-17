@@ -17,6 +17,9 @@ namespace Afareet.Editor
     {
         private const string HeroSourceArgument = "-afareetHeroSource";
         private const string GitShaArgument = "-afareetGitSha";
+        private const string HandoffPacketSha256Argument = "-afareetHandoffPacketSha256";
+        private const string NativeHandoffVerificationSha256Argument = "-afareetNativeHandoffVerificationSha256";
+        private const string OperatorChainSha256Argument = "-afareetOperatorChainSha256";
         private const string ReportRelativePath = "artifacts/production-staging/p1-staging-handoff.json";
         private const string VerticalSliceLayoutPath = "Assets/Afareet/Resources/Art/Tracks/CairoVerticalSlice/cairo_vertical_slice_v1.json";
 
@@ -35,7 +38,7 @@ namespace Afareet.Editor
         [Serializable]
         private sealed class HandoffReport
         {
-            public int schemaVersion = 2;
+            public int schemaVersion = 3;
             public string state = "STAGED_FOR_COMMIT_NOT_CANDIDATE";
             public bool verified = false;
             public bool runtimeVerified = false;
@@ -44,6 +47,10 @@ namespace Afareet.Editor
             public bool candidateBuildStarted = false;
             public bool trackedCommitRequired = true;
             public string gitSha;
+            public string authorizationSourceGitSha;
+            public string handoffPacketSha256;
+            public string nativeHandoffVerificationSha256;
+            public string operatorChainSha256;
             public string heroSource;
             public string heroSourceGuid;
             public string heroPrefabGuid;
@@ -55,25 +62,37 @@ namespace Afareet.Editor
         }
 
         /// <summary>
-        /// Unity batch-mode entry point. Invoke with:
-        /// -executeMethod Afareet.Editor.P1ProductionCandidateStagingHandoff.StageForCommit
-        /// -afareetHeroSource Assets/.../AfareetKing.<fbx|obj|blend|glb|gltf>
-        /// -afareetGitSha &lt;40-character-clean-starting-commit&gt;
+        /// Unity batch-mode entry point. Invoke only through the authoritative P1 native
+        /// handoff wrapper, which supplies the exact source commit and authorization hashes.
         /// </summary>
         public static void StageForCommit()
         {
             StageForCommit(
                 RequiredArgument(HeroSourceArgument),
-                RequiredArgument(GitShaArgument));
+                RequiredArgument(GitShaArgument),
+                RequiredArgument(HandoffPacketSha256Argument),
+                RequiredArgument(NativeHandoffVerificationSha256Argument),
+                RequiredArgument(OperatorChainSha256Argument));
         }
 
-        internal static void StageForCommit(string heroSourcePath, string gitSha)
+        internal static void StageForCommit(
+            string heroSourcePath,
+            string gitSha,
+            string handoffPacketSha256,
+            string nativeHandoffVerificationSha256,
+            string operatorChainSha256)
         {
             heroSourcePath = NormalizeAssetPath(heroSourcePath);
             gitSha = NormalizeGitSha(gitSha);
+            handoffPacketSha256 = NormalizeSha256(handoffPacketSha256, "handoff packet");
+            nativeHandoffVerificationSha256 = NormalizeSha256(nativeHandoffVerificationSha256, "native handoff verification");
+            operatorChainSha256 = NormalizeSha256(operatorChainSha256, "operator chain");
             ValidateHeroSourceBeforeMutation(heroSourcePath);
 
-            Debug.Log($"AFAREET_P1_STAGING_HANDOFF_START gitSha={gitSha} heroSource={heroSourcePath} verified=false");
+            Debug.Log(
+                $"AFAREET_P1_STAGING_HANDOFF_START gitSha={gitSha} heroSource={heroSourcePath} " +
+                $"packetSha256={handoffPacketSha256} nativeVerificationSha256={nativeHandoffVerificationSha256} " +
+                "verified=false");
 
             // Ignored Resources staging is deterministic packaging of tracked source bytes.
             // It is included here to prove licensed Unity importability on the handoff machine.
@@ -90,9 +109,15 @@ namespace Afareet.Editor
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
 
             var taskEvidence = BuildTaskEvidence(heroSourcePath);
-            WriteHandoffReport(heroSourcePath, gitSha, taskEvidence);
+            WriteHandoffReport(
+                heroSourcePath,
+                gitSha,
+                handoffPacketSha256,
+                nativeHandoffVerificationSha256,
+                operatorChainSha256,
+                taskEvidence);
             Debug.Log(
-                $"AFAREET_P1_STAGING_HANDOFF_OK gitSha={gitSha} " +
+                $"AFAREET_P1_STAGING_HANDOFF_OK gitSha={gitSha} packetSha256={handoffPacketSha256} " +
                 "tasks=UART-003,UART-004,UART-005,UART-006,UART-007,URAC-011 " +
                 "state=STAGED_FOR_COMMIT_NOT_CANDIDATE trackedCommitRequired=true " +
                 "candidateBuildStarted=false publicationEligible=false verified=false");
@@ -242,7 +267,27 @@ namespace Afareet.Editor
             return value;
         }
 
-        private static void WriteHandoffReport(string heroSourcePath, string gitSha, TaskEvidence[] taskEvidence)
+        private static string NormalizeSha256(string value, string label)
+        {
+            value = (value ?? string.Empty).Trim().Trim('"').ToLowerInvariant();
+            if (value.Length != 64)
+                throw new InvalidOperationException($"P1 staging handoff {label} SHA-256 must be 64 hexadecimal characters: {value}");
+            for (var index = 0; index < value.Length; index++)
+            {
+                var c = value[index];
+                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
+                    throw new InvalidOperationException($"P1 staging handoff {label} SHA-256 is not hexadecimal: {value}");
+            }
+            return value;
+        }
+
+        private static void WriteHandoffReport(
+            string heroSourcePath,
+            string gitSha,
+            string handoffPacketSha256,
+            string nativeHandoffVerificationSha256,
+            string operatorChainSha256,
+            TaskEvidence[] taskEvidence)
         {
             if (taskEvidence == null || taskEvidence.Length != 6)
                 throw new InvalidOperationException("P1 staging handoff report requires evidence for exactly six visual/runtime tasks.");
@@ -257,6 +302,10 @@ namespace Afareet.Editor
             var report = new HandoffReport
             {
                 gitSha = gitSha,
+                authorizationSourceGitSha = gitSha,
+                handoffPacketSha256 = handoffPacketSha256,
+                nativeHandoffVerificationSha256 = nativeHandoffVerificationSha256,
+                operatorChainSha256 = operatorChainSha256,
                 heroSource = heroSourcePath,
                 heroSourceGuid = RequiredGuid(heroSourcePath, "UART-003 Hero source"),
                 heroPrefabGuid = RequiredGuid(HeroCarLodPolicy.ProductionAssetPath, "UART-003 production prefab"),

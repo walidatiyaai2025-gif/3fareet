@@ -14,6 +14,14 @@ function Fail([string]$Message) {
     throw "AFAREET_P1_LICENSED_STAGING_RUNNER_ERROR: $Message"
 }
 
+function Normalize-Sha256($Value, [string]$Label) {
+    $sha = ([string]$Value).Trim().ToLowerInvariant()
+    if ($sha -notmatch '^[0-9a-f]{64}$') {
+        Fail "$Label must be a SHA-256 hex digest."
+    }
+    return $sha
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {
@@ -55,16 +63,25 @@ if ($verification.state -ne 'NATIVE_P1_HANDOFF_VERIFIED_FOR_LICENSED_STAGING' -o
     $verification.ownerAccepted -ne $false) {
     Fail "Native handoff verification report crossed the staging-only safety boundary."
 }
-Write-Host "AFAREET_P1_LICENSED_STAGING_PACKET_VERIFY_OK gitSha=$($verification.gitSha) heroSource=$($verification.heroSource) verified=false"
+
+$handoffPacketSha256 = Normalize-Sha256 $verification.packetSha256 'nativeVerification.packetSha256'
+$operatorChainSha256 = Normalize-Sha256 $verification.operatorChainSha256 'nativeVerification.operatorChainSha256'
+$nativeVerificationSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $verifyOutput).Hash.ToLowerInvariant()
+$nativeVerificationSha256 = Normalize-Sha256 $nativeVerificationSha256 'nativeVerificationReportSha256'
+
+Write-Host "AFAREET_P1_LICENSED_STAGING_PACKET_VERIFY_OK gitSha=$($verification.gitSha) heroSource=$($verification.heroSource) packetSha256=$handoffPacketSha256 nativeVerificationSha256=$nativeVerificationSha256 operatorChainSha256=$operatorChainSha256 verified=false"
 
 $stageParams = @{
     HeroSource = $HeroSource
     RepoRoot = $RepoRoot
+    HandoffPacketSha256 = $handoffPacketSha256
+    NativeHandoffVerificationSha256 = $nativeVerificationSha256
+    OperatorChainSha256 = $operatorChainSha256
 }
 if (-not [string]::IsNullOrWhiteSpace($UnityPath)) {
     $stageParams.UnityPath = $UnityPath
 }
 
-Write-Host "AFAREET_P1_LICENSED_STAGING_START gitSha=$($verification.gitSha) heroSource=$HeroSource"
+Write-Host "AFAREET_P1_LICENSED_STAGING_START gitSha=$($verification.gitSha) heroSource=$HeroSource packetSha256=$handoffPacketSha256"
 & $stageScript @stageParams | ForEach-Object { Write-Host $_ }
-Write-Host "AFAREET_P1_LICENSED_STAGING_RUNNER_OK gitSha=$($verification.gitSha) heroSource=$HeroSource verified=false publicationPerformed=false"
+Write-Host "AFAREET_P1_LICENSED_STAGING_RUNNER_OK gitSha=$($verification.gitSha) heroSource=$HeroSource packetSha256=$handoffPacketSha256 nativeVerificationSha256=$nativeVerificationSha256 operatorChainSha256=$operatorChainSha256 verified=false publicationPerformed=false"

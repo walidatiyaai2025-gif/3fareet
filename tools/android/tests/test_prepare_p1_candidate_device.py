@@ -15,7 +15,16 @@ SPEC.loader.exec_module(P1)
 
 STAGING_SHA = "a" * 40
 CANDIDATE_SHA = "b" * 40
+HANDOFF_PACKET_SHA = "c" * 64
+NATIVE_HANDOFF_VERIFICATION_SHA = "d" * 64
+OPERATOR_CHAIN_SHA = "e" * 64
 TASKS = ["UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"]
+AUTHORIZATION = {
+    "authorizationSourceGitSha": STAGING_SHA,
+    "handoffPacketSha256": HANDOFF_PACKET_SHA,
+    "nativeHandoffVerificationSha256": NATIVE_HANDOFF_VERIFICATION_SHA,
+    "operatorChainSha256": OPERATOR_CHAIN_SHA,
+}
 
 
 def sha256(path: Path) -> str:
@@ -78,9 +87,13 @@ def make_bundle(root: Path) -> dict[str, Path]:
     write_json(
         staging,
         {
-            "schemaVersion": 2,
+            "schemaVersion": 3,
             "state": "STAGED_FOR_COMMIT_NOT_CANDIDATE",
             "gitSha": STAGING_SHA,
+            "authorizationSourceGitSha": STAGING_SHA,
+            "handoffPacketSha256": HANDOFF_PACKET_SHA,
+            "nativeHandoffVerificationSha256": NATIVE_HANDOFF_VERIFICATION_SHA,
+            "operatorChainSha256": OPERATOR_CHAIN_SHA,
             "coveredTasks": TASKS,
             "taskEvidence": evidence,
             "verified": False,
@@ -97,10 +110,12 @@ def make_bundle(root: Path) -> dict[str, Path]:
         {
             "schemaVersion": 1,
             "state": "STAGING_PARENT_BOUND_TO_CANDIDATE",
+            "stagingReportSchemaVersion": 3,
             "stagingSourceGitSha": STAGING_SHA,
             "candidateGitSha": CANDIDATE_SHA,
             "directParentGitSha": STAGING_SHA,
             "stagingReportSha256": sha256(staging),
+            "stagingAuthorization": dict(AUTHORIZATION),
             "coveredTasks": TASKS,
             "readyForLicensedCandidateTests": True,
             "verified": False,
@@ -119,10 +134,11 @@ def make_bundle(root: Path) -> dict[str, Path]:
             "stagingSourceGitSha": STAGING_SHA,
             "candidateGitSha": CANDIDATE_SHA,
             "directParentGitSha": STAGING_SHA,
+            "stagingAuthorization": dict(AUTHORIZATION),
             "stagingReport": {
                 "path": str(staging),
                 "sha256": sha256(staging),
-                "schemaVersion": 2,
+                "schemaVersion": 3,
             },
             "stagingLineage": {
                 "path": str(lineage),
@@ -168,6 +184,7 @@ class PrepareP1CandidateDeviceTests(unittest.TestCase):
             self.assertEqual(STAGING_SHA, chain["directParentGitSha"])
             self.assertEqual(sha256(bundle["apk"]), chain["apkSha256"])
             self.assertEqual(TASKS, chain["coveredTasks"])
+            self.assertEqual(AUTHORIZATION, chain["stagingAuthorization"])
             self.assertEqual(bundle["candidate"].resolve(), chain["candidateManifestPath"])
 
     def test_staging_report_tamper_is_rejected_before_device_prepare(self):
@@ -177,6 +194,18 @@ class PrepareP1CandidateDeviceTests(unittest.TestCase):
             payload["candidateBuildStarted"] = True
             write_json(bundle["staging"], payload)
             with self.assertRaisesRegex(P1.P1CandidatePrepareError, "stagingReport SHA-256 mismatch"):
+                P1.validate_p1_chain(bundle["p1"])
+
+    def test_authorization_mismatch_is_rejected_before_device_prepare(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = make_bundle(Path(tmp))
+            lineage = json.loads(bundle["lineage"].read_text(encoding="utf-8"))
+            lineage["stagingAuthorization"]["operatorChainSha256"] = "f" * 64
+            write_json(bundle["lineage"], lineage)
+            envelope = json.loads(bundle["p1"].read_text(encoding="utf-8"))
+            envelope["stagingLineage"]["sha256"] = sha256(bundle["lineage"])
+            write_json(bundle["p1"], envelope)
+            with self.assertRaisesRegex(P1.P1CandidatePrepareError, "authorization fingerprints"):
                 P1.validate_p1_chain(bundle["p1"])
 
     def test_lineage_tamper_is_rejected_before_device_prepare(self):
@@ -280,6 +309,8 @@ class PrepareP1CandidateDeviceTests(unittest.TestCase):
             self.assertEqual("P1_LINEAGE_BOUND_FOR_PHYSICAL_DEVICE_EVIDENCE", saved["p1Lineage"]["state"])
             self.assertEqual(CANDIDATE_SHA, saved["p1Lineage"]["candidateGitSha"])
             self.assertEqual(TASKS, saved["p1Lineage"]["coveredTasks"])
+            self.assertEqual(AUTHORIZATION, saved["p1Lineage"]["stagingAuthorization"])
+            self.assertEqual(AUTHORIZATION, context["stagingAuthorization"])
             self.assertTrue(saved["p1Lineage"]["readyForCheckpointCapture"])
             for key in ("verified", "runtimeVerified", "ownerAccepted", "publicationEligible"):
                 self.assertFalse(saved["p1Lineage"][key])

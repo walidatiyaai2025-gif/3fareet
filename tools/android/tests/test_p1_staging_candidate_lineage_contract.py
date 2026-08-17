@@ -11,6 +11,9 @@ TOOLS = REPO / "tools" / "android"
 VERIFIER = TOOLS / "verify_p1_staging_lineage_windows.ps1"
 RUNNER = TOOLS / "run_p1_staged_candidate_windows.ps1"
 TASKS = ["UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"]
+HANDOFF_SHA = "c" * 64
+NATIVE_SHA = "d" * 64
+CHAIN_SHA = "e" * 64
 
 
 def git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -72,9 +75,13 @@ def write_report(path: Path, source_sha: str) -> None:
             }
         )
     payload = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "state": "STAGED_FOR_COMMIT_NOT_CANDIDATE",
         "gitSha": source_sha,
+        "authorizationSourceGitSha": source_sha,
+        "handoffPacketSha256": HANDOFF_SHA,
+        "nativeHandoffVerificationSha256": NATIVE_SHA,
+        "operatorChainSha256": CHAIN_SHA,
         "heroSource": "Assets/Afareet/ArtSource/Vehicles/HeroCar/AfareetKing.fbx",
         "heroSourceGuid": "a" * 32,
         "heroPrefabGuid": "b" * 32,
@@ -123,7 +130,7 @@ class P1StagingCandidateLineageTests(unittest.TestCase):
             result = subprocess.run([pwsh, "-NoProfile", "-Command", command], capture_output=True, text=True)
             self.assertEqual(0, result.returncode, msg=f"{script.name}\n{result.stdout}{result.stderr}")
 
-    def test_direct_child_asset_only_staging_commit_is_bound(self):
+    def test_direct_child_asset_only_staging_commit_is_bound_with_authorization(self):
         root = make_repo()
         report_dir = Path(tempfile.mkdtemp(prefix="afareet-p1-lineage-report-"))
         try:
@@ -139,6 +146,11 @@ class P1StagingCandidateLineageTests(unittest.TestCase):
             self.assertEqual(source_sha, payload["stagingSourceGitSha"])
             self.assertEqual(candidate_sha, payload["candidateGitSha"])
             self.assertEqual(source_sha, payload["directParentGitSha"])
+            self.assertEqual(3, payload["stagingReportSchemaVersion"])
+            self.assertEqual(source_sha, payload["stagingAuthorization"]["authorizationSourceGitSha"])
+            self.assertEqual(HANDOFF_SHA, payload["stagingAuthorization"]["handoffPacketSha256"])
+            self.assertEqual(NATIVE_SHA, payload["stagingAuthorization"]["nativeHandoffVerificationSha256"])
+            self.assertEqual(CHAIN_SHA, payload["stagingAuthorization"]["operatorChainSha256"])
             self.assertEqual(TASKS, payload["coveredTasks"])
             self.assertTrue(payload["readyForLicensedCandidateTests"])
             self.assertFalse(payload["verified"])
@@ -146,6 +158,50 @@ class P1StagingCandidateLineageTests(unittest.TestCase):
             self.assertFalse(payload["ownerAccepted"])
             self.assertFalse(payload["publicationEligible"])
             self.assertRegex(payload["stagingReportSha256"], r"^[0-9a-f]{64}$")
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+            shutil.rmtree(report_dir, ignore_errors=True)
+
+    def test_old_schema_v2_report_is_rejected(self):
+        root = make_repo()
+        report_dir = Path(tempfile.mkdtemp(prefix="afareet-p1-lineage-report-"))
+        try:
+            source_sha = head(root)
+            commit_asset_change(root)
+            report = report_dir / "p1-staging-handoff.json"
+            write_report(report, source_sha)
+            payload = json.loads(report.read_text(encoding="utf-8"))
+            payload["schemaVersion"] = 2
+            report.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+            result = invoke(root, report)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("schema must be 3", result.stdout + result.stderr)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+            shutil.rmtree(report_dir, ignore_errors=True)
+
+    def test_authorization_source_or_digest_tamper_fails_closed(self):
+        root = make_repo()
+        report_dir = Path(tempfile.mkdtemp(prefix="afareet-p1-lineage-report-"))
+        try:
+            source_sha = head(root)
+            commit_asset_change(root)
+            report = report_dir / "p1-staging-handoff.json"
+            write_report(report, source_sha)
+            payload = json.loads(report.read_text(encoding="utf-8"))
+            payload["authorizationSourceGitSha"] = "f" * 40
+            report.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+            result = invoke(root, report)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("authorization source SHA", result.stdout + result.stderr)
+
+            write_report(report, source_sha)
+            payload = json.loads(report.read_text(encoding="utf-8"))
+            payload["handoffPacketSha256"] = "bad"
+            report.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+            result = invoke(root, report)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("handoffPacketSha256", result.stdout + result.stderr)
         finally:
             shutil.rmtree(root, ignore_errors=True)
             shutil.rmtree(report_dir, ignore_errors=True)
@@ -187,7 +243,7 @@ class P1StagingCandidateLineageTests(unittest.TestCase):
             shutil.rmtree(root, ignore_errors=True)
             shutil.rmtree(report_dir, ignore_errors=True)
 
-    def test_p1_runner_enforces_lineage_before_generic_unity_candidate(self):
+    def test_p1_runner_enforces_lineage_authorization_before_generic_unity_candidate(self):
         text = RUNNER.read_text(encoding="utf-8")
         required = (
             "verify_p1_staging_lineage_windows.ps1",
@@ -195,6 +251,11 @@ class P1StagingCandidateLineageTests(unittest.TestCase):
             "AFAREET_P1_STAGED_CANDIDATE_LINEAGE_START",
             "AFAREET_P1_STAGED_CANDIDATE_LINEAGE_OK",
             "STAGING_PARENT_BOUND_TO_CANDIDATE",
+            "stagingReportSchemaVersion -ne 3",
+            "stagingAuthorization",
+            "handoffPacketSha256",
+            "nativeHandoffVerificationSha256",
+            "operatorChainSha256",
             "readyForLicensedCandidateTests",
             "p1-staged-candidate-manifest.json",
             "p1-staged-local-windows-licensed-unity",
