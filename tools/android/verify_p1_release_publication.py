@@ -78,7 +78,14 @@ def verify_p1_publication(
         candidate_type == prepare_candidate_device.LOCAL_CANDIDATE_TYPE,
         f"P1 publication requires the local licensed-Windows candidate type, found {candidate_type!r}",
     )
-    _require(candidate.get("verified") is False, "publication candidate must remain unverified before explicit publication")
+    # resolve_candidate() already fails closed unless the manifest explicitly carries
+    # verified=false. Re-check the source manifest here (not the normalized candidate
+    # projection, which intentionally omits policy flags) so the publication boundary
+    # preserves the invariant without rejecting every valid candidate.
+    _require(
+        candidate_manifest.get("verified") is False,
+        "publication candidate manifest must remain unverified before explicit publication",
+    )
 
     spec = p1_gate_readiness.load_spec(spec_path)
     binding = p1_lineage_gate_readiness._bind_p1_review(session_dir, review_bundle_dir, spec)
