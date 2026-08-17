@@ -1,6 +1,12 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$HeroSource,
+    [Parameter(Mandatory = $true)]
+    [string]$HandoffPacketSha256,
+    [Parameter(Mandatory = $true)]
+    [string]$NativeHandoffVerificationSha256,
+    [Parameter(Mandatory = $true)]
+    [string]$OperatorChainSha256,
     [string]$UnityPath = "",
     [string]$RepoRoot = ""
 )
@@ -13,6 +19,18 @@ $ExpectedUnityVersion = "6000.5.8f1"
 function Fail([string]$Message) {
     throw "AFAREET_P1_STAGING_HANDOFF_ERROR: $Message"
 }
+
+function Normalize-Sha256($Value, [string]$Label) {
+    $sha = ([string]$Value).Trim().ToLowerInvariant()
+    if ($sha -notmatch '^[0-9a-f]{64}$') {
+        Fail "$Label must be a SHA-256 hex digest."
+    }
+    return $sha
+}
+
+$HandoffPacketSha256 = Normalize-Sha256 $HandoffPacketSha256 'HandoffPacketSha256'
+$NativeHandoffVerificationSha256 = Normalize-Sha256 $NativeHandoffVerificationSha256 'NativeHandoffVerificationSha256'
+$OperatorChainSha256 = Normalize-Sha256 $OperatorChainSha256 'OperatorChainSha256'
 
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -136,7 +154,7 @@ $StatusPath = Join-Path $ReportDir "p1-staging-handoff.git-status.txt"
 $ReportPath = Join-Path $ReportDir "p1-staging-handoff.json"
 Remove-Item -Force $LogPath, $StatusPath, $ReportPath -ErrorAction SilentlyContinue
 
-Write-Host "AFAREET_P1_STAGING_HANDOFF_START gitSha=$gitSha heroSource=$HeroSource unity=$UnityPath"
+Write-Host "AFAREET_P1_STAGING_HANDOFF_START gitSha=$gitSha heroSource=$HeroSource packetSha256=$HandoffPacketSha256 unity=$UnityPath"
 
 $unityArgs = @(
     '-batchmode',
@@ -145,6 +163,9 @@ $unityArgs = @(
     '-executeMethod', 'Afareet.Editor.P1ProductionCandidateStagingHandoff.StageForCommit',
     '-afareetHeroSource', ('"{0}"' -f $HeroSource),
     '-afareetGitSha', $gitSha,
+    '-afareetHandoffPacketSha256', $HandoffPacketSha256,
+    '-afareetNativeHandoffVerificationSha256', $NativeHandoffVerificationSha256,
+    '-afareetOperatorChainSha256', $OperatorChainSha256,
     '-logFile', ('"{0}"' -f $LogPath)
 )
 $unityProcess = Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru
@@ -170,14 +191,20 @@ try {
 } catch {
     Fail "Unity staging handoff report is not valid JSON: $($_.Exception.Message)"
 }
-if ($handoffReport.schemaVersion -ne 2) {
-    Fail "Unity staging handoff report schema mismatch. expected=2 actual=$($handoffReport.schemaVersion)"
+if ($handoffReport.schemaVersion -ne 3) {
+    Fail "Unity staging handoff report schema mismatch. expected=3 actual=$($handoffReport.schemaVersion)"
 }
 if ($handoffReport.gitSha -ne $gitSha) {
     Fail "Unity staging handoff report Git SHA mismatch. expected=$gitSha actual=$($handoffReport.gitSha)"
 }
 if ($handoffReport.heroSource -ne $HeroSource) {
     Fail "Unity staging handoff report Hero source mismatch. expected=$HeroSource actual=$($handoffReport.heroSource)"
+}
+if (([string]$handoffReport.handoffPacketSha256).ToLowerInvariant() -ne $HandoffPacketSha256 -or
+    ([string]$handoffReport.nativeHandoffVerificationSha256).ToLowerInvariant() -ne $NativeHandoffVerificationSha256 -or
+    ([string]$handoffReport.operatorChainSha256).ToLowerInvariant() -ne $OperatorChainSha256 -or
+    ([string]$handoffReport.authorizationSourceGitSha).ToLowerInvariant() -ne $gitSha) {
+    Fail "Unity staging handoff report authorization fingerprints do not match the native READY-packet authorization."
 }
 if ($handoffReport.state -ne 'STAGED_FOR_COMMIT_NOT_CANDIDATE' -or
     $handoffReport.verified -ne $false -or
@@ -232,7 +259,7 @@ foreach ($taskId in $expectedTasks) {
         Fail "Unity staging handoff task evidence must remain unverified/unaccepted for $taskId."
     }
 }
-Write-Host "AFAREET_P1_STAGING_REPORT_BINDING_OK gitSha=$gitSha tasks=6 verified=false runtimeVerified=false ownerAccepted=false"
+Write-Host "AFAREET_P1_STAGING_REPORT_BINDING_OK gitSha=$gitSha packetSha256=$HandoffPacketSha256 nativeVerificationSha256=$NativeHandoffVerificationSha256 operatorChainSha256=$OperatorChainSha256 tasks=6 verified=false runtimeVerified=false ownerAccepted=false"
 
 $changes = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
 $postStageStatusSucceeded = $?
@@ -265,10 +292,10 @@ if ($disallowed.Count -gt 0) {
 }
 
 if ($changes.Count -eq 0) {
-    Write-Host "AFAREET_P1_STAGING_HANDOFF_OK gitSha=$gitSha changed=0 trackedCommitRequired=false verified=false report=$ReportPath"
+    Write-Host "AFAREET_P1_STAGING_HANDOFF_OK gitSha=$gitSha changed=0 trackedCommitRequired=false packetSha256=$HandoffPacketSha256 verified=false report=$ReportPath"
     Write-Host "No tracked staging delta was produced. Do not infer acceptance; continue only after the remaining runtime/manifest gates are legitimately satisfied."
     exit 0
 }
 
-Write-Host "AFAREET_P1_STAGING_HANDOFF_OK gitSha=$gitSha changed=$($changes.Count) trackedCommitRequired=true verified=false report=$ReportPath status=$StatusPath"
-Write-Host "AFAREET_P1_STAGING_COMMIT_REQUIRED Review the exact Assets/ changes, commit approved source/import metadata/prefabs, then run tools/android/run_local_candidate_windows.ps1 from the new clean SHA."
+Write-Host "AFAREET_P1_STAGING_HANDOFF_OK gitSha=$gitSha changed=$($changes.Count) trackedCommitRequired=true packetSha256=$HandoffPacketSha256 verified=false report=$ReportPath status=$StatusPath"
+Write-Host "AFAREET_P1_STAGING_COMMIT_REQUIRED Review the exact Assets/ changes, commit approved source/import metadata/prefabs, then run tools/android/run_p1_staged_candidate_windows.ps1 from the new clean SHA."
