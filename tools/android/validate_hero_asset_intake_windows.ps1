@@ -25,7 +25,8 @@ function Resolve-RepoRoot([string]$RequestedRoot) {
     $git = Get-Command git -ErrorAction SilentlyContinue
     if ($null -eq $git) { Fail 'git is required for UART-003 native intake.' }
     $top = (& $git.Source -C $resolved rev-parse --show-toplevel 2>$null | Select-Object -First 1)
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($top)) { Fail "Unable to resolve Git worktree root: $resolved" }
+    $gitSucceeded = $?
+    if (-not $gitSucceeded -or [string]::IsNullOrWhiteSpace($top)) { Fail "Unable to resolve Git worktree root: $resolved" }
     $top = (Resolve-Path $top.Trim()).Path
     if (-not [string]::Equals($top, $resolved, [System.StringComparison]::OrdinalIgnoreCase)) {
         Fail "RepoRoot must be the exact Git worktree root. resolved=$top requested=$resolved"
@@ -45,7 +46,19 @@ function Normalize-Source([string]$Value) {
 function Assert-Tracked([string]$Root, [string]$RelativePath, [string]$Label) {
     $git = Get-Command git -ErrorAction Stop
     & $git.Source -C $Root ls-files --error-unmatch -- $RelativePath *> $null
-    if ($LASTEXITCODE -ne 0) { Fail "$Label is not tracked by Git: $RelativePath" }
+    $tracked = $?
+    if (-not $tracked) { Fail "$Label is not tracked by Git: $RelativePath" }
+}
+
+function Convert-ToRepoRelative([string]$Root, [string]$Path, [string]$Label) {
+    $trimChars = [char[]]@('\', '/')
+    $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd($trimChars)
+    $pathFull = [System.IO.Path]::GetFullPath($Path)
+    $prefix = $rootFull + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $pathFull.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Fail "$Label escapes the repository root: $pathFull"
+    }
+    return $pathFull.Substring($prefix.Length).Replace('\', '/')
 }
 
 function Parse-PolicyArray([string]$Text, [string]$Name) {
@@ -95,7 +108,7 @@ function Inspect-Obj([string]$Root, [string]$RelativePath) {
         }
     }
 
-    foreach ($raw in Get-Content -LiteralPath $sourcePath) {
+    foreach ($raw in (Get-Content -LiteralPath $sourcePath)) {
         $line = $raw.Trim()
         if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) { continue }
         $parts = @($line -split '\s+')
@@ -152,16 +165,16 @@ function Inspect-Obj([string]$Root, [string]$RelativePath) {
     foreach ($mtlName in $mtllibs) {
         $mtlPath = [System.IO.Path]::GetFullPath((Join-Path $sourceDir $mtlName))
         if (-not (Test-Path -LiteralPath $mtlPath -PathType Leaf)) { Fail "missing MTL file: $mtlName" }
-        $mtlRelative = [System.IO.Path]::GetRelativePath($Root, $mtlPath).Replace('\\', '/')
+        $mtlRelative = Convert-ToRepoRelative $Root $mtlPath 'referenced MTL'
         Assert-Tracked $Root $mtlRelative 'referenced MTL'
         $mapped = 0
-        foreach ($raw in Get-Content -LiteralPath $mtlPath) {
+        foreach ($raw in (Get-Content -LiteralPath $mtlPath)) {
             $line = $raw.Trim()
             if ($line -match '^(?i:map_kd|map_basecolor|map_base_color)\s+(.+)$') {
                 $textureName = $Matches[1].Trim()
                 $texturePath = [System.IO.Path]::GetFullPath((Join-Path ([System.IO.Path]::GetDirectoryName($mtlPath)) $textureName))
                 if (-not (Test-Path -LiteralPath $texturePath -PathType Leaf)) { Fail "referenced texture does not exist: $textureName" }
-                $textureRelative = [System.IO.Path]::GetRelativePath($Root, $texturePath).Replace('\\', '/')
+                $textureRelative = Convert-ToRepoRelative $Root $texturePath 'referenced texture'
                 Assert-Tracked $Root $textureRelative 'referenced texture'
                 [void]$textures.Add($textureRelative)
                 $mapped++
@@ -241,7 +254,8 @@ $json = $result | ConvertTo-Json -Depth 8
 if (-not [string]::IsNullOrWhiteSpace($Output)) {
     $outputPath = [System.IO.Path]::GetFullPath($Output)
     $artifactRoot = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot 'artifacts'))
-    if (-not $outputPath.StartsWith($artifactRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+    $artifactPrefix = $artifactRoot.TrimEnd([char[]]@('\', '/')) + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $outputPath.StartsWith($artifactPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         Fail 'Output must stay under <repo>/artifacts/.'
     }
     $parent = [System.IO.Path]::GetDirectoryName($outputPath)
