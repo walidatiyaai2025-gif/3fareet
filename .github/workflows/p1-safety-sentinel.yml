@@ -24,9 +24,16 @@ on:
       - 'tools/android/verify_p1_publication_receipt.py'
       - 'tools/android/prepare_p1_post_publication_smoke.py'
       - 'tools/android/verify_p1_post_publication_smoke.py'
+      - 'tools/android/p1_blocker_closure_audit.py'
+      - 'tools/android/p1_repository_state_consistency.py'
       - 'tools/android/tests/test_verify_p1_publication_receipt.py'
       - 'tools/android/tests/test_p1_post_publication_smoke.py'
+      - 'tools/android/tests/test_p1_blocker_closure_audit.py'
+      - 'tools/android/tests/test_p1_repository_state_consistency.py'
+      - 'docs/PROJECT_STATUS.md'
+      - 'docs/tasks/06-UNITY-3D-MIGRATION.md'
       - 'unity_game/Assets/Afareet/Editor/P1ProductionCandidateStagingHandoff.cs'
+      - '.github/workflows/p1-blocker-closure-audit.yml'
       - '.github/workflows/p1-safety-sentinel.yml'
 
 permissions:
@@ -48,11 +55,15 @@ jobs:
             tools/android/p1_safety_sentinel.py \
             tools/android/verify_p1_publication_receipt.py \
             tools/android/prepare_p1_post_publication_smoke.py \
-            tools/android/verify_p1_post_publication_smoke.py
+            tools/android/verify_p1_post_publication_smoke.py \
+            tools/android/p1_blocker_closure_audit.py \
+            tools/android/p1_repository_state_consistency.py
           python3 tools/android/p1_safety_sentinel.py --help >/dev/null
           python3 tools/android/verify_p1_publication_receipt.py --help >/dev/null
           python3 tools/android/prepare_p1_post_publication_smoke.py --help >/dev/null
           python3 tools/android/verify_p1_post_publication_smoke.py --help >/dev/null
+          python3 tools/android/p1_blocker_closure_audit.py --help >/dev/null
+          python3 tools/android/p1_repository_state_consistency.py --help >/dev/null
 
       - name: Execute safety-sentinel regressions
         shell: bash
@@ -61,6 +72,8 @@ jobs:
           python3 -m unittest discover -s tools/android/tests -p 'test_p1_safety_sentinel.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_verify_p1_publication_receipt.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_p1_post_publication_smoke.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_blocker_closure_audit.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_repository_state_consistency.py' -v
 
       - name: Scan authoritative P1 production tooling
         shell: bash
@@ -68,7 +81,7 @@ jobs:
           set -euo pipefail
           python3 tools/android/p1_safety_sentinel.py
 
-      - name: Scan post-publication evidence tooling
+      - name: Scan post-publication, closure-audit and state-consistency tooling
         shell: bash
         run: |
           set -euo pipefail
@@ -80,6 +93,8 @@ jobs:
               'tools/android/verify_p1_publication_receipt.py',
               'tools/android/prepare_p1_post_publication_smoke.py',
               'tools/android/verify_p1_post_publication_smoke.py',
+              'tools/android/p1_blocker_closure_audit.py',
+              'tools/android/p1_repository_state_consistency.py',
           )
           violations = []
           for relative in paths:
@@ -88,5 +103,5 @@ jobs:
               for violation in violations:
                   print(f'AFAREET_P1_POST_PUBLICATION_SAFETY_VIOLATION {violation.render()}')
               raise SystemExit(1)
-          print('AFAREET_P1_POST_PUBLICATION_SAFETY_OK publicationPerformedByTool=false verified=false')
+          print('AFAREET_P1_POST_PUBLICATION_SAFETY_OK taskStateMutationPerformed=false publicationPerformedByTool=false verified=false')
           PY

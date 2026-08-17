@@ -1,104 +1,91 @@
 # عفاريت الأسفلت — Project Status Dashboard
 
 **Document:** AFA-STATUS-001  
-**Last updated:** 2026-08-13 (Asia/Kuwait)
-**Overall status:** 🟡 **UNITY 3D PRODUCTION STARTED — WINDOWS SLICE VERIFIED / ANDROID GATE BLOCKED**
+**Last updated:** 2026-08-17 (Asia/Kuwait)  
+**Overall status:** 🟠 **U-P1 ENGINEERING/SOURCE CONVERGENCE IN REVIEW — 11 EXTERNAL/RUNTIME/DEVICE/OWNER BLOCKERS REMAIN**
 
-> هذه هي الصفحة الأولى للفريق. أي PR يغيّر Task/Milestone/Blocker/Build/Asset يجب أن يحدّثها في نفس PR.
+> هذه هي الصفحة الأولى للفريق. GitHub Issue #90 هو الـoperational ledger الحالي للـU-P1 fixed register، وهذه الصفحة وسجل Unity يجب أن يطابقاه. لا تستخدم `DONE` أو `VERIFIED` لمجرد نجاح source/static/CI.
+
+**U-P1 aggregate:** `IN REVIEW 54 | READY 0 | TODO 0 | BLOCKED 11 = 65`
 
 ## Executive snapshot
 
 | Area | Status | Current reality |
 |---|---|---|
-| Product client | 🟢 Locked | Unity `6000.5.8f1` داخل `unity_game/` |
-| Flutter/Flame | 🔵 Legacy verified | مرجع ميكانيك/UI قابل للبناء؛ لا Features إنتاجية جديدة دون `FLT-*` |
-| Unity compile | 🟢 Verified | Import وC# compile ناجحان على Unity 6000.5.8f1 |
-| Unity Windows | 🟢 Verified smoke | `afareet-unity3d.exe` بُني واشتغل 15 ثانية بلا Exceptions |
-| Unity Android | 🟢 Build verified | Debug APK بُني؛ package/icon/SDK/ARM64 تم فحصها بـ `aapt` |
-| 3D driving | 🟡 Blockout | Rigidbody arcade car + drift/nitro + chase camera؛ يحتاج production tuning/tests |
-| Race/AI | 🟡 Blockout | procedural Cairo oval + 3 waypoint rivals؛ checkpoints/lap/ranking production rules مفتوحة |
-| Visuals | 🔴 Gate open | procedural placeholders؛ production car/environment/VFX/lighting غير منفذة |
-| UI | 🟡 Prototype | splash + IMGUI HUD/touch controls؛ production UI/RTL/safe-area مفتوحة |
-| Branding | 🟢 Integrated | master icon ومقاسات Flutter، وأسماء Packages/Artifacts منفصلة |
-| Audio | 🔴 Open | engine/drift/nitro production audio غير مدمج في Unity |
-| Team system | 🟢 Baseline ready | onboarding/workflow/module ownership/Unity task register موجودة |
-| Last Verified Unity APK | 🔴 None | المصدر الرسمي: [`releases/LAST_VERIFIED_APK.md`](releases/LAST_VERIFIED_APK.md)؛ لا توجد نسخة اجتازت جهازًا حقيقيًا بعد |
-| Backend | 🔵 Deferred/Locked | Unity → HTTPS API → Laravel → MySQL؛ لا direct DB |
+| Product client | 🟢 Locked | Unity `6000.5.8f1` داخل `unity_game/`؛ Flutter/Flame مرجع Legacy فقط |
+| U-P1 fixed register | 🟠 In review | 65 مهمة ثابتة: 54 `IN REVIEW` + 11 `BLOCKED`; لا توجد مهمة P1 في `READY` أو `TODO` |
+| Engineering/source coverage | 🟢 Implemented for current scope | source/static/contracts موجودة للـ54 غير المحجوبة؛ هذه ليست runtime/device verification |
+| Hero production source | 🔴 Blocked | المصدر الحقيقي externally-authored لـAfareet King غير موجود بعد؛ UART-003/UPER-009 لا يمكن إغلاقهما برمجيًا من داخل المستودع الحالي |
+| Rival/Cairo/landmark/dressing/layout source | 🟡 Source-ready / runtime pending | مسارات المصدر والـstaging contracts موجودة، لكن licensed Unity + exact Player/device + owner proof ما زالت مطلوبة |
+| Race restart regression | 🟡 Source-tested | URAC-012 لديه source/PlayMode regression؛ physical-device lap/results/restart proof ما زال مطلوبًا |
+| Licensed Unity candidate | 🔴 Pending external execution | لا توجد على الحالة الحالية سلسلة licensed Unity مكتملة تنتج candidate صالحًا للإغلاق النهائي |
+| Physical-device evidence | 🔴 Pending | UVEH-012 وURAC-012 وUPER-006 تتطلب evidence جديدًا من 0/16 على exact Git/APK fingerprint |
+| Visual Gate | 🔴 Blocked | UPER-009 يحتاج owner/Art Director acceptance للـexact candidate بعد اكتمال authored production art |
+| Publication | 🔴 Blocked | UPER-010 آخر gate يدوي؛ ممنوع publish/tag/Last Verified قبل اكتمال جميع الأدلة |
+| Last Verified Unity APK | 🔴 None | المصدر الرسمي الوحيد: [`releases/LAST_VERIFIED_APK.md`](releases/LAST_VERIFIED_APK.md) |
+| Post-P1 backlog | 🔵 Deferred | Garage/Career/Power-ups/Main Menu في Issues منفصلة؛ لا توسّع سجل U-P1 إلى task 66 |
 
-## Current milestone — U-P1 Unity 3D Vertical Slice
+## Current convergence topology
 
-**Gate target:** سباق 3D واحد كامل على Android به سيارة لاعب، 3 AI، Cairo premium look، Drift/Nitro، HUD/Touch، Audio، وDevice evidence.
+- Main-target gate: PR #112, `agent/unblock-final-5` → `main`, ويظل Draft حتى اكتمال الـP1 closure chain.
+- Controlled convergence: PR #144, `agent/p1-remediation-convergence` → `agent/unblock-final-5`, ويظل Draft وغير publication-eligible حتى اكتمال الأدلة.
+- سلسلة hardening/closure الحالية متراكبة حتى PR #225 (`agent/step25-p1-blocker-closure-audit`).
+- Step 25 يحافظ على Issue #90 كـoperational source of truth ويضيف read-only blocker/evidence auditing؛ لا يمنح قبولًا أو verification تلقائيًا.
+- أي head جديد يجب أن يمر بنفس CI/gate chain؛ نجاح head سابق لا يثبت head لاحقًا.
 
-### Delivered in PR #49
+## Authoritative P1 blockers
 
-- Unity project and runtime bootstrap.
-- Procedural Cairo track blockout, pyramids/buildings/neon rails.
-- Arcade controller, drift, nitro, chase camera and three waypoint rivals.
-- Splash, prototype HUD/touch controls and custom runtime shaders.
-- Repeatable Windows/Android build entry points.
-- Windows build + headless runtime smoke test.
-- Flutter visual prototype/splash preservation as legacy reference.
-- Shared app icon and engine-specific naming.
-- Team onboarding, ownership and active Unity task system.
+هذه القائمة يجب أن تطابق Issue #90 حرفيًا من حيث الهوية والترتيب. لا تُزال مهمة منها إلا بعد evidence حقيقي ومراجعة بشرية مناسبة.
 
-هذه الدفعة `IN REVIEW` حتى دمج PR #49. لا تحول مهامها إلى `VERIFIED` في السجل قبل الدمج وربط Evidence بالـcommit النهائي.
+1. UART-003 — real Hero production model + licensed binding/render proof (#127)
+2. UART-004 — licensed Rival production prefab binding/runtime/owner proof (#128)
+3. UART-005 — licensed runtime/device/owner proof (#128)
+4. UART-006 — licensed landmark runtime/device/owner proof (#128)
+5. UART-007 — licensed dressing runtime/device/owner proof (#128)
+6. URAC-011 — exact-candidate runtime/device/owner proof (#128)
+7. UVEH-012 — real-device driving-feel acceptance
+8. URAC-012 — physical-device lap/results/restart verification
+9. UPER-006 — Android smoke/profiler/performance matrix
+10. UPER-009 — owner/Art Director Visual Gate
+11. UPER-010 — manual publication approval, last
 
-## Highest priorities next
+## Required next execution
 
-1. `UPER-006`: تثبيت APK وتشغيل smoke matrix على أجهزة Android حقيقية.
-2. `U3D-010`: توسيع الاختبارات إلى PlayMode وruntime smoke آلي.
-3. `UVEH-002/UVEH-003`: قرار suspension وdriving feel قابل للضبط.
-4. `URAC-002→005`: checkpoints/lap/ranking/race lifecycle production rules.
-5. `UART-001/UART-002/UART-005/UART-008`: pipeline + hero car + Cairo kit + mobile rendering.
-6. `UUI-002/UUI-003`: production HUD and touch controls.
-7. `UPER-009/010`: Visual Gate ثم Verified Android APK.
+1. Commit the real owner-approved externally-authored Afareet King Hero source under the canonical production source path.
+2. Run the licensed-staging readiness chain and require the exact source/authorization identity to be READY without changing task state.
+3. Run licensed Unity staging on the authorized Windows path; review and commit only the approved `unity_game/Assets/` staging delta.
+4. Build from the resulting clean reviewed candidate SHA; require licensed EditMode/PlayMode, including the restart regression, and Android ARM64 candidate output on that same identity.
+5. Prove the authored Hero, rivals, Cairo street kit, landmarks, dressing and vertical-slice layout are active in the Player and no procedural/blockout fallback supplies accepted visual evidence.
+6. Start fresh physical-device evidence from **0/16** on the exact candidate Git SHA + APK SHA-256; complete UVEH-012, URAC-012 and UPER-006.
+7. Export/reconcile the sanitized evidence bundle while preserving exact staging/candidate/device lineage.
+8. Obtain explicit UPER-009 owner/Art Director acceptance for that exact candidate.
+9. Run final lineage-bound release preflight; only then obtain UPER-010 manual publication approval.
+10. After publication, bind the receipt and fresh post-publication physical-device smoke before any Last Verified pointer can change; only then may convergence/main advancement be reviewed.
 
-## Active blockers / risks
+## Historical rejected candidate
 
-| ID | Severity | Blocker / Risk | Owner / Action |
-|---|---|---|---|
-| STS-U01 | 🟡 Medium | APK مبني لكن لم يجتز device smoke حقيقي بعد | QA Engineer — `UPER-006` |
-| STS-U02 | 🔴 High | المشهد الحالي blockout procedural وليس Visual Gate quality | Art Director/Art team — `UART-*`, `UVFX-*` |
-| STS-U03 | 🟡 Medium | asmdefs/config/EditMode tests موجودة؛ PlayMode coverage ما زالت مفتوحة | Unity Tech Lead — `U3D-010` |
-| STS-U04 | 🟡 Medium | Race progress الحالي nearest-waypoint prototype | Race Engineer — `URAC-002→005` |
-| STS-U05 | 🟡 Medium | لا Audio production في Unity | Audio team — `UAUD-001→003` |
-| STS-U06 | 🟡 Medium | مطورون كثيرون قد يتعارضون على bootstrap/ProjectSettings | Team Lead — enforce Module Locks |
+Git `33a1b09ae68c9272a53d53b1c275804daa5be6db` / APK SHA-256 `034db4bdbcdbd0544167b3c6b588f3c0fe4aa88451f8385f1bb5b24acb825d11` remains diagnostic only. Its device evidence must not be reused for the current closure path.
+
+## Guardrails
+
+- لا تدمج PR #144 أو PR #112 قبل اكتمال الأدلة والـreview المطلوب.
+- لا تستخدم نجاح source/static/CI كبديل عن licensed Unity/runtime/device/owner evidence.
+- لا تنشر release/tag ولا تحدّث `LAST_VERIFIED_APK.md` قبل اكتمال الـmanual publication + post-publication verification policy.
+- لا تضف U-P1 task جديدة لمعالجة #127/#128؛ هما defects تمنع مهام موجودة داخل الـ65.
+- `docs/tasks/06-UNITY-3D-MIGRATION.md` يجب أن يبقى متطابقًا مع aggregate/blocker set في Issue #90.
+- CI الخاص بـP1 blocker closure يقارن Issue #90 الحي بهذه الصفحة وبسجل Unity ويفشل عند drift.
 
 ## Team entry points
 
 - [New contributor onboarding](ONBOARDING.md)
 - [Team workflow and DoD](TEAM_WORKFLOW.md)
-- [Module ownership and locks](MODULE_OWNERSHIP.md)
+- [Module ownership and active locks](MODULE_OWNERSHIP.md)
 - [Active Unity task register](tasks/06-UNITY-3D-MIGRATION.md)
+- [Release policy](RELEASE_POLICY.md)
+- [Last Verified APK pointer](releases/LAST_VERIFIED_APK.md)
 - [Contributing rules](../CONTRIBUTING.md)
-
-## Historical Flutter evidence
-
-Flutter engineering batches remain valid historical evidence, not Unity production completion:
-
-- PRO-001→016 verified.
-- GAMEPLAY-050 verified.
-- P1-NEXT-050 verified at code head `86a6ea2afb273cab14730e61a152676dc90ea24f`.
-- Evidence: [`work/P1-NEXT-050.md`](work/P1-NEXT-050.md).
-
-## Last verified APK
-
-**Status:** 🔴 **NO UNITY VERIFIED RELEASE APK YET**
-**Folder:** [`../Last verified APK released/`](../Last%20verified%20APK%20released/)  
-
-Flutter debug/release-skeleton APKs لا تعتبر المنتج النهائي ولا تدخل هذا المجلد.
-
-## Source of truth
-
-- [Master Development Plan](MASTER_DEVELOPMENT_PLAN.md)
-- [Full Task Register](TASK_REGISTER.md)
-- [Unity Active Tasks](tasks/06-UNITY-3D-MIGRATION.md)
-- [Art Direction](ART_DIRECTION.md)
-- [Backend Architecture](BACKEND_ARCHITECTURE.md)
-- [Release Policy](RELEASE_POLICY.md)
-- [Missed Assets](MISSED_ASSETS.md)
 
 ---
 
 **Owner:** Team Lead / Project Manager  
-**Update rule:** تحديث الحالة جزء من Definition of Done لنفس الـPR.
+**Update rule:** أي PR يغيّر U-P1 Task/Milestone/Blocker/Build/Asset يجب أن يحدّث الحالة المتأثرة في نفس PR، مع بقاء Issue #90 والـrepository status متسقين.
