@@ -38,7 +38,7 @@ namespace Afareet.Editor
 
             Debug.Log(
                 "AFAREET_UART004_SOURCE_PREFLIGHT_ALL_OK variants=3 importedSources=3 distinctSources=3 " +
-                "lodBands=3 resolver=authored-name-or-source-triangle-signature uv0=true normals=true " +
+                "lodBands=3 resolver=imported-mesh-subassets+exact-source-signature uv0=true normals=true " +
                 "textureMapped=true productionPromotion=false");
         }
 
@@ -60,46 +60,43 @@ namespace Afareet.Editor
                     $"UART-004 source preflight could not resolve source GUID: variant={variant + 1} source={sourcePath}");
 
             var signature = RivalImportedLodResolver.ParseSourceOrThrow(sourcePath);
+            var meshes = RivalImportedLodResolver.ResolveImportedMeshesOrThrow(sourcePath, sourceModel, signature);
+            var materials = RivalImportedLodResolver.ResolveImportedMaterialsOrThrow(sourcePath, sourceModel, signature);
             var triangles = new int[RivalProductionPolicy.MinimumTriangles.Length];
-            var rendererCounts = new int[RivalProductionPolicy.MinimumTriangles.Length];
 
-            foreach (var renderer in sourceModel.GetComponentsInChildren<Renderer>(true))
+            for (var lod = 0; lod < meshes.Length; lod++)
             {
-                var mesh = RivalProductionPolicy.MeshFor(renderer);
-                var lod = RivalImportedLodResolver.Resolve(renderer, sourceModel.transform, signature);
-                if (lod < 0) continue;
-
-                if (mesh == null)
-                    throw new InvalidOperationException(
-                        $"UART-004 source preflight LOD{lod} renderer has no mesh: variant={variant + 1} renderer={renderer.name}");
-
+                var mesh = meshes[lod];
                 var meshPath = AssetDatabase.GetAssetPath(mesh).Replace('\\', '/');
                 if (!string.Equals(meshPath, sourcePath, StringComparison.Ordinal))
                     throw new InvalidOperationException(
                         $"UART-004 source preflight refuses non-source mesh: variant={variant + 1} LOD{lod} " +
-                        $"renderer={renderer.name} mesh={meshPath} source={sourcePath}");
+                        $"mesh={meshPath} source={sourcePath}");
 
                 if (!mesh.HasVertexAttribute(VertexAttribute.TexCoord0))
                     throw new InvalidOperationException(
-                        $"UART-004 source preflight missing UV0: variant={variant + 1} LOD{lod} renderer={renderer.name}");
+                        $"UART-004 source preflight missing UV0: variant={variant + 1} LOD{lod} mesh={mesh.name}");
                 if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
                     throw new InvalidOperationException(
-                        $"UART-004 source preflight missing authored normals: variant={variant + 1} LOD{lod} renderer={renderer.name}");
-                if (!HasAssignedTexture(renderer))
-                    throw new InvalidOperationException(
-                        $"UART-004 source preflight missing texture-mapped material: variant={variant + 1} LOD{lod} renderer={renderer.name}");
+                        $"UART-004 source preflight missing authored normals: variant={variant + 1} LOD{lod} mesh={mesh.name}");
 
-                triangles[lod] += RivalImportedLodResolver.TriangleCount(mesh);
-                rendererCounts[lod]++;
-            }
-
-            for (var lod = 0; lod < rendererCounts.Length; lod++)
-            {
-                if (rendererCounts[lod] == 0)
+                var hasTexture = false;
+                foreach (var material in materials[lod])
+                {
+                    if (!HasAssignedTexture(material)) continue;
+                    hasTexture = true;
+                    break;
+                }
+                if (!hasTexture)
                     throw new InvalidOperationException(
-                        $"UART-004 source preflight found no LOD{lod} renderer: variant={variant + 1} source={sourcePath} " +
-                        $"authoredObject={signature.ObjectNames[lod]} sourceTriangles={signature.Triangles[lod]} " +
-                        "resolver=transform-or-mesh-name-or-exact-source-triangle-signature");
+                        $"UART-004 source preflight missing texture-mapped material: variant={variant + 1} LOD{lod} " +
+                        $"materials={string.Join(",", signature.MaterialNames[lod])}");
+
+                triangles[lod] = RivalImportedLodResolver.TriangleCount(mesh);
+                if (triangles[lod] != signature.Triangles[lod])
+                    throw new InvalidOperationException(
+                        $"UART-004 source/import triangle identity mismatch: variant={variant + 1} LOD{lod} " +
+                        $"imported={triangles[lod]} source={signature.Triangles[lod]}");
 
                 if (!RivalProductionPolicy.MeetsProductionFloor(lod, triangles[lod], true, true, true))
                     throw new InvalidOperationException(
@@ -112,21 +109,19 @@ namespace Afareet.Editor
                 $"AFAREET_UART004_SOURCE_PREFLIGHT_OK variant={variant + 1} source={sourcePath} guid={guid} " +
                 $"lod0Triangles={triangles[0]} lod1Triangles={triangles[1]} lod2Triangles={triangles[2]} " +
                 $"sourceSignatures={signature.Triangles[0]}/{signature.Triangles[1]}/{signature.Triangles[2]} " +
-                "resolver=authored-name-or-exact-source-triangle-signature uv0=true normals=true " +
+                "resolver=imported-mesh-subassets+exact-source-signature uv0=true normals=true " +
                 "textureMapped=true productionPromotion=false");
             return guid;
         }
 
-        private static bool HasAssignedTexture(Renderer renderer)
+        private static bool HasAssignedTexture(Material material)
         {
-            foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
+            if (material == null || material.shader == null)
+                return false;
+            foreach (var propertyName in material.GetTexturePropertyNames())
             {
-                if (material == null || material.shader == null) continue;
-                foreach (var propertyName in material.GetTexturePropertyNames())
-                {
-                    if (material.GetTexture(propertyName) != null)
-                        return true;
-                }
+                if (material.GetTexture(propertyName) != null)
+                    return true;
             }
             return false;
         }
