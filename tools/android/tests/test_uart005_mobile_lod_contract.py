@@ -47,8 +47,9 @@ class Uart005MobileLodContractTests(unittest.TestCase):
             'TryValidateExistingGroup',
             'ExpectedLodLevels',
             'ValidateRendererSet',
-            'mesh.uv',
-            'mesh.normals',
+            'using UnityEngine.Rendering;',
+            'mesh.HasVertexAttribute(VertexAttribute.TexCoord0)',
+            'mesh.HasVertexAttribute(VertexAttribute.Normal)',
             'material.mainTexture',
             'MeshesOverlap',
             'RejectSecondaryLodColliders',
@@ -59,6 +60,8 @@ class Uart005MobileLodContractTests(unittest.TestCase):
             'resourceCache=true',
         ):
             self.assertIn(s,text)
+        for forbidden in ('mesh.uv', 'mesh.normals'):
+            self.assertNotIn(forbidden, text)
 
     def test_android_gate_requires_distinct_source_paths_and_monotonic_topology(self):
         text=self._read('unity_game/Assets/Afareet/Editor/P1ProductionMobileLodBuildGate.cs')
