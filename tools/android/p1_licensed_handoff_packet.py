@@ -153,6 +153,7 @@ def _command_packet(hero_repo_relative: Optional[str], expected_git_sha: Optiona
     unity_source = _to_unity_asset_path(hero_repo_relative)
     display_source = unity_source or "Assets/Afareet/ArtSource/Vehicles/HeroCar/<REAL_HERO_SOURCE.fbx>"
     display_sha = expected_git_sha or "<EXACT_SOURCE_GIT_SHA>"
+    packet_path = "artifacts/production-staging/p1-licensed-handoff-packet.json"
     return {
         "heroSourcePlaceholder": unity_source is None,
         "expectedGitShaPlaceholder": expected_git_sha is None,
@@ -161,15 +162,15 @@ def _command_packet(hero_repo_relative: Optional[str], expected_git_sha: Optiona
         "portableAudit": (
             "python3 tools/android/p1_licensed_handoff_packet.py "
             f"--hero-source \"{display_source}\" --expected-git-sha {display_sha} "
-            "--output artifacts/production-staging/p1-licensed-handoff-packet.json"
+            f"--output {packet_path}"
         ),
         "nativeHeroIntake": (
             "pwsh -File tools/android/validate_hero_asset_intake_windows.ps1 "
             f"-Source \"{display_source}\" -Output artifacts/production-staging/uart003-native-intake.json"
         ),
         "licensedUnityStaging": (
-            "pwsh -File tools/android/stage_production_candidate_windows.ps1 "
-            f"-HeroSource \"{display_source}\""
+            "pwsh -File tools/android/run_p1_licensed_staging_windows.ps1 "
+            f"-HeroSource \"{display_source}\" -HandoffPacket {packet_path}"
         ),
         "postStagingRule": (
             "Review the exact unity_game/Assets staging delta and commit only the approved staging output; "
@@ -301,6 +302,7 @@ def build_packet(
         "commands": _command_packet(normalized_hero, identity["expectedGitSha"]),
         "expectedArtifacts": [
             "artifacts/production-staging/uart003-native-intake.json",
+            "artifacts/production-staging/p1-native-handoff-verification.json",
             "artifacts/production-staging/p1-staging-handoff.json",
             "artifacts/production-staging/p1-staging-handoff.git-status.txt",
             "artifacts/production-staging/p1-staging-lineage.json",
