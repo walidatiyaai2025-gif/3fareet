@@ -53,13 +53,19 @@ class Uart005RoadsideClutterRuntimeContractTests(unittest.TestCase):
             "AFAREET UART005 ROADSIDE CLUTTER PASS",
             "FindObjectsByType<Transform>",
             'StartsWith("AUTHORED CAIRO BUILDING"',
-            "decoratedBuildingIds",
+            "HashSet<Transform> decoratedBuildings",
+            "decoratedBuildings.Contains(candidate)",
             "CairoAuthoredRoadsideClutter.TryDecorateBuilding",
-            "decoratedBuildingIds.Add(instanceId)",
+            "decoratedBuildings.Add(candidate)",
         ):
             self.assertIn(required, text)
-        self.assertNotIn("GameObject.CreatePrimitive", text)
-        self.assertNotIn("new Mesh(", text)
+        for forbidden in (
+            "GetInstanceID()",
+            "decoratedBuildingIds",
+            "GameObject.CreatePrimitive",
+            "new Mesh(",
+        ):
+            self.assertNotIn(forbidden, text)
 
     def test_android_gate_stages_then_checks_imported_uv_normals_and_textured_materials(self):
         text = self._read("unity_game/Assets/Afareet/Editor/P1ProductionRoadsideClutterBuildGate.cs")
