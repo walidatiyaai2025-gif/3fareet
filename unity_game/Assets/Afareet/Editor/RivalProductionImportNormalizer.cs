@@ -87,6 +87,43 @@ namespace Afareet.Editor
                 $"AFAREET_UART004_IMPORT_NORMALIZE_OK variant={variant + 1} source={sourcePath} changed={changed} " +
                 "preserveHierarchy=true optimizeMeshPolygons=false optimizeMeshVertices=false weldVertices=false " +
                 "normals=import materials=standard geometryGenerated=false productionPromotion=false");
+
+            LogImportedTopology(variant, sourcePath);
+        }
+
+        private static void LogImportedTopology(int variant, string sourcePath)
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
+            var rendererCount = 0;
+            if (model != null)
+            {
+                foreach (var renderer in model.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (rendererCount >= 8) break;
+                    var mesh = RivalProductionPolicy.MeshFor(renderer);
+                    Debug.Log(
+                        $"AFAREET_UART004_IMPORT_RENDERER variant={variant + 1} index={rendererCount} " +
+                        $"renderer={renderer.name} mesh={(mesh == null ? "<null>" : mesh.name)} " +
+                        $"triangles={RivalImportedLodResolver.TriangleCount(mesh)} production=false");
+                    rendererCount++;
+                }
+            }
+
+            var meshCount = 0;
+            foreach (var asset in AssetDatabase.LoadAllAssetsAtPath(sourcePath))
+            {
+                if (!(asset is Mesh mesh)) continue;
+                Debug.Log(
+                    $"AFAREET_UART004_IMPORT_MESH variant={variant + 1} index={meshCount} " +
+                    $"name={mesh.name} triangles={RivalImportedLodResolver.TriangleCount(mesh)} " +
+                    $"subMeshes={mesh.subMeshCount} production=false");
+                meshCount++;
+                if (meshCount >= 8) break;
+            }
+
+            Debug.Log(
+                $"AFAREET_UART004_IMPORT_TOPOLOGY variant={variant + 1} renderers={rendererCount} " +
+                $"meshSubAssets={meshCount} preserveHierarchy=true production=false");
         }
     }
 }
