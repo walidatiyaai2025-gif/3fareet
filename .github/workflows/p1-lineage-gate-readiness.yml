@@ -1,0 +1,41 @@
+name: P1 Lineage Gate Readiness
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/p1_lineage_gate_readiness.py'
+      - 'tools/android/tests/test_p1_lineage_gate_readiness.py'
+      - '.github/workflows/p1-lineage-gate-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p1-lineage-gates:
+    name: P1 lineage-bound final-five contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Python syntax and CLI contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/android/p1_gate_readiness.py \
+            tools/android/export_p1_device_evidence.py \
+            tools/android/verify_p1_device_review_bundle.py \
+            tools/android/p1_lineage_gate_readiness.py
+          python3 tools/android/p1_lineage_gate_readiness.py --help >/dev/null
+          python3 tools/android/p1_lineage_gate_readiness.py plan >/dev/null
+          python3 tools/android/p1_lineage_gate_readiness.py validate --help >/dev/null
+          python3 tools/android/p1_lineage_gate_readiness.py approval-template --help >/dev/null
+
+      - name: Execute P1 lineage-gate regression fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_lineage_gate_readiness.py' -v
