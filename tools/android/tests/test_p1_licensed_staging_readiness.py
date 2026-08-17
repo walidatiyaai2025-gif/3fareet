@@ -64,6 +64,45 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             self.assertFalse(report["candidateBuildStarted"])
             self.assertFalse(report["publicationEligible"])
             self.assertFalse(report["verified"])
+            intake = next(item for item in report["checks"] if item["id"] == "UART-003_HERO_INTAKE")
+            self.assertEqual("PASS", intake["status"])
+            self.assertIn("licensed Unity inspection", intake["detail"])
+        finally:
+            import shutil
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_tracked_malformed_obj_blocks_before_licensed_staging(self):
+        root = make_fixture()
+        try:
+            source = root / "unity_game/Assets/Afareet/ArtSource/Vehicles/HeroCar/AfareetKing_Production.obj"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text(
+                "\n".join(
+                    [
+                        "mtllib hero.mtl",
+                        "v 0 0 0",
+                        "v 1 0 0",
+                        "v 0 1 0",
+                        "o AfareetKing_LOD0",
+                        "usemtl Hero",
+                        "f 1 2 3",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (source.parent / "hero.mtl").write_text("newmtl Hero\nKd 1 1 1\n", encoding="utf-8")
+            run_git(root, "add", ".")
+            run_git(root, "commit", "-m", "add malformed obj hero")
+
+            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/HeroCar/AfareetKing_Production.obj")
+            self.assertEqual("BLOCKED", report["state"])
+            self.assertIn("UART-003_HERO_INTAKE", report["blockedCheckIds"])
+            intake = next(item for item in report["checks"] if item["id"] == "UART-003_HERO_INTAKE")
+            self.assertIn("missing object/group suffix _LOD1", intake["detail"])
+            self.assertFalse(report["candidateBuildStarted"])
+            self.assertFalse(report["publicationEligible"])
+            self.assertFalse(report["verified"])
         finally:
             import shutil
             shutil.rmtree(root, ignore_errors=True)
