@@ -220,23 +220,33 @@ namespace Afareet.Race
                 : null;
 
             var elapsedRaceSeconds = Math.Max(0d, source.Lap.ElapsedTime);
+            var ownSpeedKph = Math.Abs(source.Car.SpeedKph);
+            var targetDistanceMeters = targetAhead == null
+                ? 0d
+                : Vector3.Distance(source.Car.transform.position, targetAhead.Car.transform.position);
+            var chaserDistanceMeters = chaserBehind == null
+                ? 0d
+                : Vector3.Distance(source.Car.transform.position, chaserBehind.Car.transform.position);
+            var incomingHostilePressure = AiHostilePowerUpPressurePolicy.HasIncomingPressure(
+                ownSpeedKph,
+                CanRacerUsePowerUp(targetAhead, PowerUpKind.AsphaltShard, elapsedRaceSeconds),
+                targetDistanceMeters,
+                CanRacerUsePowerUp(chaserBehind, PowerUpKind.TrafficCurse, elapsedRaceSeconds),
+                chaserDistanceMeters);
+
             var snapshot = AiPowerUpLiveSnapshotBuilder.Build(
                 position: rankedIndex + 1,
                 fieldSize: ranked.Count,
                 acceptedCheckpoints: source.Checkpoints.AcceptedCount,
                 checkpointCount: track.Waypoints.Count,
                 segmentProgress: SegmentProgress(source),
-                ownSpeedKph: Math.Abs(source.Car.SpeedKph),
+                ownSpeedKph: ownSpeedKph,
                 hasTargetAhead: targetAhead != null,
-                targetDistanceMeters: targetAhead == null
-                    ? 0d
-                    : Vector3.Distance(source.Car.transform.position, targetAhead.Car.transform.position),
+                targetDistanceMeters: targetDistanceMeters,
                 targetSpeedKph: targetAhead == null ? 0d : Math.Abs(targetAhead.Car.SpeedKph),
                 hasChaserBehind: chaserBehind != null,
-                chaserDistanceMeters: chaserBehind == null
-                    ? 0d
-                    : Vector3.Distance(source.Car.transform.position, chaserBehind.Car.transform.position),
-                incomingHostilePressure: false,
+                chaserDistanceMeters: chaserDistanceMeters,
+                incomingHostilePressure: incomingHostilePressure,
                 elapsedRaceSeconds: elapsedRaceSeconds);
 
             return powerUpRuntime.ExecuteAiDecision(
@@ -245,6 +255,19 @@ namespace Afareet.Race
                 targetAhead?.RacerId,
                 chaserBehind?.RacerId,
                 elapsedRaceSeconds);
+        }
+
+        private bool CanRacerUsePowerUp(
+            RacerRuntime runtime,
+            PowerUpKind kind,
+            double raceTimeSeconds)
+        {
+            if (runtime == null || runtime.Lap.IsFinished || powerUpRuntime == null || powerUpRuntimeDirty)
+                return false;
+
+            return AiHostilePowerUpPressurePolicy.IsUsable(
+                powerUpRuntime.GetInventorySnapshot(runtime.RacerId, raceTimeSeconds),
+                kind);
         }
 
         private void FixedUpdate()
