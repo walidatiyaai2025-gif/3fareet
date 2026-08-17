@@ -6,7 +6,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class P1RaceVisualStackStagerContractTests(unittest.TestCase):
-    def test_operator_menu_reuses_all_visual_stagers_without_promoting_refinement(self):
+    def test_operator_menu_reuses_visual_stagers_without_promoting_review_candidates(self):
         path = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1RaceVisualStackStager.cs"
         self.assertTrue(path.is_file())
         self.assertTrue(path.with_suffix(path.suffix + ".meta").is_file())
@@ -15,10 +15,11 @@ class P1RaceVisualStackStagerContractTests(unittest.TestCase):
         for required in (
             "Afareet/P1/Stage Full Race Visual Stack",
             "HeroCarRefinementCandidateStager.ValidateCurrentCandidateSourceOrThrow",
+            "RivalAuthoredReviewPrefabStager.ValidateCurrentSourcesOrThrow",
             "P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow",
             "P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow",
             "P1ProductionTrackDressingAssetStager.StageTrackedSourcesOrThrow",
-            "RivalProductionPrefabStager.StageAndBindAll",
+            "RivalAuthoredReviewPrefabStager.StageAll",
             "HeroCarRefinementCandidateStager.StageCurrentCandidate",
             "AFAREET_P1_VISUAL_STACK_PREFLIGHT_BEGIN",
             "AFAREET_P1_VISUAL_STACK_PREFLIGHT_OK",
@@ -27,6 +28,8 @@ class P1RaceVisualStackStagerContractTests(unittest.TestCase):
             "AFAREET_P1_VISUAL_STACK_STAGE_STEP_BLOCKED",
             "AFAREET_P1_VISUAL_STACK_STAGE_OK",
             "hero=refinement-candidate",
+            "rivals=authored-review-candidates",
+            "uart004=authored-review-candidates",
             "productionGate=false",
             "ownerAcceptance=false",
             "deviceProof=false",
@@ -35,6 +38,8 @@ class P1RaceVisualStackStagerContractTests(unittest.TestCase):
             self.assertIn(required, text)
 
         for forbidden in (
+            "RivalProductionPrefabStager.StageAndBindAll",
+            "RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow",
             "Issue #90",
             "VERIFIED",
             "publication approval",
@@ -44,17 +49,21 @@ class P1RaceVisualStackStagerContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
-    def test_hero_intake_is_preflighted_before_any_stage_mutation(self):
+    def test_hero_and_rival_review_sources_are_preflighted_before_any_stage_mutation(self):
         orchestrator = (
             REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1RaceVisualStackStager.cs"
         ).read_text(encoding="utf-8")
-        preflight_call = orchestrator.index(
+        hero_preflight = orchestrator.index(
             "HeroCarRefinementCandidateStager.ValidateCurrentCandidateSourceOrThrow"
+        )
+        rival_preflight = orchestrator.index(
+            "RivalAuthoredReviewPrefabStager.ValidateCurrentSourcesOrThrow"
         )
         first_stage = orchestrator.index(
             'RunStage("UART-005 Cairo production sources"'
         )
-        self.assertLess(preflight_call, first_stage)
+        self.assertLess(hero_preflight, rival_preflight)
+        self.assertLess(rival_preflight, first_stage)
 
         hero_stager = (
             REPO_ROOT / "unity_game/Assets/Afareet/Editor/HeroCarRefinementCandidateStager.cs"
