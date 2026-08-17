@@ -106,14 +106,20 @@ internal static class GarageRuntimeContractRunner
         var migrated = store.Load(new[] { "djinn_spirit" });
         Require(migrated.MigratedLegacyV1, "V1 migration flag");
         Require(!migrated.RecoveredFromInvalidPayload, "valid V1 not recovery");
+        Require(migrated.RewrittenCanonicalPayload, "legacy payload rewritten");
         Require(migrated.State.EquippedVehicleId == "djinn_spirit", "legacy equipped preserved");
+        Require(storage.Payload.StartsWith(GarageStateCodec.CurrentHeader, StringComparison.Ordinal),
+            "legacy storage rewritten to V2");
 
         storage.Payload = "not a garage save";
         var recovered = store.Load();
         Require(recovered.RecoveredFromInvalidPayload, "invalid payload recovery flag");
+        Require(recovered.RewrittenCanonicalPayload, "invalid payload rewritten");
         Require(recovered.State.EquippedVehicleId == GarageCatalog.StarterVehicleId,
             "invalid payload recovers starter");
         Require(!string.IsNullOrWhiteSpace(recovered.Error), "invalid payload recovery diagnostic");
+        Require(storage.Payload.StartsWith(GarageStateCodec.CurrentHeader, StringComparison.Ordinal),
+            "invalid storage rewritten to V2");
     }
 
     private static bool InUnitRange(float value) => value >= 0f && value <= 1f;
