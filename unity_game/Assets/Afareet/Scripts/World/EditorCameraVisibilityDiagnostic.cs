@@ -16,6 +16,7 @@ namespace Afareet.World
         private const int MaxReported = 8;
         private const float MinimumWarmupSeconds = 0.75f;
         private bool reported;
+        private float readyAt;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
@@ -26,9 +27,14 @@ namespace Afareet.World
             host.AddComponent<EditorCameraVisibilityDiagnostic>();
         }
 
+        private void Awake()
+        {
+            readyAt = Time.realtimeSinceStartup + MinimumWarmupSeconds;
+        }
+
         private void Update()
         {
-            if (reported || Time.realtimeSinceStartup < MinimumWarmupSeconds) return;
+            if (reported || Time.realtimeSinceStartup < readyAt) return;
 
             var cameraObject = GameObject.Find("Racing Camera");
             var hero = GameObject.Find("PLAYER HERO — AFAREET");
