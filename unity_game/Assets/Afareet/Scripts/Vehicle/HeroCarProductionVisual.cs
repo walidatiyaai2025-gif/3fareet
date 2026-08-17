@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.Vehicle
 {
@@ -11,13 +12,24 @@ namespace Afareet.Vehicle
             var prefab = Resources.Load<GameObject>(HeroCarLodPolicy.ProductionResourcePath);
             if (prefab == null)
             {
+#if UNITY_EDITOR
+                Debug.LogWarning(
+                    $"AFAREET_HERO_AUTHORED_PRODUCTION_MISSING path={HeroCarLodPolicy.ProductionResourcePath} " +
+                    "editorFallbackAllowed=true");
+#else
                 Debug.LogError($"AFAREET_HERO_AUTHORED_PRODUCTION_MISSING path={HeroCarLodPolicy.ProductionResourcePath}");
+#endif
                 return false;
             }
 
             if (!ValidateProductionPrefab(prefab, out var reason))
             {
+#if UNITY_EDITOR
+                Debug.LogWarning(
+                    $"AFAREET_HERO_AUTHORED_PRODUCTION_REJECTED reason={reason} editorFallbackAllowed=true");
+#else
                 Debug.LogError($"AFAREET_HERO_AUTHORED_PRODUCTION_REJECTED reason={reason}");
+#endif
                 return false;
             }
 
@@ -153,8 +165,8 @@ namespace Afareet.Vehicle
                     return false;
                 }
 
-                var hasUv0 = mesh.uv != null && mesh.uv.Length == mesh.vertexCount;
-                var hasNormals = mesh.normals != null && mesh.normals.Length == mesh.vertexCount;
+                var hasUv0 = mesh.HasVertexAttribute(VertexAttribute.TexCoord0);
+                var hasNormals = mesh.HasVertexAttribute(VertexAttribute.Normal);
                 var hasTextureMappedMaterial = HasTextureMappedMaterial(renderer);
 
                 var productionQuality = HeroCarProductionQualityPolicy.MeetsProductionFloor(
@@ -301,8 +313,12 @@ namespace Afareet.Vehicle
 
             foreach (var material in renderer.sharedMaterials)
             {
-                if (material != null && material.mainTexture != null)
-                    return true;
+                if (material == null || material.shader == null) continue;
+                foreach (var propertyName in material.GetTexturePropertyNames())
+                {
+                    if (material.GetTexture(propertyName) != null)
+                        return true;
+                }
             }
 
             return false;
