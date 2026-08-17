@@ -28,7 +28,7 @@ EXPECTED_TOOLS = [
     "tools/android/p1_visual_source_readiness.py",
     "tools/android/p1_licensed_staging_readiness.py",
     "tools/android/validate_hero_asset_intake_windows.ps1",
-    "tools/android/stage_production_candidate_windows.ps1",
+    "tools/android/run_p1_licensed_staging_windows.ps1",
     "tools/android/run_p1_staged_candidate_windows.ps1",
     "tools/android/prepare_p1_candidate_device.py",
     "tools/android/device_evidence.py",
@@ -89,6 +89,23 @@ class P1OperatorReleaseChainContractTests(unittest.TestCase):
         approval_requirements = " ".join(stages["P1_LINEAGE_GATE_READINESS"]["requirements"])
         self.assertIn("UPER-010", approval_requirements)
         self.assertIn("never VERIFIED", approval_requirements)
+
+    def test_licensed_staging_stage_requires_native_packet_wrapper(self):
+        stage = self.chain["orderedStages"][4]
+        self.assertEqual("P1_LICENSED_UNITY_STAGING", stage["id"])
+        self.assertEqual("tools/android/run_p1_licensed_staging_windows.ps1", stage["tool"])
+        requirements = " ".join(stage["requirements"])
+        self.assertIn("packet verification must pass before Unity", requirements)
+        self.assertIn("READY_FOR_LICENSED_OPERATOR_HANDOFF", requirements)
+        self.assertIn("exact clean non-synthetic source SHA", requirements)
+        self.assertIn("stage_production_candidate_windows.ps1", requirements)
+
+        runner = (ROOT / "tools" / "android" / "run_p1_licensed_staging_windows.ps1").read_text(encoding="utf-8")
+        verify_pos = runner.index("verify_p1_licensed_handoff_packet_windows.ps1")
+        stage_pos = runner.index("stage_production_candidate_windows.ps1")
+        self.assertLess(verify_pos, stage_pos)
+        self.assertIn("AFAREET_P1_LICENSED_STAGING_PACKET_VERIFY_OK", runner)
+        self.assertIn("releaseHandoffEligible -ne $true", runner)
 
     def test_publication_preflight_is_last_and_never_performs_publication(self):
         final = self.chain["orderedStages"][-1]
