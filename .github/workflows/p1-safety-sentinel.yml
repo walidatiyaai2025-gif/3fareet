@@ -1,0 +1,52 @@
+name: P1 Safety Sentinel
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/p1_operator_release_chain.json'
+      - 'tools/android/p1_safety_sentinel.py'
+      - 'tools/android/tests/test_p1_safety_sentinel.py'
+      - 'tools/android/validate_hero_asset_intake.py'
+      - 'tools/android/p1_visual_source_readiness.py'
+      - 'tools/android/p1_licensed_staging_readiness.py'
+      - 'tools/android/validate_hero_asset_intake_windows.ps1'
+      - 'tools/android/stage_production_candidate_windows.ps1'
+      - 'tools/android/run_p1_staged_candidate_windows.ps1'
+      - 'tools/android/prepare_p1_candidate_device.py'
+      - 'tools/android/device_evidence.py'
+      - 'tools/android/export_p1_device_evidence.py'
+      - 'tools/android/verify_p1_device_review_bundle.py'
+      - 'tools/android/p1_lineage_gate_readiness.py'
+      - 'tools/android/verify_p1_release_publication.py'
+      - 'unity_game/Assets/Afareet/Editor/P1ProductionCandidateStagingHandoff.cs'
+      - '.github/workflows/p1-safety-sentinel.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  safety-sentinel:
+    name: P1 anti-self-verification contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Python syntax and CLI contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/android/p1_safety_sentinel.py
+          python3 tools/android/p1_safety_sentinel.py --help >/dev/null
+
+      - name: Execute safety-sentinel regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_safety_sentinel.py' -v
+
+      - name: Scan authoritative P1 production tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android/p1_safety_sentinel.py
