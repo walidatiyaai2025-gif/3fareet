@@ -37,6 +37,8 @@ post-publication smoke/closure evidence are complete and reviewed:
 - P1 publication-preflight SHA-256:
 - P1 human publication-receipt SHA-256:
 - Publication receipt reconciliation evidence URL:
+- P1 post-publication smoke reconciliation SHA-256:
+- Post-publication smoke evidence `contentSetSha256`:
 - Unity version:
 - Package ID:
 - Build type and ABI:
@@ -84,11 +86,32 @@ python3 tools/android/verify_p1_publication_receipt.py \
 ```
 
 Require `AFAREET_P1_PUBLICATION_RECEIPT_RECONCILED ... humanPublicationRecorded=true publicationPerformedByTool=false verified=false`. This validator does not create tags/releases, upload assets, or update repository pointers.
-12. Run and review the required **post-publication physical-device smoke/performance closure** on the published bytes. A reconciled publication receipt alone is not `DEVICE VERIFIED`.
-13. Only after publication + reconciled receipt + post-publication smoke/closure are reviewed, update this file and `docs/PROJECT_STATUS.md` in a reviewed PR with all candidate/evidence/authorization/reviewer/publication identifiers above.
-14. Keep the previous verified release published for rollback.
+12. Begin the required **post-publication physical-device smoke/performance closure** by downloading the published APK asset bytes and preparing a **fresh dedicated physical-device session after publication**. The wrapper checks the downloaded bytes against the reconciled receipt and binds one performance tier before any checkpoint is captured:
 
-If any gate fails, evidence changes, authorization fingerprints change, the candidate changes, publication preflight fails, the published asset hash differs, receipt reconciliation fails, or post-publication smoke fails, record the artifact only as Built/Failed/Review/Publication evidence without changing this pointer to `DEVICE VERIFIED`.
+```bash
+python3 tools/android/prepare_p1_post_publication_smoke.py \
+  --receipt-reconciliation evidence/p1-publication-receipt-reconciled.json \
+  --apk /path/to/downloaded/afareet-unity3d-last-verified.apk \
+  --performance-tier mid \
+  --output evidence/p1-post-publication-smoke
+```
+
+The wrapper deliberately exposes no emulator acceptance path for P1 closure. It reuses `device_evidence.py` only for install/device discovery and keeps `publicationPerformedByTool=false`, `verified=false`, `runtimeVerified=false`, `ownerAccepted=false`, and `publicationEligible=false`.
+13. On that same session/device, exercise the published build and capture exactly these three post-publication checkpoints with the existing collector: `smoke-cold-start`, `smoke-warm-race`, and `smoke-after-restarts`. Finish the session with `device_evidence.py finish`. All captures must occur after the receipt's `publishedAtUtc`, use the same published APK SHA-256/device hash, and contain zero automated Fatal/ANR/native-fatal red flags.
+14. Reconcile the finished smoke evidence without changing repository/release state:
+
+```bash
+python3 tools/android/verify_p1_post_publication_smoke.py \
+  --receipt-reconciliation evidence/p1-publication-receipt-reconciled.json \
+  --session evidence/p1-post-publication-smoke \
+  --output evidence/p1-post-publication-smoke-reconciled.json
+```
+
+Require `P1_POST_PUBLICATION_SMOKE_PASSABLE_FOR_HUMAN_CLOSURE_REVIEW`. The validator reuses `analyze_device_smoke.py`, requires the exact three-checkpoint set, a physical device, post-publication timestamps, zero automated red flags, the exact published APK and authorization-bound receipt, and emits an evidence `contentSetSha256`. It still keeps `verified=false` and requires human closure review.
+15. Only after publication + reconciled receipt + post-publication smoke reconciliation are reviewed by the responsible humans may a reviewed PR update this file and `docs/PROJECT_STATUS.md` with all candidate/evidence/authorization/reviewer/publication identifiers above. The Step-24 tools never perform that pointer update themselves.
+16. Keep the previous verified release published for rollback.
+
+If any gate fails, evidence changes, authorization fingerprints change, the candidate changes, publication preflight fails, the published asset hash differs, receipt reconciliation fails, the post-publication session predates publication, or smoke/performance reconciliation fails, record the artifact only as Built/Failed/Review/Publication evidence without changing this pointer to `DEVICE VERIFIED`.
 
 ## Non-P1 compatibility
 
