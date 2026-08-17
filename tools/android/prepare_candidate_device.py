@@ -5,9 +5,9 @@ This wrapper accepts candidate manifests produced by either the licensed-Windows
 local path or the GitHub Unity Production CI artifact-binding path. It fails
 closed if candidate provenance or APK bytes do not match the supported contract,
 then hands the exact APK to the existing ADB evidence collector. After ADB
-prepare succeeds it persists the validated candidate provenance and an exact
-copy of the source manifest into the evidence session. It never marks a
-candidate or device gate VERIFIED.
+prepare succeeds it persists the validated candidate provenance, the selected
+performance tier and an exact copy of the source manifest into the evidence
+session. It never marks a candidate or device gate VERIFIED.
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ ALLOWED_CI_EVENTS = {"pull_request", "push", "workflow_dispatch"}
 EXPECTED_VERDICT = "READY_FOR_PHYSICAL_DEVICE_EVIDENCE"
 SESSION_FILE = "session.json"
 BOUND_MANIFEST_FILE = "candidate-manifest.json"
+PERFORMANCE_TIERS = {"low", "mid", "high"}
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 DIGITS_RE = re.compile(r"^[1-9][0-9]*$")
@@ -65,6 +66,15 @@ def _positive_id(value: Any, label: str) -> str:
     if not DIGITS_RE.fullmatch(text):
         raise CandidatePrepareError(f"{label} must be a positive integer string, found {value!r}")
     return text
+
+
+def _normalize_performance_tier(value: Any) -> str:
+    tier = str(value or "").strip().lower()
+    if tier not in PERFORMANCE_TIERS:
+        raise CandidatePrepareError(
+            f"performance tier must be one of {sorted(PERFORMANCE_TIERS)}, found {value!r}"
+        )
+    return tier
 
 
 def _validate_ci_provenance(manifest: dict[str, Any]) -> dict[str, str]:
@@ -198,7 +208,9 @@ def bind_candidate_to_session(
     manifest_path: Path,
     output_dir: Path,
     device_evidence: Any,
+    performance_tier: str,
 ) -> dict[str, Any]:
+    tier = _normalize_performance_tier(performance_tier)
     session_path = output_dir / SESSION_FILE
     if not session_path.is_file():
         raise CandidatePrepareError(f"Device evidence prepare did not produce {session_path}")
@@ -230,6 +242,7 @@ def bind_candidate_to_session(
         raise CandidatePrepareError("Copied candidate manifest SHA-256 does not match source manifest")
 
     session["candidate"] = context
+    session["performanceTier"] = tier
     device_evidence.write_json(session_path, session)
     return context
 
@@ -245,6 +258,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--output", required=True, help="Output directory for the device evidence session.")
     parser.add_argument("--serial", help="ADB serial when more than one authorized device is connected.")
+    parser.add_argument(
+        "--performance-tier",
+        required=True,
+        choices=("low", "mid", "high"),
+        help="Bind this physical-device session to one UPER-001 capability tier before any checkpoint is captured.",
+    )
     parser.add_argument("--allow-emulator", action="store_true", help="Harness debugging only; cannot satisfy P1 gates.")
     parser.add_argument("--force", action="store_true", help="Replace an existing evidence session.")
     return parser
@@ -260,7 +279,8 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "AFAREET_CANDIDATE_DEVICE_PRECHECK_OK "
             f"candidateType={candidate['candidateType']} gitSha={candidate['gitSha']} "
-            f"apkSha256={candidate['apkSha256']} apk={candidate['apkPath']}"
+            f"apkSha256={candidate['apkSha256']} performanceTier={args.performance_tier.upper()} "
+            f"apk={candidate['apkPath']}"
         )
 
         import device_evidence  # Imported only after the candidate integrity check passes.
@@ -283,12 +303,18 @@ def main(argv: list[str] | None = None) -> int:
             return prepare_code
 
         output_dir = Path(args.output).expanduser().resolve()
-        context = bind_candidate_to_session(candidate, manifest_path, output_dir, device_evidence)
+        context = bind_candidate_to_session(
+            candidate,
+            manifest_path,
+            output_dir,
+            device_evidence,
+            args.performance_tier,
+        )
         print(
             "AFAREET_CANDIDATE_SESSION_BOUND "
             f"candidateType={context['candidateType']} gitSha={context['gitSha']} "
-            f"apkSha256={context['apkSha256']} manifestSha256={context['manifest']['sha256']} "
-            f"session={output_dir}"
+            f"apkSha256={context['apkSha256']} performanceTier={args.performance_tier.upper()} "
+            f"manifestSha256={context['manifest']['sha256']} session={output_dir}"
         )
         return 0
     except (CandidatePrepareError, OSError, ValueError) as exc:
