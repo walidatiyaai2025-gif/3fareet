@@ -240,34 +240,40 @@ namespace Afareet.UI
             safeRoot.anchorMax = Vector2.one;
             safeRoot.offsetMin = safeRoot.offsetMax = Vector2.zero;
 
-            // Keep the ready-state action out of the driving sightline. It shares the
-            // upper-right HUD zone with the pause action, but the two are never active
-            // in the same race phase.
+            // Ready action stays outside the driving sightline and clears the top HUD.
             startRect = CreateControl("START RACE", new Vector2(1f, 1f), new Vector2(-24f, -92f), new Vector2(190f, 52f), out _);
 
-            leftRect = CreateControl("◀", new Vector2(0f, 0f), new Vector2(24f, 22f), new Vector2(78f, 62f), out _);
-            rightRect = CreateControl("▶", new Vector2(0f, 0f), new Vector2(112f, 22f), new Vector2(78f, 62f), out _);
-            brakeRect = CreateControl("BRAKE / REV", new Vector2(0f, 0f), new Vector2(200f, 22f), new Vector2(116f, 62f), out _);
-            recoverRect = CreateControl("RECOVER", new Vector2(0f, 0f), new Vector2(326f, 22f), new Vector2(102f, 62f), out _);
+            // Bottom-left driving cluster: steering is closest to the thumb, recovery and
+            // brake sit immediately to its right without crossing the center sightline.
+            leftRect = CreateControl("◀", new Vector2(0f, 0f), new Vector2(24f, 20f), new Vector2(70f, 54f), out _);
+            rightRect = CreateControl("▶", new Vector2(0f, 0f), new Vector2(102f, 20f), new Vector2(70f, 54f), out _);
+            brakeRect = CreateControl("BRAKE / REV", new Vector2(0f, 0f), new Vector2(180f, 20f), new Vector2(104f, 54f), out _);
+            recoverRect = CreateControl("RECOVER", new Vector2(0f, 0f), new Vector2(292f, 20f), new Vector2(92f, 54f), out _);
 
-            driftRect = CreateControl("DRIFT", new Vector2(1f, 0f), new Vector2(-344f, 22f), new Vector2(94f, 62f), out _);
-            nitroRect = CreateControl("SPIRIT", new Vector2(1f, 0f), new Vector2(-240f, 22f), new Vector2(94f, 62f), out _);
-            throttleRect = CreateControl("GO", new Vector2(1f, 0f), new Vector2(-136f, 22f), new Vector2(112f, 62f), out _);
+            // Bottom-right action cluster. Keep each action isolated so steering never
+            // competes with drift/nitro/throttle in the middle of the screen.
+            driftRect = CreateControl("DRIFT", new Vector2(1f, 0f), new Vector2(-286f, 20f), new Vector2(82f, 54f), out _);
+            nitroRect = CreateControl("SPIRIT", new Vector2(1f, 0f), new Vector2(-196f, 20f), new Vector2(82f, 54f), out _);
+            throttleRect = CreateControl("GO", new Vector2(1f, 0f), new Vector2(-106f, 20f), new Vector2(82f, 54f), out _);
 
-            var startX = -216f;
+            // Compact power strip floats above the thumb controls and remains below the
+            // player's rear window at the 1280x720 reference composition.
+            var startX = -192f;
             for (var index = 0; index < powerRects.Length; index++)
             {
                 powerRects[index] = CreateControl(
                     ShortName(PowerUpOrder[index]),
                     new Vector2(.5f, 0f),
-                    new Vector2(startX + index * 108f, 94f),
-                    new Vector2(98f, 52f),
+                    new Vector2(startX + index * 96f, 82f),
+                    new Vector2(88f, 44f),
                     out powerLabels[index]);
-                powerLabels[index].fontSize = 13;
+                powerLabels[index].fontSize = 12;
             }
 
-            feedbackText = CreateText(safeRoot, "Power Feedback", new Vector2(0f, 158f), new Vector2(380f, 30f), 16, FontStyle.Bold);
+            feedbackText = CreateText(safeRoot, "Power Feedback", new Vector2(0f, 136f), new Vector2(340f, 28f), 15, FontStyle.Bold);
             feedbackText.color = new Color(.94f, .82f, 1f);
+
+            Debug.Log("AFAREET_UI_COMPACT_RACE_CONTROLS_ACTIVE bottomClusters=left-right powerStripY=82 centerSightlineClear=true");
         }
 
         private RectTransform CreateControl(
@@ -284,10 +290,10 @@ namespace Afareet.UI
             rect.pivot = anchor;
             rect.anchoredPosition = offset;
             rect.sizeDelta = size;
-            image.color = new Color(.17f, .035f, .30f, .82f);
+            image.color = new Color(.17f, .035f, .30f, .70f);
             image.raycastTarget = false;
 
-            label = CreateText(image.transform, labelText + " Label", Vector2.zero, size - new Vector2(8f, 8f), 18, FontStyle.Bold);
+            label = CreateText(image.transform, labelText + " Label", Vector2.zero, size - new Vector2(8f, 8f), 17, FontStyle.Bold);
             label.text = labelText;
             return rect;
         }
