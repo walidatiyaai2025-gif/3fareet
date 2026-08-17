@@ -5,11 +5,38 @@ These instructions apply to the entire repository.
 ## Before changing files
 
 1. Read `CONTRIBUTING.md`, `docs/ONBOARDING.md`, `docs/PROJECT_STATUS.md`,
-   `docs/MODULE_OWNERSHIP.md`, and `docs/TEAM_WORKFLOW.md`.
+   `docs/MODULE_OWNERSHIP.md`, `docs/TEAM_WORKFLOW.md`, and
+   `EXTERNAL_ASSET_REQUESTS.txt`.
 2. Claim a Task ID and Module Lock before implementation.
 3. Work on a dedicated branch and never overwrite another owner's active scope.
 4. The production client is `unity_game/`; Flutter is a legacy reference unless a
    `FLT-*` task explicitly says otherwise.
+
+## External asset request policy
+
+- `EXTERNAL_ASSET_REQUESTS.txt` at repository root is the mandatory source of
+  truth for assets or source material that cannot be completed legitimately by
+  repository programming alone.
+- Never silently substitute a primitive, generated mesh, procedural placeholder,
+  preview, review candidate, unknown-license download, or AI approximation for a
+  missing production asset.
+- A DEBUG / PREVIEW / REFINEMENT / REVIEW fallback may exist only when explicitly
+  classified and must never satisfy a production or P1 visual gate.
+- If implementation reaches a genuine external dependency, add or update the
+  corresponding request in `EXTERNAL_ASSET_REQUESTS.txt` in the same branch/PR.
+  Include the asset name, blocking task, named creation tool, helper script or
+  workflow, copy-ready creation prompt, output path/format, technical constraints,
+  acceptance criteria, and provenance/license requirement.
+- If engineering can provide validation, export, naming, packaging, provenance,
+  import, LOD or build tooling around the asset, implement that tooling in the
+  repository. Do not use tooling to misclassify generated content as externally
+  authored production art.
+- Do not turn programming work such as camera logic, race state, HUD behavior,
+  import/staging gates, provenance checks, track geometry math, performance
+  instrumentation, evidence tooling or CI into external-asset requests.
+- Current Product Owner priority: close programming, automation, validation and
+  test gaps before visual polish. Resume polish-focused work only when the Product
+  Owner explicitly requests it.
 
 ## Android release truth
 
