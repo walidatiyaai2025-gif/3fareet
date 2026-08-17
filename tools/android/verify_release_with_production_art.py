@@ -49,6 +49,7 @@ def verify_release_with_art(
     candidate_manifest_path = candidate_manifest_path.expanduser().resolve()
     apk_override = apk_path.expanduser().resolve() if apk_path is not None else None
     session_dir = session_dir.expanduser().resolve()
+    requested_tier = performance_tier.lower()
 
     candidate_manifest = prepare_candidate_device.read_json(candidate_manifest_path)
     candidate = prepare_candidate_device.resolve_candidate(
@@ -69,13 +70,17 @@ def verify_release_with_art(
     _require(art.get("verdict") == verify_p1_production_art.PASS_VERDICT, "production-art gate did not pass")
     _require(art.get("verified") is False, "production-art gate must not self-assert VERIFIED")
 
-    smoke = analyze_device_smoke.analyze(session_dir, performance_tier)
+    smoke = analyze_device_smoke.analyze(session_dir, requested_tier)
     _require(smoke.get("verified") is False, "UPER-006 smoke analyzer must not self-assert VERIFIED")
     _require(
         smoke.get("verdict") == "PASSABLE_FOR_MANUAL_REVIEW",
         "UPER-006 Android-observable smoke metrics are blocked: " + "; ".join(smoke.get("blockers", [])),
     )
     _require(str(smoke.get("apkSha256") or "").lower() == apk_sha, "UPER-006 smoke APK SHA does not match candidate")
+    _require(
+        str(smoke.get("sessionPerformanceTier") or "").upper() == requested_tier.upper(),
+        "UPER-006 smoke session performance tier does not match requested release tier",
+    )
 
     release = verify_release_publication.verify_publication(
         candidate_manifest_path=candidate_manifest_path,
@@ -98,7 +103,7 @@ def verify_release_with_art(
         "eligibleForManualPublication": True,
         "verified": False,
         "candidate": {"gitSha": git_sha, "apkSha256": apk_sha},
-        "performanceTier": performance_tier.upper(),
+        "performanceTier": requested_tier.upper(),
         "productionArt": art,
         "uper006SmokeMetrics": smoke,
         "releasePreflight": release,

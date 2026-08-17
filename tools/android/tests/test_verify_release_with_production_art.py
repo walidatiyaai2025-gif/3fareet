@@ -48,11 +48,12 @@ class ReleaseWithProductionArtTests(unittest.TestCase):
             "acceptedTasks": ["UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"],
         }
 
-    def _smoke(self, candidate):
+    def _smoke(self, candidate, session_tier="MID"):
         return {
             "verdict": "PASSABLE_FOR_MANUAL_REVIEW",
             "verified": False,
             "apkSha256": candidate["apkSha256"],
+            "sessionPerformanceTier": session_tier,
             "blockers": [],
         }
 
@@ -100,6 +101,7 @@ class ReleaseWithProductionArtTests(unittest.TestCase):
             "verdict": "BLOCKED",
             "verified": False,
             "apkSha256": candidate["apkSha256"],
+            "sessionPerformanceTier": "MID",
             "blockers": ["smoke-warm-race: frameP95Ms exceeds budget"],
         }
         with mock.patch.object(WRAPPER.prepare_candidate_device, "read_json", return_value={}), \
@@ -121,6 +123,21 @@ class ReleaseWithProductionArtTests(unittest.TestCase):
              mock.patch.object(WRAPPER.analyze_device_smoke, "analyze", return_value=smoke), \
              mock.patch.object(WRAPPER.verify_release_publication, "verify_publication") as release_mock:
             with self.assertRaisesRegex(WRAPPER.ReleaseWithProductionArtError, "smoke APK SHA does not match"):
+                WRAPPER.verify_release_with_art(**self._kwargs())
+            release_mock.assert_not_called()
+
+    def test_smoke_session_tier_must_match_requested_release_tier(self):
+        candidate = self._candidate()
+        smoke = self._smoke(candidate, session_tier="LOW")
+        with mock.patch.object(WRAPPER.prepare_candidate_device, "read_json", return_value={}), \
+             mock.patch.object(WRAPPER.prepare_candidate_device, "resolve_candidate", return_value=candidate), \
+             mock.patch.object(WRAPPER.verify_p1_production_art, "verify_art_manifest", return_value=self._art(candidate)), \
+             mock.patch.object(WRAPPER.analyze_device_smoke, "analyze", return_value=smoke), \
+             mock.patch.object(WRAPPER.verify_release_publication, "verify_publication") as release_mock:
+            with self.assertRaisesRegex(
+                WRAPPER.ReleaseWithProductionArtError,
+                "smoke session performance tier does not match requested release tier",
+            ):
                 WRAPPER.verify_release_with_art(**self._kwargs())
             release_mock.assert_not_called()
 
