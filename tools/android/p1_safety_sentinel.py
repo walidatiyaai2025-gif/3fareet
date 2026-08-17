@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """Fail closed if authoritative P1 production tooling can self-promote or publish.
 
-The sentinel deliberately scans production operator tools, not tests or documentation.
-Python is inspected structurally with ``ast``. PowerShell and C# use conservative
-assignment/command recognizers after comment/string masking so explanatory prose does
-not become a false positive.
-
-This tool never changes repository state and never grants verification or publication.
+The sentinel scans production operator tools only. Python is inspected with ``ast``;
+PowerShell and C# use comment/string-aware assignment and command recognizers.
+It never changes repository state and never grants verification or publication.
 """
 
 from __future__ import annotations
@@ -79,11 +76,11 @@ def _qualname(node: ast.AST) -> str:
 
 
 def _literal_strings(node: ast.AST) -> list[str]:
-    values: list[str] = []
-    for child in ast.walk(node):
-        if isinstance(child, ast.Constant) and isinstance(child.value, str):
-            values.append(child.value)
-    return values
+    return [
+        child.value
+        for child in ast.walk(node)
+        if isinstance(child, ast.Constant) and isinstance(child.value, str)
+    ]
 
 
 def _looks_forbidden_command(text: str) -> str | None:
@@ -159,8 +156,7 @@ class PythonSafetyVisitor(ast.NodeVisitor):
             if keyword.arg and keyword.arg.lower() in PROTECTED_FIELDS and _is_true(keyword.value):
                 self._record_true(keyword.arg, keyword.value)
 
-        name = _qualname(node.func)
-        if name in self.EXEC_CALLS:
+        if _qualname(node.func) in self.EXEC_CALLS:
             strings: list[str] = []
             for arg in node.args:
                 strings.extend(_literal_strings(arg))
@@ -190,7 +186,7 @@ def scan_python(path: Path, relative_path: str) -> list[Violation]:
 
 
 def _strip_line_comment(line: str, marker: str) -> str:
-    """Strip a line comment marker only when it appears outside quoted strings."""
+    """Strip a line comment marker only when it occurs outside quoted strings."""
     result: list[str] = []
     quote: str | None = None
     escaped = False
@@ -226,6 +222,7 @@ def _strip_line_comment(line: str, marker: str) -> str:
 
 
 def _mask_strings(line: str) -> str:
+    """Replace quoted content with spaces while preserving command positions."""
     chars = list(line)
     quote: str | None = None
     escaped = False
@@ -261,8 +258,7 @@ def _scan_assignment_lines(
     assignment = re.compile(rf"(?i)\b({fields})\b\s*[:=]\s*{true_token}\b")
     for line_number, raw in enumerate(lines, start=1):
         code = _strip_line_comment(raw, comment_marker)
-        masked = _mask_strings(code)
-        match = assignment.search(masked)
+        match = assignment.search(_mask_strings(code))
         if match:
             violations.append(
                 Violation(
@@ -291,12 +287,27 @@ def scan_powershell(path: Path, relative_path: str) -> list[Violation]:
         code = _strip_line_comment(raw, "#")
         if not code.strip():
             continue
-        direct = re.search(r"(?i)(?:&\s*)?(?:\$git(?:\.Source)?|git(?:\.exe)?)\b[^\r\n]*\b(push|tag)\b", code)
-        gh_release = re.search(r"(?i)(?:&\s*)?(?:\$gh(?:\.Source)?|gh(?:\.exe)?)\b[^\r\n]*\brelease\b[^\r\n]*\b(create|upload)\b", code)
-        start_process = re.search(
-            r"(?i)\bStart-Process\b[^\r\n]*(?:git|gh)[^\r\n]*(?:push|tag|release\s+(?:create|upload))\b",
-            code,
+
+        # Direct git/gh command detection must ignore quoted explanatory prose.
+        masked = _mask_strings(code)
+        direct = re.search(
+            r"(?i)(?:&\s*)?(?:\$git(?:\.Source)?|git(?:\.exe)?)\b[^\r\n]*\b(push|tag)\b",
+            masked,
         )
+        gh_release = re.search(
+            r"(?i)(?:&\s*)?(?:\$gh(?:\.Source)?|gh(?:\.exe)?)\b[^\r\n]*\brelease\b[^\r\n]*\b(create|upload)\b",
+            masked,
+        )
+
+        # Start-Process may legitimately quote executable/arguments, so first prove the
+        # Start-Process token itself is executable code, then inspect its raw arguments.
+        start_process = None
+        if re.search(r"(?i)\bStart-Process\b", masked):
+            start_process = re.search(
+                r"(?i)\bStart-Process\b[^\r\n]*(?:git|gh)[^\r\n]*(?:push|tag|release\s+(?:create|upload))\b",
+                code,
+            )
+
         match = direct or gh_release or start_process
         if match:
             violations.append(
@@ -311,8 +322,6 @@ def scan_powershell(path: Path, relative_path: str) -> list[Violation]:
 
 
 def _strip_csharp_comments(text: str) -> str:
-    # Preserve newlines for line reporting. String contents remain for command inspection;
-    # assignment scanning masks them separately.
     text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), text, flags=re.S)
     return "\n".join(_strip_line_comment(line, "//") for line in text.splitlines())
 
@@ -322,6 +331,7 @@ def scan_csharp(path: Path, relative_path: str) -> list[Violation]:
         text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
         return [Violation(relative_path, 1, "P1_SCAN_ERROR", str(exc))]
+
     code = _strip_csharp_comments(text)
     lines = code.splitlines()
     violations = _scan_assignment_lines(lines, relative_path, comment_marker="//", true_token="true")
@@ -365,13 +375,14 @@ def load_scan_paths(repo_root: Path, chain_path: Path) -> list[str]:
 
     unique: list[str] = []
     seen: set[str] = set()
+    resolved_root = repo_root.resolve()
     for relative in paths:
         normalized = relative.replace("\\", "/")
         if normalized in seen:
             continue
-        candidate = (repo_root / normalized).resolve()
+        candidate = (resolved_root / normalized).resolve()
         try:
-            candidate.relative_to(repo_root.resolve())
+            candidate.relative_to(resolved_root)
         except ValueError as exc:
             raise ValueError(f"scan path escapes repo root: {normalized}") from exc
         if not candidate.is_file():
