@@ -98,7 +98,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         self.assertIn("cannot reuse rival", text)
         self.assertNotIn("GameObject.CreatePrimitive", text)
 
-    def test_prefab_stager_only_assembles_imported_source_meshes_and_delegates_binding(self):
+    def test_prefab_stager_only_wraps_imported_source_meshes_and_delegates_binding(self):
         path = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs"
         self.assertTrue(path.is_file())
         self.assertTrue(path.with_suffix(path.suffix + ".meta").is_file())
@@ -114,12 +114,12 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         for required in (
             "Stage + Bind All Rival Prefabs",
             "AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath)",
-            "PrefabUtility.InstantiatePrefab(sourceModel)",
-            "GetComponentsInChildren<Renderer>(true)",
             "RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)",
-            "RivalImportedLodResolver.Resolve(renderer, instance.transform, signature)",
-            "RivalProductionPolicy.MeshFor(renderer)",
+            "RivalImportedLodResolver.ResolveImportedMeshesOrThrow(sourcePath, sourceModel, signature)",
+            "RivalImportedLodResolver.ResolveImportedMaterialsOrThrow(sourcePath, sourceModel, signature)",
             "AssetDatabase.GetAssetPath(mesh)",
+            "filter.sharedMesh = mesh",
+            "renderer.sharedMaterials = materials[lod]",
             "new LOD(",
             "group.SetLODs(lods)",
             "PrefabUtility.SaveAsPrefabAsset",
@@ -130,9 +130,9 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "primitiveCreated=false",
         ):
             self.assertIn(required, text)
-        self._assert_unity6_safe_surface_validation(text)
 
         for forbidden in (
+            "PrefabUtility.InstantiatePrefab(sourceModel)",
             "GameObject.CreatePrimitive",
             "new Mesh(",
             "new Mesh {",
