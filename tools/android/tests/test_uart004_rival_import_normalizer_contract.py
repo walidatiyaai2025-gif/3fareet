@@ -37,14 +37,14 @@ class RivalImportNormalizerContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source)
 
-    def test_full_stack_normalizes_rival_imports_before_rival_preflight(self):
+    def test_full_stack_no_longer_depends_on_normalizer_after_unity6_flattening_was_proven(self):
         source = STACK.read_text(encoding="utf-8")
-        normalize = source.index("RivalProductionImportNormalizer.NormalizeCurrentSourcesOrThrow")
-        rival_preflight = source.index("RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow")
-        first_prefab_stage = source.index("P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow")
-        self.assertLess(normalize, rival_preflight)
-        self.assertLess(rival_preflight, first_prefab_stage)
-        self.assertIn('"UART-004 deterministic rival import settings"', source)
+        self.assertNotIn("RivalProductionImportNormalizer.NormalizeCurrentSourcesOrThrow", source)
+        self.assertNotIn("RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow", source)
+        self.assertIn("RivalAuthoredReviewPrefabStager.ValidateCurrentSourcesOrThrow", source)
+        self.assertIn("RivalAuthoredReviewPrefabStager.StageAll", source)
+        self.assertIn("rivals=authored-review-candidates", source)
+        self.assertIn("productionGate=false", source)
 
 
 if __name__ == "__main__":
