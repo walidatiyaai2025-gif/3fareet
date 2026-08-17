@@ -46,13 +46,13 @@ namespace Afareet.Editor
                     $"UART-004 source is not handled by ModelImporter: variant={variant + 1} source={sourcePath}");
 
             var changed = false;
-            changed |= Set(ref importer.preserveHierarchy, true);
-            changed |= Set(ref importer.optimizeMeshPolygons, false);
-            changed |= Set(ref importer.optimizeMeshVertices, false);
-            changed |= Set(ref importer.weldVertices, false);
-            changed |= Set(ref importer.importAnimation, false);
-            changed |= Set(ref importer.importCameras, false);
-            changed |= Set(ref importer.importLights, false);
+            if (!importer.preserveHierarchy) { importer.preserveHierarchy = true; changed = true; }
+            if (importer.optimizeMeshPolygons) { importer.optimizeMeshPolygons = false; changed = true; }
+            if (importer.optimizeMeshVertices) { importer.optimizeMeshVertices = false; changed = true; }
+            if (importer.weldVertices) { importer.weldVertices = false; changed = true; }
+            if (importer.importAnimation) { importer.importAnimation = false; changed = true; }
+            if (importer.importCameras) { importer.importCameras = false; changed = true; }
+            if (importer.importLights) { importer.importLights = false; changed = true; }
 
             if (importer.importNormals != ModelImporterNormals.Import)
             {
@@ -87,13 +87,6 @@ namespace Afareet.Editor
                 $"AFAREET_UART004_IMPORT_NORMALIZE_OK variant={variant + 1} source={sourcePath} changed={changed} " +
                 "preserveHierarchy=true optimizeMeshPolygons=false optimizeMeshVertices=false weldVertices=false " +
                 "normals=import materials=standard geometryGenerated=false productionPromotion=false");
-        }
-
-        private static bool Set(ref bool current, bool desired)
-        {
-            if (current == desired) return false;
-            current = desired;
-            return true;
         }
     }
 }
