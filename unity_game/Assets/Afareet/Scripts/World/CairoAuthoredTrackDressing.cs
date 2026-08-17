@@ -84,7 +84,9 @@ namespace Afareet.World
             Material dark,
             Material gold)
         {
-            if (!Application.isEditor || instance == null)
+            if (!Application.isEditor)
+                return;
+            if (instance == null)
                 return;
 
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
@@ -102,7 +104,9 @@ namespace Afareet.World
 
         private static void ApplyByNameForEditorPreview(GameObject instance, Material baseMaterial, Material spirit, Material gold, Material cyan)
         {
-            if (!Application.isEditor || instance == null)
+            if (!Application.isEditor)
+                return;
+            if (instance == null)
                 return;
 
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
