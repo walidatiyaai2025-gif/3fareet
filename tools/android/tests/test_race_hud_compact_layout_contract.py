@@ -30,6 +30,26 @@ class CompactRaceHudContractTests(unittest.TestCase):
             hud,
         )
 
+    def test_ready_state_hides_drive_only_telemetry_without_hiding_core_hud(self):
+        hud = HUD_PATH.read_text(encoding="utf-8")
+        for required in (
+            'var showDriveTelemetry = race.Phase != RaceRoundPhase.Ready;',
+            'SetPanelActive(spiritText, showDriveTelemetry);',
+            'SetPanelActive(speedText, showDriveTelemetry);',
+            'private static void SetPanelActive(Text text, bool active)',
+            'panel.SetActive(active);',
+            'AFAREET_UI_READY_TELEMETRY_CLEARANCE_ACTIVE',
+            'driveTelemetryHiddenUntilStart=true',
+            'positionTimeCareerRemainVisible=true',
+        ):
+            self.assertIn(required, hud)
+
+        # Position, time and career are intentionally not toggled by the ready-state
+        # clearance policy; they remain useful before the race starts.
+        self.assertNotIn('SetPanelActive(positionText, showDriveTelemetry);', hud)
+        self.assertNotIn('SetPanelActive(timeText, showDriveTelemetry);', hud)
+        self.assertNotIn('SetPanelActive(careerText, showDriveTelemetry);', hud)
+
 
 if __name__ == "__main__":
     unittest.main()
