@@ -8,6 +8,7 @@ using Afareet.World;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 
 namespace Afareet.Tests.PlayMode
 {
