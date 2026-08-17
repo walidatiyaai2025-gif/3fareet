@@ -55,6 +55,26 @@ class MobileDriveContractTests(unittest.TestCase):
         ):
             self.assertIn(required, reset_body)
 
+    def test_kinematic_racer_never_receives_runtime_velocity_writes(self):
+        controller = VEHICLE_PATH.read_text(encoding="utf-8")
+        fixed_start = controller.index("private void FixedUpdate()")
+        fixed_end = controller.index("private void ReadDesktopInput()", fixed_start)
+        fixed_body = controller[fixed_start:fixed_end]
+
+        guard = "if (body.isKinematic)"
+        first_velocity_write = "body.linearVelocity ="
+        self.assertIn(guard, fixed_body)
+        self.assertIn("foreach (var trail in trails) trail.emitting = false;", fixed_body)
+        self.assertLess(fixed_body.index(guard), fixed_body.index(first_velocity_write))
+
+        recovery_start = controller.index("private void RecoverToTrack(string reason)")
+        recovery_body = controller[recovery_start:]
+        self.assertIn("if (!body.isKinematic)", recovery_body)
+        self.assertLess(
+            recovery_body.index("if (!body.isKinematic)"),
+            recovery_body.index("body.linearVelocity = Vector3.zero;"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
