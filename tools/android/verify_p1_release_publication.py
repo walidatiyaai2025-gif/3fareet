@@ -24,6 +24,7 @@ if str(SCRIPT_DIR) not in sys.path:
 import p1_gate_readiness
 import p1_lineage_gate_readiness
 import prepare_candidate_device
+import verify_p1_device_review_bundle
 
 SCHEMA_VERSION = 1
 STATE = "P1_PUBLICATION_PREFLIGHT_PASSED"
@@ -83,6 +84,30 @@ def verify_p1_publication(
     binding = p1_lineage_gate_readiness._bind_p1_review(session_dir, review_bundle_dir, spec)
     _require(binding["candidateGitSha"] == git_sha, "P1 gate binding Git SHA does not match publication candidate")
     _require(binding["apkSha256"] == apk_sha, "P1 gate binding APK SHA does not match publication candidate")
+
+    # Re-run the public P1 review verifier at the publication boundary so the final
+    # preflight report is tied to the current sanitized review bytes, device hash and
+    # checkpoint count rather than merely trusting an earlier gate-binding result.
+    p1_review = verify_p1_device_review_bundle.verify_p1_bundle(
+        review_bundle_dir,
+        expected_git_sha=git_sha,
+        expected_apk_sha=apk_sha,
+        expected_staging_source_sha=binding["stagingSourceGitSha"],
+    )
+    _require(
+        p1_review["contentSetSha256"] == binding["reviewContentSetSha256"],
+        "publication-time P1 review content-set differs from gate binding",
+    )
+    _require(
+        p1_review["p1ReviewLineageSha256"] == binding["p1ReviewLineageSha256"],
+        "publication-time P1 review-lineage fingerprint differs from gate binding",
+    )
+    _require(
+        p1_review["sourceArtifactDigests"] == binding["sourceArtifactDigests"],
+        "publication-time P1 source-artifact digests differ from gate binding",
+    )
+    _require(p1_review.get("verified") is False, "P1 review verifier must remain unverified")
+    _require(p1_review.get("publicationEligible") is False, "P1 review verifier must not self-assert publication eligibility")
 
     index = binding["index"]
     session_candidate = binding["candidate"]
@@ -185,8 +210,8 @@ def verify_p1_publication(
             "sourceArtifactDigests": dict(binding["sourceArtifactDigests"]),
         },
         "evidence": {
-            "deviceSerialSha256": binding["evidenceOnly"].get("deviceSerialSha256"),
-            "checkpointCount": len(binding["evidenceOnly"].get("capturedCheckpoints", [])),
+            "deviceSerialSha256": p1_review.get("deviceSerialSha256"),
+            "checkpointCount": p1_review.get("checkpointCount"),
             "approvalsFileName": approvals_path.name,
             "approvalsSha256": approvals_sha,
             "reviewers": reviewers,
