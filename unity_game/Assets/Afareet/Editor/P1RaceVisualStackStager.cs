@@ -21,6 +21,10 @@ namespace Afareet.Editor
                 throw new InvalidOperationException(
                     "P1 visual stack staging must run outside Play Mode. Stop Play Mode and retry.");
 
+            RunPreflight(
+                "UART-003 Hero refinement candidate source",
+                HeroCarRefinementCandidateStager.ValidateCurrentCandidateSourceOrThrow);
+
             Debug.Log(
                 "AFAREET_P1_VISUAL_STACK_STAGE_BEGIN " +
                 "hero=refinement-candidate productionGate=false ownerAcceptance=false deviceProof=false");
@@ -38,6 +42,21 @@ namespace Afareet.Editor
                 "AFAREET_P1_VISUAL_STACK_STAGE_OK " +
                 "uart004=staged uart005=staged uart006=staged uart007=staged " +
                 "hero=refinement-candidate productionGate=false ownerAcceptance=false deviceProof=false p1Verified=false");
+        }
+
+        private static void RunPreflight(string label, Action preflight)
+        {
+            Debug.Log($"AFAREET_P1_VISUAL_STACK_PREFLIGHT_BEGIN step={label}");
+            try
+            {
+                preflight();
+                Debug.Log($"AFAREET_P1_VISUAL_STACK_PREFLIGHT_OK step={label}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"AFAREET_P1_VISUAL_STACK_PREFLIGHT_BLOCKED step={label} error={ex.Message}");
+                throw;
+            }
         }
 
         private static void RunStage(string label, Action stage)
