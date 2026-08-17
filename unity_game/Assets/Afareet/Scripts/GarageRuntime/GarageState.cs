@@ -49,7 +49,7 @@ namespace Afareet.GarageRuntime
 
     public sealed class GarageState
     {
-        private readonly IReadOnlyDictionary<string, GarageCosmeticSelection> selections;
+        private readonly Dictionary<string, GarageCosmeticSelection> selections;
 
         public string EquippedVehicleId { get; }
         public IReadOnlyDictionary<string, GarageCosmeticSelection> Selections => selections;
@@ -62,20 +62,7 @@ namespace Afareet.GarageRuntime
                 throw new ArgumentException("Equipped Garage vehicle id must be null or non-blank.", nameof(equippedVehicleId));
 
             EquippedVehicleId = equippedVehicleId;
-            var copy = new Dictionary<string, GarageCosmeticSelection>(StringComparer.Ordinal);
-            if (selections != null)
-            {
-                foreach (var pair in selections)
-                {
-                    if (string.IsNullOrWhiteSpace(pair.Key))
-                        throw new ArgumentException("Garage selection vehicle ids must be non-blank.", nameof(selections));
-                    if (pair.Value == null)
-                        throw new ArgumentException($"Garage selection for '{pair.Key}' is null.", nameof(selections));
-                    if (!copy.TryAdd(pair.Key, pair.Value))
-                        throw new ArgumentException($"Garage selection for '{pair.Key}' is duplicated.", nameof(selections));
-                }
-            }
-            this.selections = copy;
+            this.selections = CopySelections(selections, nameof(selections));
         }
 
         public static GarageState Empty() => new GarageState(null);
@@ -111,10 +98,8 @@ namespace Afareet.GarageRuntime
                 throw new ArgumentException("Garage selection vehicle id is required.", nameof(vehicleId));
             if (selection == null) throw new ArgumentNullException(nameof(selection));
 
-            var next = new Dictionary<string, GarageCosmeticSelection>(selections, StringComparer.Ordinal)
-            {
-                [vehicleId] = selection
-            };
+            var next = CopySelections(selections, nameof(selections));
+            next[vehicleId] = selection;
             return new GarageState(EquippedVehicleId, next);
         }
 
@@ -123,9 +108,29 @@ namespace Afareet.GarageRuntime
             if (string.IsNullOrWhiteSpace(vehicleId))
                 throw new ArgumentException("Garage selection vehicle id is required.", nameof(vehicleId));
 
-            var next = new Dictionary<string, GarageCosmeticSelection>(selections, StringComparer.Ordinal);
+            var next = CopySelections(selections, nameof(selections));
             next.Remove(vehicleId);
             return new GarageState(EquippedVehicleId, next);
+        }
+
+        private static Dictionary<string, GarageCosmeticSelection> CopySelections(
+            IEnumerable<KeyValuePair<string, GarageCosmeticSelection>> source,
+            string parameterName)
+        {
+            var copy = new Dictionary<string, GarageCosmeticSelection>(StringComparer.Ordinal);
+            if (source == null) return copy;
+
+            foreach (var pair in source)
+            {
+                if (string.IsNullOrWhiteSpace(pair.Key))
+                    throw new ArgumentException("Garage selection vehicle ids must be non-blank.", parameterName);
+                if (pair.Value == null)
+                    throw new ArgumentException($"Garage selection for '{pair.Key}' is null.", parameterName);
+                if (!copy.TryAdd(pair.Key, pair.Value))
+                    throw new ArgumentException($"Garage selection for '{pair.Key}' is duplicated.", parameterName);
+            }
+
+            return copy;
         }
     }
 }
