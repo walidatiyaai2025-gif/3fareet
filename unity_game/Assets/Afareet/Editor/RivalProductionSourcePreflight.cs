@@ -38,7 +38,8 @@ namespace Afareet.Editor
 
             Debug.Log(
                 "AFAREET_UART004_SOURCE_PREFLIGHT_ALL_OK variants=3 importedSources=3 distinctSources=3 " +
-                "lodBands=3 uv0=true normals=true textureMapped=true productionPromotion=false");
+                "lodBands=3 resolver=authored-name-or-source-triangle-signature uv0=true normals=true " +
+                "textureMapped=true productionPromotion=false");
         }
 
         private static string ValidateSourceOrThrow(int variant, string sourcePath)
@@ -58,13 +59,14 @@ namespace Afareet.Editor
                 throw new InvalidOperationException(
                     $"UART-004 source preflight could not resolve source GUID: variant={variant + 1} source={sourcePath}");
 
+            var signature = RivalImportedLodResolver.ParseSourceOrThrow(sourcePath);
             var triangles = new int[RivalProductionPolicy.MinimumTriangles.Length];
             var rendererCounts = new int[RivalProductionPolicy.MinimumTriangles.Length];
 
             foreach (var renderer in sourceModel.GetComponentsInChildren<Renderer>(true))
             {
                 var mesh = RivalProductionPolicy.MeshFor(renderer);
-                var lod = ResolveLod(renderer.transform, sourceModel.transform, mesh);
+                var lod = RivalImportedLodResolver.Resolve(renderer, sourceModel.transform, signature);
                 if (lod < 0) continue;
 
                 if (mesh == null)
@@ -87,7 +89,7 @@ namespace Afareet.Editor
                     throw new InvalidOperationException(
                         $"UART-004 source preflight missing texture-mapped material: variant={variant + 1} LOD{lod} renderer={renderer.name}");
 
-                triangles[lod] += TriangleCount(mesh);
+                triangles[lod] += RivalImportedLodResolver.TriangleCount(mesh);
                 rendererCounts[lod]++;
             }
 
@@ -95,8 +97,9 @@ namespace Afareet.Editor
             {
                 if (rendererCounts[lod] == 0)
                     throw new InvalidOperationException(
-                        $"UART-004 source preflight found no LOD{lod} renderer: variant={variant + 1} " +
-                        $"source={sourcePath} expectedObjectSuffix=_LOD{lod} resolver=transform-or-source-mesh-name");
+                        $"UART-004 source preflight found no LOD{lod} renderer: variant={variant + 1} source={sourcePath} " +
+                        $"authoredObject={signature.ObjectNames[lod]} sourceTriangles={signature.Triangles[lod]} " +
+                        "resolver=transform-or-mesh-name-or-exact-source-triangle-signature");
 
                 if (!RivalProductionPolicy.MeetsProductionFloor(lod, triangles[lod], true, true, true))
                     throw new InvalidOperationException(
@@ -108,51 +111,10 @@ namespace Afareet.Editor
             Debug.Log(
                 $"AFAREET_UART004_SOURCE_PREFLIGHT_OK variant={variant + 1} source={sourcePath} guid={guid} " +
                 $"lod0Triangles={triangles[0]} lod1Triangles={triangles[1]} lod2Triangles={triangles[2]} " +
-                "uv0=true normals=true textureMapped=true productionPromotion=false");
+                $"sourceSignatures={signature.Triangles[0]}/{signature.Triangles[1]}/{signature.Triangles[2]} " +
+                "resolver=authored-name-or-exact-source-triangle-signature uv0=true normals=true " +
+                "textureMapped=true productionPromotion=false");
             return guid;
-        }
-
-        private static int ResolveLod(Transform rendererTransform, Transform importedRoot, Mesh mesh)
-        {
-            for (var current = rendererTransform; current != null; current = current.parent)
-            {
-                var transformLod = ResolveLodFromName(current.name);
-                if (transformLod >= 0)
-                    return transformLod;
-
-                if (current == importedRoot) break;
-            }
-
-            // Unity 6000.5 can flatten OBJ object names out of the imported Transform hierarchy
-            // while preserving the authored `o ..._LOD#` identity on the imported Mesh sub-asset.
-            // Mesh-name fallback therefore preserves the authored source contract without
-            // synthesizing LODs or weakening exact source-backed mesh validation.
-            return ResolveLodFromName(mesh == null ? string.Empty : mesh.name);
-        }
-
-        private static int ResolveLodFromName(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name))
-                return -1;
-
-            for (var lod = 0; lod < RivalProductionPolicy.MinimumTriangles.Length; lod++)
-            {
-                var token = $"_LOD{lod}";
-                var searchIndex = 0;
-                while (searchIndex < name.Length)
-                {
-                    var index = name.IndexOf(token, searchIndex, StringComparison.OrdinalIgnoreCase);
-                    if (index < 0) break;
-
-                    var suffixEnd = index + token.Length;
-                    if (suffixEnd == name.Length || !char.IsDigit(name[suffixEnd]))
-                        return lod;
-
-                    searchIndex = suffixEnd;
-                }
-            }
-
-            return -1;
         }
 
         private static bool HasAssignedTexture(Renderer renderer)
@@ -167,14 +129,6 @@ namespace Afareet.Editor
                 }
             }
             return false;
-        }
-
-        private static int TriangleCount(Mesh mesh)
-        {
-            var count = 0;
-            for (var sub = 0; sub < mesh.subMeshCount; sub++)
-                count += (int)mesh.GetIndexCount(sub) / 3;
-            return count;
         }
     }
 }
