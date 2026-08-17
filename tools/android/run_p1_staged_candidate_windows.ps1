@@ -36,7 +36,8 @@ $StagingReport = (Resolve-Path -LiteralPath $StagingReport).Path
 $git = Get-Command git -ErrorAction SilentlyContinue
 if ($null -eq $git) { Fail "git is required for the P1 staged candidate chain." }
 $currentSha = (& $git.Source -C $RepoRoot rev-parse HEAD 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or $currentSha -notmatch '^[0-9a-fA-F]{40}$') {
+$currentShaOk = $?
+if (-not $currentShaOk -or $currentSha -notmatch '^[0-9a-fA-F]{40}$') {
     Fail "Unable to resolve current candidate Git SHA."
 }
 $currentSha = $currentSha.Trim().ToLowerInvariant()
