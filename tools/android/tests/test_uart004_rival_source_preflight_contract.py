@@ -51,6 +51,22 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
         for token in forbidden:
             self.assertNotIn(token, source)
 
+    def test_unity_obj_lod_resolution_accepts_authored_mesh_subasset_names(self):
+        for path in (PREFLIGHT_PATH, STAGER_PATH):
+            source = path.read_text(encoding="utf-8")
+            required = (
+                "RivalProductionPolicy.MeshFor(renderer)",
+                "ResolveLod(renderer.transform",
+                "ResolveLodFromName(mesh == null ? string.Empty : mesh.name)",
+                "private static int ResolveLodFromName(string name)",
+                'var token = $"_LOD{lod}"',
+                "StringComparison.OrdinalIgnoreCase",
+                "char.IsDigit(name[suffixEnd])",
+                "resolver=transform-or-source-mesh-name",
+            )
+            for token in required:
+                self.assertIn(token, source)
+
     def test_full_visual_stack_runs_all_preflights_before_first_mutating_stage(self):
         source = STACK_PATH.read_text(encoding="utf-8")
         hero = source.index("HeroCarRefinementCandidateStager.ValidateCurrentCandidateSourceOrThrow")
