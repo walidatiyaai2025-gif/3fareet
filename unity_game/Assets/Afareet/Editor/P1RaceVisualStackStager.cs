@@ -21,9 +21,12 @@ namespace Afareet.Editor
                 throw new InvalidOperationException(
                     "P1 visual stack staging must run outside Play Mode. Stop Play Mode and retry.");
 
-            // All read-only source checks happen before the first stager mutates any Unity asset.
-            // This prevents a new workstation from partially staging Cairo/Hero only to discover
-            // later that one of the three UART-004 rival imports is missing or malformed.
+            // Normalize only Unity's import interpretation of the tracked UART-004 OBJ files
+            // before read-only source validation. This can reimport the sources, but it creates
+            // no production prefab, Mesh, primitive or replacement geometry.
+            RunStage("UART-004 deterministic rival import settings", RivalProductionImportNormalizer.NormalizeCurrentSourcesOrThrow);
+
+            // All source checks then run before any production/refinement artifact is staged.
             RunPreflight(
                 "UART-003 Hero refinement candidate source",
                 HeroCarRefinementCandidateStager.ValidateCurrentCandidateSourceOrThrow);
