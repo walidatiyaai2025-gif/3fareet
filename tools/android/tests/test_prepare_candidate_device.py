@@ -81,7 +81,7 @@ class PrepareCandidateDeviceTests(unittest.TestCase):
             self.assertEqual("github-actions-unity-ci", candidate["candidateType"])
             self.assertEqual("12345", candidate["githubRun"]["runId"])
 
-    def test_bind_candidate_to_session_persists_manifest_and_provenance(self):
+    def test_bind_candidate_to_session_persists_manifest_provenance_and_performance_tier(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             apk = self.make_apk(tmp, b"bound-session-apk")
@@ -106,6 +106,7 @@ class PrepareCandidateDeviceTests(unittest.TestCase):
                 manifest_path,
                 root,
                 FakeDeviceEvidence,
+                "mid",
             )
             saved_session = json.loads(session_path.read_text(encoding="utf-8"))
             bound_manifest = root / PREPARE.BOUND_MANIFEST_FILE
@@ -114,7 +115,48 @@ class PrepareCandidateDeviceTests(unittest.TestCase):
             self.assertEqual(SHA, saved_session["candidate"]["gitSha"])
             self.assertEqual("github-actions-unity-ci", saved_session["candidate"]["candidateType"])
             self.assertEqual("12345", saved_session["candidate"]["githubRun"]["runId"])
+            self.assertEqual("mid", saved_session["performanceTier"])
             self.assertEqual(hashlib.sha256(bound_manifest.read_bytes()).hexdigest(), context["manifest"]["sha256"])
+
+    def test_bind_candidate_rejects_invalid_performance_tier(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            apk = self.make_apk(tmp)
+            source_manifest = make_manifest(apk)
+            manifest_path = root / "candidate.json"
+            manifest_path.write_text(json.dumps(source_manifest), encoding="utf-8")
+            candidate = PREPARE.resolve_candidate(source_manifest, manifest_path)
+            session_path = root / PREPARE.SESSION_FILE
+            session_path.write_text(
+                json.dumps({
+                    "packageId": PREPARE.EXPECTED_PACKAGE_ID,
+                    "apk": {
+                        "sha256": candidate["apkSha256"],
+                        "sizeBytes": candidate["sizeBytes"],
+                    },
+                }),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(PREPARE.CandidatePrepareError, "performance tier must be one of"):
+                PREPARE.bind_candidate_to_session(
+                    candidate,
+                    manifest_path,
+                    root,
+                    FakeDeviceEvidence,
+                    "ultra",
+                )
+
+    def test_candidate_device_parser_requires_performance_tier(self):
+        parser = PREPARE.build_parser()
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["--candidate-manifest", "candidate.json", "--output", "evidence"])
+        args = parser.parse_args([
+            "--candidate-manifest", "candidate.json",
+            "--output", "evidence",
+            "--performance-tier", "high",
+        ])
+        self.assertEqual("high", args.performance_tier)
 
     def test_rejects_ci_candidate_without_exact_github_provenance(self):
         with tempfile.TemporaryDirectory() as tmp:
