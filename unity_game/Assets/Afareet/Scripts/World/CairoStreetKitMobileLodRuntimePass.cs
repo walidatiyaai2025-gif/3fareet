@@ -247,7 +247,7 @@ namespace Afareet.World
                 var textured = false;
                 foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
                 {
-                    if (material != null && material.mainTexture != null)
+                    if (HasAssignedTexture(material))
                     {
                         textured = true;
                         break;
@@ -256,6 +256,19 @@ namespace Afareet.World
                 if (!textured)
                     throw new InvalidOperationException($"UART-005 mobile LOD renderer has no texture-mapped material: {baseName} LOD{lod}");
             }
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static HashSet<Mesh> CollectMeshes(Renderer[] renderers)
