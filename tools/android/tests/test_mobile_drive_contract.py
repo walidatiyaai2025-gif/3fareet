@@ -35,7 +35,22 @@ class MobileDriveContractTests(unittest.TestCase):
             'startRect = CreateControl("START RACE", new Vector2(.5f, .5f), Vector2.zero, new Vector2(320f, 92f), out _);',
             controls,
         )
-        self.assertIn("image.color = new Color(.17f, .035f, .30f, .82f);", controls)
+        self.assertIn("image.color = new Color(.17f, .035f, .30f, .70f);", controls)
+
+    def test_driving_controls_keep_center_sightline_clear(self):
+        controls = CONTROLS_PATH.read_text(encoding="utf-8")
+        for required in (
+            'leftRect = CreateControl("◀", new Vector2(0f, 0f), new Vector2(24f, 20f), new Vector2(70f, 54f), out _);',
+            'recoverRect = CreateControl("RECOVER", new Vector2(0f, 0f), new Vector2(292f, 20f), new Vector2(92f, 54f), out _);',
+            'driftRect = CreateControl("DRIFT", new Vector2(1f, 0f), new Vector2(-286f, 20f), new Vector2(82f, 54f), out _);',
+            'throttleRect = CreateControl("GO", new Vector2(1f, 0f), new Vector2(-106f, 20f), new Vector2(82f, 54f), out _);',
+            "var startX = -192f;",
+            "new Vector2(startX + index * 96f, 82f)",
+            "new Vector2(88f, 44f)",
+            "AFAREET_UI_COMPACT_RACE_CONTROLS_ACTIVE",
+            "centerSightlineClear=true",
+        ):
+            self.assertIn(required, controls)
 
     def test_mobile_steering_uses_reduced_policy_not_full_lock_literals(self):
         controls = CONTROLS_PATH.read_text(encoding="utf-8")
