@@ -99,6 +99,10 @@ class P1LicensedHandoffPacketTests(unittest.TestCase):
             ],
             [item["id"] for item in packet["nextLicensedStages"]],
         )
+        self.assertEqual(
+            "tools/android/run_p1_licensed_staging_windows.ps1",
+            packet["nextLicensedStages"][1]["tool"],
+        )
 
     def test_missing_hero_commands_use_explicit_placeholders_and_never_publish(self):
         packet = MODULE.build_packet(ROOT, environment={})
@@ -110,7 +114,9 @@ class P1LicensedHandoffPacketTests(unittest.TestCase):
         self.assertIn("<REAL_HERO_SOURCE.fbx>", commands["nativeHeroIntake"])
         self.assertIn("<EXACT_SOURCE_GIT_SHA>", commands["portableAudit"])
         self.assertIn("validate_hero_asset_intake_windows.ps1", commands["nativeHeroIntake"])
-        self.assertIn("stage_production_candidate_windows.ps1", commands["licensedUnityStaging"])
+        self.assertIn("run_p1_licensed_staging_windows.ps1", commands["licensedUnityStaging"])
+        self.assertIn("-HandoffPacket artifacts/production-staging/p1-licensed-handoff-packet.json", commands["licensedUnityStaging"])
+        self.assertNotIn("stage_production_candidate_windows.ps1", commands["licensedUnityStaging"])
         command_text = "\n".join(str(value) for value in commands.values())
         self.assertNotIn("git push", command_text.lower())
         self.assertNotIn("git tag", command_text.lower())
@@ -245,14 +251,18 @@ class P1LicensedHandoffPacketTests(unittest.TestCase):
         pwsh = shutil.which("pwsh") or shutil.which("powershell")
         if not pwsh:
             self.skipTest("PowerShell is not installed")
-        script = TOOLS / "stage_production_candidate_windows.ps1"
-        command = (
-            "$tokens=$null;$errors=$null;"
-            f"[System.Management.Automation.Language.Parser]::ParseFile('{script.as_posix()}',[ref]$tokens,[ref]$errors)|Out-Null;"
-            "if($errors.Count -gt 0){$errors|ForEach-Object{Write-Error $_.Message};exit 1}"
-        )
-        completed = subprocess.run([pwsh, "-NoProfile", "-Command", command], capture_output=True, text=True, check=False)
-        self.assertEqual(0, completed.returncode, completed.stderr or completed.stdout)
+        for script in (
+            TOOLS / "verify_p1_licensed_handoff_packet_windows.ps1",
+            TOOLS / "run_p1_licensed_staging_windows.ps1",
+            TOOLS / "stage_production_candidate_windows.ps1",
+        ):
+            command = (
+                "$tokens=$null;$errors=$null;"
+                f"[System.Management.Automation.Language.Parser]::ParseFile('{script.as_posix()}',[ref]$tokens,[ref]$errors)|Out-Null;"
+                "if($errors.Count -gt 0){$errors|ForEach-Object{Write-Error $_.Message};exit 1}"
+            )
+            completed = subprocess.run([pwsh, "-NoProfile", "-Command", command], capture_output=True, text=True, check=False)
+            self.assertEqual(0, completed.returncode, completed.stderr or completed.stdout)
 
 
 if __name__ == "__main__":
