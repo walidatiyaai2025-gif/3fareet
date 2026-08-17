@@ -16,6 +16,12 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+import validate_hero_asset_intake
+
 SUPPORTED_HERO_EXTENSIONS = {".fbx", ".obj", ".blend", ".glb", ".gltf"}
 FORBIDDEN_HERO_TOKENS = ("generated", "preview", "blockout")
 
@@ -160,20 +166,22 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
             normalized_hero if under_assets else "Hero must resolve under unity_game/Assets/ (or be passed as Assets/...)",
         )
 
-        extension_ok = Path(normalized_hero).suffix.lower() in SUPPORTED_HERO_EXTENSIONS
+        extension = Path(normalized_hero).suffix.lower()
+        extension_ok = extension in SUPPORTED_HERO_EXTENSIONS
         _check(
             checks,
             "UART-003_HERO_SUPPORTED_FORMAT",
             extension_ok,
-            Path(normalized_hero).suffix.lower() or "missing extension",
+            extension or "missing extension",
         )
 
         forbidden = [token for token in FORBIDDEN_HERO_TOKENS if token in lower]
+        no_forbidden = not forbidden
         _check(
             checks,
             "UART-003_HERO_NOT_PREVIEW_OR_BLOCKOUT",
-            not forbidden,
-            "authored-source-path" if not forbidden else "forbidden source token(s): " + ",".join(forbidden),
+            no_forbidden,
+            "authored-source-path" if no_forbidden else "forbidden source token(s): " + ",".join(forbidden),
         )
 
         hero_file = repo_root / normalized_hero
@@ -195,6 +203,26 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
             not_rival,
             "separate Hero source" if not_rival else "Rival source cannot be reused as the Hero production source",
         )
+
+        intake_prereqs = under_assets and extension_ok and no_forbidden and exists and tracked and not_rival
+        if intake_prereqs and extension == ".obj":
+            try:
+                intake = validate_hero_asset_intake.validate_intake(repo_root, hero_file)
+                _check(
+                    checks,
+                    "UART-003_HERO_INTAKE",
+                    intake.get("verdict") == "READY_FOR_LICENSED_UNITY_IMPORT",
+                    str(intake.get("verdict") or "unexpected intake verdict"),
+                )
+            except (validate_hero_asset_intake.HeroAssetIntakeError, OSError, ValueError) as exc:
+                _check(checks, "UART-003_HERO_INTAKE", False, str(exc))
+        elif intake_prereqs:
+            _check(
+                checks,
+                "UART-003_HERO_INTAKE",
+                True,
+                "binary/DCC source accepted only for licensed Unity inspection; no structural-pass claim",
+            )
 
     blocked = [item for item in checks if item["status"] != "PASS"]
     state = "READY_FOR_LICENSED_STAGING" if not blocked else "BLOCKED"
