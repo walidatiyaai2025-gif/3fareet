@@ -52,6 +52,7 @@ class AnalyzeDeviceSmokeTests(unittest.TestCase):
         *,
         apk_sha: str = "a" * 64,
         device_sha: str = "b" * 64,
+        performance_tier: str | None = "mid",
         include_apk: bool = True,
         include_device: bool = True,
     ) -> None:
@@ -60,6 +61,8 @@ class AnalyzeDeviceSmokeTests(unittest.TestCase):
             payload["apk"] = {"sha256": apk_sha}
         if include_device:
             payload["device"] = {"serialSha256": device_sha}
+        if performance_tier is not None:
+            payload["performanceTier"] = performance_tier
         (root / "session.json").write_text(json.dumps(payload), encoding="utf-8")
 
     def _write_clean_smoke_set(self, root: Path) -> None:
@@ -76,8 +79,33 @@ class AnalyzeDeviceSmokeTests(unittest.TestCase):
             result = MODULE.analyze(root, "mid")
             self.assertEqual("PASSABLE_FOR_MANUAL_REVIEW", result["verdict"])
             self.assertEqual([], result["blockers"])
+            self.assertEqual("MID", result["sessionPerformanceTier"])
             self.assertAlmostEqual(4.0, result["restartPssGrowthPercent"], places=2)
             self.assertFalse(result["verified"])
+
+    def test_missing_or_invalid_performance_tier_binding_blocks(self):
+        cases = (None, "", "ultra")
+        for performance_tier in cases:
+            with self.subTest(performance_tier=performance_tier), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                self._session(root, performance_tier=performance_tier)
+                self._write_clean_smoke_set(root)
+                result = MODULE.analyze(root, "mid")
+                self.assertEqual("BLOCKED", result["verdict"])
+                self.assertIn("session: missing or invalid performanceTier binding", result["blockers"])
+
+    def test_requested_tier_must_match_capture_session_tier(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._session(root, performance_tier="mid")
+            self._write_clean_smoke_set(root)
+
+            result = MODULE.analyze(root, "low")
+            self.assertEqual("BLOCKED", result["verdict"])
+            self.assertIn(
+                "session: performanceTier mismatch (captured=MID requested=LOW)",
+                result["blockers"],
+            )
 
     def test_smoke_blocks_memory_growth_frame_budget_thermal_and_red_flags(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -107,7 +135,7 @@ class AnalyzeDeviceSmokeTests(unittest.TestCase):
     def test_missing_required_checkpoint_blocks(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            self._session(root)
+            self._session(root, performance_tier="low")
             self._write_checkpoint(root, "smoke-cold-start", pss_kib=500 * 1024, p95=20, p99=25)
             result = MODULE.analyze(root, "low")
             self.assertEqual("BLOCKED", result["verdict"])
@@ -116,7 +144,7 @@ class AnalyzeDeviceSmokeTests(unittest.TestCase):
     def test_checkpoint_fingerprint_mismatch_blocks(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            self._session(root)
+            self._session(root, performance_tier="low")
             for label in MODULE.REQUIRED_LABELS:
                 self._write_checkpoint(
                     root,
