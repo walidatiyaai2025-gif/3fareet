@@ -36,7 +36,8 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
             "material.GetTexture(propertyName)",
             "RivalProductionPolicy.MeetsProductionFloor",
             "RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)",
-            "RivalImportedLodResolver.Resolve(renderer, sourceModel.transform, signature)",
+            "RivalImportedLodResolver.ResolveImportedMeshesOrThrow(sourcePath, sourceModel, signature)",
+            "RivalImportedLodResolver.ResolveImportedMaterialsOrThrow(sourcePath, sourceModel, signature)",
             "AFAREET_UART004_SOURCE_PREFLIGHT_OK",
             "AFAREET_UART004_SOURCE_PREFLIGHT_ALL_OK",
         )
@@ -53,18 +54,25 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
         for token in forbidden:
             self.assertNotIn(token, source)
 
-    def test_flattened_unity_obj_lod_resolution_uses_exact_authored_source_signature(self):
+    def test_flattened_unity_obj_resolution_uses_mesh_subassets_and_exact_source_signature(self):
         resolver = RESOLVER_PATH.read_text(encoding="utf-8")
         required = (
+            "using UnityEditor;",
             "File.ReadLines(sourcePath)",
             'line.StartsWith("o ", StringComparison.Ordinal)',
+            'line.StartsWith("usemtl ", StringComparison.Ordinal)',
             'line.StartsWith("f ", StringComparison.Ordinal)',
             "triangles[currentLod] += vertices - 2",
+            "MaterialNames",
+            "AssetDatabase.LoadAllAssetsAtPath(sourcePath)",
+            "ResolveImportedMeshesOrThrow",
+            "ResolveImportedMaterialsOrThrow",
             "ResolveLodFromName(current.name)",
-            "ResolveLodFromName(mesh == null ? string.Empty : mesh.name)",
+            "ResolveLodFromName(mesh.name)",
             "var meshTriangles = TriangleCount(mesh)",
             "meshTriangles != signature.Triangles[lod]",
             "source triangle signatures are ambiguous",
+            "DescribeImportedTopology",
         )
         for token in required:
             self.assertIn(token, resolver)
@@ -74,16 +82,17 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
         self.assertNotIn("MeetsProductionFloor", resolver)
         self.assertNotIn("MinimumTriangles[lod] <=", resolver)
         self.assertNotIn("MaximumTriangles[lod] >=", resolver)
+        self.assertNotIn("new Mesh(", resolver)
+        self.assertNotIn("GameObject.CreatePrimitive", resolver)
 
-    def test_preflight_and_stager_use_the_same_shared_resolver(self):
+    def test_preflight_and_stager_use_the_same_shared_subasset_resolver(self):
         preflight = PREFLIGHT_PATH.read_text(encoding="utf-8")
         stager = STAGER_PATH.read_text(encoding="utf-8")
-        self.assertIn("RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)", preflight)
-        self.assertIn("RivalImportedLodResolver.Resolve(renderer, sourceModel.transform, signature)", preflight)
-        self.assertIn("RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)", stager)
-        self.assertIn("RivalImportedLodResolver.Resolve(renderer, instance.transform, signature)", stager)
-        self.assertIn("resolver=transform-or-mesh-name-or-exact-source-triangle-signature", preflight)
-        self.assertIn("resolver=transform-or-mesh-name-or-exact-source-triangle-signature", stager)
+        for source in (preflight, stager):
+            self.assertIn("RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)", source)
+            self.assertIn("RivalImportedLodResolver.ResolveImportedMeshesOrThrow(sourcePath, sourceModel, signature)", source)
+            self.assertIn("RivalImportedLodResolver.ResolveImportedMaterialsOrThrow(sourcePath, sourceModel, signature)", source)
+            self.assertIn("resolver=imported-mesh-subassets+exact-source-signature", source)
 
     def test_full_visual_stack_runs_all_preflights_before_first_mutating_stage(self):
         source = STACK_PATH.read_text(encoding="utf-8")
