@@ -23,6 +23,7 @@ namespace Afareet.Race
 
         private readonly List<ArcadeCarController> registeredRivals = new();
         private readonly List<RacerRuntime> racers = new();
+        private readonly AsphaltShardTrapRuntime asphaltShardTraps = new();
         private ArcadeCarController player;
         private TrackRuntime track;
         private RaceRoundController round;
@@ -69,6 +70,7 @@ namespace Afareet.Race
             player = playerCar;
             track = runtimeTrack;
             racers.Clear();
+            asphaltShardTraps.ResetRace();
             powerUpRuntime = null;
             powerUpRuntimeDirty = true;
             nextPowerUpDecisionRaceTime = 0d;
@@ -184,7 +186,12 @@ namespace Afareet.Race
                 raceTimeSeconds);
 
             if (result.Status == PowerUpRuntimeUseStatus.Used)
-                ApplyPowerUpDriveModifiers(raceTimeSeconds);
+            {
+                if (kind == PowerUpKind.AsphaltShard)
+                    DeployAsphaltShardTrap(source, raceTimeSeconds);
+                else
+                    ApplyPowerUpDriveModifiers(raceTimeSeconds);
+            }
 
             return result;
         }
@@ -249,12 +256,21 @@ namespace Afareet.Race
                 incomingHostilePressure: incomingHostilePressure,
                 elapsedRaceSeconds: elapsedRaceSeconds);
 
-            return powerUpRuntime.ExecuteAiDecision(
+            var execution = powerUpRuntime.ExecuteAiDecision(
                 source.RacerId,
                 snapshot,
                 targetAhead?.RacerId,
                 chaserBehind?.RacerId,
                 elapsedRaceSeconds);
+
+            if (execution?.UseResult != null &&
+                execution.UseResult.Status == PowerUpRuntimeUseStatus.Used &&
+                execution.UseResult.Kind == PowerUpKind.AsphaltShard)
+            {
+                DeployAsphaltShardTrap(source, elapsedRaceSeconds);
+            }
+
+            return execution;
         }
 
         private bool CanRacerUsePowerUp(
@@ -277,7 +293,7 @@ namespace Afareet.Race
 
             var raceTimeSeconds = Math.Max(0d, RaceTime);
             var tickResults = powerUpRuntime.TickAll(raceTimeSeconds);
-            var driveProjectionDirty = false;
+            var driveProjectionDirty = TickAsphaltShardTraps(raceTimeSeconds);
             for (var i = 0; i < tickResults.Count; i++)
             {
                 if (tickResults[i].ExpiredEffectCount > 0)
@@ -296,8 +312,12 @@ namespace Afareet.Race
                     if (ai == null) continue;
 
                     var execution = ai.EvaluateBoundPowerUpDecision();
-                    if (execution?.UseResult != null && execution.UseResult.Status == PowerUpRuntimeUseStatus.Used)
+                    if (execution?.UseResult != null &&
+                        execution.UseResult.Status == PowerUpRuntimeUseStatus.Used &&
+                        execution.UseResult.Kind != PowerUpKind.AsphaltShard)
+                    {
                         driveProjectionDirty = true;
+                    }
                 }
             }
 
@@ -360,6 +380,7 @@ namespace Afareet.Race
             powerUpRuntime = new PowerUpRaceRuntime(
                 PowerUpRuntimeDefaults.CreatePrototypeRuleset(),
                 registrations);
+            asphaltShardTraps.ResetRace();
             powerUpRuntimeDirty = false;
             nextPowerUpDecisionRaceTime = 0d;
             ResetPowerUpDriveModifiers();
@@ -370,6 +391,62 @@ namespace Afareet.Race
                 if (ai != null)
                     ai.BindPowerUpRuntime(this, racers[i].RacerId);
             }
+        }
+
+        private void DeployAsphaltShardTrap(RacerRuntime source, double raceTimeSeconds)
+        {
+            if (source?.Car == null) return;
+            var transform = source.Car.transform;
+            var deploymentPosition = transform.position -
+                                     transform.forward * (float)AsphaltShardTrapRuntime.PlacementBehindVehicleMeters;
+            var deployment = asphaltShardTraps.Deploy(
+                source.RacerId,
+                ToTrapPoint(deploymentPosition),
+                raceTimeSeconds);
+
+            Debug.Log(
+                $"AFAREET_ASPHALT_SHARD_TRAP_DEPLOYED sequence={deployment.SequenceId} source={deployment.SourceRacerId} " +
+                $"armedAt={deployment.ArmedAtSeconds:0.00} expiresAt={deployment.ExpiresAtSeconds:0.00} " +
+                $"radius={deployment.TriggerRadiusMeters:0.00} visualAsset=external:EXT-ASSET-005");
+        }
+
+        private bool TickAsphaltShardTraps(double raceTimeSeconds)
+        {
+            asphaltShardTraps.Tick(raceTimeSeconds);
+            var driveProjectionDirty = false;
+            for (var i = 0; i < racers.Count; i++)
+            {
+                var runtime = racers[i];
+                if (runtime.Car == null || runtime.Lap.IsFinished) continue;
+                if (!asphaltShardTraps.TryTrigger(
+                        runtime.RacerId,
+                        ToTrapPoint(runtime.Car.transform.position),
+                        raceTimeSeconds,
+                        out var deployment))
+                {
+                    continue;
+                }
+
+                var result = powerUpRuntime.TryApplyDeployedEffect(
+                    deployment.SourceRacerId,
+                    runtime.RacerId,
+                    PowerUpKind.AsphaltShard,
+                    raceTimeSeconds);
+                if (result.Status == PowerUpRuntimeUseStatus.Used)
+                    driveProjectionDirty = true;
+
+                Debug.Log(
+                    $"AFAREET_ASPHALT_SHARD_TRAP_TRIGGERED sequence={deployment.SequenceId} " +
+                    $"source={deployment.SourceRacerId} target={runtime.RacerId} status={result.Status} " +
+                    $"oneShot=true sourceImmune=true");
+            }
+
+            return driveProjectionDirty;
+        }
+
+        private static AsphaltShardTrapPoint ToTrapPoint(Vector3 position)
+        {
+            return new AsphaltShardTrapPoint(position.x, position.y, position.z);
         }
 
         private void ApplyPowerUpDriveModifiers(double raceTimeSeconds)
@@ -399,7 +476,7 @@ namespace Afareet.Race
 
         private string ResolvePlayerPowerUpTarget(PowerUpKind kind)
         {
-            if (kind != PowerUpKind.AsphaltShard && kind != PowerUpKind.TrafficCurse)
+            if (kind != PowerUpKind.TrafficCurse)
                 return null;
 
             var source = PlayerRuntime;
@@ -417,15 +494,10 @@ namespace Afareet.Race
                 }
             }
 
-            if (sourceIndex < 0)
+            if (sourceIndex <= 0)
                 return null;
 
-            if (kind == PowerUpKind.TrafficCurse)
-                return sourceIndex > 0 ? ranked[sourceIndex - 1].Progress.RacerId : null;
-
-            return sourceIndex + 1 < ranked.Count
-                ? ranked[sourceIndex + 1].Progress.RacerId
-                : null;
+            return ranked[sourceIndex - 1].Progress.RacerId;
         }
 
         private void ResetPowerUpDriveModifiers()
@@ -471,6 +543,7 @@ namespace Afareet.Race
             racersReleased = false;
             nextPowerUpDecisionRaceTime = 0d;
             playerFinishRewardSnapshot = null;
+            asphaltShardTraps.ResetRace();
             if (powerUpRuntime != null)
                 powerUpRuntime.ResetRace();
             ResetPowerUpDriveModifiers();
