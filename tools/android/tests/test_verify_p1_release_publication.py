@@ -136,7 +136,10 @@ class VerifyP1ReleasePublicationTests(unittest.TestCase):
             chain = build_publication_chain(root)
             generic_review = root / "generic-review"
             GATE_FIXTURE.FIXTURE.EXPORT.export_device_evidence.export_bundle(chain["session"], generic_review)
-            with self.assertRaises(MODULE.P1PublicationPreflightError):
+            with self.assertRaisesRegex(
+                MODULE.p1_lineage_gate_readiness.P1LineageGateError,
+                "P1 review bundle verification failed",
+            ):
                 MODULE.verify_p1_publication(
                     candidate_manifest_path=chain["candidate"],
                     apk_path=chain["apk"],
