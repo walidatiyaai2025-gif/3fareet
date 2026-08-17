@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "state": "P1_AUTHORITATIVE_OPERATOR_CHAIN",
+  "authoritativeForP1": true,
+  "genericPublicationVerifierSufficientForP1": false,
+  "automationMayPublish": false,
+  "automationMayMarkVerified": false,
+  "fixedRegisterSize": 65,
+  "orderedStages": [
+    {
+      "order": 1,
+      "id": "UART003_PORTABLE_HERO_INTAKE",
+      "tool": "tools/android/validate_hero_asset_intake.py",
+      "execution": "read-only",
+      "humanBoundary": false
+    },
+    {
+      "order": 2,
+      "id": "P1_VISUAL_SOURCE_READINESS",
+      "tool": "tools/android/p1_visual_source_readiness.py",
+      "execution": "read-only",
+      "humanBoundary": false
+    },
+    {
+      "order": 3,
+      "id": "P1_LICENSED_STAGING_READINESS",
+      "tool": "tools/android/p1_licensed_staging_readiness.py",
+      "execution": "read-only",
+      "humanBoundary": false
+    },
+    {
+      "order": 4,
+      "id": "UART003_NATIVE_WINDOWS_INTAKE",
+      "tool": "tools/android/validate_hero_asset_intake_windows.ps1",
+      "execution": "read-only",
+      "humanBoundary": false
+    },
+    {
+      "order": 5,
+      "id": "P1_LICENSED_UNITY_STAGING",
+      "tool": "tools/android/stage_production_candidate_windows.ps1",
+      "execution": "licensed-unity-staging-only",
+      "humanBoundary": false
+    },
+    {
+      "order": 6,
+      "id": "P1_REVIEW_AND_COMMIT_STAGING_DELTA",
+      "tool": null,
+      "execution": "manual-review-and-git-commit",
+      "humanBoundary": true,
+      "requirements": [
+        "review licensed Unity staging output",
+        "commit only the approved unity_game/Assets staging delta",
+        "do not build a candidate from an unreviewed dirty worktree"
+      ]
+    },
+    {
+      "order": 7,
+      "id": "P1_STAGED_CANDIDATE",
+      "tool": "tools/android/run_p1_staged_candidate_windows.ps1",
+      "execution": "licensed-unity-candidate",
+      "humanBoundary": false,
+      "notes": [
+        "runner invokes verify_p1_staging_lineage_windows.ps1 before candidate generation",
+        "candidate must be a direct reviewed child of the staging-source SHA"
+      ]
+    },
+    {
+      "order": 8,
+      "id": "P1_DEVICE_SESSION_BINDING",
+      "tool": "tools/android/prepare_p1_candidate_device.py",
+      "execution": "physical-device-prepare",
+      "humanBoundary": false
+    },
+    {
+      "order": 9,
+      "id": "P1_PHYSICAL_DEVICE_EVIDENCE",
+      "tool": "tools/android/device_evidence.py",
+      "execution": "physical-device-capture-and-finish",
+      "humanBoundary": true,
+      "requirements": [
+        "capture the fixed 16 P1 checkpoints on the exact candidate APK",
+        "zero automated Fatal/ANR/native-fatal red flags",
+        "no emulator substitution for final P1 evidence"
+      ]
+    },
+    {
+      "order": 10,
+      "id": "P1_SANITIZED_REVIEW_EXPORT",
+      "tool": "tools/android/export_p1_device_evidence.py",
+      "execution": "read-only-export",
+      "humanBoundary": false
+    },
+    {
+      "order": 11,
+      "id": "P1_REVIEW_LINEAGE_VERIFICATION",
+      "tool": "tools/android/verify_p1_device_review_bundle.py",
+      "execution": "read-only",
+      "humanBoundary": false
+    },
+    {
+      "order": 12,
+      "id": "P1_LINEAGE_GATE_READINESS",
+      "tool": "tools/android/p1_lineage_gate_readiness.py",
+      "execution": "manual-approval-readiness",
+      "humanBoundary": true,
+      "requirements": [
+        "all five approval records are explicit human decisions",
+        "UPER-010 remains the final manual approval",
+        "readiness may reach READY_FOR_RELEASE_REVIEW but never VERIFIED"
+      ]
+    },
+    {
+      "order": 13,
+      "id": "P1_PUBLICATION_PREFLIGHT",
+      "tool": "tools/android/verify_p1_release_publication.py",
+      "execution": "read-only-eligibility",
+      "humanBoundary": true,
+      "requirements": [
+        "successful preflight is eligibility for an explicit release-owner action only",
+        "publicationPerformed remains false",
+        "verified remains false until publication evidence is recorded"
+      ]
+    }
+  ]
+}
