@@ -139,6 +139,7 @@ $unityArgs = @(
     '-projectPath', ('"{0}"' -f $ProjectPath),
     '-executeMethod', 'Afareet.Editor.P1ProductionCandidateStagingHandoff.StageForCommit',
     '-afareetHeroSource', ('"{0}"' -f $HeroSource),
+    '-afareetGitSha', $gitSha,
     '-logFile', ('"{0}"' -f $LogPath)
 )
 $unityProcess = Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru
@@ -158,6 +159,75 @@ if (-not (Select-String -Path $LogPath -SimpleMatch 'AFAREET_P1_STAGING_HANDOFF_
 if (-not (Test-Path -LiteralPath $ReportPath -PathType Leaf) -or (Get-Item $ReportPath).Length -le 0) {
     Fail "Unity staging handoff did not produce a non-empty report: $ReportPath"
 }
+
+try {
+    $handoffReport = Get-Content -Raw -LiteralPath $ReportPath | ConvertFrom-Json
+} catch {
+    Fail "Unity staging handoff report is not valid JSON: $($_.Exception.Message)"
+}
+if ($handoffReport.schemaVersion -ne 2) {
+    Fail "Unity staging handoff report schema mismatch. expected=2 actual=$($handoffReport.schemaVersion)"
+}
+if ($handoffReport.gitSha -ne $gitSha) {
+    Fail "Unity staging handoff report Git SHA mismatch. expected=$gitSha actual=$($handoffReport.gitSha)"
+}
+if ($handoffReport.heroSource -ne $HeroSource) {
+    Fail "Unity staging handoff report Hero source mismatch. expected=$HeroSource actual=$($handoffReport.heroSource)"
+}
+if ($handoffReport.state -ne 'STAGED_FOR_COMMIT_NOT_CANDIDATE' -or
+    $handoffReport.verified -ne $false -or
+    $handoffReport.runtimeVerified -ne $false -or
+    $handoffReport.ownerAccepted -ne $false -or
+    $handoffReport.publicationEligible -ne $false -or
+    $handoffReport.candidateBuildStarted -ne $false) {
+    Fail "Unity staging handoff report crossed the staging-only verification/publication boundary."
+}
+if ([string]::IsNullOrWhiteSpace([string]$handoffReport.heroSourceGuid) -or
+    [string]::IsNullOrWhiteSpace([string]$handoffReport.heroPrefabGuid)) {
+    Fail "Unity staging handoff report is missing UART-003 source/prefab GUID provenance."
+}
+
+$expectedTasks = @('UART-003', 'UART-004', 'UART-005', 'UART-006', 'UART-007', 'URAC-011')
+$coveredTasks = @($handoffReport.coveredTasks)
+if ($coveredTasks.Count -ne $expectedTasks.Count) {
+    Fail "Unity staging handoff report must cover exactly six visual/runtime tasks. actual=$($coveredTasks.Count)"
+}
+foreach ($taskId in $expectedTasks) {
+    if ($coveredTasks -notcontains $taskId) {
+        Fail "Unity staging handoff report coveredTasks is missing $taskId."
+    }
+}
+
+$taskEvidence = @($handoffReport.taskEvidence)
+if ($taskEvidence.Count -ne $expectedTasks.Count) {
+    Fail "Unity staging handoff report must contain exactly six task evidence records. actual=$($taskEvidence.Count)"
+}
+$expectedStates = @{
+    'UART-003' = 'LICENSED_UNITY_STAGE_AND_BIND_OK'
+    'UART-004' = 'LICENSED_UNITY_STAGE_AND_BIND_OK'
+    'UART-005' = 'LICENSED_UNITY_IMPORT_STAGE_OK'
+    'UART-006' = 'LICENSED_UNITY_IMPORT_STAGE_OK'
+    'UART-007' = 'LICENSED_UNITY_IMPORT_STAGE_OK'
+    'URAC-011' = 'LICENSED_UNITY_TRACKED_LAYOUT_IMPORT_OK'
+}
+foreach ($taskId in $expectedTasks) {
+    $records = @($taskEvidence | Where-Object { $_.taskId -eq $taskId })
+    if ($records.Count -ne 1) {
+        Fail "Unity staging handoff report requires exactly one evidence record for $taskId. actual=$($records.Count)"
+    }
+    $record = $records[0]
+    if ($record.state -ne $expectedStates[$taskId]) {
+        Fail "Unity staging handoff evidence state mismatch for $taskId. expected=$($expectedStates[$taskId]) actual=$($record.state)"
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$record.sourceEvidence) -or
+        [string]::IsNullOrWhiteSpace([string]$record.runtimeEvidence)) {
+        Fail "Unity staging handoff evidence is incomplete for $taskId."
+    }
+    if ($record.verified -ne $false -or $record.runtimeVerified -ne $false -or $record.ownerAccepted -ne $false) {
+        Fail "Unity staging handoff task evidence must remain unverified/unaccepted for $taskId."
+    }
+}
+Write-Host "AFAREET_P1_STAGING_REPORT_BINDING_OK gitSha=$gitSha tasks=6 verified=false runtimeVerified=false ownerAccepted=false"
 
 $changes = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
 if ($LASTEXITCODE -ne 0) {
