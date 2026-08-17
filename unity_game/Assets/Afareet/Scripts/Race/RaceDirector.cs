@@ -488,8 +488,14 @@ namespace Afareet.Race
             var body = car.GetComponent<Rigidbody>();
             if (body != null)
             {
-                body.linearVelocity = Vector3.zero;
-                body.angularVelocity = Vector3.zero;
+                // FreezeRacer is intentionally idempotent: Configure, StartRace and RestartRace
+                // can all request a freeze while the body is already kinematic. Unity 6 rejects
+                // velocity writes to kinematic bodies, so only clear motion while still dynamic.
+                if (!body.isKinematic)
+                {
+                    body.linearVelocity = Vector3.zero;
+                    body.angularVelocity = Vector3.zero;
+                }
                 body.isKinematic = true;
             }
             var ai = car.GetComponent<AiRacer>();
@@ -512,11 +518,24 @@ namespace Afareet.Race
             for (var i = 0; i < racers.Count; i++)
             {
                 var runtime = racers[i];
-                runtime.Car.transform.SetPositionAndRotation(track.GridPosition(runtime.StableOrder), rotation);
+                var targetPosition = track.GridPosition(runtime.StableOrder);
                 var body = runtime.Car.GetComponent<Rigidbody>();
-                if (body == null) continue;
-                body.linearVelocity = Vector3.zero;
-                body.angularVelocity = Vector3.zero;
+                if (body == null)
+                {
+                    runtime.Car.transform.SetPositionAndRotation(targetPosition, rotation);
+                    continue;
+                }
+
+                // Configure/Restart intentionally call this after FreezeRacers. Preserve the
+                // kinematic state and move the Rigidbody pose directly; only dynamic bodies may
+                // receive velocity writes in Unity 6.
+                if (!body.isKinematic)
+                {
+                    body.linearVelocity = Vector3.zero;
+                    body.angularVelocity = Vector3.zero;
+                }
+                body.position = targetPosition;
+                body.rotation = rotation;
             }
         }
 
