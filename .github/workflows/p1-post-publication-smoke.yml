@@ -1,0 +1,73 @@
+name: P1 Post-Publication Smoke Reconciliation
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/prepare_p1_post_publication_smoke.py'
+      - 'tools/android/verify_p1_post_publication_smoke.py'
+      - 'tools/android/analyze_device_smoke.py'
+      - 'tools/android/device_evidence.py'
+      - 'tools/android/verify_p1_publication_receipt.py'
+      - 'tools/android/tests/test_p1_post_publication_smoke.py'
+      - 'tools/android/tests/test_analyze_device_smoke.py'
+      - 'docs/releases/LAST_VERIFIED_APK.md'
+      - '.github/workflows/p1-post-publication-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  post-publication-smoke:
+    name: P1 published-APK smoke lineage contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Python syntax and CLI contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/android/prepare_p1_post_publication_smoke.py \
+            tools/android/verify_p1_post_publication_smoke.py \
+            tools/android/analyze_device_smoke.py
+          python3 tools/android/prepare_p1_post_publication_smoke.py --help >/dev/null
+          python3 tools/android/verify_p1_post_publication_smoke.py --help >/dev/null
+
+      - name: Execute post-publication lineage regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_post_publication_smoke.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_analyze_device_smoke.py' -v
+
+      - name: Enforce read-only closure tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from tools.android.p1_safety_sentinel import scan_python
+
+          paths = (
+              'tools/android/prepare_p1_post_publication_smoke.py',
+              'tools/android/verify_p1_post_publication_smoke.py',
+          )
+          violations = []
+          for relative in paths:
+              violations.extend(scan_python(Path(relative), relative))
+          if violations:
+              for violation in violations:
+                  print(f'AFAREET_P1_POST_PUBLICATION_SAFETY_VIOLATION {violation.render()}')
+              raise SystemExit(1)
+          print('AFAREET_P1_POST_PUBLICATION_SAFETY_OK publicationPerformedByTool=false verified=false')
+          PY
+
+      - name: Last Verified policy points to Step 24 closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'prepare_p1_post_publication_smoke.py' docs/releases/LAST_VERIFIED_APK.md >/dev/null
+          grep -F 'verify_p1_post_publication_smoke.py' docs/releases/LAST_VERIFIED_APK.md >/dev/null
+          grep -F 'P1_POST_PUBLICATION_SMOKE_PASSABLE_FOR_HUMAN_CLOSURE_REVIEW' docs/releases/LAST_VERIFIED_APK.md >/dev/null
