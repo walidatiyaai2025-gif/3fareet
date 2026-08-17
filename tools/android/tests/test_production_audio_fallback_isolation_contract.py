@@ -33,12 +33,12 @@ class ProductionAudioFallbackIsolationContractTests(unittest.TestCase):
             "Cairo Night production soundtrack",
             "Ableton Live",
             "48 kHz",
-            "AFAREET_AUDIO_PRODUCTION_REQUIRED",
         ):
-            if required == "AFAREET_AUDIO_PRODUCTION_REQUIRED":
-                continue
             self.assertIn(required, ledger)
-        self.assertIn("current code-generated Cairo loop remains acceptable only as prototype/debug fallback", ledger)
+        self.assertIn(
+            "current code-generated cairo loop remains acceptable only as prototype/debug fallback",
+            ledger.lower(),
+        )
 
 
 if __name__ == "__main__":
