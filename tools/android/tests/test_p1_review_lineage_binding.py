@@ -27,7 +27,16 @@ VERIFY = load("verify_p1_device_review_bundle")
 STAGING_SHA = "a" * 40
 CANDIDATE_SHA = "b" * 40
 APK_SHA = "c" * 64
+HANDOFF_PACKET_SHA = "d" * 64
+NATIVE_HANDOFF_VERIFICATION_SHA = "e" * 64
+OPERATOR_CHAIN_SHA = "f" * 64
 TASKS = ["UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"]
+AUTHORIZATION = {
+    "authorizationSourceGitSha": STAGING_SHA,
+    "handoffPacketSha256": HANDOFF_PACKET_SHA,
+    "nativeHandoffVerificationSha256": NATIVE_HANDOFF_VERIFICATION_SHA,
+    "operatorChainSha256": OPERATOR_CHAIN_SHA,
+}
 SERIAL = "ADB-P1-SECRET-SERIAL-98765"
 SERIAL_SHA = hashlib.sha256(SERIAL.encode("utf-8")).hexdigest()
 
@@ -93,9 +102,13 @@ def build_session(root: Path, *, red_flags: int = 0) -> Path:
     write_json(
         staging,
         {
-            "schemaVersion": 2,
+            "schemaVersion": 3,
             "state": "STAGED_FOR_COMMIT_NOT_CANDIDATE",
             "gitSha": STAGING_SHA,
+            "authorizationSourceGitSha": STAGING_SHA,
+            "handoffPacketSha256": HANDOFF_PACKET_SHA,
+            "nativeHandoffVerificationSha256": NATIVE_HANDOFF_VERIFICATION_SHA,
+            "operatorChainSha256": OPERATOR_CHAIN_SHA,
             "heroSource": "Assets/Afareet/ArtSource/Vehicles/HeroCar/AfareetKing.fbx",
             "coveredTasks": TASKS,
             "taskEvidence": task_evidence,
@@ -113,10 +126,12 @@ def build_session(root: Path, *, red_flags: int = 0) -> Path:
         {
             "schemaVersion": 1,
             "state": "STAGING_PARENT_BOUND_TO_CANDIDATE",
+            "stagingReportSchemaVersion": 3,
             "stagingSourceGitSha": STAGING_SHA,
             "candidateGitSha": CANDIDATE_SHA,
             "directParentGitSha": STAGING_SHA,
             "stagingReportSha256": sha256(staging),
+            "stagingAuthorization": dict(AUTHORIZATION),
             "coveredTasks": TASKS,
             "candidateCommitChangedPaths": [
                 "unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Production/PF_AfareetKing.prefab"
@@ -139,10 +154,11 @@ def build_session(root: Path, *, red_flags: int = 0) -> Path:
             "stagingSourceGitSha": STAGING_SHA,
             "candidateGitSha": CANDIDATE_SHA,
             "directParentGitSha": STAGING_SHA,
+            "stagingAuthorization": dict(AUTHORIZATION),
             "stagingReport": {
                 "path": f"C:/private/{SERIAL}/p1-staging-handoff.json",
                 "sha256": sha256(staging),
-                "schemaVersion": 2,
+                "schemaVersion": 3,
             },
             "stagingLineage": {
                 "path": f"C:/private/{SERIAL}/p1-staging-lineage.json",
@@ -198,6 +214,7 @@ def build_session(root: Path, *, red_flags: int = 0) -> Path:
             "directParentGitSha": STAGING_SHA,
             "apkSha256": APK_SHA,
             "coveredTasks": TASKS,
+            "stagingAuthorization": dict(AUTHORIZATION),
             "files": {
                 "p1Manifest": {"fileName": "p1-staged-candidate-manifest.json", "sha256": file_hashes["p1Manifest"]},
                 "stagingReport": {"fileName": "p1-staging-handoff.json", "sha256": file_hashes["stagingReport"]},
@@ -264,6 +281,17 @@ def build_session(root: Path, *, red_flags: int = 0) -> Path:
     return session
 
 
+def rewrite_manifest_for_summary(bundle: Path, summary_path: Path) -> dict:
+    manifest_path = bundle / "review-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    record = EXPORT.export_device_evidence._content_record(summary_path)
+    manifest["contentFiles"]["p1-review-lineage.json"] = record
+    manifest["p1Lineage"]["sha256"] = record["sha256"]
+    manifest["contentSetSha256"] = EXPORT.export_device_evidence._content_set_sha256(manifest["contentFiles"])
+    write_json(manifest_path, manifest)
+    return manifest
+
+
 class P1ReviewLineageBindingTests(unittest.TestCase):
     def test_valid_p1_export_remains_generic_verifiable_and_is_p1_verifiable(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -272,8 +300,10 @@ class P1ReviewLineageBindingTests(unittest.TestCase):
             bundle = root / "review"
             manifest = EXPORT.export_p1_bundle(session, bundle)
 
-            self.assertEqual("p1-final-gate-lineage-v1", manifest["reviewProfile"])
+            self.assertEqual("p1-final-gate-lineage-v2", manifest["reviewProfile"])
+            self.assertEqual(2, manifest["p1Lineage"]["schemaVersion"])
             self.assertEqual("P1_REVIEW_LINEAGE_ATTACHED", manifest["p1Lineage"]["state"])
+            self.assertEqual(AUTHORIZATION, manifest["p1Lineage"]["stagingAuthorization"])
             generic = GENERIC_VERIFY.verify_bundle(bundle, expected_git_sha=CANDIDATE_SHA, expected_apk_sha=APK_SHA)
             p1 = VERIFY.verify_p1_bundle(
                 bundle,
@@ -285,6 +315,7 @@ class P1ReviewLineageBindingTests(unittest.TestCase):
             self.assertEqual(STAGING_SHA, p1["stagingSourceGitSha"])
             self.assertEqual(CANDIDATE_SHA, p1["candidateGitSha"])
             self.assertEqual(TASKS, p1["coveredTasks"])
+            self.assertEqual(AUTHORIZATION, p1["stagingAuthorization"])
             self.assertEqual("mid", p1["performanceTier"])
             self.assertFalse(p1["verified"])
             self.assertFalse(p1["runtimeVerified"])
@@ -298,7 +329,11 @@ class P1ReviewLineageBindingTests(unittest.TestCase):
             bundle = root / "review"
             EXPORT.export_p1_bundle(session, bundle)
 
-            self.assertTrue((bundle / "p1-review-lineage.json").is_file())
+            summary_path = bundle / "p1-review-lineage.json"
+            self.assertTrue(summary_path.is_file())
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            self.assertEqual(AUTHORIZATION, summary["stagingAuthorization"])
+            self.assertTrue(summary["privacy"]["authorizationContainsOnlyDigests"])
             for forbidden in (
                 "p1-staged-candidate-manifest.json",
                 "p1-staging-handoff.json",
@@ -309,8 +344,10 @@ class P1ReviewLineageBindingTests(unittest.TestCase):
                 self.assertFalse((bundle / forbidden).exists(), forbidden)
             for path in bundle.rglob("*"):
                 if path.is_file() and path.suffix.lower() in {".json", ".txt", ".md", ".csv", ".xml"}:
-                    self.assertNotIn(SERIAL, path.read_text(encoding="utf-8", errors="replace"))
-                    self.assertNotIn("C:/private/", path.read_text(encoding="utf-8", errors="replace"))
+                    text = path.read_text(encoding="utf-8", errors="replace")
+                    self.assertNotIn(SERIAL, text)
+                    self.assertNotIn("C:/private/", text)
+                    self.assertNotIn("Assets/private/", text)
 
     def test_bound_raw_p1_file_tamper_is_rejected_before_public_export(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -319,6 +356,18 @@ class P1ReviewLineageBindingTests(unittest.TestCase):
             staging = session / "p1-staging-handoff.json"
             staging.write_bytes(staging.read_bytes() + b"tamper")
             with self.assertRaisesRegex(EXPORT.P1EvidenceExportError, "provenance SHA mismatch"):
+                EXPORT.export_p1_bundle(session, root / "review")
+            self.assertFalse((root / "review").exists())
+
+    def test_raw_authorization_mismatch_is_rejected_before_public_export(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            session = build_session(root)
+            session_path = session / "session.json"
+            payload = json.loads(session_path.read_text(encoding="utf-8"))
+            payload["p1Lineage"]["stagingAuthorization"]["operatorChainSha256"] = "1" * 64
+            write_json(session_path, payload)
+            with self.assertRaisesRegex(EXPORT.P1EvidenceExportError, "authorization differs"):
                 EXPORT.export_p1_bundle(session, root / "review")
             self.assertFalse((root / "review").exists())
 
@@ -365,6 +414,36 @@ class P1ReviewLineageBindingTests(unittest.TestCase):
             with self.assertRaises(GENERIC_VERIFY.ReviewBundleVerificationError):
                 VERIFY.verify_p1_bundle(bundle)
 
+    def test_sanitized_authorization_tamper_is_rejected_even_after_content_hash_rewrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            session = build_session(root)
+            bundle = root / "review"
+            EXPORT.export_p1_bundle(session, bundle)
+
+            summary_path = bundle / "p1-review-lineage.json"
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summary["stagingAuthorization"]["operatorChainSha256"] = "1" * 64
+            write_json(summary_path, summary)
+            rewrite_manifest_for_summary(bundle, summary_path)
+
+            GENERIC_VERIFY.verify_bundle(bundle)
+            with self.assertRaisesRegex(VERIFY.P1ReviewBundleVerificationError, "authorization differs"):
+                VERIFY.verify_p1_bundle(bundle)
+
+    def test_legacy_review_profile_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            session = build_session(root)
+            bundle = root / "review"
+            EXPORT.export_p1_bundle(session, bundle)
+            manifest_path = bundle / "review-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["reviewProfile"] = "p1-final-gate-lineage-v1"
+            write_json(manifest_path, manifest)
+            with self.assertRaisesRegex(VERIFY.P1ReviewBundleVerificationError, "reviewProfile"):
+                VERIFY.verify_p1_bundle(bundle)
+
     def test_generic_review_bundle_without_p1_binding_is_rejected_by_p1_verifier(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -386,14 +465,7 @@ class P1ReviewLineageBindingTests(unittest.TestCase):
             summary["coveredTasks"] = TASKS + ["UPER-009"]
             summary["verified"] = True
             write_json(summary_path, summary)
-
-            manifest_path = bundle / "review-manifest.json"
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            record = EXPORT.export_device_evidence._content_record(summary_path)
-            manifest["contentFiles"]["p1-review-lineage.json"] = record
-            manifest["p1Lineage"]["sha256"] = record["sha256"]
-            manifest["contentSetSha256"] = EXPORT.export_device_evidence._content_set_sha256(manifest["contentFiles"])
-            write_json(manifest_path, manifest)
+            rewrite_manifest_for_summary(bundle, summary_path)
 
             GENERIC_VERIFY.verify_bundle(bundle)
             with self.assertRaises(VERIFY.P1ReviewBundleVerificationError):

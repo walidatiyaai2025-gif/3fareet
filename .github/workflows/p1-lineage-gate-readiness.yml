@@ -3,7 +3,10 @@ name: P1 Lineage Gate Readiness
 on:
   pull_request:
     paths:
+      - 'tools/android/export_p1_device_evidence.py'
+      - 'tools/android/verify_p1_device_review_bundle.py'
       - 'tools/android/p1_lineage_gate_readiness.py'
+      - 'tools/android/tests/test_p1_review_lineage_binding.py'
       - 'tools/android/tests/test_p1_lineage_gate_readiness.py'
       - '.github/workflows/p1-lineage-gate-readiness.yml'
   workflow_dispatch:

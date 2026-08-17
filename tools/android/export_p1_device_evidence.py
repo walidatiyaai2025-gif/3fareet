@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Export a P1 physical-device session as a sanitized lineage-bound review bundle.
+"""Export a P1 physical-device session as a sanitized authorization-bound review bundle.
 
 The generic exporter remains authoritative for checkpoint sanitization, privacy and candidate
-binding. This wrapper first validates the Step 11 P1 lineage files inside the raw session, then
-runs the generic export and adds only a sanitized SHA/fingerprint summary to the public bundle.
-Raw P1 source/staging manifests are never copied into the review bundle.
+binding. This wrapper validates the Step 20 authorization-bound P1 lineage inside the raw session,
+then runs the generic export and adds only a sanitized SHA/fingerprint summary to the public
+bundle. Raw P1 source/staging manifests and local paths are never copied into the review bundle.
 """
 
 from __future__ import annotations
@@ -26,8 +26,14 @@ import verify_device_review_bundle
 
 P1_REVIEW_LINEAGE_FILE = "p1-review-lineage.json"
 P1_REVIEW_STATE = "SANITIZED_P1_REVIEW_LINEAGE"
-P1_REVIEW_PROFILE = "p1-final-gate-lineage-v1"
+P1_REVIEW_PROFILE = "p1-final-gate-lineage-v2"
 EXPECTED_TASKS = list(prepare_p1_candidate_device.EXPECTED_TASKS)
+AUTHORIZATION_KEYS = (
+    "authorizationSourceGitSha",
+    "handoffPacketSha256",
+    "nativeHandoffVerificationSha256",
+    "operatorChainSha256",
+)
 EXPECTED_TASK_STATES = {
     "UART-003": "LICENSED_UNITY_STAGE_AND_BIND_OK",
     "UART-004": "LICENSED_UNITY_STAGE_AND_BIND_OK",
@@ -82,6 +88,46 @@ def _sha256(value: Any, label: str) -> str:
         return prepare_p1_candidate_device._sha256(value, label)
     except prepare_p1_candidate_device.P1CandidatePrepareError as exc:
         raise P1EvidenceExportError(str(exc)) from exc
+
+
+def _authorization(value: Any, label: str) -> dict[str, str]:
+    if not isinstance(value, dict) or set(value) != set(AUTHORIZATION_KEYS):
+        raise P1EvidenceExportError(
+            f"{label} must contain exactly the four staging authorization fingerprints"
+        )
+    return {
+        "authorizationSourceGitSha": _sha40(
+            value.get("authorizationSourceGitSha"), f"{label}.authorizationSourceGitSha"
+        ),
+        "handoffPacketSha256": _sha256(
+            value.get("handoffPacketSha256"), f"{label}.handoffPacketSha256"
+        ),
+        "nativeHandoffVerificationSha256": _sha256(
+            value.get("nativeHandoffVerificationSha256"),
+            f"{label}.nativeHandoffVerificationSha256",
+        ),
+        "operatorChainSha256": _sha256(
+            value.get("operatorChainSha256"), f"{label}.operatorChainSha256"
+        ),
+    }
+
+
+def _authorization_from_staging(payload: dict[str, Any], label: str) -> dict[str, str]:
+    return {
+        "authorizationSourceGitSha": _sha40(
+            payload.get("authorizationSourceGitSha"), f"{label}.authorizationSourceGitSha"
+        ),
+        "handoffPacketSha256": _sha256(
+            payload.get("handoffPacketSha256"), f"{label}.handoffPacketSha256"
+        ),
+        "nativeHandoffVerificationSha256": _sha256(
+            payload.get("nativeHandoffVerificationSha256"),
+            f"{label}.nativeHandoffVerificationSha256",
+        ),
+        "operatorChainSha256": _sha256(
+            payload.get("operatorChainSha256"), f"{label}.operatorChainSha256"
+        ),
+    }
 
 
 def _require_tasks(value: Any, label: str) -> list[str]:
@@ -153,6 +199,13 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     candidate_sha = _sha40(p1.get("candidateGitSha"), "session.p1Lineage.candidateGitSha")
     direct_parent_sha = _sha40(p1.get("directParentGitSha"), "session.p1Lineage.directParentGitSha")
     apk_sha = _sha256(p1.get("apkSha256"), "session.p1Lineage.apkSha256")
+    staging_authorization = _authorization(
+        p1.get("stagingAuthorization"), "session.p1Lineage.stagingAuthorization"
+    )
+    if staging_authorization["authorizationSourceGitSha"] != staging_source_sha:
+        raise P1EvidenceExportError(
+            "session.p1Lineage staging authorization source SHA differs from stagingSourceGitSha"
+        )
     if candidate_sha == staging_source_sha or direct_parent_sha != staging_source_sha:
         raise P1EvidenceExportError(
             f"P1 lineage relation is invalid: stagingSource={staging_source_sha} "
@@ -230,9 +283,13 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
         raise P1EvidenceExportError("Bound P1 manifest direct-parent SHA differs from session.p1Lineage")
     if _sha256(envelope.get("apkSha256"), "boundP1Manifest.apkSha256") != apk_sha:
         raise P1EvidenceExportError("Bound P1 manifest APK SHA differs from session.p1Lineage")
+    if _authorization(envelope.get("stagingAuthorization"), "boundP1Manifest.stagingAuthorization") != staging_authorization:
+        raise P1EvidenceExportError(
+            "Bound P1 manifest staging authorization differs from session.p1Lineage"
+        )
 
     envelope_expectations = {
-        "stagingReport": ("stagingReport", 2, None),
+        "stagingReport": ("stagingReport", 3, None),
         "stagingLineage": ("stagingLineage", None, prepare_p1_candidate_device.P1_LINEAGE_STATE),
         "localCandidateManifest": ("candidateManifest", None, None),
     }
@@ -252,10 +309,14 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     staging = _read_json(
         session_dir / REQUIRED_SESSION_FILES["stagingReport"], "Bound P1 staging report"
     )
-    if staging.get("schemaVersion") != 2 or staging.get("state") != prepare_p1_candidate_device.STAGING_STATE:
-        raise P1EvidenceExportError("Bound P1 staging report has an unsupported schema/state")
+    if staging.get("schemaVersion") != 3 or staging.get("state") != prepare_p1_candidate_device.STAGING_STATE:
+        raise P1EvidenceExportError("Bound P1 staging report must be schema 3 in staging-only state")
     if _sha40(staging.get("gitSha"), "boundStaging.gitSha") != staging_source_sha:
         raise P1EvidenceExportError("Bound staging report Git SHA differs from session.p1Lineage")
+    if _authorization_from_staging(staging, "boundStaging") != staging_authorization:
+        raise P1EvidenceExportError(
+            "Bound staging report authorization differs from session.p1Lineage"
+        )
     _require_tasks(staging.get("coveredTasks"), "boundStaging.coveredTasks")
     for key in ("verified", "runtimeVerified", "ownerAccepted", "publicationEligible", "candidateBuildStarted"):
         _require_false(staging, key, "boundStaging")
@@ -266,6 +327,8 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     )
     if lineage.get("schemaVersion") != 1 or lineage.get("state") != prepare_p1_candidate_device.P1_LINEAGE_STATE:
         raise P1EvidenceExportError("Bound P1 staging lineage has an unsupported schema/state")
+    if lineage.get("stagingReportSchemaVersion") != 3:
+        raise P1EvidenceExportError("Bound P1 staging lineage must bind stagingReportSchemaVersion=3")
     if _sha40(lineage.get("stagingSourceGitSha"), "boundLineage.stagingSourceGitSha") != staging_source_sha:
         raise P1EvidenceExportError("Bound lineage staging-source SHA differs from session.p1Lineage")
     if _sha40(lineage.get("candidateGitSha"), "boundLineage.candidateGitSha") != candidate_sha:
@@ -275,6 +338,10 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
     if _sha256(lineage.get("stagingReportSha256"), "boundLineage.stagingReportSha256") != file_hashes["stagingReport"]:
         raise P1EvidenceExportError(
             "Bound lineage staging-report hash differs from the exact session-bound staging report"
+        )
+    if _authorization(lineage.get("stagingAuthorization"), "boundLineage.stagingAuthorization") != staging_authorization:
+        raise P1EvidenceExportError(
+            "Bound staging lineage authorization differs from session.p1Lineage"
         )
     _require_tasks(lineage.get("coveredTasks"), "boundLineage.coveredTasks")
     _require_true(lineage, "readyForLicensedCandidateTests", "boundLineage")
@@ -301,6 +368,7 @@ def validate_p1_session(session_dir: Path) -> dict[str, Any]:
         "performanceTier": performance_tier,
         "coveredTasks": list(EXPECTED_TASKS),
         "sourceFileHashes": file_hashes,
+        "stagingAuthorization": dict(staging_authorization),
     }
 
 
@@ -308,7 +376,7 @@ def _write_p1_summary(
     output_dir: Path, review_manifest: dict[str, Any], p1: dict[str, Any]
 ) -> dict[str, Any]:
     summary = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "state": P1_REVIEW_STATE,
         "reviewProfile": P1_REVIEW_PROFILE,
         "verdict": export_device_evidence.EXPECTED_REVIEW_VERDICT,
@@ -320,6 +388,7 @@ def _write_p1_summary(
         "performanceTier": p1["performanceTier"],
         "coveredTasks": list(EXPECTED_TASKS),
         "sourceArtifactDigests": dict(p1["sourceFileHashes"]),
+        "stagingAuthorization": dict(p1["stagingAuthorization"]),
         "checkpointCount": review_manifest["checkpointCount"],
         "contentReviewVerdict": review_manifest["verdict"],
         "manualReviewRequired": True,
@@ -331,6 +400,7 @@ def _write_p1_summary(
             "rawP1SessionIncluded": False,
             "rawP1SourceArtifactsIncluded": False,
             "localPathsIncluded": False,
+            "authorizationContainsOnlyDigests": True,
         },
     }
     target = output_dir / P1_REVIEW_LINEAGE_FILE
@@ -372,7 +442,7 @@ def export_p1_bundle(session_dir: Path, output_dir: Path, *, force: bool = False
         review_manifest["contentFiles"] = content_files
         review_manifest["contentSetSha256"] = content_set_sha
         review_manifest["p1Lineage"] = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "state": "P1_REVIEW_LINEAGE_ATTACHED",
             "fileName": relative,
             "sha256": record["sha256"],
@@ -382,6 +452,7 @@ def export_p1_bundle(session_dir: Path, output_dir: Path, *, force: bool = False
             "apkSha256": p1["apkSha256"],
             "performanceTier": p1["performanceTier"],
             "coveredTasks": list(EXPECTED_TASKS),
+            "stagingAuthorization": dict(p1["stagingAuthorization"]),
             "verified": False,
             "runtimeVerified": False,
             "ownerAccepted": False,
@@ -404,6 +475,7 @@ def export_p1_bundle(session_dir: Path, output_dir: Path, *, force: bool = False
                 "rawP1SessionIncluded": False,
                 "rawP1SourceArtifactsIncluded": False,
                 "sanitizedP1LineageIncluded": True,
+                "authorizationContainsOnlyDigests": True,
             }
         )
         export_device_evidence.write_json(
@@ -451,7 +523,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             f"stagingSourceGitSha={p1['stagingSourceGitSha']} candidateGitSha={p1['candidateGitSha']} "
             f"apkSha256={p1['apkSha256']} checkpoints={manifest['checkpointCount']} "
             f"contentSetSha256={manifest['contentSetSha256']} tasks=6 "
-            f"verdict={manifest['verdict']} verified=false"
+            f"authorizationBound=true verdict={manifest['verdict']} verified=false"
         )
         return 2 if red_flags > 0 else 0
     except (
