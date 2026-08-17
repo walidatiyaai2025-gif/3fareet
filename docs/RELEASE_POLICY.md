@@ -23,7 +23,7 @@ The P1 operator chain must not be shortened by substituting generic helpers for 
 
 1. Hero source intake and six-task visual-source readiness.
 2. Licensed staging readiness and native Windows Hero preflight.
-3. Licensed Unity staging, followed by explicit human review and commit of the approved staging delta.
+3. Native handoff-packet verification, then licensed Unity staging, followed by explicit human review and commit of the approved staging delta.
 4. P1 staged-candidate lineage verification and candidate generation.
 5. P1 physical-device session binding and the fixed 16-checkpoint capture.
 6. P1 sanitized review export + P1 review-lineage verification.
@@ -32,6 +32,30 @@ The P1 operator chain must not be shortened by substituting generic helpers for 
 9. Explicit release-owner publication action and post-publication evidence recording.
 
 No automated stage may publish, tag, upload a release asset, update Last Verified, or self-assert VERIFIED.
+
+## P1 licensed Unity staging entrypoint
+
+For P1 closure, Stage 5 must be invoked through the authoritative native wrapper. The wrapper validates the schema-v2 licensed handoff packet against the current clean, exact, non-synthetic Git HEAD before the low-level Unity staging implementation is allowed to run:
+
+```powershell
+pwsh -File tools/android/run_p1_licensed_staging_windows.ps1 `
+  -HeroSource "Assets/Afareet/ArtSource/Vehicles/HeroCar/AfareetKing.fbx" `
+  -HandoffPacket "artifacts/production-staging/p1-licensed-handoff-packet.json"
+```
+
+The required packet must already be `READY_FOR_LICENSED_OPERATOR_HANDOFF` and must bind all of the following to the current workstation checkout:
+
+- exact 40-character source Git SHA, with observed SHA equal to expected SHA and current `HEAD`;
+- non-synthetic checkout identity (`refs/pull/.../merge` is never sufficient);
+- exact tracked Hero source under `unity_game/Assets/Afareet/ArtSource/Vehicles/HeroCar/`;
+- all six visual/runtime source tasks source-ready with zero source blockers;
+- licensed-staging readiness with zero blocked checks;
+- the exact SHA-256 of `tools/android/p1_operator_release_chain.json`;
+- all runtime/device/human/publication/verification flags still false.
+
+`tools/android/verify_p1_licensed_handoff_packet_windows.ps1` performs the native verification and writes `artifacts/production-staging/p1-native-handoff-verification.json` before Unity staging starts.
+
+`tools/android/stage_production_candidate_windows.ps1` is the **low-level implementation detail** used by the authoritative wrapper. It must not be invoked directly as the P1 closure entrypoint. Direct invocation bypasses the required packet-to-HEAD binding and is not acceptable P1 release evidence even if the underlying Unity staging later succeeds.
 
 ## Required gates before a prototype tag
 

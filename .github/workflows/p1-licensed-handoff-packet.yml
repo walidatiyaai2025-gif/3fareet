@@ -7,8 +7,12 @@ on:
       - 'tools/android/p1_operator_release_chain.json'
       - 'tools/android/p1_visual_source_readiness.py'
       - 'tools/android/p1_licensed_staging_readiness.py'
+      - 'tools/android/verify_p1_licensed_handoff_packet_windows.ps1'
+      - 'tools/android/run_p1_licensed_staging_windows.ps1'
       - 'tools/android/stage_production_candidate_windows.ps1'
       - 'tools/android/tests/test_p1_licensed_handoff_packet.py'
+      - 'tools/android/tests/test_p1_native_handoff_enforcement.py'
+      - 'docs/RELEASE_POLICY.md'
       - '.github/workflows/p1-licensed-handoff-packet.yml'
 
 permissions:
@@ -33,19 +37,25 @@ jobs:
           python3 -m py_compile tools/android/p1_licensed_handoff_packet.py
           python3 tools/android/p1_licensed_handoff_packet.py --help >/dev/null
 
-      - name: PowerShell staging syntax
+      - name: PowerShell handoff and staging syntax
         shell: pwsh
         run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path 'tools/android/stage_production_candidate_windows.ps1'),
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_.Message }
-            exit 1
+          foreach ($relativePath in @(
+            'tools/android/verify_p1_licensed_handoff_packet_windows.ps1',
+            'tools/android/run_p1_licensed_staging_windows.ps1',
+            'tools/android/stage_production_candidate_windows.ps1'
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $relativePath),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "${relativePath}: $($_.Message)" }
+              exit 1
+            }
           }
 
       - name: Execute licensed handoff packet regressions
@@ -84,6 +94,8 @@ jobs:
           assert p['licensedUnityExecuted'] is False
           assert p['candidateBuildStarted'] is False
           assert p['verified'] is False
+          assert p['commands']['licensedUnityStaging'].startswith('pwsh -File tools/android/run_p1_licensed_staging_windows.ps1 ')
+          assert '-HandoffPacket artifacts/production-staging/p1-licensed-handoff-packet.json' in p['commands']['licensedUnityStaging']
           print(
               'AFAREET_P1_LICENSED_HANDOFF_PR_IDENTITY_OK '
               f"observed={identity['observedGitSha']} expected={expected} "

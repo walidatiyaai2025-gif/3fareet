@@ -38,9 +38,14 @@
     {
       "order": 5,
       "id": "P1_LICENSED_UNITY_STAGING",
-      "tool": "tools/android/stage_production_candidate_windows.ps1",
+      "tool": "tools/android/run_p1_licensed_staging_windows.ps1",
       "execution": "licensed-unity-staging-only",
-      "humanBoundary": false
+      "humanBoundary": false,
+      "requirements": [
+        "native handoff packet verification must pass before Unity discovery/execution",
+        "handoff packet must be READY_FOR_LICENSED_OPERATOR_HANDOFF on the exact clean non-synthetic source SHA",
+        "the low-level stage_production_candidate_windows.ps1 implementation is invoked only after packet verification"
+      ]
     },
     {
       "order": 6,
