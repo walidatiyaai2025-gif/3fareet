@@ -7,6 +7,7 @@ GARAGE = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/GarageRuntime"
 CAREER_BRIDGE = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageBridge.cs"
 CAREER_SESSION = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageSession.cs"
 CAREER_ASMDEF = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/CareerRuntime/Afareet.CareerRuntime.asmdef"
+BOOTSTRAP = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Core/AfareetBootstrap.cs"
 
 
 class PostP1GarageRuntimeContractTests(unittest.TestCase):
@@ -18,6 +19,7 @@ class PostP1GarageRuntimeContractTests(unittest.TestCase):
             "GarageService.cs",
             "GaragePersistence.cs",
             "PlayerPrefsGarageStateStorage.cs",
+            "GaragePreviewResolver.cs",
         )
         for name in required_files:
             self.assertTrue((GARAGE / name).is_file(), name)
@@ -102,11 +104,21 @@ class PostP1GarageRuntimeContractTests(unittest.TestCase):
         ):
             self.assertIn(required, source)
 
+    def test_runtime_bootstrap_composes_career_garage_session_after_career(self):
+        source = BOOTSTRAP.read_text(encoding="utf-8")
+        career_configure = source.index("career.Configure(")
+        garage_add = source.index("gameObject.AddComponent<CareerGarageSession>()")
+        garage_configure = source.index("garage.ConfigureWithPlayerPrefs(career)")
+        self.assertLess(career_configure, garage_add)
+        self.assertLess(garage_add, garage_configure)
+        self.assertIn("AFAREET_GARAGE_SESSION_ACTIVE", source)
+
     def test_garage_programming_does_not_fake_missing_visual_assets(self):
         catalog = (GARAGE / "GarageCatalog.cs").read_text(encoding="utf-8")
         service = (GARAGE / "GarageService.cs").read_text(encoding="utf-8")
+        preview = (GARAGE / "GaragePreviewResolver.cs").read_text(encoding="utf-8")
         session = CAREER_SESSION.read_text(encoding="utf-8")
-        combined = catalog + service + session
+        combined = catalog + service + preview + session
         for forbidden in (
             "GameObject.CreatePrimitive",
             "new Mesh(",
