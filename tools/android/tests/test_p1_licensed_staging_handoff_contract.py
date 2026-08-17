@@ -16,16 +16,30 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
         for required in (
             "public static void StageForCommit()",
             'private const string HeroSourceArgument = "-afareetHeroSource"',
+            'private const string GitShaArgument = "-afareetGitSha"',
+            "internal static void StageForCommit(string heroSourcePath, string gitSha)",
+            "gitSha = NormalizeGitSha(gitSha)",
             "ValidateHeroSourceBeforeMutation(heroSourcePath)",
             "P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow()",
             "P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow()",
             "P1ProductionTrackDressingAssetStager.StageTrackedSourcesOrThrow()",
             "RivalProductionPrefabStager.StageAndBindAll()",
             "HeroCarProductionPrefabStager.StageAndBind(heroSourcePath)",
+            "BuildTaskEvidence(heroSourcePath)",
+            "schemaVersion = 2",
+            '"UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"',
+            "LICENSED_UNITY_STAGE_AND_BIND_OK",
+            "LICENSED_UNITY_IMPORT_STAGE_OK",
+            "LICENSED_UNITY_TRACKED_LAYOUT_IMPORT_OK",
+            "RequiredGuid(heroSourcePath",
+            "RivalProductionAssetMetadata",
+            "VerticalSliceLayoutPath",
             "STAGED_FOR_COMMIT_NOT_CANDIDATE",
             "trackedCommitRequired = true",
             "candidateBuildStarted = false",
             "publicationEligible = false",
+            "runtimeVerified = false",
+            "ownerAccepted = false",
             "verified = false",
             "AFAREET_P1_STAGING_HANDOFF_OK",
         ):
@@ -37,8 +51,20 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "run_local_candidate_windows.ps1",
             'reviewState = "ACCEPTED"',
             'verified = true',
+            'runtimeVerified = true',
+            'ownerAccepted = true',
+            'publicationEligible = true',
         ):
             self.assertNotIn(forbidden, text)
+
+    def test_staging_report_covers_exact_six_visual_runtime_tasks(self):
+        text = (EDITOR / "P1ProductionCandidateStagingHandoff.cs").read_text(encoding="utf-8")
+        for task_id in ("UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"):
+            self.assertIn(f'"{task_id}"', text)
+        self.assertNotIn('"UPER-009"', text)
+        self.assertNotIn('"UPER-010"', text)
+        self.assertIn("taskEvidence.Length != 6", text)
+        self.assertIn("P1 staging handoff report requires evidence for exactly six visual/runtime tasks.", text)
 
     def test_existing_hero_and_rival_stagers_expose_shared_internal_entries(self):
         hero = (EDITOR / "HeroCarProductionPrefabStager.cs").read_text(encoding="utf-8")
@@ -65,6 +91,14 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "UNITY_INSPECTION_REQUIRED",
             "Afareet.Editor.P1ProductionCandidateStagingHandoff.StageForCommit",
             "-afareetHeroSource",
+            "-afareetGitSha",
+            "schemaVersion -ne 2",
+            "handoffReport.gitSha -ne $gitSha",
+            "handoffReport.heroSource -ne $HeroSource",
+            "AFAREET_P1_STAGING_REPORT_BINDING_OK",
+            "runtimeVerified=false",
+            "ownerAccepted=false",
+            "LICENSED_UNITY_TRACKED_LAYOUT_IMPORT_OK",
             "AFAREET_P1_STAGING_HANDOFF_OK",
             "AFAREET_P1_STAGING_COMMIT_REQUIRED",
             "unity_game/Assets/",
@@ -72,6 +106,9 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "run_local_candidate_windows.ps1 from the new clean SHA",
         ):
             self.assertIn(required, text)
+
+        for task_id in ("UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"):
+            self.assertIn(f"'{task_id}'", text)
 
         for forbidden in (
             "git add",
@@ -86,8 +123,12 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
         preflight = text.index("AFAREET_P1_NATIVE_HERO_PREFLIGHT_START")
         unity_lookup = text.index("$defaultUnity = Join-Path")
         unity_start = text.index("Start-Process -FilePath $UnityPath")
+        report_binding = text.index("AFAREET_P1_STAGING_REPORT_BINDING_OK")
+        status_capture = text.index("status --porcelain --untracked-files=all", unity_start)
         self.assertLess(preflight, unity_lookup)
         self.assertLess(preflight, unity_start)
+        self.assertLess(unity_start, report_binding)
+        self.assertLess(report_binding, status_capture)
 
     def test_exact_candidate_runner_remains_separate_and_clean_sha_locked(self):
         candidate = (TOOLS / "run_local_candidate_windows.ps1").read_text(encoding="utf-8")
