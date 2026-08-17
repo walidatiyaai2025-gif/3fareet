@@ -51,6 +51,12 @@ namespace Afareet.Core
                 performance,
                 new PlayerPrefsCareerProgressStorage());
 
+            var garage = gameObject.AddComponent<CareerGarageSession>();
+            garage.ConfigureWithPlayerPrefs(career);
+            Debug.Log(
+                $"AFAREET_GARAGE_SESSION_ACTIVE equipped={garage.State.EquippedVehicleId} " +
+                $"migratedLegacy={garage.MigratedLegacyGarageSave} recoveredInvalid={garage.RecoveredInvalidGarageSave}");
+
             CreateCamera(player.transform, cameraConfig);
             InstallRuntimeUi(player, race, career);
             gameObject.AddComponent<UnitySplashOverlay>();
