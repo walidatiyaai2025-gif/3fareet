@@ -31,6 +31,14 @@ unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit/Genera
 unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated/
 unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated.meta
 
+# UART-003 Blender handoff is a hash-pinned local refinement preview only.
+# Keep both the external intake bytes and the Unity-staged review prefab out of Git so
+# they cannot be mistaken for the final externally-authored production Hero source.
+unity_game/Assets/Afareet/ArtSource/Vehicles/RefinementCandidates/
+unity_game/Assets/Afareet/ArtSource/Vehicles/RefinementCandidates.meta
+unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Refinement/
+unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Refinement.meta
+
 # Local CI / QA evidence outputs (generated, never source-of-truth)
 /artifacts/
 /evidence/
