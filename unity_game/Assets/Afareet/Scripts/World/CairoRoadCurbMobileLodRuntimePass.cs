@@ -188,10 +188,29 @@ namespace Afareet.World
 
                 var textured = false;
                 foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
-                    if (material != null && material.mainTexture != null) { textured = true; break; }
+                {
+                    if (HasAssignedTexture(material))
+                    {
+                        textured = true;
+                        break;
+                    }
+                }
                 if (!textured)
                     throw new InvalidOperationException($"road/curb LOD missing texture-mapped material: {baseName} LOD{lod}");
             }
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static HashSet<Mesh> CollectMeshes(Renderer[] renderers)
