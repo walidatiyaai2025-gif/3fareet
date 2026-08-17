@@ -34,10 +34,27 @@ class P1SafetySentinelTests(unittest.TestCase):
         paths, violations = MODULE.scan_repo(ROOT, TOOLS / "p1_operator_release_chain.json")
         self.assertEqual([], violations)
         self.assertIn("tools/android/verify_p1_release_publication.py", paths)
-        self.assertIn("tools/android/stage_production_candidate_windows.ps1", paths)
+        self.assertIn("tools/android/run_p1_licensed_staging_windows.ps1", paths)
         self.assertIn("unity_game/Assets/Afareet/Editor/P1ProductionCandidateStagingHandoff.cs", paths)
         self.assertNotIn("tools/android/tests/test_p1_safety_sentinel.py", paths)
         self.assertGreaterEqual(len(paths), 13)
+
+        # The authoritative wrapper deliberately delegates to this lower-level staging
+        # implementation. Keep it under an explicit safety scan even though the chain's
+        # stage tool now points at the wrapper.
+        low_level = TOOLS / "stage_production_candidate_windows.ps1"
+        low_level_violations = MODULE.scan_file(
+            low_level,
+            "tools/android/stage_production_candidate_windows.ps1",
+        )
+        self.assertEqual([], low_level_violations)
+
+        native_packet_verifier = TOOLS / "verify_p1_licensed_handoff_packet_windows.ps1"
+        verifier_violations = MODULE.scan_file(
+            native_packet_verifier,
+            "tools/android/verify_p1_licensed_handoff_packet_windows.ps1",
+        )
+        self.assertEqual([], verifier_violations)
 
     def test_python_detects_protected_true_in_dict_assignment_and_keyword(self):
         violations = self.scan_text(
