@@ -137,6 +137,7 @@ namespace Afareet.GarageRuntime
         public bool HasStoredPayload { get; }
         public bool MigratedLegacyV1 { get; }
         public bool RecoveredFromInvalidPayload { get; }
+        public bool RewrittenCanonicalPayload { get; }
         public string Error { get; }
 
         public GarageStateLoadResult(
@@ -144,12 +145,14 @@ namespace Afareet.GarageRuntime
             bool hasStoredPayload,
             bool migratedLegacyV1,
             bool recoveredFromInvalidPayload,
+            bool rewrittenCanonicalPayload,
             string error = null)
         {
             State = state ?? throw new ArgumentNullException(nameof(state));
             HasStoredPayload = hasStoredPayload;
             MigratedLegacyV1 = migratedLegacyV1;
             RecoveredFromInvalidPayload = recoveredFromInvalidPayload;
+            RewrittenCanonicalPayload = rewrittenCanonicalPayload;
             Error = error;
         }
     }
@@ -171,14 +174,22 @@ namespace Afareet.GarageRuntime
             if (!storage.TryRead(out var payload) || string.IsNullOrWhiteSpace(payload))
             {
                 var defaultState = new GarageService(catalog, unlockedVehicleIds).State;
-                return new GarageStateLoadResult(defaultState, false, false, false);
+                return new GarageStateLoadResult(defaultState, false, false, false, false);
             }
 
             try
             {
                 var decoded = codec.Decode(payload);
                 var normalized = new GarageService(catalog, unlockedVehicleIds, decoded.State).State;
-                return new GarageStateLoadResult(normalized, true, decoded.MigratedLegacyV1, false);
+                var canonical = codec.Encode(normalized);
+                var rewritten = decoded.MigratedLegacyV1 || !PayloadEquivalent(payload, canonical);
+                if (rewritten) storage.Write(canonical);
+                return new GarageStateLoadResult(
+                    normalized,
+                    true,
+                    decoded.MigratedLegacyV1,
+                    false,
+                    rewritten);
             }
             catch (Exception exception) when (
                 exception is FormatException ||
@@ -188,7 +199,14 @@ namespace Afareet.GarageRuntime
                 exception is OverflowException)
             {
                 var recovered = new GarageService(catalog, unlockedVehicleIds).State;
-                return new GarageStateLoadResult(recovered, true, false, true, exception.Message);
+                storage.Write(codec.Encode(recovered));
+                return new GarageStateLoadResult(
+                    recovered,
+                    true,
+                    false,
+                    true,
+                    true,
+                    exception.Message);
             }
         }
 
@@ -197,6 +215,19 @@ namespace Afareet.GarageRuntime
             if (state == null) throw new ArgumentNullException(nameof(state));
             var normalized = new GarageService(catalog, unlockedVehicleIds, state).State;
             storage.Write(codec.Encode(normalized));
+        }
+
+        private static bool PayloadEquivalent(string left, string right)
+        {
+            return StringComparer.Ordinal.Equals(NormalizePayload(left), NormalizePayload(right));
+        }
+
+        private static string NormalizePayload(string value)
+        {
+            return (value ?? string.Empty)
+                .Replace("\r\n", "\n")
+                .Replace('\r', '\n')
+                .TrimEnd('\n');
         }
     }
 }
