@@ -1,0 +1,48 @@
+name: P1 Staging Candidate Lineage
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/verify_p1_staging_lineage_windows.ps1'
+      - 'tools/android/run_p1_staged_candidate_windows.ps1'
+      - 'tools/android/tests/test_p1_staging_candidate_lineage_contract.py'
+      - '.github/workflows/p1-staging-lineage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lineage-contract:
+    name: P1 staging lineage native contract
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Parse P1 native scripts
+        shell: pwsh
+        run: |
+          foreach ($relativePath in @(
+            'tools/android/verify_p1_staging_lineage_windows.ps1',
+            'tools/android/run_p1_staged_candidate_windows.ps1'
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $relativePath),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "${relativePath}: $($_.Message)" }
+              exit 1
+            }
+          }
+          Write-Host 'AFAREET_P1_STAGING_LINEAGE_NATIVE_PARSE_OK'
+
+      - name: Execute P1 lineage regression fixtures
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tools/android/tests -p 'test_p1_staging_candidate_lineage_contract.py' -v
