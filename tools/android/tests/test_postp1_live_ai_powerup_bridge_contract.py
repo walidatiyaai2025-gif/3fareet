@@ -29,7 +29,7 @@ class PostP1LiveAiPowerUpBridgeContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source)
 
-    def test_race_director_owns_runtime_and_stable_decision_cadence(self):
+    def test_race_director_owns_runtime_stable_cadence_and_scoped_presentation(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs")
 
         for required in (
@@ -38,7 +38,9 @@ class PostP1LiveAiPowerUpBridgeContractTests(unittest.TestCase):
             "private bool powerUpRuntimeDirty = true;",
             "EnsurePowerUpRuntime();",
             "PowerUpRuntimeDefaults.CreatePrototypeRuleset()",
-            "new PowerUpRacerRegistration(racers[i].RacerId)",
+            "var racerId = racers[i].RacerId;",
+            "new PowerUpRacerRegistration(",
+            "PowerUpPresentationHub.CreateSink(racerId)",
             "ai.BindPowerUpRuntime(this, racers[i].RacerId);",
             "private void FixedUpdate()",
             "powerUpRuntime.TickAll(raceTimeSeconds);",
@@ -47,6 +49,11 @@ class PostP1LiveAiPowerUpBridgeContractTests(unittest.TestCase):
             "ai.EvaluateBoundPowerUpDecision();",
         ):
             self.assertIn(required, source)
+
+        self.assertNotIn(
+            "registrations.Add(new PowerUpRacerRegistration(racers[i].RacerId));",
+            source,
+        )
 
     def test_live_snapshot_uses_ranked_adjacent_racers_and_runtime_execution(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs")
