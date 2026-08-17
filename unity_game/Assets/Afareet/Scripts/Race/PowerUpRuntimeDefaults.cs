@@ -17,7 +17,7 @@ namespace Afareet.Race
                     durationSeconds: 3d,
                     magnitude: .35d,
                     refreshPolicy: PowerUpRefreshPolicy.RefreshDuration,
-                    targetMode: PowerUpRuntimeTargetMode.Opponent),
+                    targetMode: PowerUpRuntimeTargetMode.WorldDeployable),
                 Rule(
                     PowerUpKind.NitroSpirit,
                     initialCharges: 2,
