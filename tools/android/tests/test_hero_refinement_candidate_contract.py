@@ -24,6 +24,19 @@ class HeroRefinementCandidateContractTests(unittest.TestCase):
         self.assertIn("Get-FileHash", intake)
         self.assertIn("productionGate=false", intake)
 
+    def test_refinement_intake_and_staged_prefab_are_local_only(self):
+        ignore = self.text(".gitignore")
+        for required in (
+            "unity_game/Assets/Afareet/ArtSource/Vehicles/RefinementCandidates/",
+            "unity_game/Assets/Afareet/ArtSource/Vehicles/RefinementCandidates.meta",
+            "unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Refinement/",
+            "unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Refinement.meta",
+        ):
+            self.assertIn(required, ignore)
+
+        self.assertIn("local refinement preview only", ignore)
+        self.assertIn("cannot be mistaken for the final externally-authored production Hero source", ignore)
+
     def test_production_provenance_rejects_refinement_paths(self):
         metadata = self.text("unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionAssetMetadata.cs")
         binder = self.text("unity_game/Assets/Afareet/Editor/HeroCarProductionSourceBinder.cs")
