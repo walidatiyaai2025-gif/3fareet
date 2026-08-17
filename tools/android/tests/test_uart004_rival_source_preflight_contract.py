@@ -108,7 +108,7 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
             'line.StartsWith("vt ", StringComparison.Ordinal)',
             'line.StartsWith("vn ", StringComparison.Ordinal)',
             'line.StartsWith("f ", StringComparison.Ordinal)',
-            "source triangle identity mismatch",
+            "review package triangle identity mismatch",
             "ReviewPackaging",
             "PF_Rival_{variant + 1:00}_AuthoredReview",
             "RivalAuthoredReviewCandidateMarker",
