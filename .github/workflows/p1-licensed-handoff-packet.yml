@@ -1,0 +1,74 @@
+name: P1 Licensed Handoff Packet
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/p1_licensed_handoff_packet.py'
+      - 'tools/android/p1_operator_release_chain.json'
+      - 'tools/android/p1_visual_source_readiness.py'
+      - 'tools/android/p1_licensed_staging_readiness.py'
+      - 'tools/android/stage_production_candidate_windows.ps1'
+      - 'tools/android/tests/test_p1_licensed_handoff_packet.py'
+      - '.github/workflows/p1-licensed-handoff-packet.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  licensed-handoff-packet:
+    name: P1 licensed handoff packet contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Python syntax and CLI contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/android/p1_licensed_handoff_packet.py
+          python3 tools/android/p1_licensed_handoff_packet.py --help >/dev/null
+
+      - name: PowerShell staging syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'tools/android/stage_production_candidate_windows.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+
+      - name: Execute licensed handoff packet regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_licensed_handoff_packet.py' -v
+
+      - name: Produce current blocked handoff packet
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/production-staging
+          python3 tools/android/p1_licensed_handoff_packet.py \
+            --allow-blocked \
+            --output artifacts/production-staging/p1-licensed-handoff-packet.json >/dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('artifacts/production-staging/p1-licensed-handoff-packet.json').read_text())
+          assert p['state'] == 'BLOCKED_EXTERNAL_HERO_SOURCE', p['state']
+          assert p['visualSourceSummary']['sourceReadyCount'] == 5
+          assert p['visualSourceSummary']['blockedTaskIds'] == ['UART-003']
+          assert p['licensedUnityExecuted'] is False
+          assert p['candidateBuildStarted'] is False
+          assert p['verified'] is False
+          print('AFAREET_P1_LICENSED_HANDOFF_PACKET_CURRENT_STATE_OK sourceReady=5 blocked=UART-003 verified=false')
+          PY
