@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,13 +15,14 @@ def load(name: str):
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
 
+GENERIC_VERIFY = load("verify_device_review_bundle")
 EXPORT = load("export_p1_device_evidence")
 VERIFY = load("verify_p1_device_review_bundle")
-GENERIC_VERIFY = load("verify_device_review_bundle")
 
 STAGING_SHA = "a" * 40
 CANDIDATE_SHA = "b" * 40
