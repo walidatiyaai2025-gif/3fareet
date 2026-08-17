@@ -22,22 +22,11 @@ namespace Afareet.Editor
         [MenuItem(MenuPath)]
         public static void StageCurrentCandidate()
         {
+            ValidateCurrentCandidateSourceOrThrow();
+
             var sourcePath = HeroCarLodPolicy.RefinementCandidateSourcePath;
-            if (!HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath))
-                throw new InvalidOperationException($"Refinement source is not a supported model: {sourcePath}");
-            if (!HeroCarProductionAssetMetadata.IsNonProductionSourcePath(sourcePath))
-                throw new InvalidOperationException(
-                    $"Refinement source must remain under an explicitly non-production path: {sourcePath}");
-
             var sourceModel = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
-            if (sourceModel == null)
-                throw new InvalidOperationException(
-                    $"Refinement source is not imported. Expected: {sourcePath}");
-
             var actualSha256 = Sha256ForProjectAsset(sourcePath);
-            if (!string.Equals(actualSha256, ExpectedSourceSha256, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException(
-                    $"Refinement source SHA-256 mismatch. expected={ExpectedSourceSha256} actual={actualSha256}");
 
             EnsureAssetFolder(Path.GetDirectoryName(HeroCarLodPolicy.RefinementCandidateAssetPath)?.Replace('\\', '/'));
 
@@ -122,6 +111,35 @@ namespace Afareet.Editor
             {
                 UnityEngine.Object.DestroyImmediate(root);
             }
+        }
+
+        /// <summary>
+        /// Non-mutating source intake check used before the full P1 visual stack begins staging.
+        /// It deliberately validates only the refinement-candidate identity/import boundary;
+        /// it does not imply production acceptance or UART-003 closure.
+        /// </summary>
+        public static void ValidateCurrentCandidateSourceOrThrow()
+        {
+            var sourcePath = HeroCarLodPolicy.RefinementCandidateSourcePath;
+            if (!HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath))
+                throw new InvalidOperationException($"Refinement source is not a supported model: {sourcePath}");
+            if (!HeroCarProductionAssetMetadata.IsNonProductionSourcePath(sourcePath))
+                throw new InvalidOperationException(
+                    $"Refinement source must remain under an explicitly non-production path: {sourcePath}");
+
+            var sourceModel = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
+            if (sourceModel == null)
+                throw new InvalidOperationException(
+                    $"Refinement source is not imported. Run tools/android/import_hero_refinement_candidate_windows.ps1 first. Expected: {sourcePath}");
+
+            var actualSha256 = Sha256ForProjectAsset(sourcePath);
+            if (!string.Equals(actualSha256, ExpectedSourceSha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Refinement source SHA-256 mismatch. expected={ExpectedSourceSha256} actual={actualSha256}");
+
+            Debug.Log(
+                $"AFAREET_HERO_REFINEMENT_PREFLIGHT_OK source={sourcePath} sha256={actualSha256} " +
+                "classification=REFINEMENT_CANDIDATE productionGate=false");
         }
 
         private static int ClassifyLod(string objectName)
