@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.World
 {
@@ -180,10 +181,10 @@ namespace Afareet.World
                 var mesh = filter == null ? null : filter.sharedMesh;
                 if (mesh == null || mesh.vertexCount <= 0)
                     throw new InvalidOperationException($"road/curb LOD has no mesh: {baseName} LOD{lod}");
-                if (mesh.uv == null || mesh.uv.Length != mesh.vertexCount)
-                    throw new InvalidOperationException($"road/curb LOD missing complete UV0: {baseName} LOD{lod}");
-                if (mesh.normals == null || mesh.normals.Length != mesh.vertexCount)
-                    throw new InvalidOperationException($"road/curb LOD missing complete normals: {baseName} LOD{lod}");
+                if (!mesh.HasVertexAttribute(VertexAttribute.TexCoord0))
+                    throw new InvalidOperationException($"road/curb LOD missing UV0 vertex attribute: {baseName} LOD{lod}");
+                if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
+                    throw new InvalidOperationException($"road/curb LOD missing normal vertex attribute: {baseName} LOD{lod}");
 
                 var textured = false;
                 foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
