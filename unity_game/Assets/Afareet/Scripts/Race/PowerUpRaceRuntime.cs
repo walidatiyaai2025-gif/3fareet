@@ -6,7 +6,8 @@ namespace Afareet.Race
     public enum PowerUpRuntimeTargetMode
     {
         Self = 0,
-        Opponent = 1
+        Opponent = 1,
+        WorldDeployable = 2
     }
 
     public enum PowerUpRuntimeUseStatus
@@ -145,6 +146,7 @@ namespace Afareet.Race
             switch (kind)
             {
                 case PowerUpKind.AsphaltShard:
+                    return PowerUpRuntimeTargetMode.WorldDeployable;
                 case PowerUpKind.TrafficCurse:
                     return PowerUpRuntimeTargetMode.Opponent;
                 case PowerUpKind.NitroSpirit:
@@ -394,6 +396,30 @@ namespace Afareet.Race
                     cooldownRemaining);
             }
 
+            if (rule.TargetMode == PowerUpRuntimeTargetMode.WorldDeployable)
+            {
+                if (!string.IsNullOrWhiteSpace(targetRacerId))
+                {
+                    return GateResult(
+                        PowerUpRuntimeUseStatus.InvalidTarget,
+                        kind,
+                        source.RacerId,
+                        targetRacerId,
+                        slot);
+                }
+
+                slot.Charges--;
+                slot.ReadyAtSeconds = raceTimeSeconds + rule.CooldownSeconds;
+                return new PowerUpRuntimeUseResult(
+                    PowerUpRuntimeUseStatus.Used,
+                    kind,
+                    source.RacerId,
+                    null,
+                    null,
+                    slot.Charges,
+                    rule.CooldownSeconds);
+            }
+
             var targetResolution = ResolveTarget(source, rule, targetRacerId);
             if (targetResolution.Status.HasValue)
             {
@@ -406,33 +432,39 @@ namespace Afareet.Race
             }
 
             var target = targetResolution.Target;
-            var applyResult = target.Effects.Apply(rule.EffectSpec, raceTimeSeconds);
-            if (applyResult == PowerUpApplyResult.IgnoredWhileActive)
-            {
-                return new PowerUpRuntimeUseResult(
-                    PowerUpRuntimeUseStatus.IgnoredByEffectPolicy,
-                    kind,
-                    source.RacerId,
-                    target.RacerId,
-                    applyResult,
-                    slot.Charges,
-                    0d);
-            }
+            return ApplyResolvedEffect(source, target, rule, slot, raceTimeSeconds, consumeInventory: true);
+        }
 
-            slot.Charges--;
-            slot.ReadyAtSeconds = raceTimeSeconds + rule.CooldownSeconds;
-            var status = applyResult == PowerUpApplyResult.BlockedByEyeShield
-                ? PowerUpRuntimeUseStatus.BlockedByEyeShield
-                : PowerUpRuntimeUseStatus.Used;
+        public PowerUpRuntimeUseResult TryApplyDeployedEffect(
+            string sourceRacerId,
+            string targetRacerId,
+            PowerUpKind kind,
+            double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds);
+            if (kind != PowerUpKind.AsphaltShard)
+                throw new ArgumentException("Only Asphalt Shard may be applied through the deployable-effect bridge.", nameof(kind));
 
-            return new PowerUpRuntimeUseResult(
-                status,
-                kind,
-                source.RacerId,
-                target.RacerId,
-                applyResult,
-                slot.Charges,
-                rule.CooldownSeconds);
+            if (!TryGetRacer(sourceRacerId, out var source))
+                return GateResult(PowerUpRuntimeUseStatus.UnknownSource, kind, sourceRacerId, targetRacerId);
+            if (string.IsNullOrWhiteSpace(targetRacerId))
+                return GateResult(PowerUpRuntimeUseStatus.MissingTarget, kind, source.RacerId, targetRacerId, source.Inventory[kind]);
+            if (StringComparer.Ordinal.Equals(source.RacerId, targetRacerId))
+                return GateResult(PowerUpRuntimeUseStatus.InvalidTarget, kind, source.RacerId, targetRacerId, source.Inventory[kind]);
+            if (!TryGetRacer(targetRacerId, out var target))
+                return GateResult(PowerUpRuntimeUseStatus.UnknownTarget, kind, source.RacerId, targetRacerId, source.Inventory[kind]);
+
+            var rule = ruleset.Get(kind);
+            if (rule.TargetMode != PowerUpRuntimeTargetMode.WorldDeployable)
+                throw new InvalidOperationException("Asphalt Shard runtime rule must remain WorldDeployable.");
+
+            return ApplyResolvedEffect(
+                source,
+                target,
+                rule,
+                source.Inventory[kind],
+                raceTimeSeconds,
+                consumeInventory: false);
         }
 
         public AiPowerUpExecutionResult ExecuteAiDecision(
@@ -459,10 +491,6 @@ namespace Afareet.Race
             if (kind == PowerUpKind.TrafficCurse)
             {
                 targetRacerId = targetAheadRacerId;
-            }
-            else if (kind == PowerUpKind.AsphaltShard)
-            {
-                targetRacerId = chaserBehindRacerId;
             }
 
             var useResult = TryUse(sourceRacerId, kind, targetRacerId, raceTimeSeconds);
@@ -504,11 +532,57 @@ namespace Afareet.Race
             }
         }
 
+        private PowerUpRuntimeUseResult ApplyResolvedEffect(
+            RacerState source,
+            RacerState target,
+            PowerUpRuntimeRule rule,
+            InventorySlot slot,
+            double raceTimeSeconds,
+            bool consumeInventory)
+        {
+            var applyResult = target.Effects.Apply(rule.EffectSpec, raceTimeSeconds);
+            if (applyResult == PowerUpApplyResult.IgnoredWhileActive)
+            {
+                return new PowerUpRuntimeUseResult(
+                    PowerUpRuntimeUseStatus.IgnoredByEffectPolicy,
+                    rule.Kind,
+                    source.RacerId,
+                    target.RacerId,
+                    applyResult,
+                    slot.Charges,
+                    Math.Max(0d, slot.ReadyAtSeconds - raceTimeSeconds));
+            }
+
+            if (consumeInventory)
+            {
+                slot.Charges--;
+                slot.ReadyAtSeconds = raceTimeSeconds + rule.CooldownSeconds;
+            }
+
+            var status = applyResult == PowerUpApplyResult.BlockedByEyeShield
+                ? PowerUpRuntimeUseStatus.BlockedByEyeShield
+                : PowerUpRuntimeUseStatus.Used;
+
+            return new PowerUpRuntimeUseResult(
+                status,
+                rule.Kind,
+                source.RacerId,
+                target.RacerId,
+                applyResult,
+                slot.Charges,
+                consumeInventory
+                    ? rule.CooldownSeconds
+                    : Math.Max(0d, slot.ReadyAtSeconds - raceTimeSeconds));
+        }
+
         private (RacerState Target, PowerUpRuntimeUseStatus? Status) ResolveTarget(
             RacerState source,
             PowerUpRuntimeRule rule,
             string targetRacerId)
         {
+            if (rule.TargetMode == PowerUpRuntimeTargetMode.WorldDeployable)
+                throw new InvalidOperationException("World-deployable power-ups must be resolved by their deployment runtime.");
+
             if (rule.TargetMode == PowerUpRuntimeTargetMode.Self)
             {
                 if (targetRacerId != null && !StringComparer.Ordinal.Equals(targetRacerId, source.RacerId))
