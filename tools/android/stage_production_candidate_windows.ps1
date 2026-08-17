@@ -26,7 +26,8 @@ if ($null -eq $git) {
 }
 
 $gitTop = (& $git.Source -C $RepoRoot rev-parse --show-toplevel 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitTop)) {
+$gitTopSucceeded = $?
+if (-not $gitTopSucceeded -or [string]::IsNullOrWhiteSpace($gitTop)) {
     Fail "Unable to resolve Git worktree root: $RepoRoot"
 }
 $gitTop = (Resolve-Path $gitTop.Trim()).Path
@@ -34,14 +35,17 @@ if (-not [string]::Equals($gitTop, $RepoRoot, [System.StringComparison]::Ordinal
     Fail "RepoRoot must be the exact Git worktree root. resolved=$gitTop requested=$RepoRoot"
 }
 
-$gitSha = (& $git.Source -C $RepoRoot rev-parse HEAD 2>$null | Select-Object -First 1).Trim()
-if ($LASTEXITCODE -ne 0 -or $gitSha -notmatch '^[0-9a-fA-F]{40}$') {
+$gitShaRaw = (& $git.Source -C $RepoRoot rev-parse HEAD 2>$null | Select-Object -First 1)
+$gitShaSucceeded = $?
+$gitSha = if ([string]::IsNullOrWhiteSpace($gitShaRaw)) { "" } else { $gitShaRaw.Trim() }
+if (-not $gitShaSucceeded -or $gitSha -notmatch '^[0-9a-fA-F]{40}$') {
     Fail "Unable to resolve a full 40-character Git SHA."
 }
 $gitSha = $gitSha.ToLowerInvariant()
 
 $initialDirty = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
-if ($LASTEXITCODE -ne 0) {
+$initialStatusSucceeded = $?
+if (-not $initialStatusSucceeded) {
     Fail "Unable to inspect the initial Git working tree."
 }
 if ($initialDirty.Count -gt 0) {
@@ -68,7 +72,8 @@ if (-not (Test-Path -LiteralPath $heroAbsolute -PathType Leaf)) {
 }
 
 & $git.Source -C $RepoRoot ls-files --error-unmatch -- $heroRepoRelative *> $null
-if ($LASTEXITCODE -ne 0) {
+$heroTrackedByGit = $?
+if (-not $heroTrackedByGit) {
     Fail "Hero source must already be tracked in the clean starting commit before licensed staging: $heroRepoRelative"
 }
 
@@ -230,7 +235,8 @@ foreach ($taskId in $expectedTasks) {
 Write-Host "AFAREET_P1_STAGING_REPORT_BINDING_OK gitSha=$gitSha tasks=6 verified=false runtimeVerified=false ownerAccepted=false"
 
 $changes = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
-if ($LASTEXITCODE -ne 0) {
+$postStageStatusSucceeded = $?
+if (-not $postStageStatusSucceeded) {
     Fail "Unable to inspect Git changes after licensed staging."
 }
 $changes | Set-Content -Encoding UTF8 $StatusPath
