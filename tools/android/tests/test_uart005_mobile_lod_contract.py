@@ -50,7 +50,9 @@ class Uart005MobileLodContractTests(unittest.TestCase):
             'using UnityEngine.Rendering;',
             'mesh.HasVertexAttribute(VertexAttribute.TexCoord0)',
             'mesh.HasVertexAttribute(VertexAttribute.Normal)',
-            'material.mainTexture',
+            'HasAssignedTexture',
+            'material.GetTexturePropertyNames()',
+            'material.GetTexture(propertyName)',
             'MeshesOverlap',
             'RejectSecondaryLodColliders',
             'UnityEngine.Object.Destroy(group)',
@@ -60,7 +62,7 @@ class Uart005MobileLodContractTests(unittest.TestCase):
             'resourceCache=true',
         ):
             self.assertIn(s,text)
-        for forbidden in ('mesh.uv', 'mesh.normals'):
+        for forbidden in ('mesh.uv', 'mesh.normals', 'material.mainTexture'):
             self.assertNotIn(forbidden, text)
 
     def test_android_gate_requires_distinct_source_paths_and_monotonic_topology(self):
