@@ -73,7 +73,7 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
         for required in (
             "Stage + Bind UART-003 Production Hero Source",
             "IsSupportedExternalModelSource",
-            'IndexOf("/Generated/"',
+            "IsNonProductionSourcePath",
             "AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath)",
             "PrefabUtility.InstantiatePrefab(sourceModel)",
             "GetComponentsInChildren<MeshRenderer>(true)",
@@ -81,9 +81,12 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
             'EndsWith($"_LOD{lod}"',
             "AssetDatabase.GetAssetPath(mesh)",
             "HeroCarLodPolicy.IsWithinBudget",
-            "mesh.uv",
-            "mesh.normals",
-            "material.mainTexture",
+            "using UnityEngine.Rendering;",
+            "mesh.HasVertexAttribute(VertexAttribute.TexCoord0)",
+            "mesh.HasVertexAttribute(VertexAttribute.Normal)",
+            "HasAssignedTexture",
+            "material.GetTexturePropertyNames()",
+            "material.GetTexture(propertyName)",
             "new LOD(",
             "group.SetLODs(lods)",
             "PrefabUtility.SaveAsPrefabAsset",
@@ -102,6 +105,9 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
             "new Mesh(",
             "new Mesh {",
             "RecalculateNormals",
+            "mesh.uv",
+            "mesh.normals",
+            "material.mainTexture",
         ):
             self.assertNotIn(forbidden, text)
 
@@ -128,13 +134,18 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
         for required in (
             "HeroCarProductionAssetMetadata",
             "DeclaresProductionAuthoring",
-            "mesh.uv",
-            "mesh.normals",
-            "material.mainTexture",
+            "using UnityEngine.Rendering;",
+            "mesh.HasVertexAttribute(VertexAttribute.TexCoord0)",
+            "mesh.HasVertexAttribute(VertexAttribute.Normal)",
+            "material.GetTexturePropertyNames()",
+            "material.GetTexture(propertyName)",
             "HeroCarProductionQualityPolicy.MeetsProductionFloor",
             "AFAREET_HERO_AUTHORED_PRODUCTION_VISUAL_ACTIVE",
+            "editorFallbackAllowed=true",
         ):
             self.assertIn(required, text)
+        for forbidden in ("mesh.uv", "mesh.normals", "material.mainTexture"):
+            self.assertNotIn(forbidden, text)
 
     def test_quality_policy_rejects_geometry_only_acceptance(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionQualityPolicy.cs")
