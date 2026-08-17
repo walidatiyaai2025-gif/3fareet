@@ -31,6 +31,24 @@ def make_fixture() -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("fixture\n", encoding="utf-8")
 
+    policy = temp / MODULE.validate_hero_asset_intake.POLICY_PATH
+    policy.parent.mkdir(parents=True, exist_ok=True)
+    policy.write_text(
+        "\n".join(
+            [
+                "public static class HeroCarLodPolicy",
+                "{",
+                "    public static readonly int[] MinimumVertices = { 1500, 800, 500 };",
+                "    public static readonly int[] VertexBudgets = { 5000, 2800, 1800 };",
+                "    public static readonly int[] MinimumTriangles = { 3500, 1600, 900 };",
+                "    public static readonly int[] TriangleBudgets = { 7500, 4000, 2500 };",
+                "}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     run_git(temp, "add", ".")
     run_git(temp, "commit", "-m", "fixture")
     return temp
