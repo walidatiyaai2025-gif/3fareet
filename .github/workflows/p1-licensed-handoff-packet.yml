@@ -18,6 +18,8 @@ jobs:
   licensed-handoff-packet:
     name: P1 licensed handoff packet contract
     runs-on: ubuntu-latest
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -52,23 +54,39 @@ jobs:
           set -euo pipefail
           python3 -m unittest discover -s tools/android/tests -p 'test_p1_licensed_handoff_packet.py' -v
 
-      - name: Produce current blocked handoff packet
+      - name: Produce current blocked PR-merge handoff packet
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts/production-staging
           python3 tools/android/p1_licensed_handoff_packet.py \
+            --expected-git-sha "$EXPECTED_HEAD_SHA" \
             --allow-blocked \
             --output artifacts/production-staging/p1-licensed-handoff-packet.json >/dev/null
           python3 - <<'PY'
           import json
+          import os
           from pathlib import Path
           p = json.loads(Path('artifacts/production-staging/p1-licensed-handoff-packet.json').read_text())
+          identity = p['gitIdentity']
+          expected = os.environ['EXPECTED_HEAD_SHA'].lower()
+          assert p['schemaVersion'] == 2
           assert p['state'] == 'BLOCKED_EXTERNAL_HERO_SOURCE', p['state']
           assert p['visualSourceSummary']['sourceReadyCount'] == 5
           assert p['visualSourceSummary']['blockedTaskIds'] == ['UART-003']
+          assert identity['expectedGitSha'] == expected
+          assert identity['observedGitSha'] != expected
+          assert identity['gitIdentityMatched'] is False
+          assert identity['syntheticPullRequestMerge'] is True
+          assert identity['exactSourceIdentitySatisfied'] is False
+          assert identity['status'] == 'SYNTHETIC_PR_MERGE_REF'
+          assert p['releaseHandoffEligible'] is False
           assert p['licensedUnityExecuted'] is False
           assert p['candidateBuildStarted'] is False
           assert p['verified'] is False
-          print('AFAREET_P1_LICENSED_HANDOFF_PACKET_CURRENT_STATE_OK sourceReady=5 blocked=UART-003 verified=false')
+          print(
+              'AFAREET_P1_LICENSED_HANDOFF_PR_IDENTITY_OK '
+              f"observed={identity['observedGitSha']} expected={expected} "
+              'syntheticMerge=true releaseHandoffEligible=false verified=false'
+          )
           PY
