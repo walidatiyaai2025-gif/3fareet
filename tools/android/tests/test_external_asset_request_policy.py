@@ -8,6 +8,10 @@ LEDGER = REPO_ROOT / "EXTERNAL_ASSET_REQUESTS.txt"
 AGENTS = REPO_ROOT / "AGENTS.md"
 
 
+def normalized(text: str) -> str:
+    return " ".join(text.split())
+
+
 class ExternalAssetRequestPolicyTests(unittest.TestCase):
     def test_root_ledger_exists_and_declares_mandatory_policy(self):
         self.assertTrue(LEDGER.is_file(), "EXTERNAL_ASSET_REQUESTS.txt must stay at repository root")
@@ -26,7 +30,7 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
 
     def test_agents_instructions_require_the_external_asset_ledger(self):
         self.assertTrue(AGENTS.is_file())
-        text = AGENTS.read_text(encoding="utf-8")
+        text = normalized(AGENTS.read_text(encoding="utf-8"))
         for required in (
             "EXTERNAL_ASSET_REQUESTS.txt",
             "Never silently substitute a primitive, generated mesh, procedural placeholder",
@@ -40,7 +44,7 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
     def test_active_requests_have_complete_handoff_fields(self):
         text = LEDGER.read_text(encoding="utf-8")
         request_starts = list(re.finditer(r"^REQUEST ID: (EXT-ASSET-\d{3})$", text, flags=re.MULTILINE))
-        self.assertGreaterEqual(len(request_starts), 3)
+        self.assertGreaterEqual(len(request_starts), 4)
         ids = [match.group(1) for match in request_starts]
         self.assertEqual(len(ids), len(set(ids)), "external asset request ids must be unique")
 
@@ -72,7 +76,7 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
             self.assertRegex(block, r"TOOL:\s*\S+")
             self.assertRegex(block, r"CREATION PROMPT / ART BRIEF:\s*\n\".+", msg=f"{match.group(1)} needs a copy-ready prompt")
 
-    def test_current_p1_external_art_blockers_are_registered(self):
+    def test_current_external_dependencies_are_registered(self):
         text = LEDGER.read_text(encoding="utf-8")
         for required in (
             "EXT-ASSET-001",
@@ -84,6 +88,8 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
             "EXT-ASSET-003",
             "UART-005 / UART-006 / UART-007 / URAC-011",
             "Cairo Night production vertical-slice art upgrade pack",
+            "EXT-ASSET-004",
+            "Cairo Night production soundtrack",
         ):
             self.assertIn(required, text)
 
