@@ -22,7 +22,7 @@ class AuthoredRailCenteringContractTests(unittest.TestCase):
         self.assertAlmostEqual(-1.0, min(xs), places=4)
         self.assertAlmostEqual(1.0, max(xs), places=4)
 
-    def test_track_builder_supplies_segment_start_and_barrier_length_scale(self):
+    def test_track_builder_still_supplies_segment_start_and_barrier_length_scale(self):
         builder = TRACK_BUILDER.read_text(encoding="utf-8")
         self.assertIn("var railStart = p - direction * (startExtension + SegmentOverlap * .5f);", builder)
         self.assertIn("CreateNeonRail(root, railStart + right * (RoadWidth * .56f)", builder)
@@ -30,18 +30,30 @@ class AuthoredRailCenteringContractTests(unittest.TestCase):
         self.assertIn("rotation * Quaternion.Euler(0f, -90f, 0f)", builder)
         self.assertIn("Mathf.Max(.5f, length / 2f)", builder)
 
-    def test_runtime_pass_recenters_only_long_track_rails(self):
+    def test_runtime_pass_recenters_then_applies_signed_offset_line_joins(self):
         source = PASS_PATH.read_text(encoding="utf-8")
         for required in (
             'TrackRootName = "CAIRO NIGHT RUN // 3FAREET"',
             'BarrierName = "AUTHORED CAIRO BARRIER"',
             "AuthoredHalfLengthMeters = 1f",
             "MinimumRailScaleX = 1.25f",
-            "ExpectedRaceRails = 72 * 2",
+            "ExpectedWaypoints = 72",
+            "ExpectedRaceRails = ExpectedWaypoints * 2",
+            "RailLateralOffset = RoadWidth * .56f",
+            "MaxJoinShiftMeters = RailLateralOffset * 1.5f",
             "candidate.position += candidate.right * halfLength;",
             "Mathf.Abs(candidate.localScale.x) * AuthoredHalfLengthMeters",
+            "ApplySignedJoinCorrection()",
+            "ResolveSignedSpan(previous, p, next, after, side, out var start, out var end);",
+            "IntersectOffsetLines",
+            "Cross2(delta, adjacentDirection) / denominator",
+            "Mathf.Clamp(alongCurrent, -MaxJoinShiftMeters, MaxJoinShiftMeters)",
+            "scale.x = Mathf.Max(.5f, length * .5f / AuthoredHalfLengthMeters);",
             "candidate.parent.name != TrackRootName",
             "AFAREET_UART005_AUTHORED_RAIL_CENTERING_ACTIVE",
+            "AFAREET_URAC011_SIGNED_RAIL_JOINS_ACTIVE",
+            "insideShortens=true outsideExtends=true",
+            "raceLineUnchanged=true collisionsUnchanged=true",
             "primitiveGeometry=false",
         ):
             self.assertIn(required, source)
