@@ -91,7 +91,9 @@ class P1LicensedHandoffPacketTests(unittest.TestCase):
 
     def test_output_is_artifacts_only_and_refuses_overwrite(self):
         packet = MODULE.build_packet(ROOT)
-        with tempfile.TemporaryDirectory(dir=ROOT / "artifacts") as tmp:
+        artifact_root = ROOT / "artifacts"
+        artifact_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=artifact_root) as tmp:
             output = Path(tmp) / "handoff.json"
             MODULE.write_packet(ROOT, output, packet)
             payload = json.loads(output.read_text(encoding="utf-8"))
