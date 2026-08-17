@@ -3,7 +3,9 @@
 
 PURPOSE
 -------
-This root-level file is the mandatory handoff ledger for any project item that cannot be completed safely and truthfully by repository code alone (for example: final authored 3D art, hand-authored textures, audio recordings, licensed fonts, owner-approved reference art, or other external creative/source material).
+This root-level file is the mandatory creation/handoff ledger for any project item that cannot be completed safely and truthfully by repository code alone (for example: final authored 3D art, hand-authored textures, audio recordings, licensed fonts, owner-approved reference art, or other external creative/source material).
+
+`docs/MISSED_ASSETS.md` remains the detailed inventory/status registry. THIS root file is the mandatory copy-ready creation brief whenever an inventory item needs external authored source material. If the two documents disagree about whether programming can solve a problem, programming/automation remains an engineering responsibility and must not be pushed into this ledger as an art request.
 
 POLICY — MANDATORY FOR EVERY PROGRAMMER / AI AGENT
 -------------------------------------------------
@@ -144,18 +146,19 @@ ACTIVE REQUEST 004
 REQUEST ID: EXT-ASSET-004
 STATUS: OPEN
 BLOCKS: Production audio replacement / owner audio acceptance / final presentation readiness
-ASSET NAME: Cairo Night production soundtrack + core race/power-up audio handoff
-PURPOSE: Replace the current code-generated prototype music loop with authored, commercially usable production audio while preserving the existing pause/volume/lifecycle code and decoupled presentation hooks.
+ASSET NAME: Cairo Night production soundtrack + full core race/vehicle/power-up audio handoff
+PURPOSE: Replace code-generated/temporary audio with authored, commercially usable production audio while preserving the existing lifecycle and typed power-up presentation hooks.
 TOOL: Ableton Live, FL Studio, Reaper, Logic Pro, Cubase, or another professional DAW. Optional field/foley recording and licensed virtual instruments/sound libraries with documented commercial rights.
-HELPER SCRIPT / WORKFLOW: Engineering owns Unity import/compression validation, loudness/file-format checks, deterministic resource/address binding, pause/volume lifecycle and power-up presentation hooks. The current `CairoMusicLifecycle.BuildLoop()` synthetic loop is a prototype fallback only and must not be relabeled as production audio.
+HELPER SCRIPT / WORKFLOW: Engineering owns Unity import/compression validation, loudness/file-format checks, deterministic Resources binding, pause/volume lifecycle and typed power-up presentation hooks. Synthetic/prototype clips must never be relabeled as production.
 OUTPUT / DESTINATION:
 - Editable DAW project or clearly documented stem/source archive when licensing permits
 - Music master: WAV, 48 kHz, 24-bit stereo, seamless loop with exact loop-point notes
 - SFX masters: WAV, 48 kHz, 24-bit mono/stereo as appropriate
-- Proposed tracked source target: Assets/Afareet/AudioSource/Production/
-- Proposed Unity runtime target: Assets/Afareet/Audio/Production/
+- Tracked source target: Assets/Afareet/AudioSource/Production/
+- Unity music target: Assets/Afareet/Resources/Audio/Production/Music/MUS_CairoNight_Race_Loop.wav
+- Unity power-up SFX target folder: Assets/Afareet/Resources/Audio/Production/Sfx/PowerUps/
 CREATION PROMPT / ART BRIEF:
-"Create an original production audio pack for the mobile supernatural Cairo street-racing game 3FAREET. Main music: a seamless night-race loop with Egyptian/Cairo identity, modern electronic street-racing energy, shaabi/mahraganat-inspired rhythmic character used respectfully, dark supernatural atmosphere, strong but controlled low end, and enough midrange space for engine/UI/SFX. Do not copy an existing song, melody, vocal, sample pack demo, or copyrighted artist style one-to-one. Target an energetic race loop around 95–110 BPM and provide a musically clean loop point. Also create a compact core SFX set for START/GO, checkpoint pass, finish/results, nitro activation, drift/spirit charge, Asphalt Shard deploy/impact, Traffic Curse cast/impact, Eye Shield activate/block, Enchanted Pound activate, UI confirm/back, and pause/resume. SFX must remain readable on phone speakers without excessive sub-bass or harsh peaks. Deliver clean masters with descriptive filenames and a source/license manifest listing every external sample or library used. No unlicensed vocals, trademarked audio signatures, or unknown-license samples."
+"Create an original production audio pack for the mobile supernatural Cairo street-racing game 3FAREET. Main music: a seamless night-race loop with Egyptian/Cairo identity, modern electronic street-racing energy, shaabi/mahraganat-inspired rhythmic character used respectfully, dark supernatural atmosphere, strong but controlled low end, and enough midrange space for engine/UI/SFX. Do not copy an existing song, melody, vocal, sample pack demo, or copyrighted artist style one-to-one. Target an energetic race loop around 95–110 BPM and provide a musically clean loop point. Vehicle set: provide engine idle/low/high or a documented layered engine loop solution, tire skid/drift loop, light/medium/heavy crash impacts, nitro whoosh/spirit activation and recovery feedback. Race/UI set: START/GO, checkpoint pass, finish/results, UI confirm/back, pause/resume. Power-up set: Asphalt Shard activate/deploy/impact, Nitro Spirit activate, Traffic Curse cast/impact, Eye Shield activate/block, Enchanted Pound activate, and Spirit/drift charge feedback. SFX must remain readable on phone speakers without excessive sub-bass or harsh peaks. Deliver clean masters with descriptive filenames and a source/license manifest listing every external sample or library used. Required power-up activation filenames must include SFX_AsphaltShard_Activate, SFX_NitroSpirit_Activate, SFX_TrafficCurse_Activate, SFX_EnchantedPound_Activate, SFX_EyeShield_Activate and SFX_EyeShield_Block. No unlicensed vocals, trademarked audio signatures, or unknown-license samples."
 TECHNICAL CONSTRAINTS:
 - Music must loop seamlessly and leave headroom for game SFX.
 - Mobile-friendly final compression will be handled by Unity/import tooling; supply uncompressed masters.
@@ -166,11 +169,128 @@ ACCEPTANCE CRITERIA:
 - Source/license manifest reviewed.
 - Masters committed or stored in approved source location when licensing permits.
 - Unity import/compression checks pass.
-- Runtime uses authored production track/SFX and the procedural `AudioClip.Create` loop is disabled for production builds.
-- Pause/resume/volume and power-up hooks behave correctly on exact Android candidate.
+- Runtime uses authored production track/SFX and no synthetic fallback is active in normal production.
+- Pause/resume/volume, vehicle feedback and power-up hooks behave correctly on exact Android candidate.
 - Owner accepts the production audio direction.
 PROVENANCE / LICENSE: Original composition/recording or explicitly commercially licensed samples/instruments with redistribution/use rights appropriate for a shipped game; document all third-party dependencies.
-INTEGRATION NOTES: Current code-generated Cairo loop remains acceptable only as prototype/debug fallback until this request is delivered. Engineering should implement production-vs-fallback audio gating and validation before final handoff.
+INTEGRATION NOTES: Current code-generated Cairo loop remains acceptable only as prototype/debug fallback until this request is delivered. `CairoMusicLifecycle` and `PowerUpProductionAudioBridge` already enforce authored-resource-first behavior.
+
+======================================================================
+ACTIVE REQUEST 005
+======================================================================
+REQUEST ID: EXT-ASSET-005
+STATUS: OPEN
+BLOCKS: Production VFX source handoff / power-up presentation completeness / final visual acceptance
+ASSET NAME: Mobile production VFX source pack — drift, Nitro Spirit, shield, traps, impacts and gameplay pickup
+PURPOSE: Supply authored texture/flipbook/decal/spirit source material that code-driven particle/shader systems can consume without relying on primitive-only or flat-color placeholders.
+TOOL: Unity 6 Particle System/VFX authoring plus Krita, Adobe Photoshop, Affinity Photo, Substance 3D Designer, Blender 4.x or Houdini as appropriate for source textures/meshes. Final effects must remain usable in the project without proprietary runtime dependencies.
+HELPER SCRIPT / WORKFLOW: Engineering owns pooling, event hooks, quality tiers, shader/material validation, resource binding and mobile budget instrumentation. External artist supplies the authored sprites/flipbooks/decals/spirit silhouettes or small source meshes that cannot be truthfully replaced by generated primitives.
+OUTPUT / DESTINATION:
+- Editable layered source where possible (.kra/.psd/.afphoto/.blend or documented equivalent)
+- Runtime textures/atlases under Assets/Afareet/ArtSource/VFX/Production/ with Unity exports staged under Assets/Afareet/Resources/VFX/Production/
+- Small meshes, if used, must include editable .blend + FBX export
+CREATION PROMPT / ART BRIEF:
+"Create an original mobile production VFX source pack for 3FAREET, a supernatural Cairo night street-racing game. Required families: tire smoke; drift sparks; Magic Drift aura levels 1–3; Nitro Spirit apparition and speed streaks; crash impact burst; Eye Shield with an original eye/protection motif; Asphalt Shard ground trap and impact feedback; Traffic Curse readable debuff; Enchanted Pound/coin multiplier celebration; Spirit charge pulse; and one readable floating enchanted-coin pickup model or billboard source. Visual language: black night base with controlled cyan, purple and gold emissive accents; readable at chase-camera distance; stylized rather than photoreal. Produce transparent sprite/flipbook atlases or small source meshes with clean alpha, no baked black backgrounds, no copyrighted symbols or downloaded unknown-license effects. Design for mobile: limited overdraw, restrained particle counts, small atlases and clear low/medium/high intensity tiers."
+TECHNICAL CONSTRAINTS:
+- Alpha edges must be clean; no color-fringe halos.
+- Effects must be readable against dark road and neon buildings.
+- Provide atlas frame order, FPS suggestion and pivot/origin notes.
+- No huge full-screen overdraw effect as a required default.
+- Any source mesh must use deterministic pivot/scale and mobile-friendly topology.
+ACCEPTANCE CRITERIA:
+- Source + provenance manifest delivered.
+- Engineering runtime bridge can bind all required effect families without generated geometry masquerading as production.
+- Mobile quality tiers and pooling validation pass.
+- Exact Android candidate shows each gameplay effect without material errors or severe overdraw regression.
+PROVENANCE / LICENSE: Original authored source or explicitly commercially licensed source elements with game redistribution rights; list every third-party dependency.
+INTEGRATION NOTES: Code-side particle lifecycle, pooling, triggering, target tracking and quality decisions remain programming responsibilities.
+
+======================================================================
+ACTIVE REQUEST 006
+======================================================================
+REQUEST ID: EXT-ASSET-006
+STATUS: OPEN
+BLOCKS: Final UI/branding presentation / Garage and Career visual presentation / owner acceptance
+ASSET NAME: Production UI and in-game branding vector source pack
+PURPOSE: Replace plain development rectangles/text-only presentation with coherent production visual assets after programming behavior is complete.
+TOOL: Figma, Adobe Illustrator, Affinity Designer, or Inkscape. Photoshop/Krita may be used for raster texture support, but a reusable vector/source design file is preferred.
+HELPER SCRIPT / WORKFLOW: Engineering owns responsive anchors, safe areas, input hit regions, localization, dynamic text, state logic and runtime layout. Artist supplies reusable art only; do not bake changing scores/timers/labels into images.
+OUTPUT / DESTINATION:
+- Editable Figma/AI/AFDESIGN/SVG source under Assets/Afareet/UIArtSource/Production/
+- Export PNG/SVG assets at documented reference scales under the project-approved Unity UI art folder
+CREATION PROMPT / ART BRIEF:
+"Design an original production UI art kit for 3FAREET with supernatural Cairo street-racing identity. Required components: Arabic/Latin game logo treatment; HUD frame accents for position, time, speed and Spirit without baking text; Drift/Spirit meter art with empty/charging/full states; 1st–4th position badge frames; pause/confirm/back icon family; results medals/finish badges; reusable Garage vehicle card with locked/unlocked/equipped states; Career map node frames for race/time/drift/boss states; and compact power-up slot/icon frames. Visual language: dark near-black base, restrained purple/cyan/gold accents, strong mobile readability, clean geometric + subtle Egyptian-inspired motifs without copying protected logos or religious symbols. Keep decorative art away from core text safe zones. Deliver reusable vector components and export specs, not screenshots of complete screens."
+TECHNICAL CONSTRAINTS:
+- Must support Arabic RTL and English LTR text inserted at runtime.
+- Maintain readable silhouettes at phone size.
+- Do not bake numeric/text values into frames.
+- Provide 9-slice/stretchable guidance where appropriate.
+- Avoid excessive transparent overdraw and giant full-screen textures.
+ACCEPTANCE CRITERIA:
+- Editable source/provenance delivered.
+- Runtime UI can apply the kit without changing gameplay/input logic.
+- Arabic and English safe-area review passes on representative phone aspect ratios.
+- Owner accepts the production UI direction.
+PROVENANCE / LICENSE: Original design or properly licensed source components/fonts; disclose every non-original component.
+INTEGRATION NOTES: UI polish is intentionally paused by Product Owner; this request records the future external dependency while engineering finishes behavior first.
+
+======================================================================
+ACTIVE REQUEST 007
+======================================================================
+REQUEST ID: EXT-ASSET-007
+STATUS: OPEN
+BLOCKS: Arabic/Latin production typography selection and redistribution compliance
+ASSET NAME: Licensed Arabic + Latin production font family/source package
+PURPOSE: Provide a legally redistributable, highly readable font solution for Arabic RTL, English/Latin labels and numerals in the shipped game.
+TOOL: FontForge for technical inspection/subset testing plus an authoritative font source/license repository. Do not use a random font-download mirror.
+HELPER SCRIPT / WORKFLOW: Engineering owns TextMeshPro/font-asset generation, glyph coverage tests, fallback configuration, RTL layout and build-size checks. External/legal selection supplies the actual licensed font binaries and license text.
+OUTPUT / DESTINATION:
+- Original font files (.ttf/.otf) from authoritative source
+- Exact license text and source URL/receipt archived alongside source metadata
+- Proposed source target: Assets/Afareet/FontSource/Production/
+- Generated Unity/TMP assets belong under project-approved Resources/UI font paths
+CREATION PROMPT / ART BRIEF:
+"Select one production-safe Arabic + Latin font family for 3FAREET that is highly readable on mobile at small HUD sizes, supports Arabic joining and RTL text correctly, includes Latin letters and Western/Arabic numerals needed by the game, and carries an explicit license permitting commercial game use and redistribution of the font inside the shipped application. Prefer a well-maintained open license such as SIL OFL when it meets the visual/readability requirements. Provide Regular, Medium/Semibold and Bold weights if available, the exact license file, authoritative download/source reference, supported glyph coverage notes, and a short recommendation for HUD versus headings. Do not provide a font from an unknown mirror and do not modify/rebrand a restricted commercial font."
+TECHNICAL CONSTRAINTS:
+- Arabic shaping/diacritics required for supported localized strings.
+- Latin/numeral coverage required.
+- License must permit embedding in Android/iOS/desktop game builds.
+- Keep number of weights practical for mobile build size.
+ACCEPTANCE CRITERIA:
+- License/provenance reviewed and archived.
+- TMP glyph-coverage and RTL smoke tests pass.
+- No missing-glyph squares in supported Arabic/English UI strings.
+PROVENANCE / LICENSE: Mandatory authoritative license text/source; no unknown-license font files.
+INTEGRATION NOTES: Font asset generation and fallback setup are programming/integration work and must be completed by engineering after delivery.
+
+======================================================================
+ACTIVE REQUEST 008
+======================================================================
+REQUEST ID: EXT-ASSET-008
+STATUS: OPEN
+BLOCKS: Store-ready icon family / platform packaging presentation
+ASSET NAME: 3FAREET production app icon master + Android adaptive icon family
+PURPOSE: Replace the current preview/reference icon candidate with a clean production master and deterministic platform exports.
+TOOL: Figma, Adobe Illustrator, Affinity Designer, or Inkscape.
+HELPER SCRIPT / WORKFLOW: Engineering owns Android/iOS export validation, adaptive-mask preview, mipmap placement and package/build checks. Artist supplies the clean master/vector source and approved foreground/background composition.
+OUTPUT / DESTINATION:
+- Editable vector/source master
+- 1024×1024 clean master PNG
+- Android adaptive foreground/background exports plus Play Store 512×512 export
+- Target reference/source area: docs/assets/05_ui_hud/app_icons/ and project platform icon resources after approval
+CREATION PROMPT / ART BRIEF:
+"Create a production app icon for 3FAREET, a supernatural Cairo night racing game. Use a bold original Afareet/spirit-racing symbol that remains recognizable at 48px, with a dark near-black field and controlled purple/cyan/gold identity. The icon must not depend on small text or thin details. Build it for Android adaptive masks: keep the primary symbol inside the safe central region, provide separate foreground and background layers, and test circle/squircle/rounded-square crops. Also provide a clean 1024×1024 master and Play Store 512×512 export. Do not copy automotive brand logos, game logos, religious symbols or third-party artwork."
+TECHNICAL CONSTRAINTS:
+- Strong silhouette at small size.
+- No important detail outside adaptive safe region.
+- No transparency in store master where platform disallows it.
+- Maintain exact source/editable master for future export changes.
+ACCEPTANCE CRITERIA:
+- Owner approves master.
+- Android adaptive icon mask tests pass.
+- Platform packaging uses generated exports with no fallback preview icon.
+PROVENANCE / LICENSE: Original artwork or fully owned commissioned work; document any licensed source component.
+INTEGRATION NOTES: Existing reference sheet/256 candidate remains preview/reference only until this request is accepted.
 
 ======================================================================
 PROGRAMMING-ONLY WORK — DO NOT ADD AS EXTERNAL ASSET REQUESTS
@@ -187,5 +307,7 @@ The following are engineering responsibilities and must be solved in code/tests/
 - Android/Windows build automation where credentials/licenses are available.
 - Static tests, EditMode/PlayMode tests and CI contracts.
 - Clear diagnostics for missing external assets.
+- Wheel rotation, suspension/body lean and other code-solvable animation hooks.
+- AI racing line, respawn and power-up marker generation/validation.
 
 END OF FILE
