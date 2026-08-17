@@ -4,6 +4,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MUSIC = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Core/CairoMusicLifecycle.cs"
+POWERUP_AUDIO = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Core/PowerUpProductionAudioBridge.cs"
 LEDGER = REPO_ROOT / "EXTERNAL_ASSET_REQUESTS.txt"
 
 
@@ -25,6 +26,35 @@ class ProductionAudioFallbackIsolationContractTests(unittest.TestCase):
         self.assertIn("BuildPrototypeLoop", source)
         self.assertIn("classification=PROTOTYPE production=false", source)
         self.assertNotIn("private static AudioClip BuildLoop()", source)
+
+    def test_live_powerup_audio_bridge_consumes_typed_hub_events(self):
+        self.assertTrue(POWERUP_AUDIO.is_file())
+        source = POWERUP_AUDIO.read_text(encoding="utf-8")
+        for required in (
+            "PowerUpPresentationHub.Published += OnPresentation",
+            "RacerPowerUpPresentationEvent",
+            "Resources.Load<AudioClip>(resourcePath)",
+            "source.PlayOneShot(clip)",
+            "SFX_AsphaltShard_Activate",
+            "SFX_NitroSpirit_Activate",
+            "SFX_TrafficCurse_Activate",
+            "SFX_EnchantedPound_Activate",
+            "SFX_EyeShield_Activate",
+            "SFX_EyeShield_Block",
+            "syntheticFallback=false",
+            "request=EXT-ASSET-004",
+        ):
+            self.assertIn(required, source)
+
+    def test_powerup_bridge_has_no_synthetic_audio_fallback(self):
+        source = POWERUP_AUDIO.read_text(encoding="utf-8")
+        for forbidden in (
+            "AudioClip.Create",
+            "SetData(",
+            "Mathf.Sin",
+            "new float[",
+        ):
+            self.assertNotIn(forbidden, source)
 
     def test_audio_dependency_is_registered_in_external_asset_ledger(self):
         ledger = LEDGER.read_text(encoding="utf-8")
