@@ -24,6 +24,19 @@ class MobileDriveContractTests(unittest.TestCase):
         self.assertIn("player.SetPlayerInput(0f, 0f, false, false, false);", input_controller)
         self.assertIn("player.ResetToSpawn();", input_controller)
 
+    def test_control_labels_are_visible_and_ready_action_does_not_cover_driving_center(self):
+        controls = CONTROLS_PATH.read_text(encoding="utf-8")
+        self.assertIn("label.text = labelText;", controls)
+        self.assertIn(
+            'startRect = CreateControl("START RACE", new Vector2(1f, 1f), new Vector2(-24f, -92f), new Vector2(190f, 52f), out _);',
+            controls,
+        )
+        self.assertNotIn(
+            'startRect = CreateControl("START RACE", new Vector2(.5f, .5f), Vector2.zero, new Vector2(320f, 92f), out _);',
+            controls,
+        )
+        self.assertIn("image.color = new Color(.17f, .035f, .30f, .82f);", controls)
+
     def test_mobile_steering_uses_reduced_policy_not_full_lock_literals(self):
         controls = CONTROLS_PATH.read_text(encoding="utf-8")
         policy = POLICY_PATH.read_text(encoding="utf-8")
