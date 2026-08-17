@@ -1,0 +1,69 @@
+name: P1 Staging Authorization Lineage
+
+on:
+  pull_request:
+    paths:
+      - 'tools/android/run_p1_licensed_staging_windows.ps1'
+      - 'tools/android/stage_production_candidate_windows.ps1'
+      - 'tools/android/verify_p1_staging_lineage_windows.ps1'
+      - 'tools/android/run_p1_staged_candidate_windows.ps1'
+      - 'tools/android/prepare_p1_candidate_device.py'
+      - 'unity_game/Assets/Afareet/Editor/P1ProductionCandidateStagingHandoff.cs'
+      - 'tools/android/tests/test_p1_staging_authorization_lineage.py'
+      - 'tools/android/tests/test_p1_licensed_staging_handoff_contract.py'
+      - 'tools/android/tests/test_p1_staging_candidate_lineage_contract.py'
+      - 'tools/android/tests/test_prepare_p1_candidate_device.py'
+      - '.github/workflows/p1-staging-authorization-lineage.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  authorization-lineage-contract:
+    name: READY authorization through staging/device lineage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Python syntax and source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/android/prepare_p1_candidate_device.py
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_staging_authorization_lineage.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_licensed_staging_handoff_contract.py' -v
+
+      - name: PowerShell staging and lineage syntax
+        shell: pwsh
+        run: |
+          foreach ($relativePath in @(
+            'tools/android/run_p1_licensed_staging_windows.ps1',
+            'tools/android/stage_production_candidate_windows.ps1',
+            'tools/android/verify_p1_staging_lineage_windows.ps1',
+            'tools/android/run_p1_staged_candidate_windows.ps1'
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $relativePath),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "${relativePath}: $($_.Message)" }
+              exit 1
+            }
+          }
+
+      - name: Execute staging lineage functional fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_staging_candidate_lineage_contract.py' -v
+
+      - name: Execute P1 device-chain regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/android/tests -p 'test_prepare_p1_candidate_device.py' -v
