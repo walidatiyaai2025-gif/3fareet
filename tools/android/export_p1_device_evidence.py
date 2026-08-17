@@ -28,6 +28,12 @@ P1_REVIEW_LINEAGE_FILE = "p1-review-lineage.json"
 P1_REVIEW_STATE = "SANITIZED_P1_REVIEW_LINEAGE"
 P1_REVIEW_PROFILE = "p1-final-gate-lineage-v2"
 EXPECTED_TASKS = list(prepare_p1_candidate_device.EXPECTED_TASKS)
+AUTHORIZATION_KEYS = (
+    "authorizationSourceGitSha",
+    "handoffPacketSha256",
+    "nativeHandoffVerificationSha256",
+    "operatorChainSha256",
+)
 EXPECTED_TASK_STATES = {
     "UART-003": "LICENSED_UNITY_STAGE_AND_BIND_OK",
     "UART-004": "LICENSED_UNITY_STAGE_AND_BIND_OK",
@@ -85,17 +91,43 @@ def _sha256(value: Any, label: str) -> str:
 
 
 def _authorization(value: Any, label: str) -> dict[str, str]:
-    try:
-        return prepare_p1_candidate_device._normalize_authorization(value, label)
-    except prepare_p1_candidate_device.P1CandidatePrepareError as exc:
-        raise P1EvidenceExportError(str(exc)) from exc
+    if not isinstance(value, dict) or set(value) != set(AUTHORIZATION_KEYS):
+        raise P1EvidenceExportError(
+            f"{label} must contain exactly the four staging authorization fingerprints"
+        )
+    return {
+        "authorizationSourceGitSha": _sha40(
+            value.get("authorizationSourceGitSha"), f"{label}.authorizationSourceGitSha"
+        ),
+        "handoffPacketSha256": _sha256(
+            value.get("handoffPacketSha256"), f"{label}.handoffPacketSha256"
+        ),
+        "nativeHandoffVerificationSha256": _sha256(
+            value.get("nativeHandoffVerificationSha256"),
+            f"{label}.nativeHandoffVerificationSha256",
+        ),
+        "operatorChainSha256": _sha256(
+            value.get("operatorChainSha256"), f"{label}.operatorChainSha256"
+        ),
+    }
 
 
 def _authorization_from_staging(payload: dict[str, Any], label: str) -> dict[str, str]:
-    try:
-        return prepare_p1_candidate_device._authorization_from_staging(payload, label)
-    except prepare_p1_candidate_device.P1CandidatePrepareError as exc:
-        raise P1EvidenceExportError(str(exc)) from exc
+    return {
+        "authorizationSourceGitSha": _sha40(
+            payload.get("authorizationSourceGitSha"), f"{label}.authorizationSourceGitSha"
+        ),
+        "handoffPacketSha256": _sha256(
+            payload.get("handoffPacketSha256"), f"{label}.handoffPacketSha256"
+        ),
+        "nativeHandoffVerificationSha256": _sha256(
+            payload.get("nativeHandoffVerificationSha256"),
+            f"{label}.nativeHandoffVerificationSha256",
+        ),
+        "operatorChainSha256": _sha256(
+            payload.get("operatorChainSha256"), f"{label}.operatorChainSha256"
+        ),
+    }
 
 
 def _require_tasks(value: Any, label: str) -> list[str]:
