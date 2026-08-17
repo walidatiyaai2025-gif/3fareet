@@ -5,6 +5,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PREFLIGHT_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionSourcePreflight.cs"
 STAGER_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs"
+RESOLVER_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalImportedLodResolver.cs"
 STACK_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1RaceVisualStackStager.cs"
 
 
@@ -34,7 +35,8 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
             "material.GetTexturePropertyNames()",
             "material.GetTexture(propertyName)",
             "RivalProductionPolicy.MeetsProductionFloor",
-            "expectedObjectSuffix=_LOD{lod}",
+            "RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)",
+            "RivalImportedLodResolver.Resolve(renderer, sourceModel.transform, signature)",
             "AFAREET_UART004_SOURCE_PREFLIGHT_OK",
             "AFAREET_UART004_SOURCE_PREFLIGHT_ALL_OK",
         )
@@ -51,21 +53,37 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
         for token in forbidden:
             self.assertNotIn(token, source)
 
-    def test_unity_obj_lod_resolution_accepts_authored_mesh_subasset_names(self):
-        for path in (PREFLIGHT_PATH, STAGER_PATH):
-            source = path.read_text(encoding="utf-8")
-            required = (
-                "RivalProductionPolicy.MeshFor(renderer)",
-                "ResolveLod(renderer.transform",
-                "ResolveLodFromName(mesh == null ? string.Empty : mesh.name)",
-                "private static int ResolveLodFromName(string name)",
-                'var token = $"_LOD{lod}"',
-                "StringComparison.OrdinalIgnoreCase",
-                "char.IsDigit(name[suffixEnd])",
-                "resolver=transform-or-source-mesh-name",
-            )
-            for token in required:
-                self.assertIn(token, source)
+    def test_flattened_unity_obj_lod_resolution_uses_exact_authored_source_signature(self):
+        resolver = RESOLVER_PATH.read_text(encoding="utf-8")
+        required = (
+            "File.ReadLines(sourcePath)",
+            'line.StartsWith("o ", StringComparison.Ordinal)',
+            'line.StartsWith("f ", StringComparison.Ordinal)',
+            "triangles[currentLod] += vertices - 2",
+            "ResolveLodFromName(current.name)",
+            "ResolveLodFromName(mesh == null ? string.Empty : mesh.name)",
+            "var meshTriangles = TriangleCount(mesh)",
+            "meshTriangles != signature.Triangles[lod]",
+            "source triangle signatures are ambiguous",
+        )
+        for token in required:
+            self.assertIn(token, resolver)
+
+        # The final fallback must be an exact source-derived identity match, not a broad
+        # production quality range that could assign one imported mesh to several LODs.
+        self.assertNotIn("MeetsProductionFloor", resolver)
+        self.assertNotIn("MinimumTriangles[lod] <=", resolver)
+        self.assertNotIn("MaximumTriangles[lod] >=", resolver)
+
+    def test_preflight_and_stager_use_the_same_shared_resolver(self):
+        preflight = PREFLIGHT_PATH.read_text(encoding="utf-8")
+        stager = STAGER_PATH.read_text(encoding="utf-8")
+        self.assertIn("RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)", preflight)
+        self.assertIn("RivalImportedLodResolver.Resolve(renderer, sourceModel.transform, signature)", preflight)
+        self.assertIn("RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)", stager)
+        self.assertIn("RivalImportedLodResolver.Resolve(renderer, instance.transform, signature)", stager)
+        self.assertIn("resolver=transform-or-mesh-name-or-exact-source-triangle-signature", preflight)
+        self.assertIn("resolver=transform-or-mesh-name-or-exact-source-triangle-signature", stager)
 
     def test_full_visual_stack_runs_all_preflights_before_first_mutating_stage(self):
         source = STACK_PATH.read_text(encoding="utf-8")
