@@ -7,6 +7,7 @@ on:
       - 'unity_game/Assets/Afareet/Editor/AfareetBuild.cs'
       - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
       - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
+      - 'docs/qa/UART003_HERO_ASSET_INTAKE.md'
       - 'docs/qa/UNITY_CI_UNBLOCK.md'
       - '.gitignore'
       - '.gitattributes'
@@ -19,6 +20,7 @@ on:
       - 'unity_game/Assets/Afareet/Editor/AfareetBuild.cs'
       - 'docs/qa/ANDROID_DEVICE_EVIDENCE_HARNESS.md'
       - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
+      - 'docs/qa/UART003_HERO_ASSET_INTAKE.md'
       - 'docs/qa/UNITY_CI_UNBLOCK.md'
       - '.gitignore'
       - '.gitattributes'
@@ -51,7 +53,9 @@ jobs:
             tools/android/verify_ci_candidate.py \
             tools/android/prepare_candidate_device.py \
             tools/android/verify_unity_test_results.py \
-            tools/android/verify_unity_package_lock.py
+            tools/android/verify_unity_package_lock.py \
+            tools/android/validate_hero_asset_intake.py \
+            tools/android/p1_licensed_staging_readiness.py
           python3 tools/android/device_evidence.py --help >/dev/null
           python3 tools/android/device_evidence.py prepare --help >/dev/null
           python3 tools/android/device_evidence.py capture --help >/dev/null
@@ -68,6 +72,8 @@ jobs:
           python3 tools/android/prepare_candidate_device.py --help >/dev/null
           python3 tools/android/verify_unity_test_results.py --help >/dev/null
           python3 tools/android/verify_unity_package_lock.py --help >/dev/null
+          python3 tools/android/validate_hero_asset_intake.py --help >/dev/null
+          python3 tools/android/p1_licensed_staging_readiness.py --help >/dev/null
           python3 -m json.tool tools/android/p1_gate_spec.json >/dev/null
 
       - name: Validate generated evidence ignore contract
