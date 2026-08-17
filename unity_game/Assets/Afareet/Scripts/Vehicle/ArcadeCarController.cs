@@ -74,7 +74,18 @@ namespace Afareet.Vehicle
 
         private void FixedUpdate()
         {
-            if (config == null) return;
+            if (config == null || body == null) return;
+
+            // RaceDirector intentionally freezes all racers as kinematic bodies during
+            // Ready/Countdown/Results. Unity 6 rejects linear/angular velocity writes on
+            // kinematic Rigidbodies, so the vehicle controller must be completely passive
+            // until RaceDirector releases the body back to dynamic simulation.
+            if (body.isKinematic)
+            {
+                DriftChargeActive = false;
+                foreach (var trail in trails) trail.emitting = false;
+                return;
+            }
 #if UNITY_EDITOR || UNITY_STANDALONE
             if (AcceptsPlayerInput) ReadDesktopInput();
 #endif
@@ -313,9 +324,13 @@ namespace Afareet.Vehicle
 
             // Teleport the physics body directly; using Transform.SetPositionAndRotation on
             // an interpolated dynamic Rigidbody can leave the physics pose/contact state one
-            // simulation step behind the visual Transform.
-            body.linearVelocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
+            // simulation step behind the visual Transform. Velocity writes are valid only for
+            // a dynamic body; Ready/Countdown/Results deliberately keep the racer kinematic.
+            if (!body.isKinematic)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+            }
             body.position = targetPosition;
             body.rotation = targetRotation;
             ClearDriveInputs();
