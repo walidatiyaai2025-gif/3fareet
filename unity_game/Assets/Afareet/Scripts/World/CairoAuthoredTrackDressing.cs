@@ -10,8 +10,10 @@ namespace Afareet.World
         private const string RunePath = ResourceRoot + "/SM_Track_SpiritRune_A";
         private const string GroundPath = ResourceRoot + "/SM_Track_DesertGround_A";
         private const string SectorBeaconPath = ResourceRoot + "/SM_Track_SectorBeacon_A";
+        private const float FinishGateForwardOffset = 10f;
         private const float SectorBeaconLateralOffset = 15f;
         private static bool activationLogged;
+        private static bool finishGatePlacementLogged;
         private static bool editorMaterialOverrideLogged;
         private static bool editorTexturePreservationLogged;
 
@@ -48,9 +50,17 @@ namespace Afareet.World
             if (source == null) return Missing(FinishGatePath);
             var instance = UnityEngine.Object.Instantiate(source, parent, false);
             instance.name = "AUTHORED Cairo Finish Gate";
-            instance.transform.SetPositionAndRotation(start.position, start.rotation);
+
+            // Waypoint 0 is also the front grid anchor. Placing a ~15m wide / 9m tall authored
+            // gate directly on that transform leaves the 7.2m chase camera almost inside the
+            // landmark at race start. Keep race/grid logic untouched and move only the visual
+            // landmark forward along the track so the gate frames the sightline instead of
+            // occluding it.
+            var visualPosition = start.position + start.forward * FinishGateForwardOffset;
+            instance.transform.SetPositionAndRotation(visualPosition, start.rotation);
             instance.transform.localScale = Vector3.one;
             ApplyByNameForEditorPreview(instance, cyan, purple, gold, cyan);
+            LogFinishGatePlacement();
             LogActivation();
             return true;
         }
@@ -163,6 +173,15 @@ namespace Afareet.World
             return false;
         }
 
+        private static void LogFinishGatePlacement()
+        {
+            if (finishGatePlacementLogged) return;
+            finishGatePlacementLogged = true;
+            Debug.Log(
+                $"AFAREET_UART007_FINISH_GATE_VISUAL_CLEARANCE_ACTIVE forwardOffset={FinishGateForwardOffset:F1}m " +
+                "waypoint0Unchanged=true gridLogicUnchanged=true");
+        }
+
         private static void LogEditorMaterialOverride()
         {
             if (editorMaterialOverrideLogged) return;
@@ -191,7 +210,8 @@ namespace Afareet.World
             activationLogged = true;
             Debug.Log(
                 $"AFAREET_UART007_AUTHORED_TRACK_DRESSING_ACTIVE geometry=tracked-obj resources=staged " +
-                $"playerMaterials=source-authored sectorBeaconOffset={SectorBeaconLateralOffset:F1}");
+                $"playerMaterials=source-authored finishGateForwardOffset={FinishGateForwardOffset:F1} " +
+                $"sectorBeaconOffset={SectorBeaconLateralOffset:F1}");
         }
     }
 }
