@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +19,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+import p1_visual_source_readiness
 import validate_hero_asset_intake
 
 SUPPORTED_HERO_EXTENSIONS = {".fbx", ".obj", ".blend", ".glb", ".gltf"}
@@ -44,16 +44,13 @@ HANDOFF_REQUIRED_FILES = (
     "unity_game/Assets/Afareet/Editor/P1ProductionWorldAssetStager.cs",
     "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkAssetStager.cs",
     "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingAssetStager.cs",
+    "tools/android/p1_visual_source_readiness.py",
     "tools/android/stage_production_candidate_windows.ps1",
     "tools/android/run_local_candidate_windows.ps1",
     ".github/workflows/unity-licensed-windows-candidate.yml",
 )
 
-WORLD_REQUIRED_FILES = (
-    "docs/assets/02_tracks_environments/cairo_street_kit/ASSET_MANIFEST.json",
-    "docs/assets/03_props_architecture/cairo_landmarks/ASSET_MANIFEST.json",
-    "docs/assets/02_tracks_environments/cairo_track_dressing/ASSET_MANIFEST.json",
-)
+WORLD_REQUIRED_FILES = tuple(p1_visual_source_readiness.MANIFESTS.values())
 
 
 def _run_git(repo_root: Path, args: Sequence[str]) -> Tuple[int, str, str]:
@@ -224,15 +221,28 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
                 "binary/DCC source accepted only for licensed Unity inspection; no structural-pass claim",
             )
 
+    visual_source_report = p1_visual_source_readiness.audit_visual_sources(
+        repo_root,
+        hero_source=normalized_hero or None,
+    )
+    for visual_task in visual_source_report["tasks"]:
+        task_id = str(visual_task["taskId"])
+        source_ready = bool(visual_task["sourceReady"])
+        detail = f"state={visual_task['state']}; blockedChecks={len(visual_task['blockedCheckIds'])}; verified=false"
+        _check(checks, f"VISUAL_SOURCE:{task_id}", source_ready, detail)
+
     blocked = [item for item in checks if item["status"] != "PASS"]
     state = "READY_FOR_LICENSED_STAGING" if not blocked else "BLOCKED"
 
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "state": state,
         "gitSha": git_sha.lower() if valid_sha else None,
         "heroSource": normalized_hero or None,
         "readyForLicensedStaging": state == "READY_FOR_LICENSED_STAGING",
+        "visualSourceState": visual_source_report["state"],
+        "visualSourceReadyCount": visual_source_report["sourceReadyCount"],
+        "visualSourceBlockedTaskIds": visual_source_report["blockedTaskIds"],
         "candidateBuildStarted": False,
         "publicationEligible": False,
         "verified": False,
