@@ -139,6 +139,40 @@ PROVENANCE / LICENSE: Original/commissioned or explicitly commercially licensed 
 INTEGRATION NOTES: Engineering should continue closing placement, camera, layout, validation and performance code before requesting additional art variants.
 
 ======================================================================
+ACTIVE REQUEST 004
+======================================================================
+REQUEST ID: EXT-ASSET-004
+STATUS: OPEN
+BLOCKS: Production audio replacement / owner audio acceptance / final presentation readiness
+ASSET NAME: Cairo Night production soundtrack + core race/power-up audio handoff
+PURPOSE: Replace the current code-generated prototype music loop with authored, commercially usable production audio while preserving the existing pause/volume/lifecycle code and decoupled presentation hooks.
+TOOL: Ableton Live, FL Studio, Reaper, Logic Pro, Cubase, or another professional DAW. Optional field/foley recording and licensed virtual instruments/sound libraries with documented commercial rights.
+HELPER SCRIPT / WORKFLOW: Engineering owns Unity import/compression validation, loudness/file-format checks, deterministic resource/address binding, pause/volume lifecycle and power-up presentation hooks. The current `CairoMusicLifecycle.BuildLoop()` synthetic loop is a prototype fallback only and must not be relabeled as production audio.
+OUTPUT / DESTINATION:
+- Editable DAW project or clearly documented stem/source archive when licensing permits
+- Music master: WAV, 48 kHz, 24-bit stereo, seamless loop with exact loop-point notes
+- SFX masters: WAV, 48 kHz, 24-bit mono/stereo as appropriate
+- Proposed tracked source target: Assets/Afareet/AudioSource/Production/
+- Proposed Unity runtime target: Assets/Afareet/Audio/Production/
+CREATION PROMPT / ART BRIEF:
+"Create an original production audio pack for the mobile supernatural Cairo street-racing game 3FAREET. Main music: a seamless night-race loop with Egyptian/Cairo identity, modern electronic street-racing energy, shaabi/mahraganat-inspired rhythmic character used respectfully, dark supernatural atmosphere, strong but controlled low end, and enough midrange space for engine/UI/SFX. Do not copy an existing song, melody, vocal, sample pack demo, or copyrighted artist style one-to-one. Target an energetic race loop around 95–110 BPM and provide a musically clean loop point. Also create a compact core SFX set for START/GO, checkpoint pass, finish/results, nitro activation, drift/spirit charge, Asphalt Shard deploy/impact, Traffic Curse cast/impact, Eye Shield activate/block, Enchanted Pound activate, UI confirm/back, and pause/resume. SFX must remain readable on phone speakers without excessive sub-bass or harsh peaks. Deliver clean masters with descriptive filenames and a source/license manifest listing every external sample or library used. No unlicensed vocals, trademarked audio signatures, or unknown-license samples."
+TECHNICAL CONSTRAINTS:
+- Music must loop seamlessly and leave headroom for game SFX.
+- Mobile-friendly final compression will be handled by Unity/import tooling; supply uncompressed masters.
+- Avoid clipped masters and excessive limiting; preserve transient readability.
+- Every third-party sample/library must have explicit commercial game-use rights and be documented.
+- Naming must be stable enough for deterministic runtime binding.
+ACCEPTANCE CRITERIA:
+- Source/license manifest reviewed.
+- Masters committed or stored in approved source location when licensing permits.
+- Unity import/compression checks pass.
+- Runtime uses authored production track/SFX and the procedural `AudioClip.Create` loop is disabled for production builds.
+- Pause/resume/volume and power-up hooks behave correctly on exact Android candidate.
+- Owner accepts the production audio direction.
+PROVENANCE / LICENSE: Original composition/recording or explicitly commercially licensed samples/instruments with redistribution/use rights appropriate for a shipped game; document all third-party dependencies.
+INTEGRATION NOTES: Current code-generated Cairo loop remains acceptable only as prototype/debug fallback until this request is delivered. Engineering should implement production-vs-fallback audio gating and validation before final handoff.
+
+======================================================================
 PROGRAMMING-ONLY WORK — DO NOT ADD AS EXTERNAL ASSET REQUESTS
 ======================================================================
 The following are engineering responsibilities and must be solved in code/tests/tooling, not pushed to the owner as art requests:
