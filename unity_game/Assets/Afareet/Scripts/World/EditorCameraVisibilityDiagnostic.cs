@@ -67,14 +67,17 @@ namespace Afareet.World
                 $"AFAREET_EDITOR_CAMERA_VISIBILITY_SCAN camera=Racing Camera visibleCandidates={candidates.Count} " +
                 $"reported={count} production=false");
 
-            for (var i = 0; i < count; i++)
+            // Emit the least dominant candidate first so rank=1 is the final console line
+            // and remains visible without scrolling during the local visual-review loop.
+            for (var i = count - 1; i >= 0; i--)
             {
                 var candidate = candidates[i];
                 var renderer = candidate.Renderer;
                 var owner = TopLevelRuntimeOwner(renderer.transform);
+                var parent = renderer.transform.parent == null ? "<root>" : renderer.transform.parent.name;
                 var size = renderer.bounds.size;
                 Debug.Log(
-                    $"AFAREET_EDITOR_CAMERA_VISIBLE_CULPRIT rank={i + 1} owner={owner} renderer={renderer.gameObject.name} " +
+                    $"AFAREET_EDITOR_CAMERA_VISIBLE_CULPRIT rank={i + 1} owner={owner} parent={parent} renderer={renderer.gameObject.name} " +
                     $"size=({size.x:F2},{size.y:F2},{size.z:F2})m maxDimension={candidate.MaxDimension:F2}m " +
                     $"distance={candidate.Distance:F2}m apparent={candidate.ApparentScore:F3} production=false");
             }
