@@ -4,6 +4,7 @@ using System.IO;
 using Afareet.Vehicle;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.Editor
 {
@@ -188,17 +189,17 @@ namespace Afareet.Editor
                     $"UART-004 stager refuses non-source mesh: variant={variant + 1} LOD{lod} " +
                     $"renderer={renderer.name} mesh={meshPath} source={sourcePath}");
 
-            if (mesh.uv == null || mesh.uv.Length != mesh.vertexCount)
+            if (!mesh.HasVertexAttribute(VertexAttribute.TexCoord0))
                 throw new InvalidOperationException(
                     $"UART-004 imported rival {variant + 1} LOD{lod} mesh is missing UV0: {renderer.name}");
-            if (mesh.normals == null || mesh.normals.Length != mesh.vertexCount)
+            if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
                 throw new InvalidOperationException(
                     $"UART-004 imported rival {variant + 1} LOD{lod} mesh is missing authored normals: {renderer.name}");
 
             var hasMappedTexture = false;
             foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
             {
-                if (material != null && material.mainTexture != null)
+                if (HasAssignedTexture(material))
                 {
                     hasMappedTexture = true;
                     break;
@@ -207,6 +208,19 @@ namespace Afareet.Editor
             if (!hasMappedTexture)
                 throw new InvalidOperationException(
                     $"UART-004 imported rival {variant + 1} LOD{lod} renderer has no texture-mapped material: {renderer.name}");
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static void EnsureAssetDirectory(string assetPath)
