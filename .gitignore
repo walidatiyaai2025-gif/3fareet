@@ -17,6 +17,15 @@ coverage/
 # They must originate from external authored 3D sources and are required by
 # RivalProductionBuildGate; ignoring this tree would make accepted art impossible to commit.
 
+# UART-004 local authored-review packaging is deliberately NOT production evidence.
+# Unity 6000.5 can flatten the tracked multi-LOD OBJ into one Mesh, so the Editor review
+# stager repackages the exact existing OBJ records into one local import file per authored LOD.
+# Neither these packages nor their review prefabs may be committed as production art.
+unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/ReviewPackaging/
+unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/ReviewPackaging.meta
+unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Review/
+unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Review.meta
+
 # Android generated/local
 android/.gradle/
 android/local.properties
