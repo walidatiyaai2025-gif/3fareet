@@ -3,9 +3,10 @@
 
 This is the authoritative P1 wrapper around prepare_candidate_device.py. Before ADB is
 allowed to start it validates the Step 10 P1 envelope, exact staging report bytes, exact
-staging-lineage bytes, generic local-candidate manifest, and APK bytes as one chain.
-After the generic device session is prepared, it copies the P1 provenance records into
-the session and records their hashes. It never marks runtime/device/owner gates VERIFIED.
+staging-lineage bytes, READY-handoff authorization fingerprints, generic local-candidate
+manifest, and APK bytes as one chain. After the generic device session is prepared, it
+copies the P1 provenance records into the session and records their hashes. It never
+marks runtime/device/owner gates VERIFIED.
 """
 
 from __future__ import annotations
@@ -91,6 +92,28 @@ def _record(payload: dict[str, Any], key: str, label: str) -> dict[str, Any]:
     return value
 
 
+def _authorization(payload: dict[str, Any], label: str, expected_source_sha: str) -> dict[str, str]:
+    record = _record(payload, "stagingAuthorization", label)
+    source_sha = _sha40(record.get("authorizationSourceGitSha"), f"{label}.stagingAuthorization.authorizationSourceGitSha")
+    if source_sha != expected_source_sha:
+        raise P1CandidatePrepareError(
+            f"{label}.stagingAuthorization source SHA mismatch: expected={expected_source_sha} actual={source_sha}"
+        )
+    return {
+        "authorizationSourceGitSha": source_sha,
+        "handoffPacketSha256": _sha256(
+            record.get("handoffPacketSha256"), f"{label}.stagingAuthorization.handoffPacketSha256"
+        ),
+        "nativeHandoffVerificationSha256": _sha256(
+            record.get("nativeHandoffVerificationSha256"),
+            f"{label}.stagingAuthorization.nativeHandoffVerificationSha256",
+        ),
+        "operatorChainSha256": _sha256(
+            record.get("operatorChainSha256"), f"{label}.stagingAuthorization.operatorChainSha256"
+        ),
+    }
+
+
 def _resolve_record_path(
     record: dict[str, Any],
     override: Optional[Path],
@@ -146,10 +169,11 @@ def validate_p1_chain(
             f"P1 direct-parent lineage mismatch: stagingSource={staging_source_sha} directParent={direct_parent_sha}"
         )
     envelope_apk_sha = _sha256(envelope.get("apkSha256"), "p1Manifest.apkSha256")
+    envelope_authorization = _authorization(envelope, "p1Manifest", staging_source_sha)
 
     staging_record = _record(envelope, "stagingReport", "p1Manifest")
-    if staging_record.get("schemaVersion") != 2:
-        raise P1CandidatePrepareError("p1Manifest.stagingReport.schemaVersion must be 2")
+    if staging_record.get("schemaVersion") != 3:
+        raise P1CandidatePrepareError("p1Manifest.stagingReport.schemaVersion must be 3")
     lineage_record = _record(envelope, "stagingLineage", "p1Manifest")
     if lineage_record.get("state") != P1_LINEAGE_STATE:
         raise P1CandidatePrepareError(
@@ -168,10 +192,22 @@ def validate_p1_chain(
     )
 
     staging = _read_json(staging_report_path, "P1 staging report")
-    if staging.get("schemaVersion") != 2 or staging.get("state") != STAGING_STATE:
-        raise P1CandidatePrepareError("P1 staging report must be schema 2 in STAGED_FOR_COMMIT_NOT_CANDIDATE state")
+    if staging.get("schemaVersion") != 3 or staging.get("state") != STAGING_STATE:
+        raise P1CandidatePrepareError("P1 staging report must be schema 3 in STAGED_FOR_COMMIT_NOT_CANDIDATE state")
     if _sha40(staging.get("gitSha"), "stagingReport.gitSha") != staging_source_sha:
         raise P1CandidatePrepareError("P1 staging report Git SHA does not match the staged-candidate envelope")
+    if _sha40(staging.get("authorizationSourceGitSha"), "stagingReport.authorizationSourceGitSha") != staging_source_sha:
+        raise P1CandidatePrepareError("P1 staging report authorizationSourceGitSha does not match the staging source SHA")
+    staging_authorization = {
+        "authorizationSourceGitSha": staging_source_sha,
+        "handoffPacketSha256": _sha256(staging.get("handoffPacketSha256"), "stagingReport.handoffPacketSha256"),
+        "nativeHandoffVerificationSha256": _sha256(
+            staging.get("nativeHandoffVerificationSha256"), "stagingReport.nativeHandoffVerificationSha256"
+        ),
+        "operatorChainSha256": _sha256(staging.get("operatorChainSha256"), "stagingReport.operatorChainSha256"),
+    }
+    if staging_authorization != envelope_authorization:
+        raise P1CandidatePrepareError("P1 staging report authorization fingerprints do not match the staged-candidate envelope")
     _require_exact_tasks(staging.get("coveredTasks"), "stagingReport.coveredTasks")
     for key in ("verified", "runtimeVerified", "ownerAccepted", "publicationEligible", "candidateBuildStarted"):
         _require_false(staging, key, "stagingReport")
@@ -194,6 +230,8 @@ def validate_p1_chain(
     lineage = _read_json(lineage_path, "P1 staging lineage report")
     if lineage.get("schemaVersion") != 1 or lineage.get("state") != P1_LINEAGE_STATE:
         raise P1CandidatePrepareError("P1 staging lineage report has an unsupported schema/state")
+    if lineage.get("stagingReportSchemaVersion") != 3:
+        raise P1CandidatePrepareError("P1 staging lineage must bind stagingReportSchemaVersion=3")
     if _sha40(lineage.get("stagingSourceGitSha"), "lineage.stagingSourceGitSha") != staging_source_sha:
         raise P1CandidatePrepareError("Lineage staging-source SHA does not match the P1 envelope")
     if _sha40(lineage.get("candidateGitSha"), "lineage.candidateGitSha") != candidate_sha:
@@ -202,6 +240,9 @@ def validate_p1_chain(
         raise P1CandidatePrepareError("Lineage direct-parent SHA does not match the P1 envelope")
     if _sha256(lineage.get("stagingReportSha256"), "lineage.stagingReportSha256") != prepare_candidate_device.sha256_file(staging_report_path):
         raise P1CandidatePrepareError("Lineage stagingReportSha256 does not match the exact staging-report bytes")
+    lineage_authorization = _authorization(lineage, "lineage", staging_source_sha)
+    if lineage_authorization != envelope_authorization:
+        raise P1CandidatePrepareError("P1 staging lineage authorization fingerprints do not match the staged-candidate envelope")
     _require_exact_tasks(lineage.get("coveredTasks"), "lineage.coveredTasks")
     _require_true(lineage, "readyForLicensedCandidateTests", "lineage")
     for key in ("verified", "runtimeVerified", "ownerAccepted", "publicationEligible"):
@@ -240,6 +281,7 @@ def validate_p1_chain(
         "candidateGitSha": candidate_sha,
         "directParentGitSha": direct_parent_sha,
         "apkSha256": envelope_apk_sha,
+        "stagingAuthorization": dict(envelope_authorization),
         "coveredTasks": list(EXPECTED_TASKS),
     }
 
@@ -292,6 +334,7 @@ def bind_p1_chain_to_session(chain: dict[str, Any], output_dir: Path, device_evi
         "candidateGitSha": chain["candidateGitSha"],
         "directParentGitSha": chain["directParentGitSha"],
         "apkSha256": chain["apkSha256"],
+        "stagingAuthorization": dict(chain["stagingAuthorization"]),
         "coveredTasks": list(EXPECTED_TASKS),
         "files": file_context,
         "readyForCheckpointCapture": True,
@@ -299,7 +342,7 @@ def bind_p1_chain_to_session(chain: dict[str, Any], output_dir: Path, device_evi
         "runtimeVerified": False,
         "ownerAccepted": False,
         "publicationEligible": False,
-        "nextAction": "Capture the required physical-device checkpoints on this exact APK; this lineage binding is not gate approval.",
+        "nextAction": "Capture the required physical-device checkpoints on this exact APK; this lineage and READY-handoff authorization binding is not gate approval.",
     }
     session["p1Lineage"] = context
     device_evidence.write_json(session_path, session)
@@ -310,7 +353,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--p1-candidate-manifest", required=True, help="Step 10 p1-staged-candidate-manifest.json")
     parser.add_argument("--candidate-manifest", help="Override local-candidate-manifest.json path for a moved bundle")
-    parser.add_argument("--staging-report", help="Override schema-v2 staging report path for a moved bundle")
+    parser.add_argument("--staging-report", help="Override schema-v3 staging report path for a moved bundle")
     parser.add_argument("--staging-lineage", help="Override staging-lineage report path for a moved bundle")
     parser.add_argument("--apk", help="Optional APK path override for a moved bundle; bytes must match exactly")
     parser.add_argument("--output", required=True, help="Output directory for the physical-device evidence session")
@@ -339,7 +382,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(
             "AFAREET_P1_DEVICE_LINEAGE_PRECHECK_OK "
             f"stagingSourceGitSha={chain['stagingSourceGitSha']} candidateGitSha={chain['candidateGitSha']} "
-            f"apkSha256={chain['apkSha256']} tasks=6 verified=false"
+            f"apkSha256={chain['apkSha256']} packetSha256={chain['stagingAuthorization']['handoffPacketSha256']} "
+            "tasks=6 verified=false"
         )
 
         child_args = [
@@ -368,6 +412,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(
             "AFAREET_P1_DEVICE_SESSION_BOUND "
             f"candidateGitSha={context['candidateGitSha']} apkSha256={context['apkSha256']} "
+            f"packetSha256={context['stagingAuthorization']['handoffPacketSha256']} "
             f"tasks=6 readyForCheckpointCapture=true verified=false session={Path(args.output).expanduser().resolve()}"
         )
         return 0
