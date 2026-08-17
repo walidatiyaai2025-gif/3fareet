@@ -5,8 +5,9 @@ namespace Afareet.World
     /// <summary>
     /// Runtime presentation adapter for UART-005 tracked authored geometry.
     /// Geometry comes from Unity-imported OBJ resources staged from tracked sources.
-    /// Editor preview may use temporary runtime materials; Player builds preserve imported
-    /// authored source materials so production texture mapping cannot be silently discarded.
+    /// Editor preview may use temporary runtime materials only when doing so does not discard
+    /// an authored texture binding; Player builds always preserve imported authored source
+    /// materials so production texture mapping cannot be silently discarded.
     /// </summary>
     public static class CairoAuthoredStreetKit
     {
@@ -33,6 +34,7 @@ namespace Afareet.World
         private static bool roadActivationLogged;
         private static bool buildingVariantActivationLogged;
         private static bool editorMaterialOverrideLogged;
+        private static bool editorTexturePreservationLogged;
 
         public static bool TryCreateRoadSegment(
             Transform parent,
@@ -257,11 +259,9 @@ namespace Afareet.World
 
         private static void ApplyNamedMaterialsForEditorPreview(GameObject instance, Material baseMaterial, Material accentMaterial, params string[] accentNameTokens)
         {
-            if (!Application.isEditor)
+            if (!Application.isEditor || instance == null)
                 return;
 
-            LogEditorMaterialOverride();
-            if (instance == null) return;
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
                 if (renderer == null) continue;
@@ -279,6 +279,13 @@ namespace Afareet.World
                     }
                 }
                 if (selected == null) continue;
+                if (WouldDiscardAuthoredTexture(renderer, selected))
+                {
+                    LogEditorTexturePreservation();
+                    continue;
+                }
+
+                LogEditorMaterialOverride();
                 var count = Mathf.Max(1, renderer.sharedMaterials == null ? 0 : renderer.sharedMaterials.Length);
                 var bindings = new Material[count];
                 for (var i = 0; i < bindings.Length; i++) bindings[i] = selected;
@@ -288,14 +295,19 @@ namespace Afareet.World
 
         private static void ApplyMaterialForEditorPreview(GameObject instance, Material material)
         {
-            if (!Application.isEditor)
+            if (!Application.isEditor || instance == null || material == null)
                 return;
 
-            LogEditorMaterialOverride();
-            if (instance == null || material == null) return;
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
                 if (renderer == null) continue;
+                if (WouldDiscardAuthoredTexture(renderer, material))
+                {
+                    LogEditorTexturePreservation();
+                    continue;
+                }
+
+                LogEditorMaterialOverride();
                 var count = Mathf.Max(1, renderer.sharedMaterials == null ? 0 : renderer.sharedMaterials.Length);
                 var bindings = new Material[count];
                 for (var i = 0; i < bindings.Length; i++) bindings[i] = material;
@@ -303,11 +315,47 @@ namespace Afareet.World
             }
         }
 
+        private static bool WouldDiscardAuthoredTexture(Renderer renderer, Material previewMaterial)
+        {
+            return RendererHasAssignedTexture(renderer) && !MaterialHasAssignedTexture(previewMaterial);
+        }
+
+        private static bool RendererHasAssignedTexture(Renderer renderer)
+        {
+            if (renderer == null) return false;
+            foreach (var material in renderer.sharedMaterials ?? System.Array.Empty<Material>())
+            {
+                if (MaterialHasAssignedTexture(material))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool MaterialHasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
+        }
+
         private static void LogEditorMaterialOverride()
         {
             if (editorMaterialOverrideLogged) return;
             editorMaterialOverrideLogged = true;
             Debug.Log("AFAREET_UART005_EDITOR_PREVIEW_MATERIAL_OVERRIDE production=false player-preserves-source-materials=true");
+        }
+
+        private static void LogEditorTexturePreservation()
+        {
+            if (editorTexturePreservationLogged) return;
+            editorTexturePreservationLogged = true;
+            Debug.Log("AFAREET_UART005_EDITOR_SOURCE_TEXTURE_PRESERVED previewOverrideSkipped=true production=false");
         }
 
         private static void Missing(string path)
