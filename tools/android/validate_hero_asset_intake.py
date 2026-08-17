@@ -15,7 +15,6 @@ import subprocess
 import sys
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Iterable
 
 SUPPORTED_SUFFIXES = {".obj", ".fbx", ".glb", ".gltf", ".blend"}
 FORBIDDEN_SEGMENTS = {"generated", "preview", "blockout", "rivals"}
@@ -241,7 +240,8 @@ def validate_intake(repo: Path, source: Path) -> dict[str, object]:
     _require(EXPECTED_ROOT == rel.parent or EXPECTED_ROOT in rel.parents, f"Hero source must be under {EXPECTED_ROOT.as_posix()}")
     lowered = {part.lower() for part in rel.parts}
     forbidden = sorted(lowered & FORBIDDEN_SEGMENTS)
-    _require(not forbidden, f"Hero production source uses forbidden path segment: {forbidden[0]}")
+    if forbidden:
+        raise HeroAssetIntakeError(f"Hero production source uses forbidden path segment: {forbidden[0]}")
     _require(_is_tracked(repo, source), f"Hero source is not tracked by Git: {rel.as_posix()}")
 
     base: dict[str, object] = {
