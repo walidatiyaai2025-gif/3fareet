@@ -69,6 +69,14 @@ namespace Afareet.UI
             speedText.text = $"{Mathf.Abs(player.SpeedKph):000}\nKM/H";
             spiritText.text = $"SPIRIT  {Mathf.RoundToInt(player.NitroEnergy * 100f)}%";
             spiritFill.fillAmount = Mathf.Clamp01(player.NitroEnergy);
+
+            // READY already has the event briefing and START RACE action. Hiding the
+            // drive-only telemetry keeps those regions readable; the same panels become
+            // visible automatically as soon as the race leaves the Ready phase.
+            var showDriveTelemetry = race.Phase != RaceRoundPhase.Ready;
+            SetPanelActive(spiritText, showDriveTelemetry);
+            SetPanelActive(speedText, showDriveTelemetry);
+
             RefreshCareer();
         }
 
@@ -145,6 +153,7 @@ namespace Afareet.UI
             spiritFill.rectTransform.offsetMin = spiritFill.rectTransform.offsetMax = Vector2.zero;
 
             Debug.Log("AFAREET_UI_COMPACT_RACE_HUD_ACTIVE telemetryBand=top bottomControlBandClear=true");
+            Debug.Log("AFAREET_UI_READY_TELEMETRY_CLEARANCE_ACTIVE driveTelemetryHiddenUntilStart=true positionTimeCareerRemainVisible=true");
         }
 
         private Text CenterTopPanel(string panelName, Vector2 offset, Vector2 size)
@@ -188,6 +197,14 @@ namespace Afareet.UI
             text.alignment = alignment;
             text.color = Color.white;
             return text;
+        }
+
+        private static void SetPanelActive(Text text, bool active)
+        {
+            if (text == null || text.transform.parent == null) return;
+            var panel = text.transform.parent.gameObject;
+            if (panel.activeSelf != active)
+                panel.SetActive(active);
         }
 
         private static Image CreateImage(string objectName, Transform parent, Color color)
