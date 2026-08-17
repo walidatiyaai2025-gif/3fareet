@@ -72,7 +72,16 @@ namespace Afareet.Editor
             if (!sourcePath.StartsWith("Assets/", StringComparison.Ordinal))
                 Fail($"source-must-be-project-asset path={sourcePath}");
             if (HeroCarProductionAssetMetadata.IsNonProductionSourcePath(sourcePath))
-                Fail($"non-production-source-is-not-production path={sourcePath}");
+            {
+                // Preserve the original UART-003 diagnostic for generated paths because
+                // existing source-contract tests and operator logs key off this stable token.
+                // Other explicitly non-production classes use the generalized diagnostic.
+                var nonProductionReason =
+                    sourcePath.IndexOf("/Generated/", StringComparison.OrdinalIgnoreCase) >= 0
+                        ? "generated-source-is-not-production"
+                        : "non-production-source-is-not-production";
+                Fail($"{nonProductionReason} path={sourcePath}");
+            }
             if (!HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath))
                 Fail($"unsupported-external-model-source path={sourcePath}");
 
