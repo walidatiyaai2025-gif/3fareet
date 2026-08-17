@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.Editor
 {
@@ -67,8 +68,10 @@ namespace Afareet.Editor
                     var mesh = filter == null ? null : filter.sharedMesh;
                     if (mesh == null) throw new InvalidOperationException($"mobile LOD missing mesh: {baseName} LOD{lod}");
                     if (mesh.vertexCount <= 0) throw new InvalidOperationException($"mobile LOD mesh has no vertices: {baseName} LOD{lod}");
-                    if (mesh.uv == null || mesh.uv.Length != mesh.vertexCount) throw new InvalidOperationException($"mobile LOD missing complete UV0: {baseName} LOD{lod}");
-                    if (mesh.normals == null || mesh.normals.Length != mesh.vertexCount) throw new InvalidOperationException($"mobile LOD missing complete normals: {baseName} LOD{lod}");
+                    if (!mesh.HasVertexAttribute(VertexAttribute.TexCoord0))
+                        throw new InvalidOperationException($"mobile LOD missing UV0 vertex attribute: {baseName} LOD{lod}");
+                    if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
+                        throw new InvalidOperationException($"mobile LOD missing normal vertex attribute: {baseName} LOD{lod}");
 
                     var meshTriangles = 0;
                     for (var sub = 0; sub < mesh.subMeshCount; sub++)
@@ -95,7 +98,13 @@ namespace Afareet.Editor
                 {
                     var textured = false;
                     foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
-                        if (material != null && material.mainTexture != null) { textured = true; break; }
+                    {
+                        if (HasAssignedTexture(material))
+                        {
+                            textured = true;
+                            break;
+                        }
+                    }
                     if (!textured) throw new InvalidOperationException($"mobile LOD renderer has no texture-mapped material: {baseName} LOD{lod}");
                 }
             }
@@ -108,6 +117,19 @@ namespace Afareet.Editor
                 throw new InvalidOperationException($"fake same-source LOD reuse rejected: {baseName}");
             if (MeshesOverlap(levelMeshes[0], levelMeshes[1]) || MeshesOverlap(levelMeshes[0], levelMeshes[2]) || MeshesOverlap(levelMeshes[1], levelMeshes[2]))
                 throw new InvalidOperationException($"fake same-mesh LOD reuse rejected across imported levels: {baseName}");
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static bool MeshesOverlap(HashSet<Mesh> left, HashSet<Mesh> right)
