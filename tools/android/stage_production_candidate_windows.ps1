@@ -51,10 +51,10 @@ if ($initialDirty.Count -gt 0) {
 
 $HeroSource = ($HeroSource.Trim().Trim('"') -replace '\\', '/')
 if (-not $HeroSource.StartsWith('Assets/', [System.StringComparison]::Ordinal)) {
-    Fail "HeroSource must be a Unity Assets/ path, for example Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing.fbx"
+    Fail "HeroSource must be a Unity Assets/ path, for example Assets/Afareet/ArtSource/Vehicles/HeroCar/AfareetKing.fbx"
 }
-if ($HeroSource -match '(?i)/(Generated|Preview|Blockout)/') {
-    Fail "HeroSource cannot be under Generated, Preview or Blockout: $HeroSource"
+if ($HeroSource -match '(?i)/(Generated|Preview|Blockout|Rivals)/') {
+    Fail "HeroSource cannot be under Generated, Preview, Blockout or Rivals: $HeroSource"
 }
 $extension = [System.IO.Path]::GetExtension($HeroSource).ToLowerInvariant()
 if ($extension -notin @('.fbx', '.obj', '.blend', '.glb', '.gltf')) {
@@ -71,6 +71,39 @@ if (-not (Test-Path -LiteralPath $heroAbsolute -PathType Leaf)) {
 if ($LASTEXITCODE -ne 0) {
     Fail "Hero source must already be tracked in the clean starting commit before licensed staging: $heroRepoRelative"
 }
+
+$ReportDir = Join-Path $RepoRoot "artifacts\production-staging"
+New-Item -ItemType Directory -Force -Path $ReportDir | Out-Null
+$NativeIntakeScript = Join-Path $RepoRoot "tools\android\validate_hero_asset_intake_windows.ps1"
+$NativeIntakeReportPath = Join-Path $ReportDir "uart003-native-intake.json"
+if (-not (Test-Path -LiteralPath $NativeIntakeScript -PathType Leaf)) {
+    Fail "Mandatory UART-003 native intake script is missing: $NativeIntakeScript"
+}
+Remove-Item -Force $NativeIntakeReportPath -ErrorAction SilentlyContinue
+Write-Host "AFAREET_P1_NATIVE_HERO_PREFLIGHT_START gitSha=$gitSha heroSource=$HeroSource"
+& $NativeIntakeScript -Source $HeroSource -RepoRoot $RepoRoot -Output $NativeIntakeReportPath | ForEach-Object { Write-Host $_ }
+if (-not (Test-Path -LiteralPath $NativeIntakeReportPath -PathType Leaf) -or (Get-Item $NativeIntakeReportPath).Length -le 0) {
+    Fail "Mandatory UART-003 native intake did not produce a report: $NativeIntakeReportPath"
+}
+try {
+    $nativeIntake = Get-Content -Raw -LiteralPath $NativeIntakeReportPath | ConvertFrom-Json
+} catch {
+    Fail "Mandatory UART-003 native intake report is not valid JSON: $($_.Exception.Message)"
+}
+if ($nativeIntake.schemaVersion -ne 1 -or $nativeIntake.task -ne 'UART-003') {
+    Fail "Mandatory UART-003 native intake report has an unsupported schema/task."
+}
+if ($nativeIntake.source -ne $heroRepoRelative) {
+    Fail "Mandatory UART-003 native intake source mismatch. expected=$heroRepoRelative actual=$($nativeIntake.source)"
+}
+if ($nativeIntake.verified -ne $false -or $nativeIntake.productionArtApproved -ne $false) {
+    Fail "Native intake must never self-assert verified or production-art approval."
+}
+$expectedVerdict = if ($extension -eq '.obj') { 'READY_FOR_LICENSED_UNITY_IMPORT' } else { 'UNITY_INSPECTION_REQUIRED' }
+if ($nativeIntake.verdict -ne $expectedVerdict) {
+    Fail "Mandatory UART-003 native intake verdict mismatch. expected=$expectedVerdict actual=$($nativeIntake.verdict)"
+}
+Write-Host "AFAREET_P1_NATIVE_HERO_PREFLIGHT_OK gitSha=$gitSha verdict=$($nativeIntake.verdict) verified=false"
 
 if ([string]::IsNullOrWhiteSpace($UnityPath)) {
     $defaultUnity = Join-Path $env:ProgramFiles "Unity\Hub\Editor\$ExpectedUnityVersion\Editor\Unity.exe"
@@ -92,7 +125,6 @@ if (-not (Test-Path -LiteralPath $ProjectPath -PathType Container)) {
 }
 
 $LogDir = Join-Path $RepoRoot "artifacts\logs"
-$ReportDir = Join-Path $RepoRoot "artifacts\production-staging"
 New-Item -ItemType Directory -Force -Path $LogDir, $ReportDir | Out-Null
 $LogPath = Join-Path $LogDir "unity-production-staging-handoff.log"
 $StatusPath = Join-Path $ReportDir "p1-staging-handoff.git-status.txt"

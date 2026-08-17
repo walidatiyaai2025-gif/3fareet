@@ -57,6 +57,12 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "Staging handoff requires a clean Git tree.",
             "ls-files --error-unmatch",
             "Hero source must already be tracked in the clean starting commit",
+            "validate_hero_asset_intake_windows.ps1",
+            "AFAREET_P1_NATIVE_HERO_PREFLIGHT_START",
+            "AFAREET_P1_NATIVE_HERO_PREFLIGHT_OK",
+            "Native intake must never self-assert verified or production-art approval.",
+            "READY_FOR_LICENSED_UNITY_IMPORT",
+            "UNITY_INSPECTION_REQUIRED",
             "Afareet.Editor.P1ProductionCandidateStagingHandoff.StageForCommit",
             "-afareetHeroSource",
             "AFAREET_P1_STAGING_HANDOFF_OK",
@@ -76,6 +82,12 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "-AllowDirty",
         ):
             self.assertNotIn(forbidden, text)
+
+        preflight = text.index("AFAREET_P1_NATIVE_HERO_PREFLIGHT_START")
+        unity_lookup = text.index("$defaultUnity = Join-Path")
+        unity_start = text.index("Start-Process -FilePath $UnityPath")
+        self.assertLess(preflight, unity_lookup)
+        self.assertLess(preflight, unity_start)
 
     def test_exact_candidate_runner_remains_separate_and_clean_sha_locked(self):
         candidate = (TOOLS / "run_local_candidate_windows.ps1").read_text(encoding="utf-8")
@@ -98,15 +110,18 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
         if not pwsh:
             self.skipTest("pwsh is not installed in this environment")
 
-        script = TOOLS / "stage_production_candidate_windows.ps1"
-        command = (
-            "$tokens=$null; $errors=$null; "
-            f"[System.Management.Automation.Language.Parser]::ParseFile('{script.as_posix()}', "
-            "[ref]$tokens, [ref]$errors) | Out-Null; "
-            "if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }"
-        )
-        result = subprocess.run([pwsh, "-NoProfile", "-Command", command], capture_output=True, text=True)
-        self.assertEqual(0, result.returncode, msg=result.stdout + result.stderr)
+        for script in (
+            TOOLS / "stage_production_candidate_windows.ps1",
+            TOOLS / "validate_hero_asset_intake_windows.ps1",
+        ):
+            command = (
+                "$tokens=$null; $errors=$null; "
+                f"[System.Management.Automation.Language.Parser]::ParseFile('{script.as_posix()}', "
+                "[ref]$tokens, [ref]$errors) | Out-Null; "
+                "if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }"
+            )
+            result = subprocess.run([pwsh, "-NoProfile", "-Command", command], capture_output=True, text=True)
+            self.assertEqual(0, result.returncode, msg=f"{script.name}\n{result.stdout}{result.stderr}")
 
 
 if __name__ == "__main__":
