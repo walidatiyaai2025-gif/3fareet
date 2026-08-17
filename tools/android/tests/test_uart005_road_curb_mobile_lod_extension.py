@@ -73,13 +73,15 @@ class Uart005RoadCurbMobileLodExtensionTests(unittest.TestCase):
             'using UnityEngine.Rendering;',
             'mesh.HasVertexAttribute(VertexAttribute.TexCoord0)',
             'mesh.HasVertexAttribute(VertexAttribute.Normal)',
-            'material.mainTexture',
+            'HasAssignedTexture',
+            'material.GetTexturePropertyNames()',
+            'material.GetTexture(propertyName)',
             'secondary road/curb LOD must not introduce colliders',
             'AFAREET_UART005_ROAD_CURB_MOBILE_LOD_ACTIVE',
             'AFAREET_UART005_ROAD_CURB_MOBILE_LOD_BLOCKED',
         ):
             self.assertIn(required, text)
-        for forbidden in ('GameObject.CreatePrimitive', 'new Mesh(', 'RecalculateNormals', 'mesh.uv', 'mesh.normals'):
+        for forbidden in ('GameObject.CreatePrimitive', 'new Mesh(', 'RecalculateNormals', 'mesh.uv', 'mesh.normals', 'material.mainTexture'):
             self.assertNotIn(forbidden, text)
 
     def test_android_gate_requires_exact_tracked_road_and_curb_triplets(self):
