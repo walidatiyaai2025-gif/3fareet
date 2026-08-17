@@ -52,6 +52,47 @@ class RaceCameraRuntimeContractTests(unittest.TestCase):
             else:
                 self.assertNotIn(forbidden, text)
 
+    def test_chase_camera_enforces_visual_body_clearance_before_occlusion_compression(self):
+        text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/ChaseCamera.cs")
+        for required in (
+            "MinimumPlayableBodyClearance = 2.8f",
+            "MinimumBodyClearanceDistance",
+            "CalculateMinimumBodyClearance",
+            "TryCalculateCombinedBounds",
+            "renderer-bounds",
+            "collider-bounds",
+            "effectiveMinimumDistance = Mathf.Max",
+            "minimumBodyClearanceDistance",
+            "AFAREET_CAMERA_BODY_CLEARANCE_ACTIVE",
+            "postPassMayNotCompress=true",
+        ):
+            self.assertIn(required, text)
+
+        self.assertIn("renderer is TrailRenderer || renderer is LineRenderer", text)
+        self.assertNotIn("GetComponentsInChildren<Renderer>(true);\n            var", text)
+
+    def test_obstruction_post_pass_cannot_recompress_camera_inside_hero(self):
+        text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/CameraObstructionPass.cs")
+        for required in (
+            "[DefaultExecutionOrder(1000)]",
+            "chase.FocusPoint",
+            "chase.MinimumBodyClearanceDistance",
+            "distance >= minimumDistance - .001f",
+            "targetCamera.transform.position = focus + direction * minimumDistance;",
+            "AFAREET_CAMERA_BODY_CLEARANCE_RECOVERED",
+            "postPassClamp=true",
+            "secondOcclusionSolve=false",
+        ):
+            self.assertIn(required, text)
+
+        for forbidden in (
+            "Physics.SphereCastAll",
+            "Physics.SphereCastNonAlloc",
+            "Physics.RaycastAll",
+            "new RaycastHit",
+        ):
+            self.assertNotIn(forbidden, text)
+
     def test_chase_camera_config_serializes_visual_review_tuning(self):
         script = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/ChaseCameraConfig.cs")
         asset = self._read("unity_game/Assets/Afareet/Resources/Config/ChaseCameraConfig.asset")
