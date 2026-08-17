@@ -42,15 +42,20 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $git = Get-Command git -ErrorAction SilentlyContinue
 if ($null -eq $git) { Fail "git is required for P1 staging lineage verification." }
 
+$gitPrefix = (& $git.Source -C $RepoRoot rev-parse --show-prefix 2>$null | Select-Object -First 1)
+$gitPrefixOk = $?
+if (-not $gitPrefixOk) { Fail "Unable to inspect Git worktree prefix: $RepoRoot" }
+if (-not [string]::IsNullOrWhiteSpace([string]$gitPrefix)) {
+    Fail "RepoRoot must be the exact Git worktree root, not a subdirectory. prefix=$gitPrefix"
+}
 $gitTop = (& $git.Source -C $RepoRoot rev-parse --show-toplevel 2>$null | Select-Object -First 1)
 $gitTopOk = $?
 if (-not $gitTopOk -or [string]::IsNullOrWhiteSpace($gitTop)) {
     Fail "Unable to resolve Git worktree root: $RepoRoot"
 }
-$gitTop = (Resolve-Path $gitTop.Trim()).Path
-if (-not [string]::Equals($gitTop, $RepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-    Fail "RepoRoot must be the exact Git worktree root. resolved=$gitTop requested=$RepoRoot"
-}
+# Canonicalize to Git's own top-level representation so Windows 8.3 aliases
+# (for example RUNNER~1 vs runneradmin) cannot create a false root mismatch.
+$RepoRoot = (Resolve-Path $gitTop.Trim()).Path
 
 $dirty = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
 $dirtyStatusOk = $?
