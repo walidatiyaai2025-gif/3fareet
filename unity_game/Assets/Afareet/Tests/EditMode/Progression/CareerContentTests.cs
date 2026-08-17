@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Afareet.Progression;
 using NUnit.Framework;
 
 namespace Afareet.Tests.Progression
