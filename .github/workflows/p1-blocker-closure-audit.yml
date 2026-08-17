@@ -4,7 +4,11 @@ on:
   pull_request:
     paths:
       - 'tools/android/p1_blocker_closure_audit.py'
+      - 'tools/android/p1_repository_state_consistency.py'
       - 'tools/android/tests/test_p1_blocker_closure_audit.py'
+      - 'tools/android/tests/test_p1_repository_state_consistency.py'
+      - 'docs/PROJECT_STATUS.md'
+      - 'docs/tasks/06-UNITY-3D-MIGRATION.md'
       - '.github/workflows/p1-blocker-closure-audit.yml'
       - '.github/workflows/p1-safety-sentinel.yml'
 
@@ -24,14 +28,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile tools/android/p1_blocker_closure_audit.py
+          python3 -m py_compile \
+            tools/android/p1_blocker_closure_audit.py \
+            tools/android/p1_repository_state_consistency.py
           python3 tools/android/p1_blocker_closure_audit.py --help >/dev/null
+          python3 tools/android/p1_repository_state_consistency.py --help >/dev/null
 
-      - name: Execute closure-audit regressions
+      - name: Execute closure-audit and repository-state regressions
         shell: bash
         run: |
           set -euo pipefail
           python3 -m unittest discover -s tools/android/tests -p 'test_p1_blocker_closure_audit.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_repository_state_consistency.py' -v
 
       - name: Fetch authoritative Issue 90 body
         shell: bash
@@ -67,7 +75,36 @@ jobs:
           print('AFAREET_P1_LIVE_BLOCKER_AUDIT_OK blockers=11 inventoryComplete=0 missing=11 verified=false')
           PY
 
-      - name: Enforce read-only audit source
+      - name: Enforce live Issue 90 and repository state consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android/p1_repository_state_consistency.py \
+            --ledger "$RUNNER_TEMP/p1-issue-90.md" \
+            --project-status docs/PROJECT_STATUS.md \
+            --task-register docs/tasks/06-UNITY-3D-MIGRATION.md \
+            --output "$RUNNER_TEMP/p1-repository-state.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads((Path(os.environ['RUNNER_TEMP']) / 'p1-repository-state.json').read_text())
+          assert report['state'] == 'P1_REPOSITORY_STATE_CONSISTENT'
+          assert report['ledger']['inReview'] == 54
+          assert report['ledger']['blocked'] == 11
+          assert report['ledger']['total'] == 65
+          assert report['projectStatus']['blocked'] == 11
+          assert report['taskRegister']['inReview'] == 54
+          assert report['taskRegister']['blocked'] == 11
+          assert report['taskRegister']['total'] == 65
+          assert report['taskStateMutationPerformed'] is False
+          assert report['publicationPerformed'] is False
+          assert report['verified'] is False
+          print('AFAREET_P1_REPOSITORY_STATE_CONSISTENT inReview=54 blocked=11 total=65 verified=false')
+          PY
+
+      - name: Enforce read-only closure and consistency sources
         shell: bash
         run: |
           set -euo pipefail
@@ -75,8 +112,13 @@ jobs:
           from pathlib import Path
           from tools.android.p1_safety_sentinel import scan_python
 
-          relative = 'tools/android/p1_blocker_closure_audit.py'
-          violations = scan_python(Path(relative), relative)
+          paths = (
+              'tools/android/p1_blocker_closure_audit.py',
+              'tools/android/p1_repository_state_consistency.py',
+          )
+          violations = []
+          for relative in paths:
+              violations.extend(scan_python(Path(relative), relative))
           if violations:
               for violation in violations:
                   print(f'AFAREET_P1_CLOSURE_AUDIT_SAFETY_VIOLATION {violation.render()}')
