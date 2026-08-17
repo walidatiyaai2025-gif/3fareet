@@ -1,0 +1,157 @@
+3FAREET — EXTERNAL ASSET REQUEST POLICY & ACTIVE REQUESTS
+=========================================================
+
+PURPOSE
+-------
+This root-level file is the mandatory handoff ledger for any project item that cannot be completed safely and truthfully by repository code alone (for example: final authored 3D art, hand-authored textures, audio recordings, licensed fonts, owner-approved reference art, or other external creative/source material).
+
+POLICY — MANDATORY FOR EVERY PROGRAMMER / AI AGENT
+-------------------------------------------------
+1. Programming first. Close code, tests, build gates, import/staging pipelines, runtime binding, diagnostics and validation before asking the owner for external assets.
+2. Do NOT silently substitute a primitive, generated placeholder, procedural mesh, preview asset or review candidate for missing production art.
+3. A placeholder/review asset may exist only when clearly classified as DEBUG / PREVIEW / REFINEMENT / REVIEW and it must never satisfy a production or P1 visual gate.
+4. The moment an implementation is blocked by an external asset that the current coding/AI toolchain cannot legitimately create as final production material, add or update an entry in THIS file in the same PR/branch.
+5. Every request entry MUST contain: ID, status, blocked task/issue, asset name, purpose, tool, helper script/workflow, exact output path/format, creation prompt/brief, technical constraints, acceptance criteria, provenance/license requirement, and integration owner notes.
+6. Prompts must be ready to copy/paste into the named tool or give directly to a human artist. Do not write vague requests such as "make a better car".
+7. If Blender is the recommended tool, specify Blender version family, scale/axis, LOD expectations, materials/textures, naming, export format and destination.
+8. If a helper script can be written by the programming team (validation, export checks, naming checks, texture audit, packaging, deterministic import), write that script in the repo. Do NOT use a script to pretend procedural/generated art is externally authored production art.
+9. Never mark an external request DONE until the delivered source is committed (when licensing permits), its provenance is recorded, the runtime uses it, and the relevant acceptance gate is satisfied.
+10. Keep this file append/update friendly. Do not delete historical request entries; mark them DELIVERED / SUPERSEDED and reference the replacement.
+11. Production source must have a clear license/ownership statement. Unknown-license marketplace/downloaded assets are not acceptable.
+12. Until the owner explicitly says to resume polish/visual review, engineering work should prioritize missing programming, automation, deterministic pipelines, tests, validation and evidence tooling.
+
+STATUS VALUES
+-------------
+OPEN            = owner/artist/source material still required.
+IN PROGRESS     = external creation is underway; programming may continue around it.
+DELIVERED       = source received, but runtime/acceptance may still be pending.
+ACCEPTED        = source + runtime + relevant owner/gate acceptance completed.
+SUPERSEDED      = replaced by another request; keep the record.
+
+REQUEST TEMPLATE
+----------------
+REQUEST ID:
+STATUS:
+BLOCKS:
+ASSET NAME:
+PURPOSE:
+TOOL:
+HELPER SCRIPT / WORKFLOW:
+OUTPUT / DESTINATION:
+CREATION PROMPT / ART BRIEF:
+TECHNICAL CONSTRAINTS:
+ACCEPTANCE CRITERIA:
+PROVENANCE / LICENSE:
+INTEGRATION NOTES:
+
+======================================================================
+ACTIVE REQUEST 001
+======================================================================
+REQUEST ID: EXT-ASSET-001
+STATUS: OPEN
+BLOCKS: UART-003 / Issue #127 / UPER-009
+ASSET NAME: Afareet King — final owner-approved production Hero vehicle source
+PURPOSE: Replace the refinement/generated/procedural Hero tiers with the real production-ready Hero used by the exact Android candidate.
+TOOL: Blender 4.x LTS or newer. Optional texture authoring in Substance 3D Painter / ArmorPaint / Krita, but Blender source is mandatory.
+HELPER SCRIPT / WORKFLOW: Use repository Unity staging/validation pipeline after delivery. The programming team may add Blender export validators, naming checks and budget checks; it must not procedurally generate the final accepted body design.
+OUTPUT / DESTINATION:
+- Preferred editable source: .blend
+- Exchange: .fbx (required for Unity handoff) and optional .glb for inspection
+- Final tracked source target: Assets/Afareet/ArtSource/Vehicles/HeroCar/Production/
+- Unity production resource target: Assets/Afareet/Resources/Art/Vehicles/HeroCar/Production/PF_Vehicle_AfareetKing_Production.prefab
+CREATION PROMPT / ART BRIEF:
+"Create a production-quality, mobile-ready 3D Hero racing car named AFAREET KING, using docs/assets/01_vehicles/references/afareet_hero_car_reference.png as the identity target, not loose inspiration. Preserve a recognizable aggressive supernatural street-racer silhouette with authored body panels, wheel arches, four real wheels/tires/rims, glass canopy/windows, headlights and tail lights, front splitter, side aero, rear diffuser, spoiler/wing, black primary body, purple spirit energy accents, gold identity trim, and authored emissive spirit details. The model must look intentionally designed from front, rear, side and chase-camera views and must not look like Unity primitives or a procedural low-poly placeholder. Create three real LODs: LOD0 hero-quality mobile mesh, LOD1 simplified silhouette-preserving mesh, LOD2 aggressive mobile simplification. Keep material slots deterministic and texture sets mobile-friendly. Use meters, real-world car scale approximately 4.6m long x 2.0m wide, centered origin, ground contact at Y=0, forward axis compatible with Unity handoff, applied transforms, clean normals, UV0, no hidden duplicate geometry, no unapplied non-uniform scale. Name LOD objects clearly with _LOD0, _LOD1, _LOD2. Deliver editable .blend plus exported .fbx. Do not include copyrighted manufacturer logos or unlicensed third-party geometry."
+TECHNICAL CONSTRAINTS:
+- LOD0/1/2 must be visually distinct and decrease in complexity.
+- Unity production policy currently expects mobile ranges approximately: LOD0 3500–7500 tris, LOD1 1600–4000 tris, LOD2 900–2500 tris; if the art needs a justified change, coordinate with engineering before export.
+- UV0 + normals + texture-mapped materials required for production acceptance.
+- No procedural/generated classification in final metadata.
+- No primitive-only final silhouette.
+ACCEPTANCE CRITERIA:
+- Source committed with stable Unity metadata/provenance.
+- Production prefab passes Hero production validator.
+- Runtime logs production Hero active; no refinement/generated/blockout fallback active.
+- Exact Android build renders it correctly.
+- Owner/Art Director accepts the identity for UPER-009.
+PROVENANCE / LICENSE: Must be original commissioned/owner-created work or carry explicit commercial redistribution/modification rights compatible with the game repository and builds.
+INTEGRATION NOTES: Current Blender-generated AfareetKing_Hero remains REFINEMENT_CANDIDATE only and does not satisfy this request.
+
+======================================================================
+ACTIVE REQUEST 002
+======================================================================
+REQUEST ID: EXT-ASSET-002
+STATUS: OPEN
+BLOCKS: UART-004 / Issue #128 / UPER-009
+ASSET NAME: Three final production Rival vehicle sources (distinct silhouettes)
+PURPOSE: Replace Editor-only authored-review / blockout fallback with deterministic production Rival assets for the Android candidate.
+TOOL: Blender 4.x LTS or newer. Optional Substance 3D Painter / ArmorPaint / Krita for texture authoring.
+HELPER SCRIPT / WORKFLOW: Engineering owns source validation, Unity import normalization, production prefab staging, provenance and runtime binding. Artist should author geometry; do not use runtime primitives as final vehicle art.
+OUTPUT / DESTINATION:
+- Editable .blend source per vehicle or one clearly organized master .blend
+- Export each vehicle with three explicit LODs, preferably separate FBX files or a hierarchy Unity preserves deterministically
+- Target source area: Assets/Afareet/ArtSource/Vehicles/Rivals/Production/
+- Production prefab targets remain under Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/
+CREATION PROMPT / ART BRIEF:
+"Create three original mobile-ready supernatural street-racing Rival vehicles for 3FAREET. They must read as three different competitors at chase-camera distance: Rival 01 Wedge Coupe — low, angular, aggressive wedge silhouette; Rival 02 Fastback Muscle — wider, heavier fastback/muscle silhouette; Rival 03 Compact Prototype — shorter, agile futuristic compact silhouette. Preserve the Cairo-night / spirit-racing visual language without copying real manufacturer designs. Each vehicle needs authored body surfaces, four wheels/tires/rims, glass, front/rear lights, readable aero identity and restrained emissive accents. Produce LOD0, LOD1 and LOD2 for every vehicle with preserved silhouette and decreasing complexity. Use meters, applied transforms, centered origin, grounded wheels, deterministic material slots, UV0, authored normals and mobile-friendly texture sets. Export the LODs in a Unity-friendly deterministic package where each LOD remains independently identifiable after import. Do not merge the three LODs into one anonymous mesh named default. Do not include third-party copyrighted logos or unknown-license kitbash parts."
+TECHNICAL CONSTRAINTS:
+- Three genuinely different silhouettes.
+- Exactly LOD0/1/2 per vehicle.
+- Separate/import-stable LOD identity is mandatory; Unity 6000.5 currently flattens the legacy combined OBJ packaging.
+- UV0, normals, texture-mapped materials, stable naming and stable source GUID chain required.
+- Mobile triangle budgets must remain within project policy; engineering validator is authoritative.
+ACCEPTANCE CRITERIA:
+- Production sources + .meta committed.
+- Production prefabs stage deterministically and pass UART-004 build gate.
+- Runtime logs production Rival active for variants 1/2/3; no review/blockout fallback.
+- Exact Android candidate shows all three correctly.
+- Owner acceptance recorded.
+PROVENANCE / LICENSE: Original/commissioned or explicitly licensed for commercial modification, source storage and redistribution in game builds.
+INTEGRATION NOTES: Current review packaging exists only to let the Editor show authored source; it is not production acceptance.
+
+======================================================================
+ACTIVE REQUEST 003
+======================================================================
+REQUEST ID: EXT-ASSET-003
+STATUS: OPEN
+BLOCKS: UART-005 / UART-006 / UART-007 / URAC-011 / Issue #128 / UPER-009
+ASSET NAME: Cairo Night production vertical-slice art upgrade pack
+PURPOSE: Replace any remaining blockout-grade environment presentation with coherent owner-approved production 3D while keeping the existing deterministic runtime/layout code.
+TOOL: Blender 4.x LTS or newer for geometry. Substance 3D Painter / ArmorPaint / Krita/GIMP acceptable for texture work. Use only tools/assets with clear commercial rights.
+HELPER SCRIPT / WORKFLOW: Engineering owns deterministic import/staging, layout placement, miter/rail/curb logic, LOD/mobile checks and runtime fallback isolation. Artist supplies authored geometry/material sources.
+OUTPUT / DESTINATION:
+- Editable source files under a clearly versioned Cairo production art source folder
+- Unity exchange FBX/OBJ as agreed with engineering; prefer FBX for hierarchy-sensitive assets
+- Texture sets in repository-approved formats/sizes
+CREATION PROMPT / ART BRIEF:
+"Create a cohesive mobile-ready Cairo Night supernatural street-racing vertical-slice art pack for 3FAREET. Preserve the existing track/layout dimensions and gameplay clearances; improve visual authorship, not race logic. Required families: authored asphalt/curb/barrier/edge modules; modular Cairo facades and building variants; awnings/storefront signs without copyrighted brands; lamps, barriers, roadside props and banners; readable skyline modules; pyramid, minaret, dome-gate and bridge/gantry landmarks; start/finish dressing; night materials with restrained cyan/purple/gold spirit accents. Geometry must be authored rather than primitive-only, silhouettes must remain readable at mobile distance, modules must tile without obvious gaps, and collision/gameplay space must stay clear. Provide sensible LODs for large repeated assets and mobile-friendly UVs/materials/textures. Keep pivots/origins and naming consistent for deterministic Unity placement. Do not alter the race route in the art source."
+TECHNICAL CONSTRAINTS:
+- Existing race line, control points and gameplay dimensions are authoritative.
+- Repeated modules need mobile LOD strategy and deterministic pivots.
+- No giant off-route geometry that can cover the chase camera.
+- Materials must remain mobile-budget appropriate.
+- Avoid unknown-license texture/photo sources.
+ACCEPTANCE CRITERIA:
+- Source package committed with provenance.
+- Runtime uses authored assets; procedural/dev fallback inactive in exact candidate evidence.
+- Exact Android build completes smoke/performance run.
+- Owner/Art Director accepts the Cairo Night visual slice.
+PROVENANCE / LICENSE: Original/commissioned or explicitly commercially licensed source and texture material.
+INTEGRATION NOTES: Engineering should continue closing placement, camera, layout, validation and performance code before requesting additional art variants.
+
+======================================================================
+PROGRAMMING-ONLY WORK — DO NOT ADD AS EXTERNAL ASSET REQUESTS
+======================================================================
+The following are engineering responsibilities and must be solved in code/tests/tooling, not pushed to the owner as art requests:
+- Camera collision/clearance and camera state transitions.
+- Race state, restart, checkpoints, results and progression logic.
+- Mobile input and HUD behavior/layout implementation.
+- Deterministic Unity import/staging/build gates.
+- Asset provenance checks and source hash/GUID validation.
+- LOD validation and fallback isolation.
+- Track rail/curb/miter placement mathematics.
+- Performance instrumentation, smoke harness and evidence tooling.
+- Android/Windows build automation where credentials/licenses are available.
+- Static tests, EditMode/PlayMode tests and CI contracts.
+- Clear diagnostics for missing external assets.
+
+END OF FILE
