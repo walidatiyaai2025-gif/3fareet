@@ -8,6 +8,10 @@ CAREER_BRIDGE = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/CareerRuntime/Car
 CAREER_SESSION = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageSession.cs"
 CAREER_ASMDEF = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/CareerRuntime/Afareet.CareerRuntime.asmdef"
 BOOTSTRAP = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Core/AfareetBootstrap.cs"
+COMPILE_PROJECT = REPO_ROOT / "tools/android/contracts/GarageRuntimeCompile.csproj"
+RUNNER_PROJECT = REPO_ROOT / "tools/android/contracts/GarageRuntimeContractRunner.csproj"
+RUNNER = REPO_ROOT / "tools/android/contracts/GarageRuntimeContractRunner.cs"
+WORKFLOW = REPO_ROOT / ".github/workflows/postp1-garage-runtime-contract.yml"
 
 
 class PostP1GarageRuntimeContractTests(unittest.TestCase):
@@ -39,6 +43,7 @@ class PostP1GarageRuntimeContractTests(unittest.TestCase):
             "NormalizeStats",
             "duplicate vehicle id",
             "GarageCosmeticSet",
+            "BuildUniqueOptions",
         ):
             self.assertIn(required, source)
 
@@ -112,6 +117,40 @@ class PostP1GarageRuntimeContractTests(unittest.TestCase):
         self.assertLess(career_configure, garage_add)
         self.assertLess(garage_add, garage_configure)
         self.assertIn("AFAREET_GARAGE_SESSION_ACTIVE", source)
+
+    def test_pure_csharp_compile_and_behavior_contract_is_wired(self):
+        for path in (COMPILE_PROJECT, RUNNER_PROJECT, RUNNER, WORKFLOW):
+            self.assertTrue(path.is_file(), path.name)
+
+        compile_project = COMPILE_PROJECT.read_text(encoding="utf-8")
+        for source_name in (
+            "GarageCatalog.cs",
+            "GarageState.cs",
+            "GarageService.cs",
+            "GaragePersistence.cs",
+        ):
+            self.assertIn(source_name, compile_project)
+        self.assertIn("<TargetFramework>netstandard2.1</TargetFramework>", compile_project)
+        self.assertIn("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>", compile_project)
+
+        runner_project = RUNNER_PROJECT.read_text(encoding="utf-8")
+        self.assertIn("<TargetFramework>net8.0</TargetFramework>", runner_project)
+        self.assertIn("GarageRuntimeContractRunner.cs", runner_project)
+        runner = RUNNER.read_text(encoding="utf-8")
+        for required in (
+            "CatalogContract();",
+            "UnlockEquipContract();",
+            "CustomizationContract();",
+            "PersistenceContract();",
+            "MigrationRecoveryContract();",
+            "Garage runtime behavior contract: PASS",
+        ):
+            self.assertIn(required, runner)
+
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("dotnet build tools/android/contracts/GarageRuntimeCompile.csproj", workflow)
+        self.assertIn("GarageRuntimeContractRunner.csproj", workflow)
+        self.assertIn("test_post_p1_garage_runtime_contract.py", workflow)
 
     def test_garage_programming_does_not_fake_missing_visual_assets(self):
         catalog = (GARAGE / "GarageCatalog.cs").read_text(encoding="utf-8")
