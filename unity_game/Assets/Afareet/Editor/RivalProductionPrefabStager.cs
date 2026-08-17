@@ -125,7 +125,8 @@ namespace Afareet.Editor
 
                 foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true))
                 {
-                    var lod = ResolveLod(renderer.transform, instance.transform);
+                    var mesh = RivalProductionPolicy.MeshFor(renderer);
+                    var lod = ResolveLod(renderer.transform, instance.transform, mesh);
                     if (lod < 0) continue;
 
                     ValidateRendererSource(renderer, sourcePath, variant, lod);
@@ -138,7 +139,8 @@ namespace Afareet.Editor
                     if (lodRenderers[lod].Count == 0)
                         throw new InvalidOperationException(
                             $"UART-004 imported source contains no renderer for LOD{lod}: " +
-                            $"variant={variant + 1} source={sourcePath} expectedObjectSuffix=_LOD{lod}");
+                            $"variant={variant + 1} source={sourcePath} expectedObjectSuffix=_LOD{lod} " +
+                            "resolver=transform-or-source-mesh-name");
 
                     lods[lod] = new LOD(TransitionHeights[lod], lodRenderers[lod].ToArray());
                 }
@@ -161,18 +163,44 @@ namespace Afareet.Editor
             }
         }
 
-        private static int ResolveLod(Transform rendererTransform, Transform importedRoot)
+        private static int ResolveLod(Transform rendererTransform, Transform importedRoot, Mesh mesh)
         {
             for (var current = rendererTransform; current != null; current = current.parent)
             {
-                for (var lod = 0; lod < RivalProductionPolicy.MinimumTriangles.Length; lod++)
-                {
-                    if (current.name.EndsWith($"_LOD{lod}", StringComparison.OrdinalIgnoreCase))
-                        return lod;
-                }
+                var transformLod = ResolveLodFromName(current.name);
+                if (transformLod >= 0)
+                    return transformLod;
 
                 if (current == importedRoot) break;
             }
+
+            // Unity 6000.5 can flatten OBJ object names from the instance Transform hierarchy
+            // while retaining the authored `o ..._LOD#` identity on each source Mesh sub-asset.
+            return ResolveLodFromName(mesh == null ? string.Empty : mesh.name);
+        }
+
+        private static int ResolveLodFromName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return -1;
+
+            for (var lod = 0; lod < RivalProductionPolicy.MinimumTriangles.Length; lod++)
+            {
+                var token = $"_LOD{lod}";
+                var searchIndex = 0;
+                while (searchIndex < name.Length)
+                {
+                    var index = name.IndexOf(token, searchIndex, StringComparison.OrdinalIgnoreCase);
+                    if (index < 0) break;
+
+                    var suffixEnd = index + token.Length;
+                    if (suffixEnd == name.Length || !char.IsDigit(name[suffixEnd]))
+                        return lod;
+
+                    searchIndex = suffixEnd;
+                }
+            }
+
             return -1;
         }
 
