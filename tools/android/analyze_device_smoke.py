@@ -5,6 +5,10 @@ The collector already stores raw meminfo/gfxinfo/thermal/battery data per checkp
 This tool turns the Android-observable subset into deterministic machine-readable metrics
 and applies the numeric UPER-001 budgets that ADB can evaluate. Unity main/render/GPU
 profiler timings remain manual/profiler evidence and are never invented here.
+
+Candidate-bound sessions must pin one performance tier during device preparation. The
+analyzer rejects missing, invalid or mismatched tier metadata so an operator cannot
+capture on one tier and later select an easier budget during release preflight.
 """
 from __future__ import annotations
 
@@ -120,6 +124,14 @@ def analyze(session_dir: Path, tier: str) -> dict[str, Any]:
     checkpoints: dict[str, dict[str, Any]] = {}
     blockers: list[str] = []
 
+    session_tier = str(session.get("performanceTier") or "").strip().lower()
+    if session_tier not in TIER_BUDGETS:
+        blockers.append("session: missing or invalid performanceTier binding")
+    elif session_tier != tier_key:
+        blockers.append(
+            f"session: performanceTier mismatch (captured={session_tier.upper()} requested={tier_key.upper()})"
+        )
+
     apk_sha = str(session.get("apk", {}).get("sha256") or "").strip() if isinstance(session.get("apk"), dict) else ""
     device_sha = str(session.get("device", {}).get("serialSha256") or "").strip() if isinstance(session.get("device"), dict) else ""
     if not is_sha256(apk_sha):
@@ -192,9 +204,10 @@ def analyze(session_dir: Path, tier: str) -> dict[str, Any]:
         blockers.append("restart memory growth could not be calculated")
 
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "taskId": "UPER-006",
         "tier": tier_key.upper(),
+        "sessionPerformanceTier": session_tier.upper() if session_tier in TIER_BUDGETS else "",
         "verified": False,
         "verdict": "BLOCKED" if blockers else "PASSABLE_FOR_MANUAL_REVIEW",
         "apkSha256": apk_sha,
