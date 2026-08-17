@@ -25,6 +25,7 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
             "Do NOT use a script to pretend procedural/generated art is externally authored production art",
             "Production source must have a clear license/ownership statement",
             "PROGRAMMING-ONLY WORK — DO NOT ADD AS EXTERNAL ASSET REQUESTS",
+            "docs/MISSED_ASSETS.md",
         ):
             self.assertIn(required, text)
 
@@ -44,7 +45,7 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
     def test_active_requests_have_complete_handoff_fields(self):
         text = LEDGER.read_text(encoding="utf-8")
         request_starts = list(re.finditer(r"^REQUEST ID: (EXT-ASSET-\d{3})$", text, flags=re.MULTILINE))
-        self.assertGreaterEqual(len(request_starts), 4)
+        self.assertGreaterEqual(len(request_starts), 8)
         ids = [match.group(1) for match in request_starts]
         self.assertEqual(len(ids), len(set(ids)), "external asset request ids must be unique")
 
@@ -78,20 +79,26 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
 
     def test_current_external_dependencies_are_registered(self):
         text = LEDGER.read_text(encoding="utf-8")
-        for required in (
-            "EXT-ASSET-001",
+        required_by_id = {
+            "EXT-ASSET-001": "Afareet King",
+            "EXT-ASSET-002": "Three final production Rival vehicle sources",
+            "EXT-ASSET-003": "Cairo Night production vertical-slice art upgrade pack",
+            "EXT-ASSET-004": "Cairo Night production soundtrack",
+            "EXT-ASSET-005": "Mobile production VFX source pack",
+            "EXT-ASSET-006": "Production UI and in-game branding vector source pack",
+            "EXT-ASSET-007": "Licensed Arabic + Latin production font family",
+            "EXT-ASSET-008": "3FAREET production app icon master",
+        }
+        for request_id, description in required_by_id.items():
+            self.assertIn(request_id, text)
+            self.assertIn(description, text)
+
+        for blocker in (
             "Issue #127",
-            "Afareet King",
-            "EXT-ASSET-002",
             "UART-004",
-            "Three final production Rival vehicle sources",
-            "EXT-ASSET-003",
             "UART-005 / UART-006 / UART-007 / URAC-011",
-            "Cairo Night production vertical-slice art upgrade pack",
-            "EXT-ASSET-004",
-            "Cairo Night production soundtrack",
         ):
-            self.assertIn(required, text)
+            self.assertIn(blocker, text)
 
     def test_ledger_keeps_code_responsibilities_out_of_asset_requests(self):
         text = LEDGER.read_text(encoding="utf-8")
@@ -102,6 +109,8 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
             "Deterministic Unity import/staging/build gates.",
             "Track rail/curb/miter placement mathematics.",
             "Performance instrumentation, smoke harness and evidence tooling.",
+            "Wheel rotation, suspension/body lean and other code-solvable animation hooks.",
+            "AI racing line, respawn and power-up marker generation/validation.",
         ):
             self.assertIn(engineering_responsibility, text)
 
