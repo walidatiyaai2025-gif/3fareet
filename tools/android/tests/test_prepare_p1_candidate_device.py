@@ -110,6 +110,7 @@ def make_bundle(root: Path) -> dict[str, Path]:
         {
             "schemaVersion": 1,
             "state": "STAGING_PARENT_BOUND_TO_CANDIDATE",
+            "stagingReportSchemaVersion": 3,
             "stagingSourceGitSha": STAGING_SHA,
             "candidateGitSha": CANDIDATE_SHA,
             "directParentGitSha": STAGING_SHA,
