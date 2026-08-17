@@ -126,14 +126,16 @@ namespace Afareet.UI
             safeRoot.SetParent(canvasObject.transform, false);
             safeRoot.offsetMin = safeRoot.offsetMax = Vector2.zero;
 
-            positionText = Panel("Position", new Vector2(24, -24), new Vector2(210, 58), TextAnchor.MiddleCenter, true);
-            timeText = Panel("Time", new Vector2(-24, -24), new Vector2(210, 58), TextAnchor.MiddleCenter, false);
-            speedText = Panel("Speed", new Vector2(-24, 24), new Vector2(230, 105), TextAnchor.MiddleCenter, false, true);
-            spiritText = Panel("Spirit", new Vector2(24, 24), new Vector2(275, 74), TextAnchor.UpperCenter, true, true);
-            careerText = CenterTopPanel("Career", new Vector2(0f, -24f), new Vector2(440f, 58f));
+            // Keep all telemetry in the top band so the bottom 140px remain dedicated
+            // to touch controls and never stack Spirit/Speed underneath them.
+            positionText = Panel("Position", new Vector2(24f, -20f), new Vector2(170f, 48f), TextAnchor.MiddleCenter, true);
+            timeText = Panel("Time", new Vector2(-24f, -20f), new Vector2(170f, 48f), TextAnchor.MiddleCenter, false);
+            spiritText = Panel("Spirit", new Vector2(24f, -76f), new Vector2(210f, 48f), TextAnchor.UpperCenter, true);
+            speedText = Panel("Speed", new Vector2(-24f, -76f), new Vector2(150f, 58f), TextAnchor.MiddleCenter, false);
+            careerText = CenterTopPanel("Career", new Vector2(0f, -20f), new Vector2(360f, 48f));
 
-            var fillBg = CreateImage("Spirit Bar BG", spiritText.transform.parent, new Color(.03f, .02f, .08f, .94f));
-            SetAnchored(fillBg.rectTransform, new Vector2(16, 12), new Vector2(243, 16), new Vector2(0, 0), new Vector2(0, 0));
+            var fillBg = CreateImage("Spirit Bar BG", spiritText.transform.parent, new Color(.03f, .02f, .08f, .90f));
+            SetAnchored(fillBg.rectTransform, new Vector2(12f, 8f), new Vector2(186f, 10f), new Vector2(0f, 0f), new Vector2(0f, 0f));
             spiritFill = CreateImage("Spirit Bar Fill", fillBg.transform, new Color(.54f, .05f, 1f, 1f));
             spiritFill.type = Image.Type.Filled;
             spiritFill.fillMethod = Image.FillMethod.Horizontal;
@@ -141,11 +143,13 @@ namespace Afareet.UI
             spiritFill.rectTransform.anchorMin = Vector2.zero;
             spiritFill.rectTransform.anchorMax = Vector2.one;
             spiritFill.rectTransform.offsetMin = spiritFill.rectTransform.offsetMax = Vector2.zero;
+
+            Debug.Log("AFAREET_UI_COMPACT_RACE_HUD_ACTIVE telemetryBand=top bottomControlBandClear=true");
         }
 
         private Text CenterTopPanel(string panelName, Vector2 offset, Vector2 size)
         {
-            var image = CreateImage(panelName, safeRoot, new Color(.018f, .012f, .045f, .88f));
+            var image = CreateImage(panelName, safeRoot, new Color(.018f, .012f, .045f, .80f));
             var rect = image.rectTransform;
             rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1f);
             rect.pivot = new Vector2(.5f, 1f);
@@ -159,7 +163,7 @@ namespace Afareet.UI
             text.rectTransform.offsetMin = new Vector2(8f, 6f);
             text.rectTransform.offsetMax = new Vector2(-8f, -6f);
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 18;
+            text.fontSize = 16;
             text.fontStyle = FontStyle.Bold;
             text.alignment = TextAnchor.MiddleCenter;
             text.color = Color.white;
@@ -168,7 +172,7 @@ namespace Afareet.UI
 
         private Text Panel(string panelName, Vector2 offset, Vector2 size, TextAnchor alignment, bool left, bool bottom = false)
         {
-            var image = CreateImage(panelName, safeRoot, new Color(.018f, .012f, .045f, .88f));
+            var image = CreateImage(panelName, safeRoot, new Color(.018f, .012f, .045f, .80f));
             var anchor = new Vector2(left ? 0f : 1f, bottom ? 0f : 1f);
             SetAnchored(image.rectTransform, offset, size, anchor, anchor);
 
@@ -176,10 +180,10 @@ namespace Afareet.UI
             text.transform.SetParent(image.transform, false);
             text.rectTransform.anchorMin = Vector2.zero;
             text.rectTransform.anchorMax = Vector2.one;
-            text.rectTransform.offsetMin = new Vector2(8, 6);
-            text.rectTransform.offsetMax = new Vector2(-8, -6);
+            text.rectTransform.offsetMin = new Vector2(8, 5);
+            text.rectTransform.offsetMax = new Vector2(-8, -5);
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = bottom ? 26 : 22;
+            text.fontSize = panelName == "Speed" ? 20 : 18;
             text.fontStyle = FontStyle.Bold;
             text.alignment = alignment;
             text.color = Color.white;
