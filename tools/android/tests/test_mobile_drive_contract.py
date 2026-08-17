@@ -7,6 +7,7 @@ CONTROLS_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/UI/ProductionRace
 INPUT_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/UI/ProductionRaceInputController.cs"
 BOOTSTRAP_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Core/AfareetBootstrap.cs"
 VEHICLE_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeCarController.cs"
+RACE_DIRECTOR_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs"
 POLICY_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Vehicle/MobileDriveInputPolicy.cs"
 
 
@@ -73,6 +74,33 @@ class MobileDriveContractTests(unittest.TestCase):
         self.assertLess(
             recovery_body.index("if (!body.isKinematic)"),
             recovery_body.index("body.linearVelocity = Vector3.zero;"),
+        )
+
+    def test_race_director_freeze_and_grid_reset_are_kinematic_safe(self):
+        director = RACE_DIRECTOR_PATH.read_text(encoding="utf-8")
+
+        freeze_start = director.index("private void FreezeRacer(ArcadeCarController car)")
+        freeze_end = director.index("private void SetRivalRecoveryActive", freeze_start)
+        freeze_body = director[freeze_start:freeze_end]
+        self.assertIn("if (!body.isKinematic)", freeze_body)
+        self.assertLess(
+            freeze_body.index("if (!body.isKinematic)"),
+            freeze_body.index("body.linearVelocity = Vector3.zero;"),
+        )
+        self.assertLess(
+            freeze_body.index("body.angularVelocity = Vector3.zero;"),
+            freeze_body.index("body.isKinematic = true;"),
+        )
+
+        grid_start = director.index("private void ResetRacersToGrid()")
+        grid_end = director.index("private IReadOnlyList<RankedRaceEntry>", grid_start)
+        grid_body = director[grid_start:grid_end]
+        self.assertIn("if (!body.isKinematic)", grid_body)
+        self.assertIn("body.position = targetPosition;", grid_body)
+        self.assertIn("body.rotation = rotation;", grid_body)
+        self.assertLess(
+            grid_body.index("if (!body.isKinematic)"),
+            grid_body.index("body.linearVelocity = Vector3.zero;"),
         )
 
 
