@@ -6,11 +6,19 @@ namespace Afareet.Vehicle
     public sealed class ChaseCamera : MonoBehaviour
     {
         private const int OcclusionHitCapacity = 16;
+        private const float MinimumPlayableBodyClearance = 2.8f;
 
         public Transform Target { get; private set; }
+        public float MinimumBodyClearanceDistance => minimumBodyClearanceDistance;
+        public Vector3 FocusPoint =>
+            Target == null || config == null
+                ? transform.position
+                : Target.position + Vector3.up * config.lookHeight;
+
         private readonly RaycastHit[] occlusionHits = new RaycastHit[OcclusionHitCapacity];
         private ChaseCameraConfig config;
         private Camera racingCamera;
+        private float minimumBodyClearanceDistance;
 
         private void Awake() => racingCamera = GetComponent<Camera>();
 
@@ -18,7 +26,7 @@ namespace Afareet.Vehicle
         {
             if (Target == null || config == null) return;
 
-            var pivot = Target.position + Vector3.up * config.lookHeight;
+            var pivot = FocusPoint;
             var desired = ResolveOcclusion(pivot, Target.TransformPoint(config.offset));
             transform.position = Vector3.Lerp(
                 transform.position,
@@ -54,13 +62,18 @@ namespace Afareet.Vehicle
             Target = target;
             config = cameraConfig;
             racingCamera.fieldOfView = config.normalFieldOfView;
+            minimumBodyClearanceDistance = CalculateMinimumBodyClearance(Target, config, out var clearanceSource);
 
-            var pivot = Target.position + Vector3.up * config.lookHeight;
+            var pivot = FocusPoint;
             transform.position = ResolveOcclusion(pivot, Target.TransformPoint(config.offset));
             var initialLookAt = pivot + Target.forward * config.lookAheadMeters;
             var initialDirection = initialLookAt - transform.position;
             if (initialDirection.sqrMagnitude > 0.001f)
                 transform.rotation = Quaternion.LookRotation(initialDirection.normalized, Vector3.up);
+
+            Debug.Log(
+                $"AFAREET_CAMERA_BODY_CLEARANCE_ACTIVE minimum={minimumBodyClearanceDistance:F2}m " +
+                $"source={clearanceSource} occlusionOwner=ChaseCamera postPassMayNotCompress=true");
         }
 
         private Vector3 ResolveOcclusion(Vector3 pivot, Vector3 desiredPosition)
@@ -99,11 +112,101 @@ namespace Afareet.Vehicle
             if (!occluded)
                 return desiredPosition;
 
+            var effectiveMinimumDistance = Mathf.Max(
+                config.minimumOcclusionDistance,
+                minimumBodyClearanceDistance);
             var resolvedDistance = Mathf.Clamp(
                 nearestDistance - config.collisionPadding,
-                config.minimumOcclusionDistance,
+                Mathf.Min(effectiveMinimumDistance, desiredDistance),
                 desiredDistance);
             return pivot + direction * resolvedDistance;
+        }
+
+        private static float CalculateMinimumBodyClearance(
+            Transform target,
+            ChaseCameraConfig cameraConfig,
+            out string source)
+        {
+            var pivot = target.position + Vector3.up * cameraConfig.lookHeight;
+            var desired = target.TransformPoint(cameraConfig.offset);
+            var desiredDelta = desired - pivot;
+            var desiredDirection = desiredDelta.sqrMagnitude > .0001f
+                ? desiredDelta.normalized
+                : -target.forward;
+
+            if (TryCalculateCombinedBounds(target, out var bounds, out source))
+            {
+                var extents = bounds.extents;
+                var projectedExtent =
+                    Mathf.Abs(desiredDirection.x) * extents.x +
+                    Mathf.Abs(desiredDirection.y) * extents.y +
+                    Mathf.Abs(desiredDirection.z) * extents.z;
+                var centerProjection = Vector3.Dot(bounds.center - pivot, desiredDirection);
+                var rearProjection = Mathf.Max(0f, centerProjection + projectedExtent);
+                return Mathf.Max(
+                    MinimumPlayableBodyClearance,
+                    cameraConfig.minimumOcclusionDistance,
+                    rearProjection + cameraConfig.collisionRadius + cameraConfig.collisionPadding);
+            }
+
+            source = "playable-floor";
+            return Mathf.Max(MinimumPlayableBodyClearance, cameraConfig.minimumOcclusionDistance);
+        }
+
+        private static bool TryCalculateCombinedBounds(
+            Transform target,
+            out Bounds combined,
+            out string source)
+        {
+            combined = default;
+            var hasBounds = false;
+
+            foreach (var renderer in target.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer == null || renderer is TrailRenderer || renderer is LineRenderer)
+                    continue;
+                var bounds = renderer.bounds;
+                if (bounds.size.sqrMagnitude <= .0001f)
+                    continue;
+
+                if (!hasBounds)
+                {
+                    combined = bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    combined.Encapsulate(bounds);
+                }
+            }
+
+            if (hasBounds)
+            {
+                source = "renderer-bounds";
+                return true;
+            }
+
+            foreach (var collider in target.GetComponentsInChildren<Collider>(true))
+            {
+                if (collider == null || collider.isTrigger)
+                    continue;
+                var bounds = collider.bounds;
+                if (bounds.size.sqrMagnitude <= .0001f)
+                    continue;
+
+                if (!hasBounds)
+                {
+                    combined = bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    combined.Encapsulate(bounds);
+                }
+            }
+
+            source = hasBounds ? "collider-bounds" : "none";
+            return hasBounds;
         }
     }
 }
