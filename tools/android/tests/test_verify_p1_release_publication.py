@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 TOOLS = Path(__file__).resolve().parents[1]
@@ -26,6 +27,7 @@ MODULE = load("verify_p1_release_publication", TOOLS / "verify_p1_release_public
 
 STAGING_SHA = GATE_FIXTURE.STAGING_SHA
 CANDIDATE_SHA = GATE_FIXTURE.CANDIDATE_SHA
+AUTHORIZATION = dict(GATE_FIXTURE.AUTHORIZATION)
 FINAL_GATES = ["UVEH-012", "URAC-012", "UPER-006", "UPER-009", "UPER-010"]
 APK_BYTES = b"afareet-p1-publication-fixture-apk-v1"
 APK_SHA = hashlib.sha256(APK_BYTES).hexdigest()
@@ -126,6 +128,7 @@ class VerifyP1ReleasePublicationTests(unittest.TestCase):
             self.assertEqual(STAGING_SHA, result["p1Lineage"]["stagingSourceGitSha"])
             self.assertEqual(STAGING_SHA, result["p1Lineage"]["directParentGitSha"])
             self.assertEqual(CANDIDATE_SHA, result["p1Lineage"]["candidateGitSha"])
+            self.assertEqual(AUTHORIZATION, result["p1Lineage"]["stagingAuthorization"])
             self.assertEqual(16, result["evidence"]["checkpointCount"])
             self.assertEqual(set(FINAL_GATES), set(result["evidence"]["reviewers"]))
             self.assertEqual("READY_FOR_RELEASE_REVIEW", result["releaseGate"]["status"])
@@ -183,6 +186,52 @@ class VerifyP1ReleasePublicationTests(unittest.TestCase):
                     spec_path=TOOLS / "p1_gate_spec.json",
                 )
 
+    def test_authorization_fingerprint_tamper_in_approvals_blocks_preflight(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            chain = build_publication_chain(root)
+            approvals = json.loads(chain["approvals"].read_text(encoding="utf-8"))
+            approvals["stagingAuthorization"]["operatorChainSha256"] = "1" * 64
+            write_json(chain["approvals"], approvals)
+            with self.assertRaisesRegex(MODULE.p1_lineage_gate_readiness.P1LineageGateError, "stagingAuthorization"):
+                MODULE.verify_p1_publication(
+                    candidate_manifest_path=chain["candidate"],
+                    apk_path=chain["apk"],
+                    session_dir=chain["session"],
+                    review_bundle_dir=chain["review"],
+                    approvals_path=chain["approvals"],
+                    spec_path=TOOLS / "p1_gate_spec.json",
+                )
+
+    def test_publication_time_review_authorization_mismatch_blocks_preflight(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            chain = build_publication_chain(root)
+            spec = MODULE.p1_gate_readiness.load_spec(TOOLS / "p1_gate_spec.json")
+            binding = MODULE.p1_lineage_gate_readiness._bind_p1_review(chain["session"], chain["review"], spec)
+            review = MODULE.verify_p1_device_review_bundle.verify_p1_bundle(
+                chain["review"],
+                expected_git_sha=CANDIDATE_SHA,
+                expected_apk_sha=APK_SHA,
+                expected_staging_source_sha=STAGING_SHA,
+            )
+            tampered_review = dict(review)
+            tampered_authorization = dict(review["stagingAuthorization"])
+            tampered_authorization["operatorChainSha256"] = "1" * 64
+            tampered_review["stagingAuthorization"] = tampered_authorization
+            with mock.patch.object(MODULE.p1_lineage_gate_readiness, "_bind_p1_review", return_value=binding), mock.patch.object(
+                MODULE.verify_p1_device_review_bundle, "verify_p1_bundle", return_value=tampered_review
+            ):
+                with self.assertRaisesRegex(MODULE.P1PublicationPreflightError, "publication-time P1 staging authorization"):
+                    MODULE.verify_p1_publication(
+                        candidate_manifest_path=chain["candidate"],
+                        apk_path=chain["apk"],
+                        session_dir=chain["session"],
+                        review_bundle_dir=chain["review"],
+                        approvals_path=chain["approvals"],
+                        spec_path=TOOLS / "p1_gate_spec.json",
+                    )
+
     def test_publication_candidate_manifest_bytes_must_match_session_bound_copy(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -227,7 +276,7 @@ class VerifyP1ReleasePublicationTests(unittest.TestCase):
                 "approvals": {task: {"approved": True, "reviewer": "Reviewer"} for task in FINAL_GATES},
             }
             write_json(chain["approvals"], generic)
-            with self.assertRaisesRegex(MODULE.p1_lineage_gate_readiness.P1LineageGateError, "schemaVersion"):
+            with self.assertRaisesRegex(MODULE.p1_lineage_gate_readiness.P1LineageGateError, "approval profile"):
                 MODULE.verify_p1_publication(
                     candidate_manifest_path=chain["candidate"],
                     apk_path=chain["apk"],
@@ -254,6 +303,7 @@ class VerifyP1ReleasePublicationTests(unittest.TestCase):
             payload = json.loads(output.read_text(encoding="utf-8"))
             self.assertFalse(payload["publicationPerformed"])
             self.assertFalse(payload["verified"])
+            self.assertEqual(AUTHORIZATION, payload["p1Lineage"]["stagingAuthorization"])
             self.assertEqual(2, MODULE.main(args))
 
 

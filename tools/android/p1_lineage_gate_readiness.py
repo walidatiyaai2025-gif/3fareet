@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Evaluate P1 final-five readiness with mandatory staging→candidate review lineage.
+"""Evaluate P1 final-five readiness with mandatory authorization-bound review lineage.
 
 The existing p1_gate_readiness.py remains the generic evidence/approval evaluator. This wrapper
-adds the P1 provenance boundary introduced by Steps 9–12: the raw physical-device session must
+adds the P1 provenance boundary introduced by Steps 9–21: the raw physical-device session must
 still contain the exact staged-candidate lineage, the sanitized review bundle must pass the P1
 review-lineage verifier, and manual approvals must be pinned to both the generic review content
-set and the sanitized P1 lineage fingerprint.
+set and the exact staging authorization fingerprints.
 
 No command in this module marks an APK VERIFIED or makes publication eligible.
 """
@@ -27,10 +27,16 @@ import export_p1_device_evidence
 import p1_gate_readiness
 import verify_p1_device_review_bundle
 
-P1_APPROVALS_SCHEMA_VERSION = 1
-P1_APPROVAL_PROFILE = "p1-lineage-manual-approvals-v1"
+P1_APPROVALS_SCHEMA_VERSION = 2
+P1_APPROVAL_PROFILE = "p1-lineage-manual-approvals-v2"
 OUTPUT_SCHEMA_VERSION = 1
 EXPECTED_VISUAL_TASKS = list(verify_p1_device_review_bundle.EXPECTED_TASKS)
+AUTHORIZATION_KEYS = (
+    "authorizationSourceGitSha",
+    "handoffPacketSha256",
+    "nativeHandoffVerificationSha256",
+    "operatorChainSha256",
+)
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -63,6 +69,33 @@ def _sha256(value: Any, label: str) -> str:
     if not SHA256_RE.fullmatch(text):
         raise P1LineageGateError(f"{label} must be a SHA-256 hex digest, found {value!r}")
     return text
+
+
+def _authorization(value: Any, label: str, expected_source_sha: str) -> dict[str, str]:
+    if not isinstance(value, dict) or set(value) != set(AUTHORIZATION_KEYS):
+        raise P1LineageGateError(
+            f"{label} must contain exactly the four staging authorization fingerprints"
+        )
+    source_sha = _sha40(
+        value.get("authorizationSourceGitSha"), f"{label}.authorizationSourceGitSha"
+    )
+    if source_sha != expected_source_sha:
+        raise P1LineageGateError(
+            f"{label}.authorizationSourceGitSha mismatch: expected={expected_source_sha} actual={source_sha}"
+        )
+    return {
+        "authorizationSourceGitSha": source_sha,
+        "handoffPacketSha256": _sha256(
+            value.get("handoffPacketSha256"), f"{label}.handoffPacketSha256"
+        ),
+        "nativeHandoffVerificationSha256": _sha256(
+            value.get("nativeHandoffVerificationSha256"),
+            f"{label}.nativeHandoffVerificationSha256",
+        ),
+        "operatorChainSha256": _sha256(
+            value.get("operatorChainSha256"), f"{label}.operatorChainSha256"
+        ),
+    }
 
 
 def _require_false(payload: dict[str, Any], key: str, label: str) -> None:
@@ -139,6 +172,17 @@ def _bind_p1_review(
     if apk_sha != _sha256(raw_p1.get("apkSha256"), "rawP1.apkSha256"):
         raise P1LineageGateError("P1 review APK SHA differs from raw session lineage")
 
+    review_authorization = _authorization(
+        review.get("stagingAuthorization"), "p1Review.stagingAuthorization", staging_source_sha
+    )
+    raw_authorization = _authorization(
+        raw_p1.get("stagingAuthorization"), "rawP1.stagingAuthorization", staging_source_sha
+    )
+    if review_authorization != raw_authorization:
+        raise P1LineageGateError(
+            "P1 review staging authorization differs from the raw physical-device session lineage"
+        )
+
     review_tier = str(review.get("performanceTier") or "").strip().lower()
     raw_tier = str(raw_p1.get("performanceTier") or "").strip().lower()
     if review_tier not in {"low", "mid", "high"} or review_tier != raw_tier:
@@ -172,7 +216,6 @@ def _bind_p1_review(
     evaluation_index["reviewBundleBound"] = True
     evaluation_index["reviewContentSetSha256"] = content_set_sha
 
-    # Keep the generic evaluator authoritative for the declarative final-five checkpoint plan.
     evidence_only = p1_gate_readiness.evaluate(spec, evaluation_index, approvals=None)
 
     return {
@@ -191,6 +234,7 @@ def _bind_p1_review(
         "performanceTier": review_tier,
         "coveredVisualRuntimeTasks": list(EXPECTED_VISUAL_TASKS),
         "sourceArtifactDigests": normalized_digests,
+        "stagingAuthorization": dict(review_authorization),
     }
 
 
@@ -210,6 +254,14 @@ def load_p1_approvals(path: Path | None, spec: dict[str, Any]) -> dict[str, Any]
     _require_false(approvals, "publicationEligible", "p1Approvals")
     _require_exact_visual_tasks(
         approvals.get("coveredVisualRuntimeTasks"), "p1Approvals.coveredVisualRuntimeTasks"
+    )
+    approval_staging_sha = _sha40(
+        approvals.get("stagingSourceGitSha"), "p1Approvals.stagingSourceGitSha"
+    )
+    _authorization(
+        approvals.get("stagingAuthorization"),
+        "p1Approvals.stagingAuthorization",
+        approval_staging_sha,
     )
     records = approvals.get("approvals")
     if not isinstance(records, dict) or set(records) != set(spec["gates"]):
@@ -248,6 +300,16 @@ def _bind_approvals(
                 f"P1 manual approval fingerprint mismatch for {key}: expected={expected} actual={actual}"
             )
 
+    approval_authorization = _authorization(
+        approvals.get("stagingAuthorization"),
+        "p1Approvals.stagingAuthorization",
+        binding["stagingSourceGitSha"],
+    )
+    if approval_authorization != binding["stagingAuthorization"]:
+        raise P1LineageGateError(
+            "P1 manual approval stagingAuthorization fingerprint mismatch"
+        )
+
     tier = str(approvals.get("performanceTier") or "").strip().lower()
     if tier != binding["performanceTier"]:
         raise P1LineageGateError(
@@ -264,7 +326,6 @@ def _bind_approvals(
                 f"P1 manual approval source artifact digest mismatch for {key}"
             )
 
-    # Translate only after the extra P1 lineage fingerprints have been proven.
     return {
         "schemaVersion": p1_gate_readiness.APPROVALS_SCHEMA_VERSION,
         "gitSha": binding["candidateGitSha"],
@@ -299,6 +360,7 @@ def evaluate_p1(
         "performanceTier": binding["performanceTier"],
         "coveredVisualRuntimeTasks": list(binding["coveredVisualRuntimeTasks"]),
         "sourceArtifactDigests": dict(binding["sourceArtifactDigests"]),
+        "stagingAuthorization": dict(binding["stagingAuthorization"]),
         "candidateBound": generic["candidateBound"],
         "p1ReviewBundleBound": True,
         "physicalDevice": generic["physicalDevice"],
@@ -312,8 +374,8 @@ def evaluate_p1(
         "ownerAccepted": False,
         "publicationEligible": False,
         "notes": [
-            "P1 gate readiness requires a P1-verified lineage-bound sanitized review bundle; a generic review bundle is insufficient.",
-            "Manual approval records are pinned to candidate/APK/content-set plus staging-source SHA, P1 review-lineage SHA, performance tier and four source-artifact digests.",
+            "P1 gate readiness requires a P1-verified authorization-bound sanitized review bundle; a generic review bundle is insufficient.",
+            "Manual approval records are pinned to candidate/APK/content-set, staging-source SHA, P1 review-lineage SHA, performance tier, four source-artifact digests and all four staging-authorization fingerprints.",
             "releaseReviewReady is still only readiness for the final human/repository publication decision; this wrapper never marks the APK VERIFIED or publication eligible.",
         ],
     }
@@ -347,6 +409,7 @@ def _approval_template(spec: dict[str, Any], binding: dict[str, Any]) -> dict[st
         "performanceTier": binding["performanceTier"],
         "coveredVisualRuntimeTasks": list(binding["coveredVisualRuntimeTasks"]),
         "sourceArtifactDigests": dict(binding["sourceArtifactDigests"]),
+        "stagingAuthorization": dict(binding["stagingAuthorization"]),
         "verified": False,
         "publicationEligible": False,
         "approvals": {
@@ -371,7 +434,7 @@ def command_validate(args: argparse.Namespace) -> int:
     print(
         "AFAREET_P1_LINEAGE_GATE_READINESS "
         f"candidateGitSha={result['candidateGitSha']} stagingSourceGitSha={result['stagingSourceGitSha']} "
-        f"p1ReviewBound=true evidenceReady={str(result['allEvidenceReady']).lower()} "
+        f"p1ReviewBound=true authorizationBound=true evidenceReady={str(result['allEvidenceReady']).lower()} "
         f"releaseReviewReady={str(result['releaseReviewReady']).lower()} verified=false output={output}"
     )
     return 0 if result["releaseReviewReady"] else 2
@@ -392,7 +455,7 @@ def command_approval_template(args: argparse.Namespace) -> int:
         "AFAREET_P1_LINEAGE_APPROVAL_TEMPLATE "
         f"candidateGitSha={payload['candidateGitSha']} stagingSourceGitSha={payload['stagingSourceGitSha']} "
         f"reviewContentSetSha256={payload['reviewContentSetSha256']} "
-        f"p1ReviewLineageSha256={payload['p1ReviewLineageSha256']} "
+        f"p1ReviewLineageSha256={payload['p1ReviewLineageSha256']} authorizationBound=true "
         f"approvals=0/{len(spec['gates'])} verified=false output={output}"
     )
     return 0
@@ -412,6 +475,7 @@ def command_plan(args: argparse.Namespace) -> int:
             "p1ReviewLineageSha256",
             "performanceTier",
             "sourceArtifactDigests",
+            "stagingAuthorization",
         ],
         "coveredVisualRuntimeTasks": list(EXPECTED_VISUAL_TASKS),
         "verified": False,
@@ -423,17 +487,17 @@ def command_plan(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Evaluate P1 final-five readiness with mandatory staged-candidate review lineage."
+        description="Evaluate P1 final-five readiness with mandatory authorization-bound staged-candidate review lineage."
     )
     parser.add_argument("--spec", default=str(p1_gate_readiness.DEFAULT_SPEC))
     sub = parser.add_subparsers(dest="command", required=True)
 
-    plan = sub.add_parser("plan", help="Print the P1 lineage-bound final-five plan.")
+    plan = sub.add_parser("plan", help="Print the P1 authorization-bound final-five plan.")
     plan.set_defaults(func=command_plan)
 
     validate = sub.add_parser(
         "validate",
-        help="Evaluate a P1 physical-device session, P1 review bundle and optional lineage-bound approvals.",
+        help="Evaluate a P1 physical-device session, P1 review bundle and optional authorization-bound approvals.",
     )
     validate.add_argument("--session", required=True)
     validate.add_argument("--review-bundle", required=True)
@@ -443,7 +507,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     template = sub.add_parser(
         "approval-template",
-        help="Create a new all-false P1 approval template pinned to the exact lineage-bound review.",
+        help="Create a new all-false P1 approval template pinned to the exact authorization-bound review.",
     )
     template.add_argument("--session", required=True)
     template.add_argument("--review-bundle", required=True)

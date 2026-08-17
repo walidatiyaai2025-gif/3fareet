@@ -91,6 +91,11 @@ def verify_p1_publication(
     binding = p1_lineage_gate_readiness._bind_p1_review(session_dir, review_bundle_dir, spec)
     _require(binding["candidateGitSha"] == git_sha, "P1 gate binding Git SHA does not match publication candidate")
     _require(binding["apkSha256"] == apk_sha, "P1 gate binding APK SHA does not match publication candidate")
+    binding_authorization = p1_lineage_gate_readiness._authorization(
+        binding.get("stagingAuthorization"),
+        "publicationBinding.stagingAuthorization",
+        binding["stagingSourceGitSha"],
+    )
 
     # Re-run the public P1 review verifier at the publication boundary so the final
     # preflight report is tied to the current sanitized review bytes, device hash and
@@ -112,6 +117,15 @@ def verify_p1_publication(
     _require(
         p1_review["sourceArtifactDigests"] == binding["sourceArtifactDigests"],
         "publication-time P1 source-artifact digests differ from gate binding",
+    )
+    publication_review_authorization = p1_lineage_gate_readiness._authorization(
+        p1_review.get("stagingAuthorization"),
+        "publicationReview.stagingAuthorization",
+        binding["stagingSourceGitSha"],
+    )
+    _require(
+        publication_review_authorization == binding_authorization,
+        "publication-time P1 staging authorization differs from gate binding",
     )
     _require(p1_review.get("verified") is False, "P1 review verifier must remain unverified")
     _require(p1_review.get("publicationEligible") is False, "P1 review verifier must not self-assert publication eligibility")
@@ -169,6 +183,15 @@ def verify_p1_publication(
         readiness.get("sourceArtifactDigests") == binding["sourceArtifactDigests"],
         "P1 readiness source-artifact digests mismatch",
     )
+    readiness_authorization = p1_lineage_gate_readiness._authorization(
+        readiness.get("stagingAuthorization"),
+        "publicationReadiness.stagingAuthorization",
+        binding["stagingSourceGitSha"],
+    )
+    _require(
+        readiness_authorization == binding_authorization,
+        "P1 readiness staging authorization differs from publication gate binding",
+    )
 
     gates = readiness.get("gates")
     _require(isinstance(gates, dict), "P1 readiness gate records are missing")
@@ -215,6 +238,7 @@ def verify_p1_publication(
             "performanceTier": binding["performanceTier"],
             "coveredVisualRuntimeTasks": list(binding["coveredVisualRuntimeTasks"]),
             "sourceArtifactDigests": dict(binding["sourceArtifactDigests"]),
+            "stagingAuthorization": dict(binding_authorization),
         },
         "evidence": {
             "deviceSerialSha256": p1_review.get("deviceSerialSha256"),
@@ -229,6 +253,7 @@ def verify_p1_publication(
         },
         "notes": [
             "This P1 preflight does not publish, tag, upload, rename, update Last Verified, or mark the APK VERIFIED.",
+            "The exact Step-20 staging authorization fingerprints are rechecked at publication time and preserved in this preflight result.",
             "A release owner must still perform the explicit publication action and record post-publication evidence under docs/RELEASE_POLICY.md.",
         ],
     }
@@ -273,7 +298,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             f"stagingSourceGitSha={result['p1Lineage']['stagingSourceGitSha']} "
             f"gitSha={result['candidate']['gitSha']} apkSha256={result['candidate']['apkSha256']} "
             f"p1ReviewLineageSha256={result['p1Lineage']['p1ReviewLineageSha256']} "
-            f"verdict={result['verdict']} publicationPerformed=false verified=false"
+            f"authorizationBound=true verdict={result['verdict']} publicationPerformed=false verified=false"
             + (f" output={output}" if output else "")
         )
         return 0

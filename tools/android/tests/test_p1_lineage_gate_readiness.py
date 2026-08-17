@@ -28,6 +28,7 @@ STAGING_SHA = FIXTURE.STAGING_SHA
 CANDIDATE_SHA = FIXTURE.CANDIDATE_SHA
 APK_SHA = FIXTURE.APK_SHA
 SERIAL_SHA = FIXTURE.SERIAL_SHA
+AUTHORIZATION = dict(FIXTURE.AUTHORIZATION)
 
 
 def write_json(path: Path, payload) -> None:
@@ -131,13 +132,15 @@ class P1LineageGateReadinessTests(unittest.TestCase):
             binding = MODULE._bind_p1_review(session, review, spec)
             self.assertTrue(binding["evidenceOnly"]["allEvidenceReady"])
             self.assertEqual(16, len(binding["evidenceOnly"]["capturedCheckpoints"]))
+            self.assertEqual(AUTHORIZATION, binding["stagingAuthorization"])
 
             payload = MODULE._approval_template(spec, binding)
-            self.assertEqual(1, payload["schemaVersion"])
-            self.assertEqual("p1-lineage-manual-approvals-v1", payload["approvalProfile"])
+            self.assertEqual(2, payload["schemaVersion"])
+            self.assertEqual("p1-lineage-manual-approvals-v2", payload["approvalProfile"])
             self.assertEqual(CANDIDATE_SHA, payload["candidateGitSha"])
             self.assertEqual(STAGING_SHA, payload["stagingSourceGitSha"])
             self.assertEqual(APK_SHA, payload["apkSha256"])
+            self.assertEqual(AUTHORIZATION, payload["stagingAuthorization"])
             self.assertRegex(payload["reviewContentSetSha256"], r"^[0-9a-f]{64}$")
             self.assertRegex(payload["p1ReviewLineageSha256"], r"^[0-9a-f]{64}$")
             self.assertEqual("mid", payload["performanceTier"])
@@ -162,6 +165,7 @@ class P1LineageGateReadinessTests(unittest.TestCase):
             self.assertTrue(result["allEvidenceReady"])
             self.assertFalse(result["releaseReviewReady"])
             self.assertTrue(result["p1ReviewBundleBound"])
+            self.assertEqual(AUTHORIZATION, result["stagingAuthorization"])
             for task_id in FINAL_GATES[:-1]:
                 self.assertEqual("EVIDENCE_READY_FOR_MANUAL_REVIEW", result["gates"][task_id]["status"])
             self.assertEqual("BLOCKED_RELEASE_GATE", result["gates"]["UPER-010"]["status"])
@@ -182,6 +186,7 @@ class P1LineageGateReadinessTests(unittest.TestCase):
             result = MODULE.evaluate_p1(spec, binding, loaded)
             self.assertTrue(result["allEvidenceReady"])
             self.assertTrue(result["releaseReviewReady"])
+            self.assertEqual(AUTHORIZATION, result["stagingAuthorization"])
             for task_id in FINAL_GATES[:-1]:
                 self.assertEqual("MANUALLY_APPROVED", result["gates"][task_id]["status"])
                 self.assertTrue(result["gates"][task_id]["manualApproved"])
@@ -208,6 +213,25 @@ class P1LineageGateReadinessTests(unittest.TestCase):
             with self.assertRaisesRegex(MODULE.P1LineageGateError, "p1ReviewLineageSha256"):
                 MODULE.evaluate_p1(spec, binding, approvals)
 
+    def test_approval_authorization_fingerprint_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            session = complete_checkpoint_session(root)
+            review = make_p1_review(root, session)
+            spec = MODULE.p1_gate_readiness.load_spec(TOOLS / "p1_gate_spec.json")
+            binding = MODULE._bind_p1_review(session, review, spec)
+
+            for key in ("handoffPacketSha256", "nativeHandoffVerificationSha256", "operatorChainSha256"):
+                approvals = make_approvals(MODULE, spec, binding, approved=True)
+                approvals["stagingAuthorization"][key] = "1" * 64
+                with self.assertRaisesRegex(MODULE.P1LineageGateError, "stagingAuthorization"):
+                    MODULE.evaluate_p1(spec, binding, approvals)
+
+            approvals = make_approvals(MODULE, spec, binding, approved=True)
+            approvals["stagingAuthorization"]["authorizationSourceGitSha"] = "d" * 40
+            with self.assertRaisesRegex(MODULE.P1LineageGateError, "authorizationSourceGitSha"):
+                MODULE.evaluate_p1(spec, binding, approvals)
+
     def test_approval_performance_tier_and_source_digest_mismatch_are_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -226,7 +250,7 @@ class P1LineageGateReadinessTests(unittest.TestCase):
             with self.assertRaisesRegex(MODULE.P1LineageGateError, "source artifact digest mismatch"):
                 MODULE.evaluate_p1(spec, binding, approvals)
 
-    def test_generic_schema_v2_approval_file_is_rejected_as_p1_approval_input(self):
+    def test_generic_schema_v2_approval_file_without_p1_profile_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             generic_approvals = root / "generic-approvals.json"
@@ -241,7 +265,7 @@ class P1LineageGateReadinessTests(unittest.TestCase):
                 },
             )
             spec = MODULE.p1_gate_readiness.load_spec(TOOLS / "p1_gate_spec.json")
-            with self.assertRaisesRegex(MODULE.P1LineageGateError, "schemaVersion"):
+            with self.assertRaisesRegex(MODULE.P1LineageGateError, "approval profile"):
                 MODULE.load_p1_approvals(generic_approvals, spec)
 
     def test_incomplete_checkpoint_evidence_cannot_create_p1_approval_template(self):
@@ -277,6 +301,12 @@ class P1LineageGateReadinessTests(unittest.TestCase):
             payload["approvals"].pop("UPER-010")
             write_json(path, payload)
             with self.assertRaisesRegex(MODULE.P1LineageGateError, "exactly the five"):
+                MODULE.load_p1_approvals(path, spec)
+
+            payload = make_approvals(MODULE, spec, binding, approved=False)
+            payload.pop("stagingAuthorization")
+            write_json(path, payload)
+            with self.assertRaisesRegex(MODULE.P1LineageGateError, "stagingAuthorization"):
                 MODULE.load_p1_approvals(path, spec)
 
 
