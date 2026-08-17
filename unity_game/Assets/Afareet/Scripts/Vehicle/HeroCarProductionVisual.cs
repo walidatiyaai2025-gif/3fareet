@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -221,6 +222,13 @@ namespace Afareet.Vehicle
                 return false;
             }
 
+            var allGroups = prefab.GetComponentsInChildren<LODGroup>(true);
+            if (allGroups == null || allGroups.Length != 1 || allGroups[0] != group)
+            {
+                reason = $"refinement-lod-group-authority-{(allGroups == null ? 0 : allGroups.Length)}";
+                return false;
+            }
+
             var lods = group.GetLODs();
             if (lods == null || lods.Length != 3)
             {
@@ -228,6 +236,7 @@ namespace Afareet.Vehicle
                 return false;
             }
 
+            var assignedRenderers = new HashSet<Renderer>();
             for (var lod = 0; lod < lods.Length; lod++)
             {
                 if (lods[lod].renderers == null || lods[lod].renderers.Length == 0)
@@ -241,6 +250,12 @@ namespace Afareet.Vehicle
                     if (renderer == null)
                     {
                         reason = $"refinement-lod{lod}-null-renderer";
+                        return false;
+                    }
+
+                    if (!assignedRenderers.Add(renderer))
+                    {
+                        reason = $"refinement-renderer-registered-more-than-once-{renderer.gameObject.name}";
                         return false;
                     }
 
