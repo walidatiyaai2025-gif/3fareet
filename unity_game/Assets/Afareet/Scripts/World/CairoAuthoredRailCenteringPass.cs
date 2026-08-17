@@ -42,7 +42,6 @@ namespace Afareet.World
             if (completionLogged || Time.unscaledTime < nextScanAt) return;
             nextScanAt = Time.unscaledTime + .25f;
 
-            var changedThisScan = 0;
             foreach (var candidate in FindObjectsByType<Transform>(FindObjectsSortMode.None))
             {
                 if (!IsRaceRail(candidate) || corrected.Contains(candidate)) continue;
@@ -50,7 +49,6 @@ namespace Afareet.World
                 var halfLength = Mathf.Abs(candidate.localScale.x) * AuthoredHalfLengthMeters;
                 candidate.position += candidate.right * halfLength;
                 corrected.Add(candidate);
-                changedThisScan++;
             }
 
             if (corrected.Count < ExpectedRaceRails) return;
