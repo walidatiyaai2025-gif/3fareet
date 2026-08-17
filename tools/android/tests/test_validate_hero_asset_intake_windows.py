@@ -104,8 +104,10 @@ class NativeHeroAssetIntakeTests(unittest.TestCase):
             (source.parent / "HeroBody.png").write_bytes(b"png-fixture")
             commit_all(root)
             result = invoke(root, "Assets/Afareet/ArtSource/Vehicles/HeroCar/AfareetKing_Production.obj")
-            self.assertNotEqual(0, result.returncode, msg=result.stdout + result.stderr)
-            self.assertIn("missing object/group suffix _LOD1", result.stdout + result.stderr)
+            diagnostics = result.stdout + result.stderr
+            self.assertNotEqual(0, result.returncode, msg=diagnostics)
+            self.assertIn("OBJ is missing object/group suffix", diagnostics)
+            self.assertIn("_LOD1", diagnostics)
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
