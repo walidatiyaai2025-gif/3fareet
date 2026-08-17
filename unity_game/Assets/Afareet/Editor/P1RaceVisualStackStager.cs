@@ -5,10 +5,9 @@ using UnityEngine;
 namespace Afareet.Editor
 {
     /// <summary>
-    /// Operator-facing staging orchestrator for the current P1 race visual stack.
-    /// It reuses the existing fail-closed UART stagers and deliberately keeps the
-    /// Afareet King handoff classified as a refinement candidate. Successful staging
-    /// is not production acceptance, owner visual approval, device proof, or P1 verification.
+    /// Operator-facing staging orchestrator for the current P1 race visual-review stack.
+    /// Production gates remain fail-closed; local Hero/Rival review candidates are explicitly
+    /// non-production and exist only so the licensed Editor can show the authored race scene.
     /// </summary>
     public static class P1RaceVisualStackStager
     {
@@ -21,27 +20,23 @@ namespace Afareet.Editor
                 throw new InvalidOperationException(
                     "P1 visual stack staging must run outside Play Mode. Stop Play Mode and retry.");
 
-            // Normalize only Unity's import interpretation of the tracked UART-004 OBJ files
-            // before read-only source validation. This can reimport the sources, but it creates
-            // no production prefab, Mesh, primitive or replacement geometry.
-            RunStage("UART-004 deterministic rival import settings", RivalProductionImportNormalizer.NormalizeCurrentSourcesOrThrow);
-
-            // All source checks then run before any production/refinement artifact is staged.
+            // All read-only source checks run before the first visual artifact is staged.
             RunPreflight(
                 "UART-003 Hero refinement candidate source",
                 HeroCarRefinementCandidateStager.ValidateCurrentCandidateSourceOrThrow);
             RunPreflight(
-                "UART-004 rival authored model sources",
-                RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow);
+                "UART-004 rival tracked OBJ review sources",
+                RivalAuthoredReviewPrefabStager.ValidateCurrentSourcesOrThrow);
 
             Debug.Log(
                 "AFAREET_P1_VISUAL_STACK_STAGE_BEGIN " +
-                "hero=refinement-candidate productionGate=false ownerAcceptance=false deviceProof=false");
+                "hero=refinement-candidate rivals=authored-review-candidates " +
+                "productionGate=false ownerAcceptance=false deviceProof=false");
 
             RunStage("UART-005 Cairo production sources", P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow);
             RunStage("UART-006 Cairo landmark sources", P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow);
             RunStage("UART-007 Cairo track dressing sources", P1ProductionTrackDressingAssetStager.StageTrackedSourcesOrThrow);
-            RunStage("UART-004 rival production prefabs", RivalProductionPrefabStager.StageAndBindAll);
+            RunStage("UART-004 authored review rivals", RivalAuthoredReviewPrefabStager.StageAll);
             RunStage("UART-003 Hero refinement candidate", HeroCarRefinementCandidateStager.StageCurrentCandidate);
 
             AssetDatabase.SaveAssets();
@@ -49,7 +44,7 @@ namespace Afareet.Editor
 
             Debug.Log(
                 "AFAREET_P1_VISUAL_STACK_STAGE_OK " +
-                "uart004=staged uart005=staged uart006=staged uart007=staged " +
+                "uart004=authored-review-candidates uart005=staged uart006=staged uart007=staged " +
                 "hero=refinement-candidate productionGate=false ownerAcceptance=false deviceProof=false p1Verified=false");
         }
 
