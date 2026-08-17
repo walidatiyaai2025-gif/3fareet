@@ -43,7 +43,8 @@ $git = Get-Command git -ErrorAction SilentlyContinue
 if ($null -eq $git) { Fail "git is required for P1 staging lineage verification." }
 
 $gitTop = (& $git.Source -C $RepoRoot rev-parse --show-toplevel 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitTop)) {
+$gitTopOk = $?
+if (-not $gitTopOk -or [string]::IsNullOrWhiteSpace($gitTop)) {
     Fail "Unable to resolve Git worktree root: $RepoRoot"
 }
 $gitTop = (Resolve-Path $gitTop.Trim()).Path
@@ -52,13 +53,15 @@ if (-not [string]::Equals($gitTop, $RepoRoot, [System.StringComparison]::Ordinal
 }
 
 $dirty = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
-if ($LASTEXITCODE -ne 0) { Fail "Unable to inspect candidate Git working tree." }
+$dirtyStatusOk = $?
+if (-not $dirtyStatusOk) { Fail "Unable to inspect candidate Git working tree." }
 if ($dirty.Count -gt 0) {
     Fail "P1 staged candidate lineage requires a clean candidate worktree. Commit/reconcile all staging output first."
 }
 
 $candidateSha = (& $git.Source -C $RepoRoot rev-parse HEAD 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0) { Fail "Unable to resolve candidate HEAD." }
+$candidateShaOk = $?
+if (-not $candidateShaOk) { Fail "Unable to resolve candidate HEAD." }
 $candidateSha = Normalize-Sha $candidateSha 'candidateGitSha'
 
 $StagingReport = (Resolve-Path -LiteralPath $StagingReport).Path
@@ -84,10 +87,12 @@ if ($stagingSourceSha -eq $candidateSha) {
 }
 
 & $git.Source -C $RepoRoot cat-file -e "$stagingSourceSha^{commit}" 2>$null
-if ($LASTEXITCODE -ne 0) { Fail "Staging source commit is not available in this Git repository: $stagingSourceSha" }
+$stagingCommitExists = $?
+if (-not $stagingCommitExists) { Fail "Staging source commit is not available in this Git repository: $stagingSourceSha" }
 
 $parentLine = (& $git.Source -C $RepoRoot rev-list --parents -n 1 HEAD 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($parentLine)) {
+$parentLineOk = $?
+if (-not $parentLineOk -or [string]::IsNullOrWhiteSpace($parentLine)) {
     Fail "Unable to resolve candidate commit parent."
 }
 $parentParts = @($parentLine.Trim() -split '\s+')
@@ -100,7 +105,8 @@ if ($directParentSha -ne $stagingSourceSha) {
 }
 
 $changedPaths = @(& $git.Source -C $RepoRoot diff-tree --no-commit-id --name-only -r HEAD 2>$null | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-if ($LASTEXITCODE -ne 0) { Fail "Unable to inspect candidate staging commit paths." }
+$changedPathsOk = $?
+if (-not $changedPathsOk) { Fail "Unable to inspect candidate staging commit paths." }
 if ($changedPaths.Count -le 0) { Fail "Candidate staging commit contains no tracked changes." }
 foreach ($changedPathRaw in $changedPaths) {
     $changedPath = ([string]$changedPathRaw).Trim().Replace('\\', '/')
