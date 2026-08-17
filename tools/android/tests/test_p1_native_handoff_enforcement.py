@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -121,7 +122,42 @@ def build_repo(root: Path) -> dict[str, Path | str]:
     return {"packet": packet, "hero": hero, "heroRepo": hero_repo, "sha": sha, "chain": chain}
 
 
-class P1NativeHandoffEnforcementTests(unittest.TestCase):
+class P1NativeHandoffCrossPlatformContractTests(unittest.TestCase):
+    """Source/parse contracts remain useful on Ubuntu and Windows runners."""
+
+    def test_native_scripts_parse(self):
+        shell = pwsh_path()
+        if not shell:
+            self.skipTest("PowerShell is not installed")
+        for script in (VERIFY_SCRIPT, RUNNER_SCRIPT):
+            command = (
+                "$tokens=$null;$errors=$null;"
+                f"[System.Management.Automation.Language.Parser]::ParseFile('{script.as_posix()}',[ref]$tokens,[ref]$errors)|Out-Null;"
+                "if($errors.Count -gt 0){$errors|ForEach-Object{Write-Error $_.Message};exit 1}"
+            )
+            completed = run([shell, "-NoProfile", "-Command", command])
+            self.assertEqual(0, completed.returncode, completed.stderr or completed.stdout)
+
+    def test_authoritative_runner_verifies_packet_before_low_level_staging(self):
+        text = RUNNER_SCRIPT.read_text(encoding="utf-8")
+        verify_reference = text.index("verify_p1_licensed_handoff_packet_windows.ps1")
+        verify_call = text.index("& $verifyScript")
+        verify_ok = text.index("AFAREET_P1_LICENSED_STAGING_PACKET_VERIFY_OK")
+        stage_reference = text.index("stage_production_candidate_windows.ps1")
+        stage_call = text.index("& $stageScript")
+        self.assertLess(verify_reference, stage_reference)
+        self.assertLess(verify_call, verify_ok)
+        self.assertLess(verify_ok, stage_call)
+        self.assertNotIn("Unity.exe", text)
+        self.assertNotIn("Start-Process", text)
+        self.assertIn("publicationPerformed -ne $false", text)
+        self.assertIn("verified -ne $false", text)
+
+
+@unittest.skipUnless(os.name == "nt", "native handoff functional fixtures require Windows")
+class P1NativeHandoffWindowsFunctionalTests(unittest.TestCase):
+    """Native verifier execution belongs to the dedicated windows-latest workflow."""
+
     def setUp(self):
         if not pwsh_path():
             self.skipTest("PowerShell is not installed")
@@ -142,16 +178,6 @@ class P1NativeHandoffEnforcementTests(unittest.TestCase):
         if output is not None:
             command.extend(["-Output", str(output)])
         return run(command)
-
-    def test_native_scripts_parse(self):
-        for script in (VERIFY_SCRIPT, RUNNER_SCRIPT):
-            command = (
-                "$tokens=$null;$errors=$null;"
-                f"[System.Management.Automation.Language.Parser]::ParseFile('{script.as_posix()}',[ref]$tokens,[ref]$errors)|Out-Null;"
-                "if($errors.Count -gt 0){$errors|ForEach-Object{Write-Error $_.Message};exit 1}"
-            )
-            completed = run([pwsh_path(), "-NoProfile", "-Command", command])
-            self.assertEqual(0, completed.returncode, completed.stderr or completed.stdout)
 
     def test_exact_ready_packet_passes_and_output_never_claims_execution_or_verification(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -249,21 +275,6 @@ class P1NativeHandoffEnforcementTests(unittest.TestCase):
             completed = self.invoke_verifier(root, fixture["packet"], fixture["heroRepo"])
             self.assertNotEqual(0, completed.returncode)
             self.assertIn("handoff.verified must remain JSON false", completed.stderr + completed.stdout)
-
-    def test_authoritative_runner_verifies_packet_before_low_level_staging(self):
-        text = RUNNER_SCRIPT.read_text(encoding="utf-8")
-        verify_reference = text.index("verify_p1_licensed_handoff_packet_windows.ps1")
-        verify_call = text.index("& $verifyScript")
-        verify_ok = text.index("AFAREET_P1_LICENSED_STAGING_PACKET_VERIFY_OK")
-        stage_reference = text.index("stage_production_candidate_windows.ps1")
-        stage_call = text.index("& $stageScript")
-        self.assertLess(verify_reference, stage_reference)
-        self.assertLess(verify_call, verify_ok)
-        self.assertLess(verify_ok, stage_call)
-        self.assertNotIn("Unity.exe", text)
-        self.assertNotIn("Start-Process", text)
-        self.assertIn("publicationPerformed -ne $false", text)
-        self.assertIn("verified -ne $false", text)
 
 
 if __name__ == "__main__":
