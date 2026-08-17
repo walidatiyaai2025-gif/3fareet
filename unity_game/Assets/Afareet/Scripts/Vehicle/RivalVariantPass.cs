@@ -56,7 +56,8 @@ namespace Afareet.Vehicle
 
             var path = RivalProductionPolicy.ResourcePath(index);
             var prefab = Resources.Load<GameObject>(path);
-            if (prefab != null && RivalProductionPolicy.ValidateProductionPrefab(prefab, index, out var reason))
+            var reason = "missing-production-prefab";
+            if (prefab != null && RivalProductionPolicy.ValidateProductionPrefab(prefab, index, out reason))
             {
                 var metadata = prefab.GetComponent<RivalProductionAssetMetadata>();
                 var instance = Instantiate(prefab, rival, false);
@@ -71,7 +72,6 @@ namespace Afareet.Vehicle
                 return;
             }
 
-            if (prefab == null) reason = "missing-production-prefab";
 #if UNITY_EDITOR
             foreach (var renderer in primitiveRenderers)
                 if (renderer != null) renderer.enabled = true;
