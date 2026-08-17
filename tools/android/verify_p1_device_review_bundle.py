@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Verify a sanitized P1 device review bundle and its staging→candidate lineage binding.
+"""Verify a sanitized P1 device review bundle and its authorization-bound lineage.
 
 The generic review-bundle verifier remains authoritative for content SHA-256, checkpoint/device
-binding and privacy-safe file-set integrity. This P1 verifier adds the exact staged-candidate
-lineage contract required before manual P1 approvals may be considered. It never grants approval.
+binding and privacy-safe file-set integrity. This P1 verifier additionally requires the exact
+staging authorization fingerprints introduced by Step 20. It never grants approval.
 """
 
 from __future__ import annotations
@@ -23,10 +23,16 @@ import verify_device_review_bundle
 
 P1_REVIEW_LINEAGE_FILE = "p1-review-lineage.json"
 P1_REVIEW_STATE = "SANITIZED_P1_REVIEW_LINEAGE"
-P1_REVIEW_PROFILE = "p1-final-gate-lineage-v1"
+P1_REVIEW_PROFILE = "p1-final-gate-lineage-v2"
 EXPECTED_TASKS = ["UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"]
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+AUTHORIZATION_KEYS = (
+    "authorizationSourceGitSha",
+    "handoffPacketSha256",
+    "nativeHandoffVerificationSha256",
+    "operatorChainSha256",
+)
 
 
 class P1ReviewBundleVerificationError(RuntimeError):
@@ -59,14 +65,31 @@ def _sha256(value: Any, label: str) -> str:
     return text
 
 
+def _authorization(value: Any, label: str) -> dict[str, str]:
+    if not isinstance(value, dict) or set(value) != set(AUTHORIZATION_KEYS):
+        raise P1ReviewBundleVerificationError(
+            f"{label} must contain exactly the four staging authorization fingerprints"
+        )
+    return {
+        "authorizationSourceGitSha": _sha40(
+            value.get("authorizationSourceGitSha"), f"{label}.authorizationSourceGitSha"
+        ),
+        "handoffPacketSha256": _sha256(
+            value.get("handoffPacketSha256"), f"{label}.handoffPacketSha256"
+        ),
+        "nativeHandoffVerificationSha256": _sha256(
+            value.get("nativeHandoffVerificationSha256"),
+            f"{label}.nativeHandoffVerificationSha256",
+        ),
+        "operatorChainSha256": _sha256(
+            value.get("operatorChainSha256"), f"{label}.operatorChainSha256"
+        ),
+    }
+
+
 def _require_false(payload: dict[str, Any], key: str, label: str) -> None:
     if payload.get(key) is not False:
         raise P1ReviewBundleVerificationError(f"{label}.{key} must remain JSON false")
-
-
-def _require_true(payload: dict[str, Any], key: str, label: str) -> None:
-    if payload.get(key) is not True:
-        raise P1ReviewBundleVerificationError(f"{label}.{key} must be JSON true")
 
 
 def _require_tasks(value: Any, label: str) -> list[str]:
@@ -95,13 +118,16 @@ def verify_p1_bundle(
     binding = manifest.get("p1Lineage")
     if not isinstance(binding, dict):
         raise P1ReviewBundleVerificationError("Review manifest is missing p1Lineage binding")
-    if binding.get("schemaVersion") != 1 or binding.get("state") != "P1_REVIEW_LINEAGE_ATTACHED":
-        raise P1ReviewBundleVerificationError("Review manifest p1Lineage has unsupported schema/state")
+    if binding.get("schemaVersion") != 2 or binding.get("state") != "P1_REVIEW_LINEAGE_ATTACHED":
+        raise P1ReviewBundleVerificationError("Review manifest p1Lineage must be schema 2 in attached state")
     if binding.get("fileName") != P1_REVIEW_LINEAGE_FILE:
         raise P1ReviewBundleVerificationError("Review manifest p1Lineage.fileName is not the canonical sanitized lineage file")
     for key in ("verified", "runtimeVerified", "ownerAccepted", "publicationEligible"):
         _require_false(binding, key, "reviewManifest.p1Lineage")
     _require_tasks(binding.get("coveredTasks"), "reviewManifest.p1Lineage.coveredTasks")
+    binding_authorization = _authorization(
+        binding.get("stagingAuthorization"), "reviewManifest.p1Lineage.stagingAuthorization"
+    )
 
     summary_path = root / P1_REVIEW_LINEAGE_FILE
     summary_hash = verify_device_review_bundle.sha256_file(summary_path)
@@ -115,8 +141,8 @@ def verify_p1_bundle(
         raise P1ReviewBundleVerificationError("Review contentFiles does not bind the sanitized P1 lineage bytes")
 
     summary = _read_json(summary_path, "Sanitized P1 review lineage")
-    if summary.get("schemaVersion") != 1 or summary.get("state") != P1_REVIEW_STATE:
-        raise P1ReviewBundleVerificationError("Sanitized P1 review lineage has unsupported schema/state")
+    if summary.get("schemaVersion") != 2 or summary.get("state") != P1_REVIEW_STATE:
+        raise P1ReviewBundleVerificationError("Sanitized P1 review lineage must be schema 2 in the canonical state")
     if summary.get("reviewProfile") != P1_REVIEW_PROFILE:
         raise P1ReviewBundleVerificationError("Sanitized P1 review lineage profile mismatch")
     if summary.get("verdict") != verify_device_review_bundle.EXPECTED_REVIEW_VERDICT:
@@ -126,11 +152,22 @@ def verify_p1_bundle(
     for key in ("verified", "runtimeVerified", "ownerAccepted", "publicationEligible"):
         _require_false(summary, key, "p1ReviewLineage")
     _require_tasks(summary.get("coveredTasks"), "p1ReviewLineage.coveredTasks")
+    summary_authorization = _authorization(
+        summary.get("stagingAuthorization"), "p1ReviewLineage.stagingAuthorization"
+    )
+    if summary_authorization != binding_authorization:
+        raise P1ReviewBundleVerificationError(
+            "P1 staging authorization differs between review manifest and sanitized lineage"
+        )
 
     staging_source_sha = _sha40(summary.get("stagingSourceGitSha"), "p1ReviewLineage.stagingSourceGitSha")
     candidate_sha = _sha40(summary.get("candidateGitSha"), "p1ReviewLineage.candidateGitSha")
     direct_parent_sha = _sha40(summary.get("directParentGitSha"), "p1ReviewLineage.directParentGitSha")
     apk_sha = _sha256(summary.get("apkSha256"), "p1ReviewLineage.apkSha256")
+    if summary_authorization["authorizationSourceGitSha"] != staging_source_sha:
+        raise P1ReviewBundleVerificationError(
+            "P1 review authorization source SHA differs from staging-source SHA"
+        )
     if candidate_sha == staging_source_sha:
         raise P1ReviewBundleVerificationError("Sanitized P1 lineage candidate SHA must differ from staging-source SHA")
     if direct_parent_sha != staging_source_sha:
@@ -185,6 +222,8 @@ def verify_p1_bundle(
     for key in ("rawP1SessionIncluded", "rawP1SourceArtifactsIncluded", "localPathsIncluded"):
         if privacy.get(key) is not False:
             raise P1ReviewBundleVerificationError(f"P1 privacy flag {key} must be false")
+    if privacy.get("authorizationContainsOnlyDigests") is not True:
+        raise P1ReviewBundleVerificationError("P1 review authorization must declare digest-only privacy")
     manifest_privacy = manifest.get("privacy")
     if not isinstance(manifest_privacy, dict):
         raise P1ReviewBundleVerificationError("Review manifest is missing privacy contract")
@@ -192,6 +231,8 @@ def verify_p1_bundle(
         raise P1ReviewBundleVerificationError("Review manifest must exclude raw P1 session/source artifacts")
     if manifest_privacy.get("sanitizedP1LineageIncluded") is not True:
         raise P1ReviewBundleVerificationError("Review manifest must declare sanitizedP1LineageIncluded=true")
+    if manifest_privacy.get("authorizationContainsOnlyDigests") is not True:
+        raise P1ReviewBundleVerificationError("Review manifest must declare digest-only authorization binding")
 
     return {
         "stagingSourceGitSha": staging_source_sha,
@@ -204,6 +245,7 @@ def verify_p1_bundle(
         "contentSetSha256": generic["contentSetSha256"],
         "p1ReviewLineageSha256": summary_hash,
         "sourceArtifactDigests": normalized_digests,
+        "stagingAuthorization": dict(summary_authorization),
         "verdict": generic["verdict"],
         "verified": False,
         "runtimeVerified": False,
@@ -234,7 +276,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "AFAREET_P1_DEVICE_REVIEW_BUNDLE_VERIFIED "
             f"stagingSourceGitSha={result['stagingSourceGitSha']} candidateGitSha={result['candidateGitSha']} "
             f"apkSha256={result['apkSha256']} checkpoints={result['checkpointCount']} "
-            f"contentSetSha256={result['contentSetSha256']} tasks=6 verdict={result['verdict']} verified=false"
+            f"contentSetSha256={result['contentSetSha256']} tasks=6 authorizationBound=true "
+            f"verdict={result['verdict']} verified=false"
         )
         return 0
     except (
