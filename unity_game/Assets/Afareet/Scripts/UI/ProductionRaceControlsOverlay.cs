@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Afareet.Race;
+using Afareet.Vehicle;
 using UnityEngine;
 using UnityEngine.UI;
 
