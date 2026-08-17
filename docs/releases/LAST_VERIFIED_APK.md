@@ -86,7 +86,7 @@ python3 tools/android/verify_p1_publication_receipt.py \
 ```
 
 Require `AFAREET_P1_PUBLICATION_RECEIPT_RECONCILED ... humanPublicationRecorded=true publicationPerformedByTool=false verified=false`. This validator does not create tags/releases, upload assets, or update repository pointers.
-12. Download the published APK asset bytes and prepare a **fresh dedicated physical-device session after publication**. The wrapper checks the downloaded bytes against the reconciled receipt and binds one performance tier before any checkpoint is captured:
+12. Begin the required **post-publication physical-device smoke/performance closure** by downloading the published APK asset bytes and preparing a **fresh dedicated physical-device session after publication**. The wrapper checks the downloaded bytes against the reconciled receipt and binds one performance tier before any checkpoint is captured:
 
 ```bash
 python3 tools/android/prepare_p1_post_publication_smoke.py \
