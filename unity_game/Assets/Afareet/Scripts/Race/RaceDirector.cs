@@ -350,7 +350,12 @@ namespace Afareet.Race
 
             var registrations = new List<PowerUpRacerRegistration>(racers.Count);
             for (var i = 0; i < racers.Count; i++)
-                registrations.Add(new PowerUpRacerRegistration(racers[i].RacerId));
+            {
+                var racerId = racers[i].RacerId;
+                registrations.Add(new PowerUpRacerRegistration(
+                    racerId,
+                    PowerUpPresentationHub.CreateSink(racerId)));
+            }
 
             powerUpRuntime = new PowerUpRaceRuntime(
                 PowerUpRuntimeDefaults.CreatePrototypeRuleset(),
