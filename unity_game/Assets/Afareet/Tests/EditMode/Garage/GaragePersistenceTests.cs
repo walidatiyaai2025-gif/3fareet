@@ -36,7 +36,7 @@ namespace Afareet.Tests.Garage
         }
 
         [Test]
-        public void StoreNormalizesMigratedStateAgainstCurrentUnlocks()
+        public void StoreMigratesAndRewritesLegacyPayloadToCanonicalV2()
         {
             var catalog = GarageCatalog.CreateDefault();
             var codec = new GarageStateCodec();
@@ -48,34 +48,77 @@ namespace Afareet.Tests.Garage
             Assert.That(loaded.HasStoredPayload, Is.True);
             Assert.That(loaded.MigratedLegacyV1, Is.True);
             Assert.That(loaded.RecoveredFromInvalidPayload, Is.False);
+            Assert.That(loaded.RewrittenCanonicalPayload, Is.True);
             Assert.That(loaded.State.EquippedVehicleId, Is.EqualTo("djinn_spirit"));
+            Assert.That(storage.Payload, Does.StartWith(GarageStateCodec.CurrentHeader));
+            Assert.That(storage.Payload, Does.Not.StartWith(GarageStateCodec.LegacyHeaderV1));
         }
 
         [Test]
-        public void InvalidPayloadRecoversToStarterAndReportsError()
+        public void InvalidPayloadRecoversAndRewritesCanonicalStarterState()
         {
             var catalog = GarageCatalog.CreateDefault();
-            var store = new GarageStateStore(new MemoryStorage("corrupt payload"), catalog);
+            var storage = new MemoryStorage("corrupt payload");
+            var store = new GarageStateStore(storage, catalog);
 
             var loaded = store.Load();
 
             Assert.That(loaded.HasStoredPayload, Is.True);
             Assert.That(loaded.RecoveredFromInvalidPayload, Is.True);
+            Assert.That(loaded.RewrittenCanonicalPayload, Is.True);
             Assert.That(loaded.State.EquippedVehicleId, Is.EqualTo(GarageCatalog.StarterVehicleId));
             Assert.That(loaded.Error, Is.Not.Empty);
+            Assert.That(storage.Payload, Does.StartWith(GarageStateCodec.CurrentHeader));
         }
 
         [Test]
-        public void MissingPayloadCreatesStarterState()
+        public void V2PayloadWithUnavailableEquippedVehicleIsNormalizedAndRewritten()
         {
             var catalog = GarageCatalog.CreateDefault();
-            var store = new GarageStateStore(new MemoryStorage(), catalog);
+            var codec = new GarageStateCodec();
+            var staleState = new GarageState("djinn_spirit");
+            var storage = new MemoryStorage(codec.Encode(staleState));
+            var store = new GarageStateStore(storage, catalog);
+
+            var loaded = store.Load();
+
+            Assert.That(loaded.MigratedLegacyV1, Is.False);
+            Assert.That(loaded.RecoveredFromInvalidPayload, Is.False);
+            Assert.That(loaded.RewrittenCanonicalPayload, Is.True);
+            Assert.That(loaded.State.EquippedVehicleId, Is.EqualTo(GarageCatalog.StarterVehicleId));
+            Assert.That(codec.Decode(storage.Payload).State.EquippedVehicleId, Is.EqualTo(GarageCatalog.StarterVehicleId));
+        }
+
+        [Test]
+        public void CanonicalV2PayloadDoesNotRewriteOnLoad()
+        {
+            var catalog = GarageCatalog.CreateDefault();
+            var codec = new GarageStateCodec();
+            var state = new GarageService(catalog).State;
+            var storage = new MemoryStorage(codec.Encode(state));
+            var writesBefore = storage.WriteCount;
+            var store = new GarageStateStore(storage, catalog);
+
+            var loaded = store.Load();
+
+            Assert.That(loaded.RewrittenCanonicalPayload, Is.False);
+            Assert.That(storage.WriteCount, Is.EqualTo(writesBefore));
+        }
+
+        [Test]
+        public void MissingPayloadCreatesStarterStateWithoutInventingStoredSave()
+        {
+            var catalog = GarageCatalog.CreateDefault();
+            var storage = new MemoryStorage();
+            var store = new GarageStateStore(storage, catalog);
 
             var loaded = store.Load();
 
             Assert.That(loaded.HasStoredPayload, Is.False);
             Assert.That(loaded.RecoveredFromInvalidPayload, Is.False);
+            Assert.That(loaded.RewrittenCanonicalPayload, Is.False);
             Assert.That(loaded.State.EquippedVehicleId, Is.EqualTo(GarageCatalog.StarterVehicleId));
+            Assert.That(storage.Payload, Is.Null);
         }
 
         [Test]
@@ -94,6 +137,7 @@ namespace Afareet.Tests.Garage
         private sealed class MemoryStorage : IGarageStateStorage
         {
             public string Payload { get; private set; }
+            public int WriteCount { get; private set; }
 
             public MemoryStorage(string payload = null)
             {
@@ -109,6 +153,7 @@ namespace Afareet.Tests.Garage
             public void Write(string payload)
             {
                 Payload = payload;
+                WriteCount++;
             }
         }
     }
