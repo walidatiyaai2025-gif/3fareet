@@ -52,10 +52,10 @@ namespace Afareet.Tests.PlayMode
             Assert.That(firstOverlay.HasRuntimeBinding, Is.True);
             Assert.That(runtimeRoot.GetComponent<ProductionRaceInputController>(), Is.SameAs(input));
             Assert.That(runtimeRoot.GetComponent<PrototypeHud>(), Is.Null);
-            Assert.That(Object.FindObjectsByType<ProductionRaceHud>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
-            Assert.That(Object.FindObjectsByType<ProductionRaceFlowOverlay>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
-            Assert.That(Object.FindObjectsByType<ProductionRaceControlsOverlay>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
-            Assert.That(Object.FindObjectsByType<ProductionCareerBriefingOverlay>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+            Assert.That(FindActive<ProductionRaceHud>().Length, Is.EqualTo(1));
+            Assert.That(FindActive<ProductionRaceFlowOverlay>().Length, Is.EqualTo(1));
+            Assert.That(FindActive<ProductionRaceControlsOverlay>().Length, Is.EqualTo(1));
+            Assert.That(FindActive<ProductionCareerBriefingOverlay>().Length, Is.EqualTo(1));
 
             Object.Destroy(runtimeRoot);
             Object.Destroy(playerHost);
@@ -74,21 +74,19 @@ namespace Afareet.Tests.PlayMode
 
         private static void DestroyExistingUi()
         {
-            var huds = Object.FindObjectsByType<ProductionRaceHud>(FindObjectsSortMode.None);
-            for (var i = 0; i < huds.Length; i++)
-                if (huds[i] != null) Object.DestroyImmediate(huds[i].gameObject);
+            DestroyAll(FindActive<ProductionRaceHud>());
+            DestroyAll(FindActive<ProductionRaceFlowOverlay>());
+            DestroyAll(FindActive<ProductionRaceControlsOverlay>());
+            DestroyAll(FindActive<ProductionCareerBriefingOverlay>());
+        }
 
-            var overlays = Object.FindObjectsByType<ProductionRaceFlowOverlay>(FindObjectsSortMode.None);
-            for (var i = 0; i < overlays.Length; i++)
-                if (overlays[i] != null) Object.DestroyImmediate(overlays[i].gameObject);
+        private static T[] FindActive<T>() where T : Object =>
+            Object.FindObjectsByType<T>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 
-            var controls = Object.FindObjectsByType<ProductionRaceControlsOverlay>(FindObjectsSortMode.None);
-            for (var i = 0; i < controls.Length; i++)
-                if (controls[i] != null) Object.DestroyImmediate(controls[i].gameObject);
-
-            var briefings = Object.FindObjectsByType<ProductionCareerBriefingOverlay>(FindObjectsSortMode.None);
-            for (var i = 0; i < briefings.Length; i++)
-                if (briefings[i] != null) Object.DestroyImmediate(briefings[i].gameObject);
+        private static void DestroyAll<T>(T[] items) where T : Component
+        {
+            for (var i = 0; i < items.Length; i++)
+                if (items[i] != null) Object.DestroyImmediate(items[i].gameObject);
         }
     }
 }
