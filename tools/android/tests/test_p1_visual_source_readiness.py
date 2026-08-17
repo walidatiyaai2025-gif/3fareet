@@ -44,7 +44,9 @@ class P1VisualSourceReadinessTests(unittest.TestCase):
 
     def test_report_output_is_artifacts_only_and_never_overwrites(self):
         report = MODULE.audit_visual_sources(REPO, hero_source=None)
-        with tempfile.TemporaryDirectory(dir=REPO / "artifacts") as temp:
+        artifacts = REPO / "artifacts"
+        artifacts.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=artifacts) as temp:
             output = Path(temp) / "visual-source-readiness.json"
             MODULE._write_report(REPO, output, report)
             payload = json.loads(output.read_text(encoding="utf-8"))
