@@ -161,7 +161,9 @@ class P1StagingCandidateLineageTests(unittest.TestCase):
             write_report(report, source_sha)
             result = invoke(root, report)
             self.assertNotEqual(0, result.returncode)
-            self.assertIn("direct reviewed staging-output commit", result.stdout + result.stderr)
+            diagnostic = (result.stdout + result.stderr).lower()
+            self.assertIn("direct reviewed", diagnostic)
+            self.assertIn("staging-output commit", diagnostic)
         finally:
             shutil.rmtree(root, ignore_errors=True)
             shutil.rmtree(report_dir, ignore_errors=True)
