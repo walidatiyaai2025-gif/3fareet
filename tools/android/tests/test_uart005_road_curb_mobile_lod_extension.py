@@ -90,7 +90,12 @@ class Uart005RoadCurbMobileLodExtensionTests(unittest.TestCase):
             'IPreprocessBuildWithReport', 'BuildTarget.Android', 'StageTrackedSourcesOrThrow',
             'SM_Track_CairoRoad_A', 'SM_Track_CairoCurb_A',
             'AssetDatabase.GetAssetPath', 'expectedSuffix', '_LOD{lod}.obj',
-            'mesh.uv', 'mesh.normals', 'material.mainTexture',
+            'using UnityEngine.Rendering;',
+            'mesh.HasVertexAttribute(VertexAttribute.TexCoord0)',
+            'mesh.HasVertexAttribute(VertexAttribute.Normal)',
+            'HasAssignedTexture',
+            'material.GetTexturePropertyNames()',
+            'material.GetTexture(propertyName)',
             'triangles[0] > triangles[1] && triangles[1] > triangles[2]',
             'fake same-source road/curb LOD reuse rejected',
             'fake same-mesh road/curb LOD reuse rejected',
@@ -98,6 +103,8 @@ class Uart005RoadCurbMobileLodExtensionTests(unittest.TestCase):
             'AFAREET_UART005_ROAD_CURB_MOBILE_LOD_GATE_BLOCKED',
         ):
             self.assertIn(required, text)
+        for forbidden in ('mesh.uv', 'mesh.normals', 'material.mainTexture'):
+            self.assertNotIn(forbidden, text)
 
     def test_runtime_status_remains_blocked_and_unverified(self):
         status = json.loads(STATUS.read_text(encoding='utf-8'))
