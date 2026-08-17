@@ -37,6 +37,27 @@ namespace Afareet.Editor
                 modelInstance = PrefabUtility.InstantiatePrefab(sourceModel) as GameObject;
                 if (modelInstance == null)
                     throw new InvalidOperationException("Unity could not instantiate the refinement FBX.");
+
+                // Blender/FBX may already carry LODGroup components derived from authored LOD
+                // collections/nodes. The refinement prefab owns one explicit authoritative
+                // three-level LODGroup at its root, so imported groups must not survive and
+                // register the same MeshRenderers a second time in Unity 6.
+                if (PrefabUtility.IsPartOfPrefabInstance(modelInstance))
+                {
+                    PrefabUtility.UnpackPrefabInstance(
+                        modelInstance,
+                        PrefabUnpackMode.Completely,
+                        InteractionMode.AutomatedAction);
+                }
+
+                var importedLodGroups = modelInstance.GetComponentsInChildren<LODGroup>(true);
+                var removedImportedLodGroups = importedLodGroups.Length;
+                foreach (var importedLodGroup in importedLodGroups)
+                {
+                    if (importedLodGroup != null)
+                        UnityEngine.Object.DestroyImmediate(importedLodGroup);
+                }
+
                 modelInstance.name = "AfareetKing_Hero_Source";
                 modelInstance.transform.SetParent(root.transform, false);
                 modelInstance.transform.localPosition = Vector3.zero;
@@ -71,6 +92,10 @@ namespace Afareet.Editor
                     new LOD(HeroCarLodPolicy.Lod2Transition, rendererBuckets[2].ToArray())
                 });
                 lodGroup.RecalculateBounds();
+
+                Debug.Log(
+                    $"AFAREET_HERO_REFINEMENT_LOD_AUTHORITY sourceLodGroupsRemoved={removedImportedLodGroups} " +
+                    "stagedLodGroups=1 duplicateRendererRegistration=false productionGate=false");
 
                 var withinBudget = true;
                 for (var lod = 0; lod < 3; lod++)
