@@ -12,13 +12,12 @@ namespace Afareet.Editor
     public static class P1RaceVisualStackStager
     {
         private const string MenuPath = "Afareet/P1/Stage Full Race Visual Stack";
+        private const string ResumeFromRivalsMenuPath = "Afareet/P1/Resume Visual Stack From Rivals";
 
         [MenuItem(MenuPath)]
         public static void StageFullRaceVisualStack()
         {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-                throw new InvalidOperationException(
-                    "P1 visual stack staging must run outside Play Mode. Stop Play Mode and retry.");
+            EnsureOutsidePlayMode();
 
             // All read-only source checks run before the first visual artifact is staged.
             RunPreflight(
@@ -36,6 +35,37 @@ namespace Afareet.Editor
             RunStage("UART-005 Cairo production sources", P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow);
             RunStage("UART-006 Cairo landmark sources", P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow);
             RunStage("UART-007 Cairo track dressing sources", P1ProductionTrackDressingAssetStager.StageTrackedSourcesOrThrow);
+            StageReviewTail("full-stack");
+        }
+
+        /// <summary>
+        /// Resumes the operator-only visual review after Cairo staging. Some licensed Editor
+        /// sessions can return control to Unity after an AssetDatabase refresh before the
+        /// remaining menu invocation continues. This entry deliberately stages only the local
+        /// UART-004 authored review rivals and UART-003 Hero refinement candidate; it does not
+        /// rerun or promote any production gate.
+        /// </summary>
+        [MenuItem(ResumeFromRivalsMenuPath)]
+        public static void ResumeVisualStackFromRivals()
+        {
+            EnsureOutsidePlayMode();
+
+            RunPreflight(
+                "UART-003 Hero refinement candidate source",
+                HeroCarRefinementCandidateStager.ValidateCurrentCandidateSourceOrThrow);
+            RunPreflight(
+                "UART-004 rival tracked OBJ review sources",
+                RivalAuthoredReviewPrefabStager.ValidateCurrentSourcesOrThrow);
+
+            Debug.Log(
+                "AFAREET_P1_VISUAL_STACK_RESUME_BEGIN from=uart004-authored-review-rivals " +
+                "productionGate=false ownerAcceptance=false deviceProof=false");
+
+            StageReviewTail("resume-from-rivals");
+        }
+
+        private static void StageReviewTail(string invocation)
+        {
             RunStage("UART-004 authored review rivals", RivalAuthoredReviewPrefabStager.StageAll);
             RunStage("UART-003 Hero refinement candidate", HeroCarRefinementCandidateStager.StageCurrentCandidate);
 
@@ -44,8 +74,16 @@ namespace Afareet.Editor
 
             Debug.Log(
                 "AFAREET_P1_VISUAL_STACK_STAGE_OK " +
+                $"invocation={invocation} " +
                 "uart004=authored-review-candidates uart005=staged uart006=staged uart007=staged " +
                 "hero=refinement-candidate productionGate=false ownerAcceptance=false deviceProof=false p1Verified=false");
+        }
+
+        private static void EnsureOutsidePlayMode()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+                throw new InvalidOperationException(
+                    "P1 visual stack staging must run outside Play Mode. Stop Play Mode and retry.");
         }
 
         private static void RunPreflight(string label, Action preflight)
