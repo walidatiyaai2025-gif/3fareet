@@ -2,9 +2,10 @@
 """Build a read-only operator packet for the P1 licensed Unity handoff.
 
 The packet composes the existing six-task visual-source audit, licensed-staging
-readiness audit, and authoritative operator-chain identity. It is designed to tell
-an operator exactly what is ready, what is blocked, and which Windows commands/artifacts
-come next. It never runs Unity, builds an APK, publishes, or marks anything verified.
+readiness audit, authoritative operator-chain identity, and exact source Git identity.
+It is designed to tell an operator exactly what is ready, what is blocked, and which
+Windows commands/artifacts come next. It never runs Unity, builds an APK, publishes,
+or marks anything verified.
 """
 
 from __future__ import annotations
@@ -12,9 +13,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import re
 import sys
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -23,10 +26,11 @@ if str(SCRIPT_DIR) not in sys.path:
 import p1_licensed_staging_readiness
 import p1_visual_source_readiness
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 CHAIN_FILE = SCRIPT_DIR / "p1_operator_release_chain.json"
 EXPECTED_TASKS = ["UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"]
 EXPECTED_UNITY_VERSION = "6000.5.8f1"
+SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 class P1LicensedHandoffPacketError(RuntimeError):
@@ -60,6 +64,17 @@ def _normalize_repo_hero(value: Optional[str]) -> Optional[str]:
     return text or None
 
 
+def _normalize_expected_sha(value: Optional[str]) -> Optional[str]:
+    text = (value or "").strip().lower()
+    if not text:
+        return None
+    if not SHA40_RE.fullmatch(text):
+        raise P1LicensedHandoffPacketError(
+            f"--expected-git-sha must be a full 40-character lowercase/uppercase Git SHA, found {value!r}"
+        )
+    return text
+
+
 def _to_unity_asset_path(repo_relative: Optional[str]) -> Optional[str]:
     if not repo_relative:
         return None
@@ -84,15 +99,69 @@ def _load_operator_chain(chain_path: Path) -> tuple[dict[str, Any], str]:
     return chain, sha256_file(chain_path)
 
 
-def _command_packet(hero_repo_relative: Optional[str]) -> dict[str, Any]:
+def _git_identity(
+    observed_git_sha: Any,
+    expected_git_sha: Optional[str],
+    environment: Mapping[str, str],
+) -> dict[str, Any]:
+    observed = str(observed_git_sha or "").strip().lower()
+    if not SHA40_RE.fullmatch(observed):
+        raise P1LicensedHandoffPacketError(
+            f"licensed-staging audit returned an invalid observed Git SHA: {observed_git_sha!r}"
+        )
+    expected = _normalize_expected_sha(expected_git_sha)
+
+    event_name = str(environment.get("GITHUB_EVENT_NAME") or "").strip()
+    github_ref = str(environment.get("GITHUB_REF") or "").strip()
+    github_head_ref = str(environment.get("GITHUB_HEAD_REF") or "").strip()
+    github_sha = str(environment.get("GITHUB_SHA") or "").strip().lower()
+    synthetic_pr_merge = (
+        event_name == "pull_request"
+        and github_ref.startswith("refs/pull/")
+        and github_ref.endswith("/merge")
+        and github_sha == observed
+    )
+    matched = expected is not None and expected == observed
+    exact = matched and not synthetic_pr_merge
+
+    if expected is None:
+        status = "EXPECTED_SOURCE_SHA_REQUIRED"
+    elif synthetic_pr_merge:
+        status = "SYNTHETIC_PR_MERGE_REF"
+    elif not matched:
+        status = "EXPECTED_SOURCE_SHA_MISMATCH"
+    else:
+        status = "EXACT_SOURCE_SHA"
+
+    return {
+        "status": status,
+        "observedGitSha": observed,
+        "expectedGitSha": expected,
+        "gitIdentityMatched": matched,
+        "syntheticPullRequestMerge": synthetic_pr_merge,
+        "exactSourceIdentitySatisfied": exact,
+        "checkoutContext": {
+            "githubEventName": event_name or None,
+            "githubRef": github_ref or None,
+            "githubHeadRef": github_head_ref or None,
+            "githubSha": github_sha if SHA40_RE.fullmatch(github_sha) else None,
+        },
+    }
+
+
+def _command_packet(hero_repo_relative: Optional[str], expected_git_sha: Optional[str]) -> dict[str, Any]:
     unity_source = _to_unity_asset_path(hero_repo_relative)
     display_source = unity_source or "Assets/Afareet/ArtSource/Vehicles/HeroCar/<REAL_HERO_SOURCE.fbx>"
+    display_sha = expected_git_sha or "<EXACT_SOURCE_GIT_SHA>"
     return {
         "heroSourcePlaceholder": unity_source is None,
+        "expectedGitShaPlaceholder": expected_git_sha is None,
         "heroSourceUnityPath": unity_source,
+        "expectedGitSha": expected_git_sha,
         "portableAudit": (
             "python3 tools/android/p1_licensed_handoff_packet.py "
-            f"--hero-source \"{display_source}\" --output artifacts/production-staging/p1-licensed-handoff-packet.json"
+            f"--hero-source \"{display_source}\" --expected-git-sha {display_sha} "
+            "--output artifacts/production-staging/p1-licensed-handoff-packet.json"
         ),
         "nativeHeroIntake": (
             "pwsh -File tools/android/validate_hero_asset_intake_windows.ps1 "
@@ -113,7 +182,9 @@ def build_packet(
     repo_root: Path,
     *,
     hero_source: Optional[str] = None,
+    expected_git_sha: Optional[str] = None,
     chain_path: Path = CHAIN_FILE,
+    environment: Optional[Mapping[str, str]] = None,
 ) -> dict[str, Any]:
     repo_root = repo_root.expanduser().resolve()
     chain_path = chain_path.expanduser().resolve()
@@ -125,6 +196,11 @@ def build_packet(
         repo_root,
         hero_source=normalized_hero,
         require_clean=True,
+    )
+    identity = _git_identity(
+        staging.get("gitSha"),
+        expected_git_sha,
+        os.environ if environment is None else environment,
     )
 
     tasks = []
@@ -147,9 +223,15 @@ def build_packet(
         raise P1LicensedHandoffPacketError("visual source audit did not return the exact ordered six-task P1 scope")
 
     hero_task = tasks[0]
-    if normalized_hero is None and hero_task["sourceReady"] is False:
+    hero_blocked = normalized_hero is None and hero_task["sourceReady"] is False
+    staging_ready = staging.get("readyForLicensedStaging") is True
+    identity_ready = identity["exactSourceIdentitySatisfied"] is True
+
+    if hero_blocked:
         state = "BLOCKED_EXTERNAL_HERO_SOURCE"
-    elif staging.get("readyForLicensedStaging") is True:
+    elif not identity_ready:
+        state = "BLOCKED_GIT_IDENTITY"
+    elif staging_ready:
         state = "READY_FOR_LICENSED_OPERATOR_HANDOFF"
     else:
         state = "BLOCKED_PRELICENSED_HANDOFF"
@@ -165,10 +247,25 @@ def build_packet(
     if any(stage_id not in stage_lookup for stage_id in selected_stage_ids):
         raise P1LicensedHandoffPacketError("operator chain is missing one or more licensed-handoff stages")
 
+    if state == "BLOCKED_EXTERNAL_HERO_SOURCE":
+        next_action = (
+            "Commit a real externally-authored Afareet King production source under the canonical HeroCar source root, "
+            "then rerun this packet with --hero-source and --expected-git-sha set to that exact clean source commit."
+        )
+    elif state == "BLOCKED_GIT_IDENTITY":
+        next_action = (
+            "Rerun from the exact clean source commit and pass --expected-git-sha for that same 40-character SHA; "
+            "synthetic pull-request merge refs are informational only and cannot authorize licensed operator handoff."
+        )
+    else:
+        next_action = staging.get("nextAction")
+
     return {
         "schemaVersion": SCHEMA_VERSION,
         "state": state,
-        "gitSha": staging.get("gitSha"),
+        "gitSha": identity["observedGitSha"],
+        "gitIdentity": identity,
+        "releaseHandoffEligible": state == "READY_FOR_LICENSED_OPERATOR_HANDOFF",
         "expectedUnityVersion": EXPECTED_UNITY_VERSION,
         "heroSource": normalized_hero,
         "fixedRegisterSize": chain.get("fixedRegisterSize"),
@@ -189,7 +286,7 @@ def build_packet(
         },
         "licensedStagingSummary": {
             "state": staging.get("state"),
-            "readyForLicensedStaging": staging.get("readyForLicensedStaging") is True,
+            "readyForLicensedStaging": staging_ready,
             "blockedCheckIds": list(staging.get("blockedCheckIds") or []),
         },
         "nextLicensedStages": [
@@ -201,7 +298,7 @@ def build_packet(
             }
             for stage_id in selected_stage_ids
         ],
-        "commands": _command_packet(normalized_hero),
+        "commands": _command_packet(normalized_hero, identity["expectedGitSha"]),
         "expectedArtifacts": [
             "artifacts/production-staging/uart003-native-intake.json",
             "artifacts/production-staging/p1-staging-handoff.json",
@@ -218,11 +315,7 @@ def build_packet(
         "verified": False,
         "runtimeVerified": False,
         "ownerAccepted": False,
-        "nextAction": (
-            "Commit a real externally-authored Afareet King production source under the canonical HeroCar source root, then rerun this packet with --hero-source."
-            if state == "BLOCKED_EXTERNAL_HERO_SOURCE"
-            else staging.get("nextAction")
-        ),
+        "nextAction": next_action,
     }
 
 
@@ -244,6 +337,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", default=str(Path(__file__).resolve().parents[2]))
     parser.add_argument("--hero-source", default=None, help="Assets/... or unity_game/Assets/... real production Hero source")
+    parser.add_argument(
+        "--expected-git-sha",
+        default=None,
+        help="Exact 40-character clean source commit expected for licensed operator handoff; required to reach READY state",
+    )
     parser.add_argument("--chain", default=str(CHAIN_FILE), help="Authoritative P1 operator-chain JSON")
     parser.add_argument("--output", default=None, help="Optional packet JSON under <repo>/artifacts/")
     parser.add_argument("--allow-blocked", action="store_true", help="Return 0 when producing an informational blocked packet")
@@ -257,6 +355,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         packet = build_packet(
             repo_root,
             hero_source=args.hero_source,
+            expected_git_sha=args.expected_git_sha,
             chain_path=Path(args.chain),
         )
         if args.output:
