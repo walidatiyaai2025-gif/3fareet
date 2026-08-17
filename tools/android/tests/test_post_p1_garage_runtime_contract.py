@@ -5,6 +5,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GARAGE = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/GarageRuntime"
 CAREER_BRIDGE = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageBridge.cs"
+CAREER_SESSION = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageSession.cs"
 CAREER_ASMDEF = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/CareerRuntime/Afareet.CareerRuntime.asmdef"
 
 
@@ -85,10 +86,27 @@ class PostP1GarageRuntimeContractTests(unittest.TestCase):
         asmdef = CAREER_ASMDEF.read_text(encoding="utf-8")
         self.assertIn('"Afareet.GarageRuntime"', asmdef)
 
+    def test_career_garage_session_is_single_runtime_persistence_boundary(self):
+        self.assertTrue(CAREER_SESSION.is_file())
+        source = CAREER_SESSION.read_text(encoding="utf-8")
+        for required in (
+            "CareerGameSession career",
+            "GarageStateStore stateStore",
+            "GarageService garage",
+            "ConfigureWithPlayerPrefs",
+            "career.ProgressChanged += OnCareerProgressChanged",
+            "RefreshUnlocksFromCareer",
+            "stateStore.Save",
+            "GarageStateChanged",
+            "GarageUnlocksChanged",
+        ):
+            self.assertIn(required, source)
+
     def test_garage_programming_does_not_fake_missing_visual_assets(self):
         catalog = (GARAGE / "GarageCatalog.cs").read_text(encoding="utf-8")
         service = (GARAGE / "GarageService.cs").read_text(encoding="utf-8")
-        combined = catalog + service
+        session = CAREER_SESSION.read_text(encoding="utf-8")
+        combined = catalog + service + session
         for forbidden in (
             "GameObject.CreatePrimitive",
             "new Mesh(",
