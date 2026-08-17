@@ -378,16 +378,36 @@ namespace Afareet.GarageRuntime
             string defaultSpirit)
         {
             var cosmetics = new GarageCosmeticSet(
-                new[] { defaultPaint, "obsidian", "spirit-white" },
-                new[] { defaultWheel, "shadow-rim", "spirit-ring" },
-                new[] { defaultTrail, "purple-wisp", "gold-spark" },
-                new[] { defaultSpirit, "afareet", "djinn" },
+                BuildUniqueOptions(defaultPaint, "obsidian", "spirit-white"),
+                BuildUniqueOptions(defaultWheel, "shadow-rim", "spirit-ring"),
+                BuildUniqueOptions(defaultTrail, "purple-wisp", "gold-spark"),
+                BuildUniqueOptions(defaultSpirit, "afareet", "djinn"),
                 defaultPaint,
                 defaultWheel,
                 defaultTrail,
                 defaultSpirit);
 
             return new GarageVehicleDefinition(id, displayName, archetype, stats, cosmetics, previewResourcePath);
+        }
+
+        private static IReadOnlyList<string> BuildUniqueOptions(string primary, params string[] extras)
+        {
+            var result = new List<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            AddOption(primary, result, seen);
+            if (extras != null)
+            {
+                for (var index = 0; index < extras.Length; index++)
+                    AddOption(extras[index], result, seen);
+            }
+            return result.AsReadOnly();
+        }
+
+        private static void AddOption(string id, List<string> result, HashSet<string> seen)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("Garage cosmetic option ids must be non-blank.", nameof(id));
+            if (seen.Add(id)) result.Add(id);
         }
     }
 }
