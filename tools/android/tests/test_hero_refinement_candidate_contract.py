@@ -74,5 +74,25 @@ class HeroRefinementCandidateContractTests(unittest.TestCase):
                       "Final production validator must keep its one-renderer-per-LOD contract.")
         self.assertIn("ValidateRefinementCandidatePrefab", visual)
 
+    def test_refinement_stager_enforces_one_authoritative_lod_group(self):
+        stager = self.text("unity_game/Assets/Afareet/Editor/HeroCarRefinementCandidateStager.cs")
+        visual = self.text("unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionVisual.cs")
+
+        for required in (
+            "PrefabUtility.UnpackPrefabInstance",
+            "modelInstance.GetComponentsInChildren<LODGroup>(true)",
+            "UnityEngine.Object.DestroyImmediate(importedLodGroup)",
+            "sourceLodGroupsRemoved",
+            "stagedLodGroups=1",
+            "duplicateRendererRegistration=false",
+        ):
+            self.assertIn(required, stager)
+
+        self.assertIn("prefab.GetComponentsInChildren<LODGroup>(true)", visual)
+        self.assertIn("allGroups.Length != 1", visual)
+        self.assertIn("var assignedRenderers = new HashSet<Renderer>()", visual)
+        self.assertIn("!assignedRenderers.Add(renderer)", visual)
+        self.assertIn("refinement-renderer-registered-more-than-once", visual)
+
 if __name__ == "__main__":
     unittest.main()
