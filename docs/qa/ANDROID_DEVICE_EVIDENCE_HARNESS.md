@@ -2,62 +2,62 @@
 
 ## Purpose
 
-`tools/android/device_evidence.py` standardizes evidence collected from a 3Fareet APK and a physical Android device. It is a **collection tool, not an automatic QA approval tool**.
+`tools/android/device_evidence.py` standardizes evidence collection from a 3Fareet APK and an Android device. It is a **collection tool, not an automatic QA approval tool**.
 
 It supports evidence for:
 
 - `UVEH-012` — real-device driving feel;
 - `URAC-012` — ordered lap / Results / restart verification;
 - `UPER-006` — Android smoke/performance/device matrix;
-- `UPER-009` — P1 Visual Gate screenshots;
+- `UPER-009` — owner/Art Director visual review;
 - `UPER-010` — later consumes approved evidence but is never published by this harness.
 
-A successful harness command does **not** move any task out of BLOCKED, approve a visual/performance gate, publish a release, or call an APK VERIFIED.
+A successful harness command does not move a task out of BLOCKED, approve a gate, publish a release, update Last Verified, or call an APK VERIFIED.
 
-## Release/P1 rule: candidate-bound preparation is mandatory
+## P1/release rule: candidate-bound preparation is mandatory
 
-For **P1 acceptance, release review, or publication evidence**, do **not** start with raw `device_evidence.py prepare`.
+For P1 acceptance, release review, or publication evidence, do **not** start with raw `device_evidence.py prepare`.
 
-The authoritative flow is documented in [`P1_FINAL_5_GATE_PLAN.md`](P1_FINAL_5_GATE_PLAN.md) and starts by binding the physical-device session to the already-validated candidate manifest:
+The authoritative flow starts with `prepare_candidate_device.py`, which binds one exact candidate, one physical-device session and one UPER-001 performance tier before any checkpoint capture:
 
 ```bash
 python3 tools/android/prepare_candidate_device.py \
   --candidate-manifest artifacts/local-candidate-manifest.json \
-  --output evidence/p1-device
+  --output evidence/p1-device \
+  --performance-tier mid
 ```
 
-If the candidate bundle moved to another workstation, provide the exact APK explicitly:
+If the candidate bundle moved workstations:
 
 ```bash
 python3 tools/android/prepare_candidate_device.py \
   --candidate-manifest /path/to/local-candidate-manifest.json \
   --apk /path/to/afareet-unity3d-debug.apk \
-  --output evidence/p1-device
+  --output evidence/p1-device \
+  --performance-tier mid
 ```
 
-`prepare_candidate_device.py` revalidates and binds the session to the exact full Git SHA, APK SHA-256/size, package id, candidate type, device-evidence eligibility, and `verified=false` state before delegating physical-device preparation to the harness.
+Choose the actual approved device capability tier from `low`, `mid`, or `high` according to `docs/performance/UNITY_DEVICE_TIERS.md`.
 
-An arbitrary direct-APK session created with raw `device_evidence.py prepare` **cannot satisfy the P1/release evidence chain** and will be rejected by the later export/readiness/publication checks.
+The wrapper revalidates the candidate full Git SHA, APK SHA-256/size, package id, candidate type, device-evidence eligibility, hosted provenance where applicable, and `verified=false`. It then persists `session.performanceTier`. Later UPER-006 analysis must use exactly that same tier.
 
-After candidate-bound capture, review, approvals, production-art evidence, and UPER-006 smoke evidence are complete, the authoritative combined manual-publication preflight is:
+An arbitrary direct-APK session created with raw `device_evidence.py prepare` cannot satisfy the P1/release evidence chain.
 
-`tools/android/verify_release_with_production_art.py`
-
-That preflight requires the same exact candidate/session/review/approval fingerprints plus production-art evidence and a `low|mid|high` performance tier. It remains fail-closed and returns `verified=false`; it never publishes automatically.
+The complete current sequence is documented in [`P1_FINAL_5_GATE_PLAN.md`](P1_FINAL_5_GATE_PLAN.md). That document also records the current 11-blocker ledger and the six production-art/runtime prerequisites that must pass before release.
 
 ## Requirements
 
 - Python 3.10+;
 - Android platform tools with `adb` on `PATH`;
-- one authorized physical Android device, or pass `--serial` when multiple devices are connected;
-- the exact APK being reviewed;
+- one authorized physical Android device, or `--serial` when multiple devices are connected;
+- the exact candidate APK;
 - for P1/release evidence, the validated candidate manifest for that exact APK.
 
-By default emulators are rejected because P1 acceptance gates require physical-device evidence. `--allow-emulator` exists only to debug the harness itself.
+By default emulators are rejected because P1 acceptance requires physical-device evidence. `--allow-emulator` exists only for harness debugging and cannot satisfy P1 gates.
 
-## 1. Generic/non-release harness preparation
+## Generic/non-release preparation
 
-Raw preparation remains useful for harness development, diagnostics, or other **non-release/general evidence collection**:
+Raw preparation remains available for harness development, diagnostics or non-release collection:
 
 ```bash
 python3 tools/android/device_evidence.py prepare \
@@ -65,100 +65,82 @@ python3 tools/android/device_evidence.py prepare \
   --output artifacts/device-evidence/pixel8-run1
 ```
 
-Do not use this raw form as the starting point for P1/release acceptance. For that path, use the candidate-bound wrapper shown above.
+Generic preparation computes the APK SHA-256/size, selects the exact ADB device, records device characteristics, rejects emulators by default, installs and launches the package, and writes `session.json` plus the package dump.
 
-Generic `prepare`:
+Use the candidate-bound wrapper for all P1/release evidence.
 
-- computes APK SHA-256 and size;
-- selects/records the exact ADB device;
-- records manufacturer/model/Android/API/ABI/display metadata;
-- rejects emulators by default;
-- installs the APK with `adb install -r -t`;
-- confirms `com.fiftysolutions.afareetunity3d` is installed;
-- clears logcat, force-stops and launches the app;
-- writes `session.json` and the installed package dump.
+## Capture checkpoints
 
-The session remains pinned to the APK SHA and device serial hash for every later capture, but only the candidate-bound wrapper adds the release candidate identity/provenance required by P1 gates.
+The QA operator drives/uses the game normally and calls `capture` when a required state is visible. The exact P1 labels are defined by `tools/android/p1_gate_spec.json` and [`P1_FINAL_5_GATE_PLAN.md`](P1_FINAL_5_GATE_PLAN.md).
 
-## 2. Capture named manual checkpoints
-
-The QA operator drives/uses the game normally and invokes `capture` when a required state is visible.
-
-For the exact P1 checkpoint labels, use [`P1_FINAL_5_GATE_PLAN.md`](P1_FINAL_5_GATE_PLAN.md) and `tools/android/p1_gate_spec.json` as the declarative sources of truth.
-
-A generic/non-release example is:
+Generic example:
 
 ```bash
 python3 tools/android/device_evidence.py capture --session artifacts/device-evidence/pixel8-run1 --label start
 python3 tools/android/device_evidence.py capture --session artifacts/device-evidence/pixel8-run1 --label racing-2min
 python3 tools/android/device_evidence.py capture --session artifacts/device-evidence/pixel8-run1 --label results
-python3 tools/android/device_evidence.py capture --session artifacts/device-evidence/pixel8-run1 --label restart-countdown
 ```
 
-For each checkpoint the harness records:
+Each checkpoint records:
 
 - `screen.png`;
 - `logcat.txt`;
-- package `meminfo.txt`;
-- package `gfxinfo.txt`;
+- `meminfo.txt`;
+- `gfxinfo.txt`;
 - `thermalservice.txt`;
 - `battery.txt`;
 - current activity state;
 - `checkpoint.json` pinned to APK/device identity.
 
-It scans logcat for obvious Fatal Exception, package ANR, native fatal signal and Unity fatal/crash lines. A red flag makes the capture command return non-zero, but **absence of red flags is not a PASS verdict**.
+The collector scans for Fatal Exception, package ANR, native fatal signal and Unity fatal/crash lines. Red flags return non-zero, but absence of red flags is not a PASS verdict.
 
-## 3. Finish and index the evidence
+## Finish the session
 
 ```bash
 python3 tools/android/device_evidence.py finish \
-  --session artifacts/device-evidence/pixel8-run1
+  --session evidence/p1-device
 ```
 
-For a P1/release run, use the candidate-bound session path instead, for example `evidence/p1-device`.
+`finish` creates `evidence-index.json` and keeps the verdict:
 
-`finish` creates `evidence-index.json` with:
+`MANUAL_REVIEW_REQUIRED`
 
-- APK SHA;
-- hashed device serial + non-sensitive device characteristics;
-- checkpoint labels;
-- automated red flags;
-- the manual review checklist.
+until the responsible reviewers make task-specific decisions.
 
-The verdict is always:
+## UPER-006 smoke analysis
 
-```text
-MANUAL_REVIEW_REQUIRED
+For a candidate-bound P1 session, the Android-observable performance analyzer must use the same tier selected during preparation:
+
+```bash
+python3 tools/android/analyze_device_smoke.py \
+  --session evidence/p1-device \
+  --tier mid
 ```
 
-until the responsible QA/Gameplay/Art reviewers record the task-specific decision.
+The analyzer fails closed when `session.performanceTier` is missing/invalid or differs from the requested tier. It evaluates APK/device fingerprint integrity, crash/ANR red flags, PSS, `gfxinfo` P95/P99, restart memory growth and Android thermal status. It does not invent Unity main/render/GPU profiler evidence or sustained-device review.
+
+Valid automated verdicts are only `BLOCKED` and `PASSABLE_FOR_MANUAL_REVIEW`; `verified` stays `false`.
 
 ## Task-specific manual review
 
 ### UVEH-012
-Review acceleration, braking/reverse, steering, drift entry/recovery, Nitro, collisions and reset behavior on a physical device. The harness cannot decide whether driving *feels* correct.
+Review acceleration, braking/reverse, steering, drift entry/recovery, Nitro, collisions and reset behavior on a physical device. Tooling cannot decide whether driving feels correct.
 
 ### URAC-012
-Complete a real ordered lap. Confirm skipped/early checkpoints cannot finish, Results appear at legitimate finish, position/time are plausible, Restart returns to the grid, and the second countdown starts correctly.
+Complete a real ordered lap. Confirm skipped/early checkpoints cannot finish, Results appear only after a legitimate finish, position/time are plausible, Restart returns to grid and the second countdown starts correctly.
 
 ### UPER-006
-Review startup stability, Fatal/ANR scan, memory/gfx captures, sustained thermal behavior and representative devices against the approved Low/Mid/High device matrix.
+Review cold start, warm race, repeated restarts, crash/ANR scan, memory, frame-time, thermal and representative device behavior against the bound Low/Mid/High tier. Add required Unity profiler/sustained evidence separately.
 
 ### UPER-009
-Review screenshots for Hero Car identity/LOD defects, Cairo readability, race line, HUD/SafeArea, Pause/Results overlays, contrast, Arabic/English presentation and visible rendering regressions.
+Review the exact candidate for authored Hero/rivals/Cairo/landmarks/dressing, no accepted primitive/blockout fallback, HUD/SafeArea, contrast and Arabic/English presentation.
 
 ### UPER-010
-Do not publish based on harness output alone. Publication requires the exact APK SHA, successful exact-head build/test evidence, production-art acceptance, required device/performance/visual approvals, and the authoritative combined publication preflight.
+Never publish from harness output alone. Publication requires the exact candidate, licensed Unity evidence, production-art acceptance, required device/performance/visual approvals and the authoritative combined preflight.
 
-## Evidence handling
+## Export a privacy-safe review bundle
 
-The local `session.json` keeps the raw ADB serial for repeatability on the QA machine. `evidence-index.json` exposes only the serial SHA-256 plus device characteristics. Review before attaching raw local evidence publicly.
-
-Do not commit generated `artifacts/device-evidence/**` or local `evidence/**` capture folders to Git. Store approved evidence according to the release/QA process for the exact APK/commit being promoted.
-
-## 4. Export a privacy-safe review bundle
-
-After a **candidate-bound** session is finished, generate the default shareable review bundle with:
+After a candidate-bound session is finished:
 
 ```bash
 python3 tools/android/export_device_evidence.py \
@@ -166,47 +148,11 @@ python3 tools/android/export_device_evidence.py \
   --output evidence/p1-review
 ```
 
-The exporter fails closed unless:
+The exporter validates candidate/device/checkpoint binding, rejects emulator evidence and excludes raw `session.json`, candidate manifest, package dump, logcat and activity dump from the default shareable bundle. It emits deterministic content-file SHA-256/size metadata and `contentSetSha256`.
 
-- the session was prepared through `prepare_candidate_device.py` and is bound to a full candidate Git SHA + APK SHA-256;
-- candidate state is still `READY_FOR_PHYSICAL_DEVICE_EVIDENCE` with `verified=false`;
-- session/index/checkpoint APK hashes agree;
-- the raw ADB serial hashes to the exact serial SHA-256 recorded by both the session and index;
-- evidence comes from a physical device, not an emulator;
-- every indexed checkpoint has the expected candidate/device binding and required review files.
+A clean export is still `MANUAL_REVIEW_REQUIRED`.
 
-The default review bundle includes:
-
-- `evidence-index.json`;
-- `review-manifest.json` with candidate Git SHA/APK SHA and explicit `MANUAL_REVIEW_REQUIRED` verdict;
-- per-checkpoint `screen.png`, `checkpoint.json`, `meminfo.txt`, `gfxinfo.txt`, `thermalservice.txt`, and `battery.txt`.
-
-The default review bundle **does not include**:
-
-- raw `session.json` (contains the ADB serial);
-- `candidate-manifest.json` (may contain workstation-local paths);
-- `package-dump.txt`;
-- raw `logcat.txt`;
-- raw `activity.txt`.
-
-Before completing the export, every copied text file is scanned and the command fails if the raw ADB serial appears anywhere in the bundle. The exporter also refuses to place its output inside the raw session directory.
-
-If automated crash/ANR red flags exist, the exporter still writes the sanitized bundle for diagnosis but exits non-zero. A clean export still has verdict `MANUAL_REVIEW_REQUIRED`; it **never** approves `UVEH-012`, `URAC-012`, `UPER-006`, `UPER-009`, or `UPER-010` automatically.
-
-### Export integrity metadata
-
-Review-manifest schema v2 adds a deterministic integrity inventory before the bundle leaves the QA workstation:
-
-- every exported evidence file is recorded in `contentFiles` with exact `sizeBytes` and SHA-256;
-- `copiedFiles` must be the exact sorted file set;
-- `contentSetSha256` hashes the canonical `contentFiles` inventory so reviewers can compare one compact bundle fingerprint;
-- `review-manifest.json` itself is intentionally outside the recursive content set, while the evidence payload it describes is fail-closed and content-addressed.
-
-This is integrity/corruption detection, not a cryptographic signature or human approval.
-
-## 5. Verify a transferred review bundle offline
-
-Before reviewing screenshots/metrics or attaching evidence to a release decision, verify the transferred directory from the repository toolchain:
+## Verify a transferred review bundle
 
 ```bash
 python3 tools/android/verify_device_review_bundle.py \
@@ -215,24 +161,13 @@ python3 tools/android/verify_device_review_bundle.py \
   --expected-apk-sha <exact-candidate-apk-sha256>
 ```
 
-The verifier uses only the Python standard library and fails if:
+The verifier fails on missing/changed/unexpected files, forbidden raw files, symlinks/path traversal, content-set mismatch, candidate mismatch, evidence-index/checkpoint binding disagreement, or changed manual-review/privacy contracts.
 
-- any screenshot/metric/checkpoint/index file is missing, changed, truncated or replaced;
-- an unexpected file appears in the bundle;
-- a forbidden raw file such as `session.json`, `candidate-manifest.json`, `logcat.txt`, `activity.txt` or `package-dump.txt` is listed as review content;
-- a content path is absolute, traverses directories or is non-canonical;
-- the bundle contains a symlink;
-- `contentSetSha256` no longer matches the exact content inventory;
-- candidate Git/APK SHA differs from the reviewer-supplied expected values;
-- candidate state no longer says `verified=false` / `READY_FOR_PHYSICAL_DEVICE_EVIDENCE`;
-- evidence-index/checkpoint candidate/device bindings disagree;
-- the physical-device/privacy/manual-review contracts are changed.
+Successful verification still reports `verified=false` and `MANUAL_REVIEW_REQUIRED`.
 
-Successful output still ends with `verified=false` and `MANUAL_REVIEW_REQUIRED`. The verifier proves evidence integrity and candidate binding only; Gameplay/QA/Art reviewers still make the manual P1 decisions, and `UPER-010` still requires explicit release-owner approval.
+## Release/publication handoff
 
-## 6. Release/publication handoff
-
-Continue with the readiness/approval sequence in [`P1_FINAL_5_GATE_PLAN.md`](P1_FINAL_5_GATE_PLAN.md). Once all candidate-bound evidence and human approvals are legitimately complete, run the repository's authoritative combined publication preflight:
+After candidate-bound device evidence, review-bundle verification, manual approvals, production-art evidence and UPER-006 metrics are legitimately complete, run:
 
 ```bash
 python3 tools/android/verify_release_with_production_art.py \
@@ -241,10 +176,14 @@ python3 tools/android/verify_release_with_production_art.py \
   --review-bundle evidence/p1-review \
   --approvals evidence/manual-approvals.json \
   --production-art-manifest <candidate-bound-production-art-manifest.json> \
-  --performance-tier <low|mid|high> \
+  --performance-tier mid \
   --repo-root .
 ```
 
-Use `--apk /path/to/afareet-unity3d-debug.apk` when the exact candidate bundle moved workstations. The tool also accepts the production-art spec and gate spec overrides when required.
+The combined preflight requires the requested performance tier to match the one already bound to the physical-device session. A successful result means only that the exact candidate is eligible for explicit manual publication review. It still emits `verified=false`; publication and Last Verified promotion remain human/release-policy actions.
 
-A successful combined preflight means only that the exact candidate is **eligible for manual publication review**. It still emits `verified=false`; tagging, release publication, and `Last Verified APK` promotion remain explicit human/release-policy actions.
+## Evidence handling
+
+The local `session.json` contains the raw ADB serial for repeatability. `evidence-index.json` and the sanitized review bundle expose only the serial hash plus non-sensitive device characteristics.
+
+Do not commit generated device-evidence folders. Store approved evidence according to the release/QA policy for the exact Git/APK candidate being reviewed.
