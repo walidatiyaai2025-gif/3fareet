@@ -63,6 +63,30 @@ def test_race_round_adapter_has_no_global_lookup_or_persistence_side_effects():
         assert forbidden not in source
 
 
+def test_game_session_exposes_navigation_without_mutating_active_event_on_selection():
+    source = read(CAREER_DIR / "CareerGameSession.cs")
+
+    for token in (
+        "CareerNavigationService navigationService",
+        "public CareerNavigationSnapshot Navigation",
+        "event Action<CareerNavigationSnapshot> NavigationChanged",
+        "public CareerNavigationSnapshot SelectCareerNode",
+        "public CareerNavigationSnapshot MoveCareerSelection",
+        "navigationService.Select(Navigation, nodeId)",
+        "navigationService.Move(Navigation, delta)",
+        "RefreshNavigation(activeDefinition.Node.Id)",
+        "RefreshNavigation(selectedNodeId)",
+    ):
+        assert token in source
+
+    select_block = source.split("public CareerNavigationSnapshot SelectCareerNode", 1)[1].split("public CareerNavigationSnapshot MoveCareerSelection", 1)[0]
+    move_block = source.split("public CareerNavigationSnapshot MoveCareerSelection", 1)[1].split("public bool TryAdvanceToNextEvent", 1)[0]
+    for block in (select_block, move_block):
+        assert "activeDefinition =" not in block
+        assert "RestartRace" not in block
+        assert "StartRace" not in block
+
+
 def test_existing_race_and_progression_assemblies_remain_decoupled():
     race_source = read(RACE_DIR / "RaceDirector.cs")
     progression_source = read(PROGRESSION_DIR / "CareerObjectiveEvaluation.cs")
