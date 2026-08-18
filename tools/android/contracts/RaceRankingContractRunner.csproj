@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <BaseIntermediateOutputPath>obj/RaceRankingContractRunner/</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin/RaceRankingContractRunner/</BaseOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/RaceRanking.cs" Link="RaceRanking.cs" />
+    <Compile Include="RaceRankingContractStubs.cs" />
+    <Compile Include="RaceRankingContractRunner.cs" />
+  </ItemGroup>
+</Project>
