@@ -10,25 +10,31 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 SUPPORTED_HERO_EXTENSIONS = {".fbx", ".obj", ".blend", ".glb", ".gltf"}
-FORBIDDEN_HERO_TOKENS = ("generated", "preview", "blockout")
+FORBIDDEN_HERO_TOKENS = (
+    "generated",
+    "placeholder",
+    "legacyprocedural",
+    "preview",
+    "refinement",
+    "refinementcandidates",
+    "blockout",
+    "review",
+    "reviewpackaging",
+)
 
 RIVAL_REQUIRED_FILES = (
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.mtl",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/T_Rival_01_BC.png",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.mtl",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/T_Rival_02_BC.png",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.mtl",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/T_Rival_03_BC.png",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj.meta",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj.meta",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj.meta",
 )
 
 HANDOFF_REQUIRED_FILES = (
@@ -38,6 +44,7 @@ HANDOFF_REQUIRED_FILES = (
     "unity_game/Assets/Afareet/Editor/P1ProductionWorldAssetStager.cs",
     "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkAssetStager.cs",
     "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingAssetStager.cs",
+    "unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs",
     "tools/android/stage_production_candidate_windows.ps1",
     "tools/android/run_local_candidate_windows.ps1",
     ".github/workflows/unity-licensed-windows-candidate.yml",
@@ -71,6 +78,11 @@ def _check(checks: List[Dict[str, Any]], check_id: str, ok: bool, detail: str) -
 def _tracked(repo_root: Path, relative_path: str) -> bool:
     code, _, _ = _run_git(repo_root, ["ls-files", "--error-unmatch", "--", relative_path])
     return code == 0
+
+
+def _nonempty_file(repo_root: Path, relative_path: str) -> bool:
+    path = repo_root / relative_path
+    return path.is_file() and path.stat().st_size > 0
 
 
 def _normalize_hero_path(hero_source: str) -> str:
@@ -112,33 +124,33 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
         _check(checks, "CLEAN_TREE", code == 0, f"clean={clean}; debug override does not make staging release-eligible")
 
     for path in HANDOFF_REQUIRED_FILES:
-        exists = (repo_root / path).is_file()
+        exists = _nonempty_file(repo_root, path)
         tracked = exists and _tracked(repo_root, path)
         _check(
             checks,
             f"HANDOFF:{path}",
             exists and tracked,
-            "tracked" if exists and tracked else "missing or untracked staging/candidate handoff dependency",
+            "tracked-nonempty" if exists and tracked else "missing, empty or untracked staging/candidate handoff dependency",
         )
 
     for path in WORLD_REQUIRED_FILES:
-        exists = (repo_root / path).is_file()
+        exists = _nonempty_file(repo_root, path)
         tracked = exists and _tracked(repo_root, path)
         _check(
             checks,
             f"WORLD:{path}",
             exists and tracked,
-            "tracked" if exists and tracked else "missing or untracked production-world manifest",
+            "tracked-nonempty" if exists and tracked else "missing, empty or untracked production-world manifest",
         )
 
     for path in RIVAL_REQUIRED_FILES:
-        exists = (repo_root / path).is_file()
+        exists = _nonempty_file(repo_root, path)
         tracked = exists and _tracked(repo_root, path)
         _check(
             checks,
             f"RIVAL:{path}",
             exists and tracked,
-            "tracked" if exists and tracked else "missing or untracked UART-004 authored source companion",
+            "tracked-nonempty" if exists and tracked else "missing, empty or untracked UART-004 isolated production source/Unity metadata",
         )
 
     normalized_hero = _normalize_hero_path(hero_source or "")
@@ -147,7 +159,7 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
         checks,
         "UART-003_HERO_SOURCE_SUPPLIED",
         hero_supplied,
-        normalized_hero if hero_supplied else "real externally-authored Hero source not supplied",
+        normalized_hero if hero_supplied else "real externally-authored Hero production source not supplied",
     )
 
     if hero_supplied:
@@ -158,6 +170,22 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
             "UART-003_HERO_UNITY_ASSET_PATH",
             under_assets,
             normalized_hero if under_assets else "Hero must resolve under unity_game/Assets/ (or be passed as Assets/...)",
+        )
+
+        no_traversal = "../" not in normalized_hero
+        _check(
+            checks,
+            "UART-003_HERO_NO_TRAVERSAL",
+            no_traversal,
+            "no traversal" if no_traversal else "Hero source path cannot contain ../ traversal",
+        )
+
+        vehicle_role = "/vehicles/" in lower
+        _check(
+            checks,
+            "UART-003_HERO_VEHICLE_ROLE",
+            vehicle_role,
+            "vehicle role path" if vehicle_role else "Hero production source must resolve under a /Vehicles/ role path",
         )
 
         extension_ok = Path(normalized_hero).suffix.lower() in SUPPORTED_HERO_EXTENSIONS
@@ -171,24 +199,32 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
         forbidden = [token for token in FORBIDDEN_HERO_TOKENS if token in lower]
         _check(
             checks,
-            "UART-003_HERO_NOT_PREVIEW_OR_BLOCKOUT",
+            "UART-003_HERO_NOT_NONPRODUCTION_PATH",
             not forbidden,
-            "authored-source-path" if not forbidden else "forbidden source token(s): " + ",".join(forbidden),
+            "authored-production-source-path" if not forbidden else "forbidden source token(s): " + ",".join(forbidden),
         )
 
-        hero_file = repo_root / normalized_hero
-        exists = hero_file.is_file()
-        _check(checks, "UART-003_HERO_EXISTS", exists, normalized_hero if exists else "Hero file is missing")
+        exists = _nonempty_file(repo_root, normalized_hero)
+        _check(checks, "UART-003_HERO_EXISTS", exists, normalized_hero if exists else "Hero file is missing or empty")
 
         tracked = exists and _tracked(repo_root, normalized_hero)
         _check(
             checks,
             "UART-003_HERO_TRACKED_BY_HEAD",
             tracked,
-            "tracked by Git" if tracked else "Hero must be committed before licensed staging starts",
+            "tracked by Git" if tracked else "Hero must be non-empty and committed before licensed staging starts",
         )
 
-        not_rival = "/Rivals/" not in normalized_hero.replace("\\", "/")
+        hero_meta = normalized_hero + ".meta"
+        hero_meta_ok = _nonempty_file(repo_root, hero_meta) and _tracked(repo_root, hero_meta)
+        _check(
+            checks,
+            "UART-003_HERO_META_TRACKED_BY_HEAD",
+            hero_meta_ok,
+            "tracked non-empty Unity metadata" if hero_meta_ok else "Hero .meta must be non-empty and committed before licensed staging starts",
+        )
+
+        not_rival = "/rivals/" not in lower
         _check(
             checks,
             "UART-003_HERO_NOT_RIVAL_SOURCE",
@@ -200,20 +236,22 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
     state = "READY_FOR_LICENSED_STAGING" if not blocked else "BLOCKED"
 
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "state": state,
         "gitSha": git_sha.lower() if valid_sha else None,
         "heroSource": normalized_hero or None,
         "readyForLicensedStaging": state == "READY_FOR_LICENSED_STAGING",
         "candidateBuildStarted": False,
         "publicationEligible": False,
+        "runtimeVerified": False,
+        "ownerAccepted": False,
         "verified": False,
         "blockedCheckIds": [item["id"] for item in blocked],
         "checks": checks,
         "nextAction": (
-            "Run tools/android/stage_production_candidate_windows.ps1 with this tracked Hero source on licensed Unity 6000.5.8f1; review and commit staging output before candidate tests/build."
+            "Run tools/android/stage_production_candidate_windows.ps1 with the tracked Hero + three isolated Rival production sources on licensed Unity 6000.5.8f1; review and commit staging output before candidate tests/build."
             if state == "READY_FOR_LICENSED_STAGING"
-            else "Resolve every BLOCKED check; do not run candidate build or claim UART/UPER verification from this audit."
+            else "Resolve every BLOCKED external-source/handoff check; do not run candidate build or claim UART/UPER verification from this audit."
         ),
     }
 

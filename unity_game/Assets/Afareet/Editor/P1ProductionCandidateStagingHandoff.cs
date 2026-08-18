@@ -47,11 +47,13 @@ namespace Afareet.Editor
         {
             heroSourcePath = NormalizeAssetPath(heroSourcePath);
             ValidateHeroSourceBeforeMutation(heroSourcePath);
+            RivalProductionPrefabStager.ValidateAllSourcesBeforeMutation();
 
-            Debug.Log($"AFAREET_P1_STAGING_HANDOFF_START heroSource={heroSourcePath} verified=false");
+            Debug.Log($"AFAREET_P1_STAGING_HANDOFF_START heroSource={heroSourcePath} rivalsPreflighted=true verified=false");
 
             // Ignored Resources staging is deterministic packaging of tracked source bytes.
             // It is included here to prove licensed Unity importability on the handoff machine.
+            // Hero and all three Rival production inputs have already passed read-only preflight.
             P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow();
             P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow();
             P1ProductionTrackDressingAssetStager.StageTrackedSourcesOrThrow();
@@ -79,7 +81,15 @@ namespace Afareet.Editor
                 throw new InvalidOperationException($"UART-003 batch handoff requires a supported external model: {sourcePath}");
 
             var lowered = sourcePath.ToLowerInvariant();
-            foreach (var forbidden in new[] { "/generated/", "/preview/", "/blockout/" })
+            foreach (var forbidden in new[]
+            {
+                "/generated/",
+                "/preview/",
+                "/refinement/",
+                "/refinementcandidates/",
+                "/blockout/",
+                "/review/"
+            })
             {
                 if (lowered.Contains(forbidden))
                     throw new InvalidOperationException($"UART-003 batch handoff rejects non-production source path segment {forbidden}: {sourcePath}");

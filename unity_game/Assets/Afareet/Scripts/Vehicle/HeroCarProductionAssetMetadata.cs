@@ -5,11 +5,35 @@ namespace Afareet.Vehicle
 {
     /// <summary>
     /// Explicit authoring provenance attached to the real UART-003 production prefab.
-    /// The generated Editor preview intentionally does not carry this component.
-    /// Human/owner visual acceptance is still required separately by UPER-009.
+    /// Generated/refinement/review or non-Hero vehicle roles intentionally cannot satisfy
+    /// production source authority. Human/owner visual acceptance remains a separate UPER-009 gate.
     /// </summary>
     public sealed class HeroCarProductionAssetMetadata : MonoBehaviour
     {
+        private const string VehiclePathMarker = "/Vehicles/";
+
+        private static readonly string[] SupportedExternalModelSuffixes =
+        {
+            ".fbx", ".obj", ".blend", ".glb", ".gltf"
+        };
+
+        // This remains the central fail-closed marker set used by every Hero production entry point.
+        // `/Rivals/` is production-valid for UART-004, but it is intentionally non-production as a
+        // UART-003 Hero source role and therefore belongs in this Hero-specific rejection set.
+        private static readonly string[] NonProductionSourceMarkers =
+        {
+            "/Generated/",
+            "/Placeholder/",
+            "/LegacyProcedural/",
+            "/Preview/",
+            "/Refinement/",
+            "/RefinementCandidates/",
+            "/Blockout/",
+            "/Review/",
+            "/ReviewPackaging/",
+            "/Rivals/"
+        };
+
         [SerializeField] private bool authoredExternalSource;
         [SerializeField] private bool uv0Authored;
         [SerializeField] private bool normalsAuthored;
@@ -42,13 +66,27 @@ namespace Afareet.Vehicle
         {
             if (string.IsNullOrWhiteSpace(assetPath)) return false;
 
-            foreach (var extension in new[] { ".fbx", ".obj", ".blend", ".glb", ".gltf" })
+            var normalized = assetPath.Replace('\\', '/');
+            if (!normalized.StartsWith("Assets/", StringComparison.Ordinal)) return false;
+            if (normalized.IndexOf("../", StringComparison.Ordinal) >= 0) return false;
+            if (normalized.IndexOf(VehiclePathMarker, StringComparison.OrdinalIgnoreCase) < 0) return false;
+
+            var suffixSupported = false;
+            foreach (var extension in SupportedExternalModelSuffixes)
             {
-                if (assetPath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
-                    return true;
+                if (!normalized.EndsWith(extension, StringComparison.OrdinalIgnoreCase)) continue;
+                suffixSupported = true;
+                break;
+            }
+            if (!suffixSupported) return false;
+
+            foreach (var marker in NonProductionSourceMarkers)
+            {
+                if (normalized.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return false;
             }
 
-            return false;
+            return true;
         }
 
         public void Configure(

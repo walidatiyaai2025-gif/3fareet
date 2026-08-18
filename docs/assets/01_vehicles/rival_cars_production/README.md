@@ -10,13 +10,27 @@ The production goal is three visually distinct rival vehicles while preserving t
 2. **Fastback Muscle** — longer/wider body, taller fastback glasshouse, wider haunches and side aero.
 3. **Compact Prototype** — shorter/lower body, compact canopy, dorsal aero treatment and twin accents.
 
-## Required production source
+## Required production source authority
 
 Each accepted rival must originate from an externally authored model file imported into the Unity project. Supported source suffixes are enforced by `RivalProductionPolicy`: `.fbx`, `.obj`, `.blend`, `.glb`, or `.gltf`.
 
-`RivalProductionAssetMetadata.sourceAssetId` must be the real Unity project asset path beginning with `Assets/` (for example `Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01.fbx`). A bare filename, docs-only reference, nonexistent path, code-generated mesh, Unity primitive body, profile-only geometry, or runtime Cube stripe/fin decoration cannot self-qualify as production art.
+Production source authority is isolated to:
 
-The Android build gate verifies that the declared source resolves through `AssetDatabase.LoadMainAssetAtPath`; a string that merely ends with a supported extension is not enough.
+`Assets/Afareet/ArtSource/Vehicles/Rivals/Production/`
+
+Review, preview, refinement, blockout, generated and review-packaging paths are not production authority and cannot be promoted by metadata alone.
+
+The deterministic licensed-staging exchange currently consumes exactly these three tracked OBJ files:
+
+- `Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj`
+- `Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj`
+- `Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj`
+
+The artist may retain editable Blender/FBX source outside this deterministic exchange, but the three OBJ files above are the exact source paths consumed by the current automated staging contract. Each must have its Unity `.meta` committed before licensed staging begins.
+
+`RivalProductionAssetMetadata.sourceAssetId` must resolve to the real accepted Unity production source under the isolated production root. A bare filename, docs-only reference, nonexistent path, code-generated mesh, review candidate, Unity primitive body, profile-only geometry, or runtime Cube stripe/fin decoration cannot self-qualify as production art.
+
+The Android build gate verifies that the declared source resolves through `AssetDatabase.LoadMainAssetAtPath`, has stable GUID/dependency provenance, and that every production LOD mesh remains backed by that same accepted source asset. A string that merely ends with a supported extension is not enough.
 
 ## Required production prefabs
 
@@ -26,36 +40,42 @@ The three production Resources paths are:
 - `Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/PF_Rival_02_Production.prefab`
 - `Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/PF_Rival_03_Production.prefab`
 
-These externally authored production resources are intentionally **tracked by Git**. The Rival Resources tree must not be added to `.gitignore`; otherwise the actual accepted art could never become part of an exact candidate commit.
+These externally authored production resources are intentionally **tracked by Git**. Neither the production Resources tree nor the isolated production source root may be hidden by `.gitignore`; otherwise the accepted art could never become part of an exact candidate commit.
 
 Each prefab must contain exactly three mobile LODs, UV0, authored normals, texture-mapped material data, matching variant metadata, source version and source fingerprint, and must stay inside the enforced triangle bands.
 
 `RivalVariantPass` hides the historical primitive presentation in Player and attaches only a production prefab that passes the validator. The existing primitive hierarchy remains Editor/dev fallback and physics scaffolding only.
 
-`RivalProductionBuildGate` does **not** synthesize production art during Android builds. The three externally authored model-backed prefabs and their declared imported source assets must already exist and validate, otherwise the build fails closed.
+`RivalProductionBuildGate` does **not** synthesize production art during Android builds. The three externally authored model-backed prefabs and their declared imported production source assets must already exist and validate, otherwise the build fails closed.
 
 ## Licensed Unity staging path
 
-`RivalProductionPrefabStager` provides an Editor-only assembly step for the three tracked source candidates. It does **not** create meshes, primitives or replacement geometry. It only:
+`RivalProductionPrefabStager` provides an Editor-only assembly step for the three isolated production exchange files. It does **not** create meshes, primitives or replacement geometry.
 
-1. loads the already-imported tracked OBJ source from `Assets/Afareet/ArtSource/Vehicles/Rivals/`;
-2. instantiates that imported source while preserving the source-backed Mesh references;
+Before the first prefab mutation, `ValidateAllSourcesBeforeMutation()` requires all three production OBJ files to be accepted by `RivalProductionPolicy`, imported by Unity and backed by Unity GUIDs. The higher-level P1 licensed staging handoff runs this Rival preflight before Cairo/world staging begins.
+
+After that read-only preflight, the stager:
+
+1. loads the exact production OBJ source from `Assets/Afareet/ArtSource/Vehicles/Rivals/Production/`;
+2. instantiates that imported source while preserving source-backed Mesh references;
 3. groups imported renderers by `_LOD0`, `_LOD1` and `_LOD2` object suffix;
-4. refuses renderers whose mesh does not resolve back to the exact declared OBJ source;
+4. refuses renderers whose mesh does not resolve back to the exact declared production OBJ source;
 5. refuses missing UV0, normals or texture-mapped materials;
 6. writes the corresponding tracked production prefab with a three-level `LODGroup`;
 7. delegates GUID/dependency-hash capture and final prefab validation to `RivalProductionSourceBinder`.
 
 Editor menu: `Afareet > Stage UART-004 > Stage + Bind All Rival Prefabs` (or the individual Rival 1/2/3 actions).
 
-This staging path still requires a licensed Unity Editor to import the OBJ/MTL/PNG dependencies, create stable Unity `.meta` provenance and execute the binder. Static repository presence of the stager does not promote the assets to accepted Production Art.
+The Windows licensed-staging wrapper additionally requires the three production OBJ files **and their `.meta` files** to be non-empty and tracked in the clean starting commit before Unity is launched. This prevents a missing source package from being discovered only after Unity import or partial staging mutation begins.
 
-## Repository inventory at the current remediation head
+This staging path still requires a licensed Unity Editor to import the production source dependencies, validate the production prefabs and execute the binder. Static repository presence of the policy/stager does not promote any asset to accepted Production Art.
 
-Three distinct static OBJ source **candidates** now exist under `Assets/Afareet/ArtSource/Vehicles/Rivals/`, each carrying LOD0/LOD1/LOD2 geometry, UV0, explicit normals, MTL material mappings and a tracked PNG base-color texture. Their exact source inventory and hashes are recorded in `SOURCE_CANDIDATES.json`.
+## Review candidates are not production inputs
 
-These source files are **not accepted Production Art yet**. The required Rival production prefabs have not yet been staged/bound by a licensed Unity Editor on the exact candidate, stable Unity source GUID/dependency provenance has not been captured, and no Android runtime visual proof or owner acceptance exists.
+The older static OBJ candidates under `Assets/Afareet/ArtSource/Vehicles/Rivals/` remain review/reference material only. Their inventory can still be useful for engineering comparison, but they do not satisfy the isolated production source root and cannot make UART-004 source-ready.
+
+The actual production exchange files under `/Rivals/Production/` are intentionally absent until genuine externally-authored production Rival art is delivered. Readiness must remain BLOCKED while those files are absent.
 
 ## Acceptance state
 
-**BLOCKED.** UART-004 cannot leave BLOCKED until the three source-backed production prefabs exist and bind successfully, licensed Unity import/compile/render succeeds, an exact Android build shows all three rivals in-race with no primitive fallback, and owner/Art Director visual review explicitly accepts them.
+**BLOCKED.** UART-004 cannot leave BLOCKED until the three isolated source-backed production prefabs exist and bind successfully, licensed Unity import/compile/render succeeds, an exact Android build shows all three rivals in-race with no primitive fallback, and owner/Art Director visual review explicitly accepts them.

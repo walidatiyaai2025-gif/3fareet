@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.Vehicle
 {
@@ -62,12 +63,13 @@ namespace Afareet.Vehicle
 
     /// <summary>
     /// Fail-closed UART-004 contract for three externally authored rival production vehicles.
-    /// Historical CarFactory bodies, Editor stripe/fin primitives and code-generated design-profile
-    /// meshes can never satisfy production provenance on their own.
+    /// Historical CarFactory bodies, Editor stripe/fin primitives, authored-review OBJ candidates
+    /// and code-generated design-profile meshes can never satisfy production provenance on their own.
     /// </summary>
     public static class RivalProductionPolicy
     {
         public const int VariantCount = 3;
+        public const string ProductionSourceRoot = "Assets/Afareet/ArtSource/Vehicles/Rivals/Production/";
 
         private static readonly string[] ResourcePaths =
         {
@@ -83,9 +85,27 @@ namespace Afareet.Vehicle
             "Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/PF_Rival_03_Production.prefab"
         };
 
+        private static readonly string[] StagingSourcePaths =
+        {
+            ProductionSourceRoot + "Rival_01_WedgeCoupe_Production.obj",
+            ProductionSourceRoot + "Rival_02_FastbackMuscle_Production.obj",
+            ProductionSourceRoot + "Rival_03_CompactPrototype_Production.obj"
+        };
+
         private static readonly string[] AuthoredModelSuffixes =
         {
             ".fbx", ".obj", ".blend", ".glb", ".gltf"
+        };
+
+        private static readonly string[] NonProductionPathMarkers =
+        {
+            "/Generated/",
+            "/Preview/",
+            "/Refinement/",
+            "/RefinementCandidates/",
+            "/Blockout/",
+            "/Review/",
+            "/ReviewPackaging/"
         };
 
         public static readonly int[] MinimumTriangles = { 1800, 800, 350 };
@@ -103,14 +123,22 @@ namespace Afareet.Vehicle
             return AssetPaths[variantIndex];
         }
 
+        public static string StagingSourcePath(int variantIndex)
+        {
+            ValidateVariantIndex(variantIndex);
+            return StagingSourcePaths[variantIndex];
+        }
+
         public static bool IsSupportedAuthoredModelSource(string sourceAssetId)
         {
             if (string.IsNullOrWhiteSpace(sourceAssetId)) return false;
 
             var normalized = sourceAssetId.Replace('\\', '/');
-            if (!normalized.StartsWith("Assets/", StringComparison.Ordinal)) return false;
+            if (!normalized.StartsWith(ProductionSourceRoot, StringComparison.Ordinal)) return false;
             if (normalized.IndexOf("../", StringComparison.Ordinal) >= 0) return false;
-            if (normalized.IndexOf("/Generated/", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+
+            foreach (var marker in NonProductionPathMarkers)
+                if (normalized.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0) return false;
 
             foreach (var suffix in AuthoredModelSuffixes)
             {
@@ -175,12 +203,12 @@ namespace Afareet.Vehicle
                     var mesh = MeshFor(renderer);
                     if (mesh == null) { reason = $"lod{lod}-renderer-missing-mesh"; return false; }
                     triangles += TriangleCount(mesh);
-                    allUv0 &= mesh.uv != null && mesh.uv.Length == mesh.vertexCount;
-                    allNormals &= mesh.normals != null && mesh.normals.Length == mesh.vertexCount;
+                    allUv0 &= mesh.HasVertexAttribute(VertexAttribute.TexCoord0);
+                    allNormals &= mesh.HasVertexAttribute(VertexAttribute.Normal);
                     if (renderer.sharedMaterials != null)
                     {
                         foreach (var material in renderer.sharedMaterials)
-                            if (material != null && material.mainTexture != null) hasTexture = true;
+                            if (HasAssignedTexture(material)) hasTexture = true;
                     }
                 }
 
@@ -197,12 +225,26 @@ namespace Afareet.Vehicle
 
         public static void ValidateContract()
         {
-            if (ResourcePaths.Length != VariantCount || AssetPaths.Length != VariantCount)
-                throw new InvalidOperationException("UART-004 must define exactly three production rival paths.");
+            if (ResourcePaths.Length != VariantCount || AssetPaths.Length != VariantCount || StagingSourcePaths.Length != VariantCount)
+                throw new InvalidOperationException("UART-004 must define exactly three production rival paths and staging sources.");
             if (MinimumTriangles.Length != 3 || MaximumTriangles.Length != 3)
                 throw new InvalidOperationException("UART-004 must define exactly three LOD quality bands.");
             if (AuthoredModelSuffixes.Length < 5)
                 throw new InvalidOperationException("UART-004 must retain the supported external 3D source suffix contract.");
+            if (NonProductionPathMarkers.Length < 7)
+                throw new InvalidOperationException("UART-004 must retain non-production source path isolation.");
+
+            for (var variant = 0; variant < VariantCount; variant++)
+            {
+                var source = StagingSourcePaths[variant];
+                if (!IsSupportedAuthoredModelSource(source) ||
+                    !source.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"UART-004 invalid deterministic production staging source for variant {variant + 1}: {source}");
+                for (var other = 0; other < variant; other++)
+                    if (string.Equals(source, StagingSourcePaths[other], StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException($"UART-004 duplicate deterministic staging source path: {source}");
+            }
+
             for (var lod = 0; lod < 3; lod++)
             {
                 if (MinimumTriangles[lod] <= 0 || MaximumTriangles[lod] <= MinimumTriangles[lod])
@@ -217,6 +259,19 @@ namespace Afareet.Vehicle
             if (renderer is SkinnedMeshRenderer skinned) return skinned.sharedMesh;
             var filter = renderer.GetComponent<MeshFilter>();
             return filter == null ? null : filter.sharedMesh;
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static int TriangleCount(Mesh mesh)
