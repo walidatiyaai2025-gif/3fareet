@@ -5,6 +5,9 @@ on:
     paths:
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/**'
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceRoundController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceChallengeConfiguration.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/AiRacer.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/Afareet.Race.asmdef'
       - 'unity_game/Assets/Afareet/Scripts/Progression/**'
       - 'unity_game/Assets/Afareet/Tests/EditMode/CareerRuntime/**'
@@ -17,6 +20,9 @@ on:
     paths:
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/**'
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceRoundController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceChallengeConfiguration.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/AiRacer.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/Afareet.Race.asmdef'
       - 'unity_game/Assets/Afareet/Scripts/Progression/**'
       - 'unity_game/Assets/Afareet/Tests/EditMode/CareerRuntime/**'
