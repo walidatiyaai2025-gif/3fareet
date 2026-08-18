@@ -30,7 +30,7 @@ namespace Afareet.Vehicle
 
         public bool DeclaresProductionAuthoring =>
             authoredExternalSource && uv0Authored && normalsAuthored && textureMappedMaterials &&
-            RivalProductionPolicy.IsSupportedAuthoredModelSource(sourceAssetId) &&
+            RivalProductionPolicy.IsExactProductionSourceForVariant(variantIndex, sourceAssetId) &&
             !string.IsNullOrWhiteSpace(assetVersion) &&
             !string.IsNullOrWhiteSpace(sourceFingerprint) &&
             !string.IsNullOrWhiteSpace(sourceGuid) &&
@@ -148,6 +148,15 @@ namespace Afareet.Vehicle
             return false;
         }
 
+        public static bool IsExactProductionSourceForVariant(int variantIndex, string sourceAssetId)
+        {
+            if (variantIndex < 0 || variantIndex >= VariantCount) return false;
+            if (!IsSupportedAuthoredModelSource(sourceAssetId)) return false;
+
+            var normalized = sourceAssetId.Replace('\\', '/');
+            return string.Equals(normalized, StagingSourcePaths[variantIndex], StringComparison.Ordinal);
+        }
+
         public static bool MeetsProductionFloor(int lod, int triangleCount, bool allMeshesHaveUv0, bool allMeshesHaveAuthoredNormals, bool hasTextureMappedMaterial)
         {
             if (lod < 0 || lod >= MinimumTriangles.Length) return false;
@@ -172,9 +181,9 @@ namespace Afareet.Vehicle
                 reason = "external-authored-source-required";
                 return false;
             }
-            if (!IsSupportedAuthoredModelSource(metadata.SourceAssetId))
+            if (!IsExactProductionSourceForVariant(variantIndex, metadata.SourceAssetId))
             {
-                reason = $"unsupported-authored-model-source:{metadata.SourceAssetId ?? "<null>"}";
+                reason = $"unexpected-authored-model-source:{metadata.SourceAssetId ?? "<null>"}:expected={StagingSourcePath(variantIndex)}";
                 return false;
             }
             if (!metadata.DeclaresProductionAuthoring) { reason = "production-metadata-incomplete"; return false; }
@@ -237,7 +246,7 @@ namespace Afareet.Vehicle
             for (var variant = 0; variant < VariantCount; variant++)
             {
                 var source = StagingSourcePaths[variant];
-                if (!IsSupportedAuthoredModelSource(source) ||
+                if (!IsExactProductionSourceForVariant(variant, source) ||
                     !source.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException($"UART-004 invalid deterministic production staging source for variant {variant + 1}: {source}");
                 for (var other = 0; other < variant; other++)
