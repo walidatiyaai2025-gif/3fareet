@@ -1,0 +1,61 @@
+name: P1 Programming Closure Audit
+
+on:
+  pull_request:
+    paths:
+      - 'docs/tasks/06-UNITY-3D-MIGRATION.md'
+      - 'docs/TASK_REGISTER.md'
+      - 'docs/MISSED_ASSETS.md'
+      - 'EXTERNAL_ASSET_REQUESTS.txt'
+      - 'ASSET_CREATION_REQUESTS.txt'
+      - 'tools/android/p1_programming_closure_audit.py'
+      - 'tools/android/tests/test_p1_programming_closure_audit.py'
+      - 'tools/android/tests/test_root_asset_creation_policy_contract.py'
+      - '.github/workflows/p1-programming-closure-audit.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/tasks/06-UNITY-3D-MIGRATION.md'
+      - 'docs/TASK_REGISTER.md'
+      - 'docs/MISSED_ASSETS.md'
+      - 'EXTERNAL_ASSET_REQUESTS.txt'
+      - 'ASSET_CREATION_REQUESTS.txt'
+      - 'tools/android/p1_programming_closure_audit.py'
+      - 'tools/android/tests/test_p1_programming_closure_audit.py'
+      - 'tools/android/tests/test_root_asset_creation_policy_contract.py'
+      - '.github/workflows/p1-programming-closure-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Programming queue + external dependency policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate audit source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/android/p1_programming_closure_audit.py
+
+      - name: P1 programming closure audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/android/p1_programming_closure_audit.py
+
+      - name: Asset handoff policy contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest \
+            tools.android.tests.test_p1_programming_closure_audit \
+            tools.android.tests.test_root_asset_creation_policy_contract \
+            -v
