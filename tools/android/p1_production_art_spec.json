@@ -44,7 +44,7 @@
       ]
     },
     "UART-004": {
-      "requiredAuthored3DSourcePaths": [
+      "exactAuthored3DSourcePaths": [
         "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj",
         "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj",
         "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj"
