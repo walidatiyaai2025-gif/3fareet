@@ -65,18 +65,19 @@ CREATION PROMPT / ART BRIEF:
 "Create a production-quality, mobile-ready 3D Hero racing car named AFAREET KING, using docs/assets/01_vehicles/references/afareet_hero_car_reference.png as the identity target, not loose inspiration. Preserve a recognizable aggressive supernatural street-racer silhouette with authored body panels, wheel arches, four real wheels/tires/rims, glass canopy/windows, headlights and tail lights, front splitter, side aero, rear diffuser, spoiler/wing, black primary body, purple spirit energy accents, gold identity trim, and authored emissive spirit details. The model must look intentionally designed from front, rear, side and chase-camera views and must not look like Unity primitives or a procedural low-poly placeholder. Create three real LODs: LOD0 hero-quality mobile mesh, LOD1 simplified silhouette-preserving mesh, LOD2 aggressive mobile simplification. Keep material slots deterministic and texture sets mobile-friendly. Use meters, real-world car scale approximately 4.6m long x 2.0m wide, centered origin, ground contact at Y=0, forward axis compatible with Unity handoff, applied transforms, clean normals, UV0, no hidden duplicate geometry, no unapplied non-uniform scale. Name LOD objects clearly with _LOD0, _LOD1, _LOD2. Deliver editable .blend plus exported .fbx. Do not include copyrighted manufacturer logos or unlicensed third-party geometry."
 TECHNICAL CONSTRAINTS:
 - LOD0/1/2 must be visually distinct and decrease in complexity.
-- Unity production policy currently expects mobile ranges approximately: LOD0 3500–7500 tris, LOD1 1600–4000 tris, LOD2 900–2500 tris; if the art needs a justified change, coordinate with engineering before export.
+- Current authoritative Unity production policy is a dual vertex + triangle range gate: LOD0 1500–5000 vertices AND 3500–7500 triangles; LOD1 800–2800 vertices AND 1600–4000 triangles; LOD2 500–1800 vertices AND 900–2500 triangles. Both dimensions must pass for every LOD; a triangle-only budget report is insufficient. If the art needs a justified policy change, coordinate with engineering before export rather than silently exceeding either range.
 - UV0 + normals + texture-mapped materials required for production acceptance.
 - No procedural/generated classification in final metadata.
 - No primitive-only final silhouette.
 ACCEPTANCE CRITERIA:
 - Source committed with stable Unity metadata/provenance.
+- Authoritative Unity import reports all three LODs within both vertex and triangle policy ranges; no triangle-only or companion-only diagnostic may substitute for this gate.
 - Production prefab passes Hero production validator.
 - Runtime logs production Hero active; no refinement/generated/blockout fallback active.
 - Exact Android build renders it correctly.
 - Owner/Art Director accepts the identity for UPER-009.
 PROVENANCE / LICENSE: Must be original commissioned/owner-created work or carry explicit commercial redistribution/modification rights compatible with the game repository and builds.
-INTEGRATION NOTES: Current Blender-generated AfareetKing_Hero remains REFINEMENT_CANDIDATE only and does not satisfy this request.
+INTEGRATION NOTES: Current Blender-generated AfareetKing_Hero remains REFINEMENT_CANDIDATE only and does not satisfy this request. Step 27 exact-handoff diagnostics show the current refinement companion exceeds both vertex and triangle mobile budgets; generated/procedural candidates or triangle-only budget passes cannot satisfy this final production request.
 
 ======================================================================
 ACTIVE REQUEST 002
