@@ -52,7 +52,9 @@ class WindowsHeroHandoffPreflightTests(unittest.TestCase):
             "placeholder", "legacyprocedural", "refinementcandidates", "reviewpackaging",
             "/vehicles/", "/rivals/", "Resolve-Lod", "[char]::IsDigit",
             "MinimumVertices", "VertexBudgets", "MinimumTriangles", "TriangleBudgets",
-            "Hero MTL dependency Unity metadata", "Hero texture dependency Unity metadata",
+            "$Label Unity metadata",
+            "Assert-TrackedFileWithMeta $mtlPath 'Hero MTL dependency'",
+            "Assert-TrackedFileWithMeta $texturePath 'Hero texture dependency'",
             "READY_FOR_LICENSED_UNITY_IMPORT", "UNITY_INSPECTION_REQUIRED",
             "mutationStarted=false verified=false",
         ):
@@ -86,7 +88,8 @@ class WindowsHeroHandoffPreflightTests(unittest.TestCase):
             result = self.run_command([pwsh, "-NoProfile", "-File", str(NATIVE), "-RepoRoot", str(root), "-Source", source])
             self.assertNotEqual(result.returncode, 0, result.stdout)
             self.assertIn("AFAREET_UART003_HERO_NATIVE_PREFLIGHT_ERROR", result.stdout)
-            self.assertIn("Hero texture dependency Unity metadata is missing", result.stdout)
+            self.assertIn("Hero texture dependency", result.stdout)
+            self.assertIn("Unity metadata is missing", result.stdout)
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
