@@ -44,6 +44,7 @@ namespace Afareet.Tests.PlayMode
             player = playerObject.AddComponent<ArcadeCarController>();
 
             race = root.AddComponent<RaceDirector>();
+            RegisterTestRivals(3);
             race.Configure(player, BuildTrack());
             performance = root.AddComponent<RacePerformanceMetricsTracker>();
             performance.Configure(player, race);
@@ -73,6 +74,10 @@ namespace Afareet.Tests.PlayMode
             Assert.That(career.Navigation, Is.Not.Null);
             Assert.That(career.Navigation.SelectedNodeId, Is.EqualTo("c01_r01"));
             Assert.That(career.Navigation.SelectedNode.State, Is.EqualTo(CareerNodeState.Available));
+            Assert.That(race.RequestedActiveRivalCount, Is.EqualTo(3));
+            Assert.That(race.ActiveRivalCount, Is.EqualTo(3));
+            Assert.That(career.ActiveChallengeConfiguration.AiDifficulty.PaceMultiplier, Is.EqualTo(.88f).Within(.0001f));
+            Assert.That(career.ActiveChallengeConfiguration.AiDifficulty.AggressionMultiplier, Is.EqualTo(.90f).Within(.0001f));
 
             CompleteCurrentRace();
             yield return null;
@@ -100,6 +105,9 @@ namespace Afareet.Tests.PlayMode
             Assert.That(career.Navigation.SelectedNodeId, Is.EqualTo("c01_r02"));
             Assert.That(career.Navigation.SelectedNode.State, Is.EqualTo(CareerNodeState.Available));
             Assert.That(race.Phase, Is.EqualTo(RaceRoundPhase.Countdown));
+            Assert.That(race.RequestedActiveRivalCount, Is.Zero);
+            Assert.That(race.ActiveRivalCount, Is.Zero);
+            Assert.That(career.ActiveChallengeConfiguration.EliminationEnabled, Is.False);
             Assert.That(career.LastSettlement, Is.Null);
         }
 
@@ -107,16 +115,19 @@ namespace Afareet.Tests.PlayMode
         public IEnumerator NavigationSelection_MovesAndSelectsWithoutChangingActiveRace()
         {
             Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r01"));
+            Assert.That(race.ActiveRivalCount, Is.EqualTo(3));
 
             var moved = career.MoveCareerSelection(1);
             Assert.That(moved.SelectedNodeId, Is.EqualTo("c01_r02"));
             Assert.That(moved.SelectedNode.State, Is.EqualTo(CareerNodeState.Locked));
             Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r01"));
+            Assert.That(race.ActiveRivalCount, Is.EqualTo(3));
 
             var selected = career.SelectCareerNode("c01_boss");
             Assert.That(selected.SelectedNodeId, Is.EqualTo("c01_boss"));
             Assert.That(selected.SelectedNode.State, Is.EqualTo(CareerNodeState.Locked));
             Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r01"));
+            Assert.That(race.ActiveRivalCount, Is.EqualTo(3));
             Assert.Throws<ArgumentException>(() => career.SelectCareerNode("missing"));
             yield return null;
         }
@@ -153,8 +164,23 @@ namespace Afareet.Tests.PlayMode
             Assert.That(career.Navigation.SelectedNodeId, Is.EqualTo("c01_r02"));
             Assert.That(career.Navigation.Nodes[0].State, Is.EqualTo(CareerNodeState.Completed));
             Assert.That(career.Navigation.SelectedNode.State, Is.EqualTo(CareerNodeState.Available));
+            Assert.That(race.RequestedActiveRivalCount, Is.Zero);
+            Assert.That(race.ActiveRivalCount, Is.Zero);
             Assert.That(career.RecoveredInvalidSave, Is.False);
             Assert.That(new CareerPlayerProfileCodec().Decode(storage.Payload).Career.Stars, Is.EqualTo(3));
+        }
+
+        private void RegisterTestRivals(int count)
+        {
+            for (var index = 0; index < count; index++)
+            {
+                var rivalObject = new GameObject($"CAREER SESSION TEST RIVAL {index + 1}");
+                rivalObject.transform.SetParent(root.transform, false);
+                rivalObject.AddComponent<Rigidbody>();
+                var rival = rivalObject.AddComponent<ArcadeCarController>();
+                rivalObject.AddComponent<AiRacer>();
+                race.RegisterRival(rival);
+            }
         }
 
         private void CompleteCurrentRace()
