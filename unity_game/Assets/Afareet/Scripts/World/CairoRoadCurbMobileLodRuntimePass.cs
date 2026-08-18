@@ -189,12 +189,31 @@ namespace Afareet.World
                 if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
                     throw new InvalidOperationException($"road/curb LOD missing complete normals: {baseName} LOD{lod}");
 
-                var textured = false;
-                foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
-                    if (material != null && material.mainTexture != null) { textured = true; break; }
-                if (!textured)
-                    throw new InvalidOperationException($"road/curb LOD missing texture-mapped material: {baseName} LOD{lod}");
+                // Editor PlayMode may use RuntimeLit preview materials without texture
+                // properties. Player runtime keeps imported authored source materials.
+                if (!Application.isEditor)
+                {
+                    var textured = false;
+                    foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
+                    {
+                        if (HasBoundTexture(material))
+                        {
+                            textured = true;
+                            break;
+                        }
+                    }
+                    if (!textured)
+                        throw new InvalidOperationException($"road/curb LOD missing texture-mapped material: {baseName} LOD{lod}");
+                }
             }
+        }
+
+        private static bool HasBoundTexture(Material material)
+        {
+            if (material == null) return false;
+            if (material.HasProperty("_MainTex") && material.GetTexture("_MainTex") != null) return true;
+            if (material.HasProperty("_BaseMap") && material.GetTexture("_BaseMap") != null) return true;
+            return false;
         }
 
         private static HashSet<Mesh> CollectMeshes(Renderer[] renderers)

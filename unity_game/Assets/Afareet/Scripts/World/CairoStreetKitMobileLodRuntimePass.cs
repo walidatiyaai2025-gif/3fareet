@@ -248,18 +248,31 @@ namespace Afareet.World
                 if (meshTriangles <= 0)
                     throw new InvalidOperationException($"UART-005 mobile LOD mesh has no triangles: {baseName} LOD{lod}");
 
-                var textured = false;
-                foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
+                // Editor PlayMode deliberately substitutes temporary RuntimeLit preview
+                // materials. Player builds preserve imported authored source materials.
+                if (!Application.isEditor)
                 {
-                    if (material != null && material.mainTexture != null)
+                    var textured = false;
+                    foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
                     {
-                        textured = true;
-                        break;
+                        if (HasBoundTexture(material))
+                        {
+                            textured = true;
+                            break;
+                        }
                     }
+                    if (!textured)
+                        throw new InvalidOperationException($"UART-005 mobile LOD renderer has no texture-mapped material: {baseName} LOD{lod}");
                 }
-                if (!textured)
-                    throw new InvalidOperationException($"UART-005 mobile LOD renderer has no texture-mapped material: {baseName} LOD{lod}");
             }
+        }
+
+        private static bool HasBoundTexture(Material material)
+        {
+            if (material == null) return false;
+            if (material.HasProperty("_MainTex") && material.GetTexture("_MainTex") != null) return true;
+            if (material.HasProperty("_BaseMap") && material.GetTexture("_BaseMap") != null) return true;
+            return false;
         }
 
         private static HashSet<Mesh> CollectMeshes(Renderer[] renderers)
