@@ -245,6 +245,9 @@ namespace Afareet.Race
 
     public sealed class PowerUpRaceRuntime
     {
+        private static readonly PowerUpKind[] AllPowerUpKinds =
+            (PowerUpKind[])Enum.GetValues(typeof(PowerUpKind));
+
         private sealed class InventorySlot
         {
             public int InitialCharges { get; }
@@ -336,10 +339,11 @@ namespace Afareet.Race
         {
             ValidateRaceTime(raceTimeSeconds);
             var racer = GetRacerOrThrow(racerId);
-            var snapshot = new List<PowerUpInventorySnapshot>();
+            var snapshot = new List<PowerUpInventorySnapshot>(AllPowerUpKinds.Length);
 
-            foreach (PowerUpKind kind in Enum.GetValues(typeof(PowerUpKind)))
+            for (var index = 0; index < AllPowerUpKinds.Length; index++)
             {
+                var kind = AllPowerUpKinds[index];
                 var slot = racer.Inventory[kind];
                 snapshot.Add(new PowerUpInventorySnapshot(
                     kind,
@@ -354,14 +358,18 @@ namespace Afareet.Race
             string racerId,
             double raceTimeSeconds)
         {
-            var inventory = GetInventorySnapshot(racerId, raceTimeSeconds);
-            var availability = new List<AiPowerUpAvailability>(inventory.Count);
-            foreach (var item in inventory)
+            ValidateRaceTime(raceTimeSeconds);
+            var racer = GetRacerOrThrow(racerId);
+            var availability = new List<AiPowerUpAvailability>(AllPowerUpKinds.Length);
+
+            for (var index = 0; index < AllPowerUpKinds.Length; index++)
             {
+                var kind = AllPowerUpKinds[index];
+                var slot = racer.Inventory[kind];
                 availability.Add(new AiPowerUpAvailability(
-                    item.Kind,
-                    item.Charges,
-                    item.CooldownRemainingSeconds));
+                    kind,
+                    slot.Charges,
+                    Math.Max(0d, slot.ReadyAtSeconds - raceTimeSeconds)));
             }
 
             return availability.AsReadOnly();
