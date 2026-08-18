@@ -51,3 +51,15 @@ unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated.me
 # Python generated caches
 __pycache__/
 *.py[cod]
+
+# Unity Performance Testing package build-generated Resources
+unity_game/Assets/Resources.meta
+unity_game/Assets/Resources/PerformanceTestRunInfo.json
+unity_game/Assets/Resources/PerformanceTestRunInfo.json.meta
+unity_game/Assets/Resources/PerformanceTestRunSettings.json
+unity_game/Assets/Resources/PerformanceTestRunSettings.json.meta
+unity_game/Assets/Afareet/Resources/Art/Architecture.meta
+unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing.meta

@@ -55,6 +55,20 @@ if (-not (Test-Path $androidPlayer -PathType Container)) {
     Fail "Unity Android Build Support is not installed under: $androidPlayer"
 }
 
+$UnitySdk = Join-Path $androidPlayer "SDK"
+$UnityApi36 = Join-Path $UnitySdk "platforms\android-36"
+$UnityCmake = Join-Path $UnitySdk "cmake\3.22.1"
+if (-not (Test-Path $UnitySdk -PathType Container)) {
+    Fail "Unity-managed Android SDK is missing: $UnitySdk"
+}
+if (-not (Test-Path $UnityApi36 -PathType Container)) {
+    Fail "Unity-managed Android SDK does not contain API 36: $UnityApi36"
+}
+if (-not (Test-Path $UnityCmake -PathType Container)) {
+    Fail "Unity-managed Android SDK does not contain CMake 3.22.1: $UnityCmake"
+}
+Write-Host "AFAREET_EXPERIMENTAL_ANDROID_SDK_PIN sdk=$UnitySdk targetApi=36"
+
 $ArtifactDir = Join-Path $RepoRoot "artifacts\android-experimental"
 $LogDir = Join-Path $RepoRoot "artifacts\logs"
 New-Item -ItemType Directory -Force -Path $ArtifactDir, $LogDir | Out-Null
@@ -77,7 +91,18 @@ $unityArgs = @(
     '-executeMethod', 'Afareet.Editor.AfareetBuild.BuildAndroidExperimental',
     '-logFile', ('"{0}"' -f $LogPath)
 )
-$unityProcess = Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru
+$previousAfareetSdk = $env:AFAREET_ANDROID_SDK_ROOT
+try {
+    $env:AFAREET_ANDROID_SDK_ROOT = $UnitySdk
+    $unityProcess = Start-Process -FilePath $UnityPath -ArgumentList $unityArgs -Wait -PassThru
+}
+finally {
+    if ([string]::IsNullOrWhiteSpace($previousAfareetSdk)) {
+        Remove-Item Env:AFAREET_ANDROID_SDK_ROOT -ErrorAction SilentlyContinue
+    } else {
+        $env:AFAREET_ANDROID_SDK_ROOT = $previousAfareetSdk
+    }
+}
 if ($unityProcess.ExitCode -ne 0) {
     Get-Content $LogPath -Tail 180 -ErrorAction SilentlyContinue | Write-Host
     Fail "Unity exited with code $($unityProcess.ExitCode). See $LogPath"
@@ -93,7 +118,7 @@ if (-not (Test-Path $ApkPath -PathType Leaf) -or (Get-Item $ApkPath).Length -le 
     Fail "Experimental APK is missing or empty: $ApkPath"
 }
 
-$sdkCandidates = @()
+$sdkCandidates = @($UnitySdk)
 foreach ($value in @($env:AFAREET_ANDROID_SDK_ROOT, $env:ANDROID_SDK_ROOT, $env:ANDROID_HOME)) {
     if (-not [string]::IsNullOrWhiteSpace($value)) { $sdkCandidates += $value }
 }
