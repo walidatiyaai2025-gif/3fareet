@@ -41,17 +41,47 @@ class P1ProductionArtFingerprintTests(unittest.TestCase):
         evidence.mkdir()
         apk_sha = "b" * 64
 
-        required = json.loads((TOOLS_DIR / "p1_production_art_spec.json").read_text(encoding="utf-8"))["requiredTasks"]
+        spec_payload = json.loads((TOOLS_DIR / "p1_production_art_spec.json").read_text(encoding="utf-8"))
+        required = spec_payload["requiredTasks"]
+        uart004_policy = spec_payload["taskArtifactPolicies"]["UART-004"]
         assets = {}
+
         for index, task_id in enumerate(required):
-            source = repo / f"Assets/{task_id}/source/model_{index}.obj"
-            runtime = repo / f"unity_game/Assets/{task_id}/runtime_{index}.prefab"
             shot = evidence / f"{task_id.lower()}.png"
-            source.parent.mkdir(parents=True, exist_ok=True)
-            runtime.parent.mkdir(parents=True, exist_ok=True)
-            source.write_bytes(f"source-{task_id}".encode())
-            runtime.write_bytes(f"runtime-{task_id}".encode())
             shot.write_bytes(f"evidence-{task_id}".encode())
+
+            if task_id == "UART-003":
+                source = repo / "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing_Production.obj"
+                runtime = repo / "unity_game/Assets/UART-003/runtime_0.prefab"
+                source.parent.mkdir(parents=True, exist_ok=True)
+                runtime.parent.mkdir(parents=True, exist_ok=True)
+                source.write_bytes(b"source-UART-003")
+                runtime.write_bytes(b"runtime-UART-003")
+                source_files = [{"path": source.relative_to(repo).as_posix()}]
+                runtime_assets = [{"path": runtime.relative_to(repo).as_posix()}]
+            elif task_id == "UART-004":
+                source_files = []
+                runtime_assets = []
+                for source_relative in uart004_policy["exactAuthored3DSourcePaths"]:
+                    source = repo / source_relative
+                    source.parent.mkdir(parents=True, exist_ok=True)
+                    source.write_bytes(f"source-{source.name}".encode())
+                    source_files.append({"path": source.relative_to(repo).as_posix()})
+                for runtime_relative in uart004_policy["requiredRuntimeAssetPaths"]:
+                    runtime = repo / runtime_relative
+                    runtime.parent.mkdir(parents=True, exist_ok=True)
+                    runtime.write_bytes(f"runtime-{runtime.name}".encode())
+                    runtime_assets.append({"path": runtime.relative_to(repo).as_posix()})
+            else:
+                source = repo / f"Assets/{task_id}/source/model_{index}.obj"
+                runtime = repo / f"unity_game/Assets/{task_id}/runtime_{index}.prefab"
+                source.parent.mkdir(parents=True, exist_ok=True)
+                runtime.parent.mkdir(parents=True, exist_ok=True)
+                source.write_bytes(f"source-{task_id}".encode())
+                runtime.write_bytes(f"runtime-{task_id}".encode())
+                source_files = [{"path": source.relative_to(repo).as_posix()}]
+                runtime_assets = [{"path": runtime.relative_to(repo).as_posix()}]
+
             assets[task_id] = {
                 "reviewState": "ACCEPTED",
                 "quality": "production",
@@ -59,8 +89,8 @@ class P1ProductionArtFingerprintTests(unittest.TestCase):
                 "runtimeActive": True,
                 "proceduralFallbackActive": False,
                 "ownerAccepted": True,
-                "sourceFiles": [{"path": source.relative_to(repo).as_posix()}],
-                "runtimeAssets": [{"path": runtime.relative_to(repo).as_posix()}],
+                "sourceFiles": source_files,
+                "runtimeAssets": runtime_assets,
                 "evidence": [{"kind": "screenshot", "path": shot.name}],
             }
 
@@ -97,7 +127,7 @@ class P1ProductionArtFingerprintTests(unittest.TestCase):
             second, second_count = FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
 
             self.assertEqual(first, second)
-            self.assertEqual(18, first_count)
+            self.assertEqual(22, first_count)
             self.assertEqual(first_count, second_count)
             self.assertNotIn("sha256", original["assets"]["UART-003"]["sourceFiles"][0])
 
@@ -110,9 +140,10 @@ class P1ProductionArtFingerprintTests(unittest.TestCase):
                 expected_apk_sha=apk_sha,
             )
             self.assertTrue(result["artifactFingerprintsVerified"])
-            self.assertEqual(18, result["artifactFingerprintCount"])
+            self.assertEqual(22, result["artifactFingerprintCount"])
             self.assertTrue(result["gitCandidateHeadVerified"])
-            self.assertEqual(12, result["gitTrackedArtifactCount"])
+            self.assertEqual(16, result["gitTrackedArtifactCount"])
+            self.assertTrue(result["taskArtifactPolicyVerified"])
 
     def test_tamper_after_fingerprinting_is_rejected_by_gate(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -158,11 +189,35 @@ class P1ProductionArtFingerprintTests(unittest.TestCase):
     def test_fingerprinter_rejects_untracked_repo_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
             repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
-            extra = repo / "Assets/UART-003/source/untracked.obj"
+            extra = repo / "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/untracked.obj"
             extra.write_bytes(b"untracked")
             manifest["assets"]["UART-003"]["sourceFiles"] = [{"path": extra.relative_to(repo).as_posix()}]
             path.write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(GATE.ProductionArtGateError, "is not tracked by candidate Git commit"):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_fingerprinter_rejects_uart003_rival_role_before_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            manifest["assets"]["UART-003"]["sourceFiles"] = [
+                dict(manifest["assets"]["UART-004"]["sourceFiles"][0])
+            ]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(
+                GATE.ProductionArtGateError,
+                "UART-003 authored 3D source uses forbidden role segment: rivals",
+            ):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_fingerprinter_rejects_incomplete_uart004_source_set_before_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            manifest["assets"]["UART-004"]["sourceFiles"] = manifest["assets"]["UART-004"]["sourceFiles"][:-1]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(
+                GATE.ProductionArtGateError,
+                "UART-004 authored 3D source set must exactly match production policy",
+            ):
                 FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
 
     def test_output_must_stay_beside_input_and_never_overwrite(self):

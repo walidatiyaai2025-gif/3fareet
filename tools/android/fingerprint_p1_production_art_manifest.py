@@ -4,8 +4,11 @@
 The input manifest remains untouched. The output must live beside the input so
 relative screenshot/video paths keep the same evidence root. Repository source
 and runtime artifacts must already be tracked by, and byte-identical to, the
-manifest's exact candidate Git commit. This helper does not grant acceptance,
-publish, or mark any candidate VERIFIED.
+manifest's exact candidate Git commit. Source/runtime declarations must also
+satisfy the same task-specific production-art policy enforced by the final gate,
+so the helper cannot emit a fingerprinted manifest that is already structurally
+invalid for UART-003/UART-004 source authority. This helper does not grant
+acceptance, publish, or mark any candidate VERIFIED.
 """
 
 from __future__ import annotations
@@ -67,6 +70,15 @@ def fingerprint_manifest(
     _require(isinstance(required_tasks, list) and required_tasks, "production-art spec has no requiredTasks")
     assets = manifest.get("assets")
     _require(isinstance(assets, dict), "assets map is missing")
+    task_artifact_policies = spec.get("taskArtifactPolicies", {})
+    _require(isinstance(task_artifact_policies, dict), "production-art taskArtifactPolicies must be an object")
+
+    allowed_source_suffixes = {str(x).lower() for x in spec.get("allowedAuthored3DSuffixes", [])}
+    forbidden_source_segments = {
+        str(x).strip().lower()
+        for x in spec.get("forbiddenAuthoredSourcePathSegments", [])
+        if str(x).strip()
+    }
 
     result = copy.deepcopy(manifest)
     result_assets = result["assets"]
@@ -85,23 +97,38 @@ def fingerprint_manifest(
         _require(isinstance(runtime_assets, list) and runtime_assets, f"{task_id} runtimeAssets must be non-empty")
         _require(isinstance(evidence, list) and evidence, f"{task_id} visual evidence must be non-empty")
 
+        authored_source_paths: list[str] = []
         for index, raw in enumerate(source_files):
             label = f"{task_id} sourceFiles[{index}]"
             item = _path_record(raw, label)
             path = gate._safe_repo_file(repo_root, str(item["path"]), label)
+            gate._reject_forbidden_source_segments(path, repo_root, forbidden_source_segments, label)
             digest = gate._sha256_file(path)
             item["sha256"] = digest
             repo_artifacts.append((path, digest, label))
             fingerprint_count += 1
+            if path.suffix.lower() in allowed_source_suffixes:
+                authored_source_paths.append(path.relative_to(repo_root).as_posix())
 
+        _require(authored_source_paths, f"{task_id} has no authored 3D source file with an allowed suffix")
+
+        runtime_asset_paths: list[str] = []
         for index, raw in enumerate(runtime_assets):
             label = f"{task_id} runtimeAssets[{index}]"
             item = _path_record(raw, label)
             path = gate._safe_repo_file(repo_root, str(item["path"]), label)
             digest = gate._sha256_file(path)
             item["sha256"] = digest
+            runtime_asset_paths.append(path.relative_to(repo_root).as_posix())
             repo_artifacts.append((path, digest, label))
             fingerprint_count += 1
+
+        gate._require_task_artifact_policy(
+            task_id,
+            task_artifact_policies.get(task_id),
+            authored_source_paths,
+            runtime_asset_paths,
+        )
 
         for index, raw in enumerate(evidence):
             label = f"{task_id} evidence[{index}]"
@@ -126,7 +153,7 @@ def write_fingerprinted_manifest(*, input_path: Path, output_path: Path, payload
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Populate exact SHA-256 fingerprints for schema-v2 P1 production-art paths from the exact candidate Git worktree."
+        description="Populate exact SHA-256 fingerprints for a source-policy-valid schema-v2 P1 production-art manifest from the exact candidate Git worktree."
     )
     parser.add_argument("--manifest", required=True, help="Unfingerprinted schema-v2 production-art manifest template.")
     parser.add_argument("--repo-root", default=".", help="Exact candidate Git worktree root used to resolve source/runtime asset paths.")
@@ -151,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(
             "AFAREET_PRODUCTION_ART_FINGERPRINT_OK "
-            f"artifacts={count} gitCandidateBound=true schemaVersion=2 verified=false output={output}"
+            f"artifacts={count} gitCandidateBound=true taskArtifactPolicy=true schemaVersion=2 verified=false output={output}"
         )
         return 0
     except (

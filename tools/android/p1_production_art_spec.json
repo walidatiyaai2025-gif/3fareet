@@ -25,9 +25,37 @@
   ],
   "forbiddenAuthoredSourcePathSegments": [
     "generated",
+    "placeholder",
+    "legacyprocedural",
     "preview",
-    "blockout"
+    "refinement",
+    "refinementcandidates",
+    "blockout",
+    "review",
+    "reviewpackaging"
   ],
+  "taskArtifactPolicies": {
+    "UART-003": {
+      "requiredAuthored3DPathSegments": [
+        "vehicles"
+      ],
+      "forbiddenAuthored3DPathSegments": [
+        "rivals"
+      ]
+    },
+    "UART-004": {
+      "exactAuthored3DSourcePaths": [
+        "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj",
+        "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj",
+        "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj"
+      ],
+      "requiredRuntimeAssetPaths": [
+        "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/PF_Rival_01_Production.prefab",
+        "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/PF_Rival_02_Production.prefab",
+        "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/PF_Rival_03_Production.prefab"
+      ]
+    }
+  },
   "allowedVisualEvidenceKinds": [
     "screenshot",
     "video"

@@ -9,8 +9,10 @@ or blockout fallback as the production path.
 Every reviewed source, runtime asset and screenshot/video is SHA-256 pinned so
 changing bytes after review invalidates the manifest even when the path stays
 unchanged. Repository source/runtime artifacts are additionally proven to be
-tracked by, and byte-identical to, the exact candidate Git commit. It never
-marks an APK VERIFIED.
+tracked by, and byte-identical to, the exact candidate Git commit. Task-specific
+source/runtime policy is also enforced so acceptance evidence cannot name art
+that the production Unity pipeline itself would reject. It never marks an APK
+VERIFIED.
 """
 
 from __future__ import annotations
@@ -111,6 +113,80 @@ def _reject_forbidden_source_segments(path: Path, repo_root: Path, forbidden_seg
         )
 
 
+def _require_policy_string_list(value: Any, label: str) -> list[str]:
+    _require(isinstance(value, list), f"{label} must be a list")
+    result: list[str] = []
+    for index, raw in enumerate(value):
+        normalized = str(raw or "").strip().replace("\\", "/")
+        _require(bool(normalized), f"{label}[{index}] is empty")
+        result.append(normalized)
+    _require(len(result) == len(set(result)), f"{label} contains duplicate entries")
+    return result
+
+
+def _require_task_artifact_policy(
+    task_id: str,
+    policy: Any,
+    authored_source_paths: list[str],
+    runtime_asset_paths: list[str],
+) -> None:
+    if policy is None:
+        return
+    _require(isinstance(policy, dict), f"{task_id} taskArtifactPolicy must be an object")
+
+    required_segments = _require_policy_string_list(
+        policy.get("requiredAuthored3DPathSegments", []),
+        f"{task_id} requiredAuthored3DPathSegments",
+    )
+    forbidden_segments = _require_policy_string_list(
+        policy.get("forbiddenAuthored3DPathSegments", []),
+        f"{task_id} forbiddenAuthored3DPathSegments",
+    )
+
+    required_segments_lower = {segment.lower() for segment in required_segments}
+    forbidden_segments_lower = {segment.lower() for segment in forbidden_segments}
+    for relative in authored_source_paths:
+        parts = {part.lower() for part in Path(relative).parts}
+        missing = sorted(required_segments_lower.difference(parts))
+        if missing:
+            raise ProductionArtGateError(
+                f"{task_id} authored 3D source is outside required role segment: {missing[0]} path={relative}"
+            )
+        blocked = sorted(parts.intersection(forbidden_segments_lower))
+        if blocked:
+            raise ProductionArtGateError(
+                f"{task_id} authored 3D source uses forbidden role segment: {blocked[0]} path={relative}"
+            )
+
+    exact_sources_raw = policy.get("exactAuthored3DSourcePaths")
+    if exact_sources_raw is not None:
+        expected_sources = set(
+            _require_policy_string_list(exact_sources_raw, f"{task_id} exactAuthored3DSourcePaths")
+        )
+        actual_sources = set(authored_source_paths)
+        _require(
+            len(authored_source_paths) == len(actual_sources),
+            f"{task_id} authored 3D source paths must not contain duplicates",
+        )
+        _require(
+            actual_sources == expected_sources,
+            f"{task_id} authored 3D source set must exactly match production policy; "
+            f"expected={sorted(expected_sources)} actual={sorted(actual_sources)}",
+        )
+
+    required_runtime_raw = policy.get("requiredRuntimeAssetPaths")
+    if required_runtime_raw is not None:
+        required_runtime = set(
+            _require_policy_string_list(required_runtime_raw, f"{task_id} requiredRuntimeAssetPaths")
+        )
+        actual_runtime = set(runtime_asset_paths)
+        missing_runtime = sorted(required_runtime.difference(actual_runtime))
+        if missing_runtime:
+            raise ProductionArtGateError(
+                f"{task_id} required production runtime asset is missing from evidence: {missing_runtime[0]}"
+            )
+
+
 def _git(repo_root: Path, *args: str, text: bool = True) -> subprocess.CompletedProcess[Any]:
     try:
         return subprocess.run(
@@ -195,6 +271,8 @@ def verify_art_manifest(
     _require(isinstance(assets, dict), "assets map is missing")
     required_tasks = spec.get("requiredTasks")
     _require(isinstance(required_tasks, list) and required_tasks, "production-art spec has no requiredTasks")
+    task_artifact_policies = spec.get("taskArtifactPolicies", {})
+    _require(isinstance(task_artifact_policies, dict), "production-art taskArtifactPolicies must be an object")
 
     accepted: list[str] = []
     evidence_count = 0
@@ -223,7 +301,7 @@ def verify_art_manifest(
         _require(isinstance(runtime_assets, list) and runtime_assets, f"{task_id} runtimeAssets must be non-empty")
         _require(isinstance(evidence, list) and evidence, f"{task_id} visual evidence must be non-empty")
 
-        authored_source_seen = False
+        authored_source_paths: list[str] = []
         for index, raw in enumerate(source_files):
             label = f"{task_id} sourceFiles[{index}]"
             item = _require_hashed_file_record(raw, label)
@@ -233,16 +311,25 @@ def verify_art_manifest(
             repo_artifacts.append((path, digest, label))
             fingerprint_count += 1
             if path.suffix.lower() in allowed_source_suffixes:
-                authored_source_seen = True
-        _require(authored_source_seen, f"{task_id} has no authored 3D source file with an allowed suffix")
+                authored_source_paths.append(path.relative_to(repo_root).as_posix())
+        _require(authored_source_paths, f"{task_id} has no authored 3D source file with an allowed suffix")
 
+        runtime_asset_paths: list[str] = []
         for index, raw in enumerate(runtime_assets):
             label = f"{task_id} runtimeAssets[{index}]"
             item = _require_hashed_file_record(raw, label)
             path = _safe_repo_file(repo_root, str(item["path"]), label)
             digest = _verify_file_fingerprint(path, item.get("sha256"), label)
+            runtime_asset_paths.append(path.relative_to(repo_root).as_posix())
             repo_artifacts.append((path, digest, label))
             fingerprint_count += 1
+
+        _require_task_artifact_policy(
+            task_id,
+            task_artifact_policies.get(task_id),
+            authored_source_paths,
+            runtime_asset_paths,
+        )
 
         visual_evidence_seen = False
         for index, raw in enumerate(evidence):
@@ -276,6 +363,7 @@ def verify_art_manifest(
         "gitCandidateHeadVerified": True,
         "gitTrackedArtifactCount": git_artifact_count,
         "gitTrackedArtifactsVerified": True,
+        "taskArtifactPolicyVerified": True,
         "proceduralFallbackAccepted": False,
     }
 
