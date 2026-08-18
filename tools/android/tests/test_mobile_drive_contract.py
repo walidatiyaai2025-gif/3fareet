@@ -38,12 +38,13 @@ class MobileDriveContractTests(unittest.TestCase):
             "CalibrateMotionInput();",
             "RecalibrateIfLandscapeOrientationChanged();",
             "private void OnApplicationFocus(bool hasFocus)",
+            "MobileDriveInputPolicy.ResolveLandscapeSteeringTilt(",
             "MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt)",
             "MobileDriveInputPolicy.ResolveTiltCruiseThrottle(forwardTilt)",
             "MobileDriveInputPolicy.SmoothTiltSteer(",
             "MobileDriveInputPolicy.SmoothTiltThrottle(",
             "InvalidateMotionCalibration();",
-            '"TILT DRIVE • AUTO CRUISE"',
+            '"HYBRID DRIVE • TILT + TOUCH"',
             '"TOUCH DRIVE"',
         ):
             self.assertIn(required, hud)
@@ -66,7 +67,7 @@ class MobileDriveContractTests(unittest.TestCase):
         self.assertNotIn("brakeInput = forwardTilt", hud)
         self.assertNotIn("throttleInput = forwardTilt", hud)
 
-    def test_motion_mode_hides_and_disables_continuous_touch_controls_only(self):
+    def test_motion_mode_keeps_touch_controls_visible_and_active_for_hybrid_drive(self):
         hud = HUD_PATH.read_text(encoding="utf-8")
         draw_start = hud.index("private void DrawTouchControls()")
         pointer_start = hud.index("private void ApplyPointer(Vector2 point)")
@@ -75,23 +76,45 @@ class MobileDriveContractTests(unittest.TestCase):
         pointer_body = hud[pointer_start:recover_start]
 
         self.assertIn("var motionDriving = MotionDrivingActive;", draw_body)
-        self.assertGreaterEqual(draw_body.count("if (!motionDriving)"), 2)
-        for exceptional in (
+        self.assertNotIn("if (!motionDriving)", draw_body)
+        for control in (
+            'GUI.Box(LeftRect(), "<"',
+            'GUI.Box(RightRect(), ">"',
+            'GUI.Box(ThrottleRect(), "GO"',
             'GUI.Box(BrakeReverseRect(), "BRAKE / REV"',
             'GUI.Box(RecoverRect(), "RECOVER"',
             'GUI.Box(DriftRect(), "DRIFT"',
             'GUI.Box(NitroRect(), "SPIRIT"',
+            '"HYBRID DRIVE • TILT + TOUCH"',
         ):
-            self.assertIn(exceptional, draw_body)
+            self.assertIn(control, draw_body)
 
-        self.assertIn("if (!MotionDrivingActive)", pointer_body)
-        continuous_start = pointer_body.index("if (!MotionDrivingActive)")
-        continuous_end = pointer_body.index("if (BrakeReverseRect().Contains(point))")
-        continuous_block = pointer_body[continuous_start:continuous_end]
-        for continuous in ("LeftRect().Contains(point)", "RightRect().Contains(point)", "ThrottleRect().Contains(point)"):
-            self.assertIn(continuous, continuous_block)
-        for exceptional in ("BrakeReverseRect().Contains(point)", "DriftRect().Contains(point)", "NitroRect().Contains(point)"):
-            self.assertIn(exceptional, pointer_body[continuous_end:])
+        self.assertNotIn("if (!MotionDrivingActive)", pointer_body)
+        for continuous in (
+            "LeftRect().Contains(point)",
+            "RightRect().Contains(point)",
+            "ThrottleRect().Contains(point)",
+        ):
+            self.assertIn(continuous, pointer_body)
+        for exceptional in (
+            "BrakeReverseRect().Contains(point)",
+            "DriftRect().Contains(point)",
+            "NitroRect().Contains(point)",
+        ):
+            self.assertIn(exceptional, pointer_body)
+
+    def test_landscape_motion_steering_axis_matches_owner_device_feedback(self):
+        hud = HUD_PATH.read_text(encoding="utf-8")
+        policy = POLICY_PATH.read_text(encoding="utf-8")
+        self.assertIn("MobileDriveInputPolicy.ResolveLandscapeSteeringTilt(", hud)
+        self.assertIn(
+            "return landscapeRight ? -deviceYDelta : deviceYDelta;",
+            policy,
+        )
+        self.assertNotIn(
+            "var steeringTilt = landscapeRight ? acceleration.y : -acceleration.y;",
+            hud,
+        )
 
     def test_recovery_clears_latched_vehicle_inputs(self):
         controller = CONTROLLER_PATH.read_text(encoding="utf-8")

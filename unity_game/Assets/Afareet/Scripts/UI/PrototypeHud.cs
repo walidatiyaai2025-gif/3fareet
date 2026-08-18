@@ -143,7 +143,13 @@ namespace Afareet.UI
 
             var acceleration = Input.acceleration - motionBaseline;
             var landscapeRight = Screen.orientation == ScreenOrientation.LandscapeRight;
-            var steeringTilt = landscapeRight ? acceleration.y : -acceleration.y;
+
+            // Owner device acceptance on ALI-NX1 showed the former landscape Y mapping
+            // was physically reversed. Keep pitch/throttle semantics unchanged and invert
+            // only the steering axis: tilt right => steer right, tilt left => steer left.
+            var steeringTilt = MobileDriveInputPolicy.ResolveLandscapeSteeringTilt(
+                acceleration.y,
+                landscapeRight);
             var forwardTilt = landscapeRight ? acceleration.x : -acceleration.x;
 
             var tiltSteerTarget = MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt);
@@ -273,34 +279,32 @@ namespace Afareet.UI
         private void DrawTouchControls()
         {
             var motionDriving = MotionDrivingActive;
-            if (!motionDriving)
-            {
-                GUI.Box(LeftRect(), "<", steerInput < 0f ? activeButton : button);
-                GUI.Box(RightRect(), ">", steerInput > 0f ? activeButton : button);
-            }
 
+            // Hybrid mode: motion steering/auto-cruise remains available, but the driver
+            // always keeps explicit LEFT/RIGHT/GO controls. This avoids a hidden mode switch
+            // and lets touch input override the sensor in the same frame.
+            GUI.Box(LeftRect(), "<", steerInput < 0f ? activeButton : button);
+            GUI.Box(RightRect(), ">", steerInput > 0f ? activeButton : button);
             GUI.Box(BrakeReverseRect(), "BRAKE / REV", brakeReverseInput ? activeButton : button);
             GUI.Box(RecoverRect(), "RECOVER", button);
             GUI.Box(DriftRect(), "DRIFT", driftInput ? activeButton : button);
             GUI.Box(NitroRect(), "SPIRIT", nitroInput ? activeButton : button);
-
-            if (!motionDriving)
-                GUI.Box(ThrottleRect(), "GO", throttleInput > 0f ? activeButton : button);
+            GUI.Box(ThrottleRect(), "GO", throttleInput > 0f ? activeButton : button);
 
             GUI.Label(
-                new Rect(canvasWidth * .5f - 150f, canvasHeight - safeBottom - 42f, 300f, 24f),
-                motionDriving ? "TILT DRIVE • AUTO CRUISE" : "TOUCH DRIVE",
+                new Rect(canvasWidth * .5f - 170f, canvasHeight - safeBottom - 42f, 340f, 24f),
+                motionDriving ? "HYBRID DRIVE • TILT + TOUCH" : "TOUCH DRIVE",
                 micro);
         }
 
         private void ApplyPointer(Vector2 point)
         {
-            if (!MotionDrivingActive)
-            {
-                if (LeftRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(-1f);
-                if (RightRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(1f);
-                if (ThrottleRect().Contains(point)) throttleInput = 1f;
-            }
+            // ApplyMotionControls runs before pointer processing each frame. Therefore these
+            // explicit touch controls are a deterministic immediate override while tilt keeps
+            // working whenever the driver releases the buttons.
+            if (LeftRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(-1f);
+            if (RightRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(1f);
+            if (ThrottleRect().Contains(point)) throttleInput = 1f;
 
             if (BrakeReverseRect().Contains(point)) brakeReverseInput = true;
             if (DriftRect().Contains(point)) driftInput = true;

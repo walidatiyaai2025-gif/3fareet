@@ -28,6 +28,17 @@ namespace Afareet.Vehicle
             return Mathf.Clamp(direction, -1f, 1f) * TouchSteerMagnitude;
         }
 
+        /// <summary>
+        /// Converts Unity's device-space accelerometer Y delta into the race steering
+        /// convention after landscape orientation is known. The sign is intentionally
+        /// inverted from the previous runtime mapping after physical-device owner feedback:
+        /// a rightward phone tilt must produce right steering and vice versa.
+        /// </summary>
+        public static float ResolveLandscapeSteeringTilt(float deviceYDelta, bool landscapeRight)
+        {
+            return landscapeRight ? -deviceYDelta : deviceYDelta;
+        }
+
         public static float ResolveTiltSteer(float steeringTilt)
         {
             var normalized = ResolveSignedDeadZone(steeringTilt, TiltDeadZone);
