@@ -14,6 +14,17 @@ function Fail([string]$Message) {
     throw "AFAREET_P1_STAGING_HANDOFF_ERROR: $Message"
 }
 
+function Normalize-HeroSource([string]$Value) {
+    $normalized = (($Value ?? '').Trim().Trim('"') -replace '\\', '/')
+    while ($normalized.StartsWith('./', [System.StringComparison]::Ordinal)) {
+        $normalized = $normalized.Substring(2)
+    }
+    if ($normalized.StartsWith('unity_game/Assets/', [System.StringComparison]::Ordinal)) {
+        $normalized = $normalized.Substring('unity_game/'.Length)
+    }
+    return $normalized
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {
@@ -76,9 +87,9 @@ function Assert-TrackedNonEmptyFile([string]$RepoRelative, [string]$Label) {
     return $item.Length
 }
 
-$HeroSource = ($HeroSource.Trim().Trim('"') -replace '\\', '/')
+$HeroSource = Normalize-HeroSource $HeroSource
 if (-not $HeroSource.StartsWith('Assets/', [System.StringComparison]::Ordinal)) {
-    Fail "HeroSource must be a Unity Assets/ path, for example Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing.fbx"
+    Fail "HeroSource must normalize to a Unity Assets/ path, for example Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing.fbx"
 }
 if ($HeroSource.Contains('../')) {
     Fail "HeroSource cannot contain ../ traversal: $HeroSource"
