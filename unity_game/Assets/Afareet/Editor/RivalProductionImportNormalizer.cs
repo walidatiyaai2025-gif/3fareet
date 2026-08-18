@@ -6,44 +6,39 @@ using UnityEngine;
 namespace Afareet.Editor
 {
     /// <summary>
-    /// Normalizes only importer settings for the three tracked UART-004 OBJ sources.
-    /// This does not create geometry or production prefabs. It asks Unity's ModelImporter
-    /// to preserve the authored object hierarchy and source vertex/material data before
-    /// the read-only UART-004 source preflight evaluates imported Mesh sub-assets.
+    /// Normalizes only importer settings for the three isolated UART-004 production OBJ exchanges.
+    /// Historical authored-review sources are deliberately outside RivalProductionPolicy.ProductionSourceRoot
+    /// and are not touched by this production normalizer. This does not create geometry or prefabs.
     /// </summary>
     public static class RivalProductionImportNormalizer
     {
-        private const string MenuPath = "Afareet/P1/Rivals/Normalize UART-004 Imports";
-
-        private static readonly string[] SourcePaths =
-        {
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj"
-        };
+        private const string MenuPath = "Afareet/P1/Rivals/Normalize UART-004 Production Imports";
 
         [MenuItem(MenuPath)]
         public static void NormalizeCurrentSourcesOrThrow()
         {
             RivalProductionPolicy.ValidateContract();
-            if (SourcePaths.Length != RivalProductionPolicy.VariantCount)
-                throw new InvalidOperationException("UART-004 import normalizer must define exactly three tracked rival sources.");
 
-            for (var variant = 0; variant < SourcePaths.Length; variant++)
-                NormalizeSourceOrThrow(variant, SourcePaths[variant]);
+            for (var variant = 0; variant < RivalProductionPolicy.VariantCount; variant++)
+                NormalizeSourceOrThrow(variant, RivalProductionPolicy.StagingSourcePath(variant));
 
             Debug.Log(
                 "AFAREET_UART004_IMPORT_NORMALIZE_ALL_OK variants=3 preserveHierarchy=true " +
+                $"sourceRoot={RivalProductionPolicy.ProductionSourceRoot} reviewSourcesRejected=true " +
                 "optimizeMeshPolygons=false optimizeMeshVertices=false weldVertices=false " +
                 "normals=import materials=standard geometryGenerated=false productionPromotion=false");
         }
 
         private static void NormalizeSourceOrThrow(int variant, string sourcePath)
         {
+            if (!RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath))
+                throw new InvalidOperationException(
+                    $"UART-004 import normalizer rejected non-production model path: variant={variant + 1} source={sourcePath}");
+
             var importer = AssetImporter.GetAtPath(sourcePath) as ModelImporter;
             if (importer == null)
                 throw new InvalidOperationException(
-                    $"UART-004 source is not handled by ModelImporter: variant={variant + 1} source={sourcePath}");
+                    $"UART-004 production source is not handled by ModelImporter: variant={variant + 1} source={sourcePath}");
 
             var changed = false;
             if (!importer.preserveHierarchy) { importer.preserveHierarchy = true; changed = true; }
@@ -86,7 +81,7 @@ namespace Afareet.Editor
             Debug.Log(
                 $"AFAREET_UART004_IMPORT_NORMALIZE_OK variant={variant + 1} source={sourcePath} changed={changed} " +
                 "preserveHierarchy=true optimizeMeshPolygons=false optimizeMeshVertices=false weldVertices=false " +
-                "normals=import materials=standard geometryGenerated=false productionPromotion=false");
+                "normals=import materials=standard reviewSourcesRejected=true geometryGenerated=false productionPromotion=false");
 
             LogImportedTopology(variant, sourcePath);
         }
