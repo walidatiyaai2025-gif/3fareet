@@ -1,4 +1,5 @@
 using System;
+using Afareet.Progression;
 using NUnit.Framework;
 
 namespace Afareet.Tests.Progression
