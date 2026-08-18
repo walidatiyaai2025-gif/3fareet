@@ -70,10 +70,15 @@ namespace Afareet.Core
                 careerTracks,
                 careerBossVehicles);
 
+            var garageVehicleRuntime = new CareerGarageVehicleRuntimeController(
+                garageCatalog,
+                race,
+                player);
             var garage = gameObject.AddComponent<CareerGarageSession>();
-            garage.ConfigureWithPlayerPrefs(career, garageCatalog);
+            garage.ConfigureWithPlayerPrefs(career, garageVehicleRuntime, garageCatalog);
             Debug.Log(
                 $"AFAREET_GARAGE_SESSION_ACTIVE equipped={garage.State.EquippedVehicleId} " +
+                $"runtimeVehicle={garage.ActiveRuntimeVehicleId} " +
                 $"migratedLegacy={garage.MigratedLegacyGarageSave} recoveredInvalid={garage.RecoveredInvalidGarageSave}");
 
             CreateCamera(player.transform, cameraConfig);
