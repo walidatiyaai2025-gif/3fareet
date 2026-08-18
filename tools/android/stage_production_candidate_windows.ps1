@@ -110,7 +110,15 @@ foreach ($rivalSource in $rivalSources) {
     }
 }
 
-Write-Host "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK gitSha=$gitSha heroBytes=$heroBytes heroMetaBytes=$heroMetaBytes rivalSources=3 rivalBytes=$rivalBytes verified=false"
+$rivalDependencyPreflight = Join-Path $PSScriptRoot 'rival_production_handoff_preflight_windows.ps1'
+if (-not (Test-Path -LiteralPath $rivalDependencyPreflight -PathType Leaf)) {
+    Fail "Native Rival dependency preflight is missing: $rivalDependencyPreflight"
+}
+Write-Host "AFAREET_STAGING_RIVAL_DEPENDENCY_PREFLIGHT_START gitSha=$gitSha rivals=3 mutationStarted=false verified=false"
+& $rivalDependencyPreflight -RepoRoot $RepoRoot
+Write-Host "AFAREET_STAGING_RIVAL_DEPENDENCY_PREFLIGHT_OK gitSha=$gitSha rivals=3 dependenciesTracked=true dependenciesPackageLocal=true mutationStarted=false verified=false"
+
+Write-Host "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK gitSha=$gitSha heroBytes=$heroBytes heroMetaBytes=$heroMetaBytes rivalSources=3 rivalBytes=$rivalBytes rivalDependencies=tracked-package-local mutationStarted=false verified=false"
 
 if ([string]::IsNullOrWhiteSpace($UnityPath)) {
     $defaultUnity = Join-Path $env:ProgramFiles "Unity\Hub\Editor\$ExpectedUnityVersion\Editor\Unity.exe"
