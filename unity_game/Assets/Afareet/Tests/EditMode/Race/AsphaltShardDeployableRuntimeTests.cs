@@ -78,7 +78,7 @@ namespace Afareet.Tests.Race
             Assert.That(impact.Status, Is.EqualTo(PowerUpRuntimeUseStatus.Used));
             var active = runtime.GetActiveEffect("TARGET", PowerUpKind.AsphaltShard, 1d);
             Assert.That(active, Is.Not.Null);
-            Assert.That(active.Magnitude, Is.EqualTo(.35d));
+            Assert.That(active.Spec.Magnitude, Is.EqualTo(.35d));
         }
 
         [Test]

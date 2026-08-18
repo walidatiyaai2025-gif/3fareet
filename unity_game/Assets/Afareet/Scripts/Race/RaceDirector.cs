@@ -808,6 +808,7 @@ namespace Afareet.Race
                 }
                 body.position = targetPosition;
                 body.rotation = rotation;
+                runtime.Car.transform.SetPositionAndRotation(targetPosition, rotation);
             }
         }
 

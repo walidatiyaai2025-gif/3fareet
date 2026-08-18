@@ -76,7 +76,7 @@ namespace Afareet.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator PlayerPowerUp_HostileTargetingUsesImmediateRankedOpponent()
+        public IEnumerator PlayerPowerUp_WorldDeployableUsesNoRacerTarget()
         {
             StartRacing();
             var playerCheckpoints = player.GetComponent<RacerCheckpointTracker>();
@@ -87,7 +87,7 @@ namespace Afareet.Tests.PlayMode
             var shard = director.TryUsePlayerPowerUp(PowerUpKind.AsphaltShard);
             Assert.That(shard, Is.Not.Null);
             Assert.That(shard.Status, Is.EqualTo(PowerUpRuntimeUseStatus.Used));
-            Assert.That(shard.TargetRacerId, Is.EqualTo("RIVAL-01"));
+            Assert.That(shard.TargetRacerId, Is.Null);
             yield return null;
         }
 

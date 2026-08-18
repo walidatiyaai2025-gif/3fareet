@@ -57,7 +57,7 @@ namespace Afareet.Core
         {
             if (!Debug.isDebugBuild && !Application.isEditor) return;
             var host = new GameObject("AFAREET PERFORMANCE BASELINE");
-            Object.DontDestroyOnLoad(host);
+            UnityEngine.Object.DontDestroyOnLoad(host);
             host.AddComponent<PerformanceBaselineCapture>();
         }
 
