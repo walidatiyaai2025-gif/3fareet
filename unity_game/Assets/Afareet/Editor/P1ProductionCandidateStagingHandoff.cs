@@ -87,7 +87,16 @@ namespace Afareet.Editor
             handoffPacketSha256 = NormalizeSha256(handoffPacketSha256, "handoff packet");
             nativeHandoffVerificationSha256 = NormalizeSha256(nativeHandoffVerificationSha256, "native handoff verification");
             operatorChainSha256 = NormalizeSha256(operatorChainSha256, "operator chain");
+
+            // Validate every tracked external vehicle input before any world/landmark/dressing
+            // stager is allowed to mutate the project. RivalProductionPrefabStager keeps its own
+            // preflight as defense-in-depth, but this handoff-level gate prevents a missing Rival
+            // production source from being discovered only after unrelated Cairo staging changed files.
             ValidateHeroSourceBeforeMutation(heroSourcePath);
+            RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow();
+            Debug.Log(
+                "AFAREET_P1_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK hero=1 rivals=3 " +
+                "trackedInputsValidated=true mutationStarted=false verified=false");
 
             Debug.Log(
                 $"AFAREET_P1_STAGING_HANDOFF_START gitSha={gitSha} heroSource={heroSourcePath} " +
