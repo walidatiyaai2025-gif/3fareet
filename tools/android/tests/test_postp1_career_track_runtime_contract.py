@@ -82,7 +82,8 @@ def test_production_bootstrap_uses_live_controller_not_passive_runtime():
         "trackBuild.Root",
         "CairoCareerTrackCatalog.CornicheNightId",
         "career.Configure(",
-        "careerTracks);",
+        "careerTracks,",
+        "careerBossVehicles);",
     ):
         assert token in source
     assert "new PassiveCareerTrackRuntime" not in source
