@@ -42,6 +42,29 @@ namespace Afareet.Tests.Race
         }
 
         [Test]
+        public void Sample_PreservesSignedLateralOrientationOnHorizontalSegment()
+        {
+            var track = new TrackRuntime();
+            AddWaypoint(track, "W0", new Vector3(0f, 0f, 0f));
+            AddWaypoint(track, "W1", new Vector3(10f, 0f, 0f));
+            AddWaypoint(track, "W2", new Vector3(10f, 0f, 20f));
+
+            var rightOfForward = TrackBoundaryPolicy.Sample(
+                track.Waypoints,
+                new Vector3(5f, 0f, -2f),
+                3f);
+            var leftOfForward = TrackBoundaryPolicy.Sample(
+                track.Waypoints,
+                new Vector3(5f, 0f, 2f),
+                3f);
+
+            Assert.That(rightOfForward.SegmentIndex, Is.EqualTo(0));
+            Assert.That(rightOfForward.SignedLateralDistance, Is.EqualTo(2f).Within(.001f));
+            Assert.That(leftOfForward.SegmentIndex, Is.EqualTo(0));
+            Assert.That(leftOfForward.SignedLateralDistance, Is.EqualTo(-2f).Within(.001f));
+        }
+
+        [Test]
         public void BuildEdges_CreatesTwoSolidCollidersPerSegment()
         {
             var track = CreateSquareTrack();
