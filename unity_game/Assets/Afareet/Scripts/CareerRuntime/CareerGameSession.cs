@@ -16,6 +16,7 @@ namespace Afareet.CareerRuntime
         private CareerMap navigationMap;
         private CareerPlayerProfileStore profileStore;
         private ICareerTrackRuntime trackRuntime;
+        private ICareerBossVehicleRuntime bossVehicleRuntime;
         private RaceRoundController round;
         private RaceDirector race;
         private RacePerformanceMetricsTracker performance;
@@ -30,6 +31,7 @@ namespace Afareet.CareerRuntime
         public CareerNavigationSnapshot Navigation { get; private set; }
         public RaceChallengeConfiguration ActiveChallengeConfiguration => race?.ChallengeConfiguration ?? RaceChallengeConfiguration.Standard;
         public string ActiveTrackId => trackRuntime?.ActiveTrackId;
+        public string ActiveBossVehicleId => bossVehicleRuntime?.ActiveBossVehicleId;
         public bool HasActiveEvent => activeDefinition != null;
         public bool CampaignComplete { get; private set; }
         public bool RecoveredInvalidSave { get; private set; }
@@ -52,7 +54,8 @@ namespace Afareet.CareerRuntime
                 director,
                 performanceTracker,
                 storage,
-                new PassiveCareerTrackRuntime());
+                new PassiveCareerTrackRuntime(),
+                new PassiveCareerBossVehicleRuntime());
         }
 
         public void Configure(
@@ -62,16 +65,35 @@ namespace Afareet.CareerRuntime
             ICareerProgressStorage storage,
             ICareerTrackRuntime careerTrackRuntime)
         {
+            Configure(
+                roundController,
+                director,
+                performanceTracker,
+                storage,
+                careerTrackRuntime,
+                new PassiveCareerBossVehicleRuntime());
+        }
+
+        public void Configure(
+            RaceRoundController roundController,
+            RaceDirector director,
+            RacePerformanceMetricsTracker performanceTracker,
+            ICareerProgressStorage storage,
+            ICareerTrackRuntime careerTrackRuntime,
+            ICareerBossVehicleRuntime careerBossVehicleRuntime)
+        {
             if (roundController == null) throw new ArgumentNullException(nameof(roundController));
             if (director == null) throw new ArgumentNullException(nameof(director));
             if (storage == null) throw new ArgumentNullException(nameof(storage));
             if (careerTrackRuntime == null) throw new ArgumentNullException(nameof(careerTrackRuntime));
+            if (careerBossVehicleRuntime == null) throw new ArgumentNullException(nameof(careerBossVehicleRuntime));
 
             Unbind();
             round = roundController;
             race = director;
             performance = performanceTracker;
             trackRuntime = careerTrackRuntime;
+            bossVehicleRuntime = careerBossVehicleRuntime;
             profileStore = new CareerPlayerProfileStore(storage);
             var chapter = ChapterOneCareerContent.CreateFoundation();
             definitions = ChapterOneCareerEventContent.CreateDefinitions();
@@ -90,7 +112,12 @@ namespace Afareet.CareerRuntime
             {
                 trackRuntime.ApplyTrack(activeDefinition.Node.TrackId);
                 ApplyChallengeConfiguration(activeDefinition);
+                ApplyBossVehicleConfiguration(activeDefinition);
                 BindAdapter(activeDefinition);
+            }
+            else
+            {
+                bossVehicleRuntime.ClearBossVehicle();
             }
 
             round.ResultsReady += OnResultsReady;
@@ -142,8 +169,10 @@ namespace Afareet.CareerRuntime
             adapter = null;
             var previousChallenge = race.ChallengeConfiguration;
             var previousTrackId = trackRuntime.ActiveTrackId;
+            var previousBossVehicleId = bossVehicleRuntime.ActiveBossVehicleId;
             var trackChanged = trackRuntime.ApplyTrack(next.Node.TrackId);
             ApplyChallengeConfiguration(next);
+            ApplyBossVehicleConfiguration(next);
 
             var advanced = trackChanged
                 ? StartFreshRaceAfterTrackChange()
@@ -152,6 +181,7 @@ namespace Afareet.CareerRuntime
             {
                 if (trackChanged && !string.IsNullOrWhiteSpace(previousTrackId))
                     trackRuntime.ApplyTrack(previousTrackId);
+                RestoreBossVehicle(previousBossVehicleId);
                 race.ApplyChallengeConfiguration(previousChallenge);
                 BindAdapter(activeDefinition);
                 return false;
@@ -221,6 +251,25 @@ namespace Afareet.CareerRuntime
             race.ApplyChallengeConfiguration(CareerChallengeBalancePolicy.Resolve(definition.Node));
         }
 
+        private void ApplyBossVehicleConfiguration(CareerNodeDefinition definition)
+        {
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            if (string.IsNullOrWhiteSpace(definition.Node.BossVehicleId))
+            {
+                bossVehicleRuntime.ClearBossVehicle();
+                return;
+            }
+            bossVehicleRuntime.ApplyBossVehicle(definition.Node.BossVehicleId);
+        }
+
+        private void RestoreBossVehicle(string previousBossVehicleId)
+        {
+            if (string.IsNullOrWhiteSpace(previousBossVehicleId))
+                bossVehicleRuntime.ClearBossVehicle();
+            else
+                bossVehicleRuntime.ApplyBossVehicle(previousBossVehicleId);
+        }
+
         private void BindAdapter(CareerNodeDefinition definition)
         {
             var metrics = new RaceDirectorCareerMetricsSource(race, performance);
@@ -271,7 +320,7 @@ namespace Afareet.CareerRuntime
         private void EnsureConfigured()
         {
             if (!configured || round == null || race == null || profileStore == null || Profile == null ||
-                navigationMap == null || Navigation == null || trackRuntime == null)
+                navigationMap == null || Navigation == null || trackRuntime == null || bossVehicleRuntime == null)
             {
                 throw new InvalidOperationException("CareerGameSession must be configured before use.");
             }
@@ -287,6 +336,7 @@ namespace Afareet.CareerRuntime
             navigationMap = null;
             Navigation = null;
             trackRuntime = null;
+            bossVehicleRuntime = null;
         }
 
         private void OnDestroy()
