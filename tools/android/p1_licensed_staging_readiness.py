@@ -87,10 +87,10 @@ def _tracked_nonempty(repo_root: Path, relative_path: str) -> bool:
 
 def _normalize_hero_path(hero_source: str) -> str:
     value = (hero_source or "").strip().replace("\\", "/")
-    if value.startswith("Assets/"):
-        value = "unity_game/" + value
     while value.startswith("./"):
         value = value[2:]
+    if value.startswith("Assets/"):
+        value = "unity_game/" + value
     return value
 
 
