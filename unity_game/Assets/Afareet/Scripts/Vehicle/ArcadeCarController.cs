@@ -314,6 +314,18 @@ namespace Afareet.Vehicle
 
         private void RecoverToTrack(string reason)
         {
+            // ResetToSpawn can be invoked before Awake initializes the cached
+            // Rigidbody reference (for example from EditMode or another component).
+            if (body == null)
+            {
+                body = GetComponent<Rigidbody>();
+                if (body == null)
+                    throw new MissingComponentException("ArcadeCarController requires a Rigidbody for recovery.");
+
+                spawnPosition = transform.position;
+                spawnRotation = transform.rotation;
+            }
+
             var checkpoint = GetComponent<LastCheckpointTracker>();
             var source = "spawn";
             var targetPosition = spawnPosition + Vector3.up * VehicleRecoveryPolicy.RecoveryUpOffsetMeters;
