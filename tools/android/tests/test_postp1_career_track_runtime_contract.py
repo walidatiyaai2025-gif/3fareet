@@ -44,11 +44,13 @@ def test_builder_reuses_authoritative_p1_builder_without_external_assets():
         assert forbidden not in source
 
 
-def test_runtime_controller_swaps_only_in_safe_phase_and_rebinds_ai():
+def test_runtime_controller_swaps_only_in_safe_phase_rebinds_ai_and_supports_explicit_rebuild():
     source = read(CORE / "CareerTrackRuntimeController.cs")
     for token in (
         "CareerTrackRuntimeController : ICareerTrackRuntime",
-        "CairoCareerTrackCatalog.Resolve(trackId)",
+        "ApplyTrack(string trackId, bool forceRebuild = false)",
+        "var sameTrack = StringComparer.Ordinal.Equals(ActiveTrackId, spec.Id)",
+        "if (sameTrack && !forceRebuild)",
         "RaceRoundPhase.Countdown || race.Phase == RaceRoundPhase.Racing",
         "CairoCareerTrackBuilder.Build(host, spec)",
         "race.Configure(player, build.Track)",
@@ -56,11 +58,20 @@ def test_runtime_controller_swaps_only_in_safe_phase_and_rebinds_ai():
         "ai.Configure(track.Waypoints, index)",
         "previousRoot.SetActive(false)",
         "ActiveTrackId = spec.Id",
+        "forced={forceRebuild}",
     ):
         assert token in source
 
 
-def test_career_session_applies_track_on_bind_and_advance():
+def test_track_runtime_seam_defaults_to_idempotent_and_passive_never_claims_live_rebuild():
+    source = read(CAREER / "CareerTrackRuntime.cs")
+    assert "bool ApplyTrack(string trackId, bool forceRebuild = false)" in source
+    assert "StringComparer.Ordinal.Equals(ActiveTrackId, trackId) && !forceRebuild" in source
+    passive = source.split("public sealed class PassiveCareerTrackRuntime", 1)[1]
+    assert "return false;" in passive
+
+
+def test_career_session_applies_track_on_bind_advance_and_selected_activation():
     source = read(CAREER / "CareerGameSession.cs")
     for token in (
         "private ICareerTrackRuntime trackRuntime",
@@ -70,6 +81,8 @@ def test_career_session_applies_track_on_bind_and_advance():
         "var trackChanged = trackRuntime.ApplyTrack(next.Node.TrackId)",
         "StartFreshRaceAfterTrackChange()",
         "trackRuntime.ApplyTrack(previousTrackId)",
+        "var forceTrackRebuild = race.Phase == RaceRoundPhase.Results",
+        "trackRuntime.ApplyTrack(next.Node.TrackId, forceTrackRebuild)",
     ):
         assert token in source
 
