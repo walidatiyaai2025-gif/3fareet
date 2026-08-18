@@ -45,6 +45,23 @@ class CollectUper006PerformanceTests(unittest.TestCase):
             "screenHeight": 1080,
         }
 
+    def candidate_manifest(self, apk_sha256: str):
+        return {
+            "schemaVersion": 1,
+            "candidateType": "local-windows-licensed-unity",
+            "gitSha": "1" * 40,
+            "unityVersion": "6000.5.8f1",
+            "packageId": MODULE.DEFAULT_PACKAGE,
+            "apk": {
+                "fileName": "afareet-unity3d-debug.apk",
+                "sha256": apk_sha256,
+            },
+            "releaseEvidenceEligible": True,
+            "readyForDeviceEvidence": True,
+            "verified": False,
+            "verdict": "READY_FOR_PHYSICAL_DEVICE_EVIDENCE",
+        }
+
     def test_valid_runtime_report_is_accepted(self):
         report = self.report()
         self.assertIs(MODULE.validate_runtime_report(report), report)
@@ -89,11 +106,69 @@ class CollectUper006PerformanceTests(unittest.TestCase):
             with self.assertRaises(MODULE.EvidenceError):
                 MODULE.validate_git_sha(invalid)
 
-    def test_apk_hash_is_bound_into_nonverified_envelope(self):
+    def test_candidate_manifest_binds_git_apk_package_and_device_gate(self):
+        digest = "a" * 64
+        manifest = self.candidate_manifest(digest)
+
+        git_sha = MODULE.validate_candidate_manifest(
+            manifest,
+            local_apk_sha256=digest,
+            package=MODULE.DEFAULT_PACKAGE,
+        )
+
+        self.assertEqual(git_sha, "1" * 40)
+
+        manifest = self.candidate_manifest(digest)
+        manifest["apk"]["sha256"] = "b" * 64
+        with self.assertRaises(MODULE.EvidenceError):
+            MODULE.validate_candidate_manifest(
+                manifest,
+                local_apk_sha256=digest,
+                package=MODULE.DEFAULT_PACKAGE,
+            )
+
+        manifest = self.candidate_manifest(digest)
+        manifest["verified"] = True
+        with self.assertRaises(MODULE.EvidenceError):
+            MODULE.validate_candidate_manifest(
+                manifest,
+                local_apk_sha256=digest,
+                package=MODULE.DEFAULT_PACKAGE,
+            )
+
+    def test_installed_apk_path_requires_one_standalone_apk(self):
+        path = MODULE.parse_installed_apk_path(
+            "package:/data/app/~~abc/com.fiftysolutions.afareetunity3d/base.apk\n",
+            package=MODULE.DEFAULT_PACKAGE,
+        )
+        self.assertEqual(path, "/data/app/~~abc/com.fiftysolutions.afareetunity3d/base.apk")
+
+        with self.assertRaises(MODULE.EvidenceError):
+            MODULE.parse_installed_apk_path("", package=MODULE.DEFAULT_PACKAGE)
+
+        with self.assertRaises(MODULE.EvidenceError):
+            MODULE.parse_installed_apk_path(
+                "package:/data/app/base.apk\npackage:/data/app/split_config.arm64_v8a.apk\n",
+                package=MODULE.DEFAULT_PACKAGE,
+            )
+
+    def test_installed_apk_hash_uses_exact_binary_bytes(self):
+        payload = b"installed exact apk bytes\x00\x01\xff"
+        self.assertEqual(
+            MODULE.sha256_bytes(payload),
+            __import__("hashlib").sha256(payload).hexdigest(),
+        )
+        with self.assertRaises(MODULE.EvidenceError):
+            MODULE.sha256_bytes(b"")
+
+    def test_apk_hash_and_manifest_binding_are_recorded_in_nonverified_envelope(self):
         report = self.report()
         with tempfile.TemporaryDirectory() as directory:
-            apk = Path(directory) / "candidate.apk"
+            root = Path(directory)
+            apk = root / "candidate.apk"
             apk.write_bytes(b"exact apk fixture")
+            manifest_path = root / "local-candidate-manifest.json"
+            manifest_path.write_text("{}", encoding="utf-8")
             digest = MODULE.sha256_file(apk)
             envelope = MODULE.build_envelope(
                 report=report,
@@ -102,13 +177,21 @@ class CollectUper006PerformanceTests(unittest.TestCase):
                 apk_sha256=digest,
                 device_serial="SERIAL123",
                 package=MODULE.DEFAULT_PACKAGE,
+                installed_apk_path="/data/app/example/base.apk",
+                installed_apk_sha256=digest,
+                candidate_manifest_path=manifest_path,
+                candidate_manifest_sha256=MODULE.sha256_file(manifest_path),
+                candidate_binding=MODULE.MANIFEST_BINDING,
             )
 
         self.assertEqual(envelope["schemaVersion"], 1)
         self.assertEqual(envelope["evidenceId"], "UPER-006")
         self.assertEqual(envelope["verdict"], "COLLECTED_NOT_VERIFIED")
+        self.assertEqual(envelope["candidateBinding"]["mode"], "LICENSED_CANDIDATE_MANIFEST")
         self.assertEqual(envelope["candidate"]["gitSha"], "1" * 40)
         self.assertEqual(envelope["candidate"]["apkSha256"], digest)
+        self.assertEqual(envelope["installedApk"]["sha256"], digest)
+        self.assertIs(envelope["installedApk"]["matchesCandidate"], True)
         self.assertEqual(envelope["device"]["adbSerial"], "SERIAL123")
         self.assertIn("does not satisfy physical-device acceptance", envelope["verificationBoundary"])
 
