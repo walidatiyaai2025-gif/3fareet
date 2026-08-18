@@ -10,7 +10,10 @@ namespace Afareet.UI
         private ArcadeCarController player;
         private RaceDirector race;
         private Vector3 motionBaseline;
+        private ScreenOrientation motionBaselineOrientation;
         private bool hasMotionBaseline;
+        private float smoothedTiltSteer;
+        private float smoothedTiltThrottle;
 
         public void Configure(ArcadeCarController playerCar, RaceDirector director)
         {
@@ -24,8 +27,7 @@ namespace Afareet.UI
             if (race.Phase != RaceRoundPhase.Ready)
                 return false;
 
-            motionBaseline = Input.acceleration;
-            hasMotionBaseline = true;
+            CalibrateMotionInput();
             player.SetPlayerInput(0f, 0f, false, false, true);
             race.StartRace();
             return true;
@@ -51,6 +53,8 @@ namespace Afareet.UI
             EnsureConfigured();
             if (race.Phase != RaceRoundPhase.Racing || race.IsPaused)
             {
+                smoothedTiltSteer = 0f;
+                smoothedTiltThrottle = 0f;
                 player.SetPlayerInput(0f, 0f, false, false, true);
                 return;
             }
@@ -63,16 +67,33 @@ namespace Afareet.UI
 
             if (Application.isMobilePlatform && hasMotionBaseline)
             {
+                RecalibrateIfLandscapeOrientationChanged();
+
                 var acceleration = Input.acceleration - motionBaseline;
-                var landscapeLeft = Screen.orientation != ScreenOrientation.LandscapeRight;
-                var steeringTilt = landscapeLeft ? -acceleration.y : acceleration.y;
-                var forwardTilt = landscapeLeft ? -acceleration.x : acceleration.x;
+                var landscapeRight = Screen.orientation == ScreenOrientation.LandscapeRight;
+                var steeringTilt = landscapeRight ? acceleration.y : -acceleration.y;
+                var forwardTilt = landscapeRight ? acceleration.x : -acceleration.x;
+
+                var tiltSteerTarget = MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt);
+                var tiltThrottleTarget = MobileDriveInputPolicy.ResolveTiltThrottle(forwardTilt);
+                smoothedTiltSteer = MobileDriveInputPolicy.SmoothTiltSteer(
+                    smoothedTiltSteer,
+                    tiltSteerTarget,
+                    Time.unscaledDeltaTime);
+                smoothedTiltThrottle = MobileDriveInputPolicy.SmoothTiltThrottle(
+                    smoothedTiltThrottle,
+                    tiltThrottleTarget,
+                    Time.unscaledDeltaTime);
+
+                // Explicit touch steering wins immediately. Motion steering is the hands-free
+                // fallback, while forward pitch can progressively add accelerator demand.
                 if (Mathf.Abs(resolvedSteer) < .01f)
-                    resolvedSteer = MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt);
-                resolvedNitro |= forwardTilt > .32f;
-                resolvedBrake |= forwardTilt < -.32f;
+                    resolvedSteer = smoothedTiltSteer;
+                resolvedThrottle = Mathf.Max(resolvedThrottle, smoothedTiltThrottle);
             }
 
+            // Brake/reverse remains an explicit control and overrides any forward-pitch
+            // accelerator demand. Tilt never activates Spirit/Nitro or reverse/braking.
             if (brakeReverse)
                 MobileDriveInputPolicy.ResolveBrakeReverse(player.SpeedKph, out resolvedThrottle, out resolvedBrake);
 
@@ -93,6 +114,27 @@ namespace Afareet.UI
             if (race.Phase == RaceRoundPhase.Ready && Input.GetKeyDown(KeyCode.Return))
                 StartRace();
 #endif
+        }
+
+        private void CalibrateMotionInput()
+        {
+            motionBaseline = Input.acceleration;
+            motionBaselineOrientation = Screen.orientation;
+            hasMotionBaseline = true;
+            smoothedTiltSteer = 0f;
+            smoothedTiltThrottle = 0f;
+        }
+
+        private void RecalibrateIfLandscapeOrientationChanged()
+        {
+            var orientation = Screen.orientation;
+            if (orientation == motionBaselineOrientation)
+                return;
+            if (orientation != ScreenOrientation.LandscapeLeft &&
+                orientation != ScreenOrientation.LandscapeRight)
+                return;
+
+            CalibrateMotionInput();
         }
 
         private void EnsureConfigured()
