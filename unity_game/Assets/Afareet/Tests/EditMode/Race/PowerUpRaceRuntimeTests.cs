@@ -27,6 +27,21 @@ namespace Afareet.Tests.Race
         }
 
         [Test]
+        public void IsPowerUpUsable_TracksChargesAndCooldownWithoutInventorySnapshot()
+        {
+            var runtime = Runtime(Rules(nitroCharges: 2, nitroCooldown: 5d));
+
+            Assert.That(runtime.IsPowerUpUsable("player", PowerUpKind.NitroSpirit, 0d), Is.True);
+
+            runtime.TryUse("player", PowerUpKind.NitroSpirit, null, 0d);
+            Assert.That(runtime.IsPowerUpUsable("player", PowerUpKind.NitroSpirit, 1d), Is.False);
+            Assert.That(runtime.IsPowerUpUsable("player", PowerUpKind.NitroSpirit, 5d), Is.True);
+
+            runtime.TryUse("player", PowerUpKind.NitroSpirit, null, 5d);
+            Assert.That(runtime.IsPowerUpUsable("player", PowerUpKind.NitroSpirit, 10d), Is.False);
+        }
+
+        [Test]
         public void HostileUseBlockedByEyeShield_IsStillConsumedAsRealAttempt()
         {
             var runtime = Runtime(Rules(eyeShieldCharges: 1, trafficCharges: 2));
