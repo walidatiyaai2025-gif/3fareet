@@ -107,6 +107,34 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
+    def test_nonvehicle_hero_role_is_rejected_even_if_tracked(self):
+        root = make_fixture()
+        try:
+            source = root / "unity_game/Assets/Afareet/ArtSource/Characters/Hero/AfareetKing_Production.fbx"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text("hero\n", encoding="utf-8")
+            (source.parent / (source.name + ".meta")).write_text("meta\n", encoding="utf-8")
+            run_git(root, "add", ".")
+            run_git(root, "commit", "-m", "add wrong-role hero")
+
+            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Characters/Hero/AfareetKing_Production.fbx")
+            self.assertEqual("BLOCKED", report["state"])
+            self.assertIn("UART-003_HERO_VEHICLE_ROLE", report["blockedCheckIds"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_traversal_hero_path_is_rejected_before_staging(self):
+        root = make_fixture()
+        try:
+            report = MODULE.audit(
+                root,
+                hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/../Hero/AfareetKing_Production.fbx",
+            )
+            self.assertEqual("BLOCKED", report["state"])
+            self.assertIn("UART-003_HERO_NO_TRAVERSAL", report["blockedCheckIds"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
     def test_rival_source_cannot_be_reused_as_hero(self):
         root = make_fixture()
         try:
