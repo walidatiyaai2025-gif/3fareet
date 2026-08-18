@@ -53,13 +53,17 @@ class P1ProductionArtWorkflowCoverageContractTests(unittest.TestCase):
 
     def test_workflow_syntax_checks_transitive_release_sources(self):
         text = WORKFLOW.read_text(encoding="utf-8")
+        syntax_block = text.split("python3 -m py_compile", 1)[1].split(
+            "python3 tools/android/analyze_device_smoke.py --help",
+            1,
+        )[0]
         for relative in (
             "tools/android/verify_release_publication.py",
             "tools/android/p1_gate_readiness.py",
             "tools/android/prepare_candidate_device.py",
             "tools/android/verify_device_review_bundle.py",
         ):
-            self.assertIn(relative + " \\", text)
+            self.assertIn(relative, syntax_block)
 
         for cli in (
             "verify_release_publication.py --help",
