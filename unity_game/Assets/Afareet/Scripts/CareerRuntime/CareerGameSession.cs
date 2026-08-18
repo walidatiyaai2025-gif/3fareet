@@ -10,8 +10,10 @@ namespace Afareet.CareerRuntime
     {
         private readonly CareerProgressionService progression = new CareerProgressionService();
         private readonly CareerEventSettlementService settlementService = new CareerEventSettlementService();
+        private readonly CareerNavigationService navigationService = new CareerNavigationService();
 
         private IReadOnlyList<CareerNodeDefinition> definitions;
+        private CareerMap navigationMap;
         private CareerPlayerProfileStore profileStore;
         private RaceRoundController round;
         private RaceDirector race;
@@ -24,6 +26,7 @@ namespace Afareet.CareerRuntime
         public CareerProgress Progress => Profile?.Career;
         public CareerNodeDefinition ActiveDefinition => activeDefinition;
         public CareerEventSettlement LastSettlement { get; private set; }
+        public CareerNavigationSnapshot Navigation { get; private set; }
         public bool HasActiveEvent => activeDefinition != null;
         public bool CampaignComplete { get; private set; }
         public bool RecoveredInvalidSave { get; private set; }
@@ -31,6 +34,7 @@ namespace Afareet.CareerRuntime
 
         public event Action<CareerProgress> ProgressChanged;
         public event Action<CareerNodeDefinition> ActiveEventChanged;
+        public event Action<CareerNavigationSnapshot> NavigationChanged;
         public event Action<CareerEventSettlement> SettlementReady;
         public event Action CampaignCompleted;
 
@@ -49,7 +53,9 @@ namespace Afareet.CareerRuntime
             race = director;
             performance = performanceTracker;
             profileStore = new CareerPlayerProfileStore(storage);
+            var chapter = ChapterOneCareerContent.CreateFoundation();
             definitions = ChapterOneCareerEventContent.CreateDefinitions();
+            navigationMap = new CareerMap(new[] { chapter });
 
             var load = profileStore.Load();
             Profile = load.Profile;
@@ -59,6 +65,7 @@ namespace Afareet.CareerRuntime
 
             activeDefinition = FindFirstPlayableIncomplete();
             CampaignComplete = activeDefinition == null && AreAllNodesCompleted();
+            Navigation = navigationService.Build(navigationMap, Progress, activeDefinition?.Node.Id);
             if (activeDefinition != null)
                 BindAdapter(activeDefinition);
 
@@ -72,6 +79,20 @@ namespace Afareet.CareerRuntime
             if (activeDefinition == null)
                 return false;
             return race.RestartRace();
+        }
+
+        public CareerNavigationSnapshot SelectCareerNode(string nodeId)
+        {
+            EnsureConfigured();
+            SetNavigation(navigationService.Select(Navigation, nodeId));
+            return Navigation;
+        }
+
+        public CareerNavigationSnapshot MoveCareerSelection(int delta)
+        {
+            EnsureConfigured();
+            SetNavigation(navigationService.Move(Navigation, delta));
+            return Navigation;
         }
 
         public bool TryAdvanceToNextEvent()
@@ -100,6 +121,7 @@ namespace Afareet.CareerRuntime
             activeDefinition = next;
             LastSettlement = null;
             BindAdapter(activeDefinition);
+            RefreshNavigation(activeDefinition.Node.Id);
             ActiveEventChanged?.Invoke(activeDefinition);
             return true;
         }
@@ -127,7 +149,9 @@ namespace Afareet.CareerRuntime
 
             if (!ReferenceEquals(settlement.Progress, Progress) || settlement.GrantedAnyReward)
             {
+                var selectedNodeId = Navigation?.SelectedNodeId;
                 Profile = Profile.Apply(settlement);
+                RefreshNavigation(selectedNodeId);
                 profileStore.Save(Profile);
                 ProgressChanged?.Invoke(Progress);
             }
@@ -177,10 +201,27 @@ namespace Afareet.CareerRuntime
             return definitions.Count > 0;
         }
 
+        private void RefreshNavigation(string preferredNodeId)
+        {
+            SetNavigation(navigationService.Build(navigationMap, Progress, preferredNodeId));
+        }
+
+        private void SetNavigation(CareerNavigationSnapshot next)
+        {
+            if (next == null) throw new ArgumentNullException(nameof(next));
+            if (ReferenceEquals(Navigation, next))
+                return;
+            Navigation = next;
+            NavigationChanged?.Invoke(Navigation);
+        }
+
         private void EnsureConfigured()
         {
-            if (!configured || round == null || race == null || profileStore == null || Profile == null)
+            if (!configured || round == null || race == null || profileStore == null || Profile == null ||
+                navigationMap == null || Navigation == null)
+            {
                 throw new InvalidOperationException("CareerGameSession must be configured before use.");
+            }
         }
 
         private void Unbind()
@@ -190,6 +231,8 @@ namespace Afareet.CareerRuntime
             adapter?.Dispose();
             adapter = null;
             configured = false;
+            navigationMap = null;
+            Navigation = null;
         }
 
         private void OnDestroy()
