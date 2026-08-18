@@ -70,6 +70,10 @@ namespace Afareet.Tests.PlayMode
         public IEnumerator FirstCircuitCompletion_PersistsProgressWalletAndAdvancesToTimeTrial()
         {
             Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r01"));
+            Assert.That(career.Navigation, Is.Not.Null);
+            Assert.That(career.Navigation.SelectedNodeId, Is.EqualTo("c01_r01"));
+            Assert.That(career.Navigation.SelectedNode.State, Is.EqualTo(CareerNodeState.Available));
+
             CompleteCurrentRace();
             yield return null;
 
@@ -80,6 +84,9 @@ namespace Afareet.Tests.PlayMode
             Assert.That(career.Progress.IsNodeCompleted("c01_r01"), Is.True);
             Assert.That(career.Profile.Coins, Is.EqualTo(250));
             Assert.That(career.Profile.Spirit, Is.EqualTo(5));
+            Assert.That(career.Navigation.SelectedNodeId, Is.EqualTo("c01_r01"));
+            Assert.That(career.Navigation.SelectedNode.State, Is.EqualTo(CareerNodeState.Completed));
+            Assert.That(career.Navigation.Nodes[1].State, Is.EqualTo(CareerNodeState.Available));
             Assert.That(storage.Payload, Is.Not.Null.And.Not.Empty);
 
             var persisted = new CareerPlayerProfileCodec().Decode(storage.Payload);
@@ -90,8 +97,28 @@ namespace Afareet.Tests.PlayMode
 
             Assert.That(career.TryAdvanceToNextEvent(), Is.True);
             Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r02"));
+            Assert.That(career.Navigation.SelectedNodeId, Is.EqualTo("c01_r02"));
+            Assert.That(career.Navigation.SelectedNode.State, Is.EqualTo(CareerNodeState.Available));
             Assert.That(race.Phase, Is.EqualTo(RaceRoundPhase.Countdown));
             Assert.That(career.LastSettlement, Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator NavigationSelection_MovesAndSelectsWithoutChangingActiveRace()
+        {
+            Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r01"));
+
+            var moved = career.MoveCareerSelection(1);
+            Assert.That(moved.SelectedNodeId, Is.EqualTo("c01_r02"));
+            Assert.That(moved.SelectedNode.State, Is.EqualTo(CareerNodeState.Locked));
+            Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r01"));
+
+            var selected = career.SelectCareerNode("c01_boss");
+            Assert.That(selected.SelectedNodeId, Is.EqualTo("c01_boss"));
+            Assert.That(selected.SelectedNode.State, Is.EqualTo(CareerNodeState.Locked));
+            Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r01"));
+            Assert.Throws<ArgumentException>(() => career.SelectCareerNode("missing"));
+            yield return null;
         }
 
         [UnityTest]
@@ -123,6 +150,9 @@ namespace Afareet.Tests.PlayMode
             Assert.That(career.Profile.Coins, Is.EqualTo(250));
             Assert.That(career.Profile.Spirit, Is.EqualTo(5));
             Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r02"));
+            Assert.That(career.Navigation.SelectedNodeId, Is.EqualTo("c01_r02"));
+            Assert.That(career.Navigation.Nodes[0].State, Is.EqualTo(CareerNodeState.Completed));
+            Assert.That(career.Navigation.SelectedNode.State, Is.EqualTo(CareerNodeState.Available));
             Assert.That(career.RecoveredInvalidSave, Is.False);
             Assert.That(new CareerPlayerProfileCodec().Decode(storage.Payload).Career.Stars, Is.EqualTo(3));
         }
