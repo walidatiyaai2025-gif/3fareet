@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Afareet.World
 {
@@ -23,8 +24,12 @@ namespace Afareet.World
             YawDegrees = yawDegrees;
         }
 
-        public string DeterministicSignature =>
-            $"{Id}|{UniformScale:0.000}|{YawDegrees:0.000}";
+        public string DeterministicSignature => string.Format(
+            CultureInfo.InvariantCulture,
+            "{0}|{1:0.000}|{2:0.000}",
+            Id,
+            UniformScale,
+            YawDegrees);
 
         private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
