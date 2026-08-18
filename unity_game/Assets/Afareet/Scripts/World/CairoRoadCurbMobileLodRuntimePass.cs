@@ -15,8 +15,8 @@ namespace Afareet.World
         private const float RescanSeconds = 1.0f;
         private const float RetrySeconds = 5.0f;
 
-        private readonly HashSet<int> configured = new();
-        private readonly Dictionary<int, float> retryAfter = new();
+        private readonly HashSet<GameObject> configured = new();
+        private readonly Dictionary<GameObject, float> retryAfter = new();
         private readonly Dictionary<string, GameObject> cache = new(StringComparer.Ordinal);
         private readonly HashSet<string> loggedFailures = new(StringComparer.Ordinal);
         private float nextScanAt;
@@ -44,18 +44,18 @@ namespace Afareet.World
                 var baseName = ResolveBaseName(target.name);
                 if (string.IsNullOrEmpty(baseName)) continue;
 
-                var id = target.gameObject.GetInstanceID();
-                if (configured.Contains(id)) continue;
-                if (retryAfter.TryGetValue(id, out var retryAt) && Time.unscaledTime < retryAt) continue;
+                var targetObject = target.gameObject;
+                if (configured.Contains(targetObject)) continue;
+                if (retryAfter.TryGetValue(targetObject, out var retryAt) && Time.unscaledTime < retryAt) continue;
 
                 if (TryConfigure(target, baseName))
                 {
-                    configured.Add(id);
-                    retryAfter.Remove(id);
+                    configured.Add(targetObject);
+                    retryAfter.Remove(targetObject);
                 }
                 else
                 {
-                    retryAfter[id] = Time.unscaledTime + RetrySeconds;
+                    retryAfter[targetObject] = Time.unscaledTime + RetrySeconds;
                 }
             }
         }

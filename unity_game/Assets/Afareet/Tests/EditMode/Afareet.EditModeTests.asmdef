@@ -1,7 +1,7 @@
 {
   "name": "Afareet.EditModeTests",
   "rootNamespace": "Afareet.Tests",
-  "references": ["Afareet.Vehicle"],
+  "references": ["Afareet.Vehicle", "Afareet.Progression"],
   "includePlatforms": ["Editor"],
   "optionalUnityReferences": ["TestAssemblies"],
   "autoReferenced": false
