@@ -19,6 +19,79 @@ def run_git(root: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(root), *args], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
+def write_rival_policy(root: Path) -> None:
+    policy = root / MODULE.RIVAL_POLICY_FILE
+    policy.parent.mkdir(parents=True, exist_ok=True)
+    policy.write_text(
+        '''namespace Afareet.Vehicle
+{
+    internal static class RivalProductionPolicy
+    {
+        internal const string ProductionSourceRoot = "Assets/Afareet/ArtSource/Vehicles/Rivals/Production/";
+        internal static readonly string[] ProductionSources =
+        {
+            ProductionSourceRoot + "Rival_01_WedgeCoupe_Production.obj",
+            ProductionSourceRoot + "Rival_02_FastbackMuscle_Production.obj",
+            ProductionSourceRoot + "Rival_03_CompactPrototype_Production.obj",
+        };
+        internal static readonly int[] MinimumTriangles = { 1800, 800, 350 };
+        internal static readonly int[] MaximumTriangles = { 16000, 8000, 4000 };
+    }
+}
+''',
+        encoding="utf-8",
+    )
+
+
+def write_valid_rival_handoff(root: Path) -> None:
+    package = root / MODULE.RIVAL_PRODUCTION_ROOT
+    materials = package / "materials"
+    textures = package / "textures"
+    materials.mkdir(parents=True, exist_ok=True)
+    textures.mkdir(parents=True, exist_ok=True)
+    triangle_counts = (1800, 800, 350)
+
+    for variant, relative_obj in enumerate(MODULE.RIVAL_OBJ_FILES, start=1):
+        obj = root / relative_obj
+        obj.parent.mkdir(parents=True, exist_ok=True)
+        lines = [
+            f"# readiness fixture variant {variant}",
+            f"mtllib materials/rival_{variant}.mtl",
+            "v 0 0 0",
+            "v 1 0 0",
+            "v 0 1 0",
+            "vt 0 0",
+            "vt 1 0",
+            "vt 0 1",
+            "vn 0 0 1",
+        ]
+        for lod, triangle_count in enumerate(triangle_counts):
+            lines.append(f"o Rival_{variant:02}_LOD{lod}")
+            lines.append(f"usemtl Mat_LOD{lod}")
+            lines.extend(["f 1/1/1 2/2/1 3/3/1"] * triangle_count)
+        obj.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        mtl = materials / f"rival_{variant}.mtl"
+        mtl.write_text(
+            "\n".join(
+                line
+                for lod in range(3)
+                for line in (
+                    f"newmtl Mat_LOD{lod}",
+                    "Kd 1 1 1",
+                    f"map_Kd ../textures/rival_{variant}.png",
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        Path(str(mtl) + ".meta").write_text(f"guid: mtl{variant}\n", encoding="utf-8")
+
+        texture = textures / f"rival_{variant}.png"
+        texture.write_bytes(f"texture-{variant}".encode("ascii"))
+        Path(str(texture) + ".meta").write_text(f"guid: texture{variant}\n", encoding="utf-8")
+
+
 def make_fixture() -> Path:
     temp = Path(tempfile.mkdtemp(prefix="afareet-staging-readiness-"))
     run_git(temp, "init")
@@ -33,6 +106,9 @@ def make_fixture() -> Path:
         path = temp / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("fixture\n", encoding="utf-8")
+
+    write_rival_policy(temp)
+    write_valid_rival_handoff(temp)
 
     run_git(temp, "add", ".")
     run_git(temp, "commit", "-m", "fixture")
@@ -52,6 +128,7 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
         self.assertFalse(report["ownerAccepted"])
         self.assertFalse(report["verified"])
         self.assertIn("UART-003_HERO_SOURCE_SUPPLIED", report["blockedCheckIds"])
+        self.assertIn("UART-004_RIVAL_HANDOFF_STRUCTURE", report["blockedCheckIds"])
 
         rival_blockers = [item for item in report["blockedCheckIds"] if item.startswith("RIVAL:")]
         self.assertEqual(list(MODULE.RIVAL_REQUIRED_FILES), [item.removeprefix("RIVAL:") for item in rival_blockers])
@@ -72,12 +149,45 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             self.assertEqual("READY_FOR_LICENSED_STAGING", report["state"])
             self.assertTrue(report["readyForLicensedStaging"])
             self.assertEqual([], report["blockedCheckIds"])
+            check_ids = [item["id"] for item in report["checks"]]
+            self.assertIn("UART-004_RIVAL_HANDOFF_STRUCTURE", check_ids)
+            self.assertIn("UART-004_RIVAL_DEPENDENCY_SET", check_ids)
+            self.assertTrue(any(item.startswith("RIVAL_DEP:") for item in check_ids))
             self.assertFalse(report["candidateBuildStarted"])
             self.assertFalse(report["publicationEligible"])
             self.assertFalse(report["runtimeVerified"])
             self.assertFalse(report["ownerAccepted"])
             self.assertFalse(report["verified"])
             self.assertIn("tracked Hero + three isolated Rival production sources", report["nextAction"])
+            self.assertIn("MTL/texture/.meta dependencies", report["nextAction"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_invalid_rival_obj_structure_blocks_readiness_even_when_base_files_are_tracked(self):
+        root = make_fixture()
+        try:
+            rival = root / MODULE.RIVAL_OBJ_FILES[0]
+            rival.write_text("fixture but not a valid OBJ handoff\n", encoding="utf-8")
+            run_git(root, "add", ".")
+            run_git(root, "commit", "-m", "break rival structure")
+            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing_Production.fbx")
+            self.assertEqual("BLOCKED", report["state"])
+            self.assertIn("UART-004_RIVAL_HANDOFF_STRUCTURE", report["blockedCheckIds"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_missing_tracked_texture_meta_blocks_readiness_after_handoff_structure_passes(self):
+        root = make_fixture()
+        try:
+            texture_meta = root / MODULE.RIVAL_PRODUCTION_ROOT / "textures/rival_1.png.meta"
+            texture_meta.unlink()
+            run_git(root, "add", "-u")
+            run_git(root, "commit", "-m", "remove texture meta")
+            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing_Production.fbx")
+            expected = f"RIVAL_DEP:{MODULE.RIVAL_PRODUCTION_ROOT}/textures/rival_1.png.meta"
+            self.assertEqual("BLOCKED", report["state"])
+            self.assertNotIn("UART-004_RIVAL_HANDOFF_STRUCTURE", report["blockedCheckIds"])
+            self.assertIn(expected, report["blockedCheckIds"])
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
