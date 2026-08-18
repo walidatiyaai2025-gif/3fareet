@@ -8,22 +8,15 @@ using UnityEngine;
 namespace Afareet.Editor
 {
     /// <summary>
-    /// Assembles UART-004 production prefabs only from already-imported authored model assets.
-    /// Unity may flatten the OBJ Model Prefab hierarchy, so this stager wraps the exact imported
-    /// Mesh/Material sub-assets in LOD renderers. It never creates Mesh data, primitives or
-    /// replacement geometry; source provenance remains bound to the tracked OBJ.
+    /// Assembles UART-004 production prefabs only from isolated production model assets.
+    /// Historical authored-review OBJ candidates live outside RivalProductionPolicy.ProductionSourceRoot
+    /// and can never be promoted by this stager. Unity may flatten the production OBJ Model Prefab
+    /// hierarchy, so the stager wraps exact imported Mesh/Material sub-assets in LOD renderers.
+    /// It never creates Mesh data, primitives or replacement geometry.
     /// </summary>
     public static class RivalProductionPrefabStager
     {
         private const string MenuRoot = "Afareet/Stage UART-004/";
-
-        private static readonly string[] SourcePaths =
-        {
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj"
-        };
-
         private static readonly float[] TransitionHeights = { 0.60f, 0.28f, 0.08f };
 
         [MenuItem(MenuRoot + "Stage + Bind All Rival Prefabs")]
@@ -43,24 +36,37 @@ namespace Afareet.Editor
             RivalProductionPolicy.ValidateContract();
             ValidateStaticContract();
 
+            // Read-only source gate first so one missing/invalid production handoff cannot leave a
+            // half-staged set of prefabs behind.
+            RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow();
+
             for (var variant = 0; variant < RivalProductionPolicy.VariantCount; variant++)
-                StageAndBind(variant);
+                StageAndBind(variant, sourceAlreadyPreflighted: true);
 
             AssetDatabase.SaveAssets();
             Debug.Log(
-                "AFAREET_UART004_PREFAB_STAGE_ALL_OK variants=3 source=tracked-imported-models " +
+                "AFAREET_UART004_PREFAB_STAGE_ALL_OK variants=3 source=isolated-production-models " +
+                $"sourceRoot={RivalProductionPolicy.ProductionSourceRoot} " +
                 "resolver=imported-mesh-subassets+exact-source-signature " +
-                "geometryGenerated=false primitiveCreated=false bindingDelegated=true");
+                "reviewSourcesRejected=true geometryGenerated=false primitiveCreated=false bindingDelegated=true");
         }
 
         internal static void StageAndBind(int variant)
+        {
+            StageAndBind(variant, sourceAlreadyPreflighted: false);
+        }
+
+        private static void StageAndBind(int variant, bool sourceAlreadyPreflighted)
         {
             RivalProductionPolicy.ValidateContract();
             ValidateStaticContract();
             if (variant < 0 || variant >= RivalProductionPolicy.VariantCount)
                 throw new ArgumentOutOfRangeException(nameof(variant));
 
-            var sourcePath = SourcePaths[variant];
+            if (!sourceAlreadyPreflighted)
+                RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow();
+
+            var sourcePath = RivalProductionPolicy.StagingSourcePath(variant);
             if (!RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath))
                 throw new InvalidOperationException($"UART-004 stager source contract rejected: {sourcePath}");
 
@@ -68,12 +74,12 @@ namespace Afareet.Editor
             var sourceModel = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
             if (importer == null || sourceModel == null)
                 throw new InvalidOperationException(
-                    $"UART-004 tracked source has not been imported by Unity: variant={variant + 1} source={sourcePath}");
+                    $"UART-004 production source has not been delivered/imported: variant={variant + 1} source={sourcePath}");
 
             var sourceGuid = AssetDatabase.AssetPathToGUID(sourcePath);
             if (string.IsNullOrWhiteSpace(sourceGuid))
                 throw new InvalidOperationException(
-                    $"UART-004 imported source has no Unity GUID: variant={variant + 1} source={sourcePath}");
+                    $"UART-004 imported production source has no Unity GUID: variant={variant + 1} source={sourcePath}");
 
             var signature = RivalImportedLodResolver.ParseSourceOrThrow(sourcePath);
             var meshes = RivalImportedLodResolver.ResolveImportedMeshesOrThrow(sourcePath, sourceModel, signature);
@@ -97,7 +103,7 @@ namespace Afareet.Editor
                 $"AFAREET_UART004_PREFAB_STAGE_OK variant={variant + 1} source={sourcePath} " +
                 $"guid={sourceGuid} prefab={prefabPath} " +
                 $"sourceSignatures={signature.Triangles[0]}/{signature.Triangles[1]}/{signature.Triangles[2]} " +
-                "resolver=imported-mesh-subassets+exact-source-signature " +
+                "resolver=imported-mesh-subassets+exact-source-signature reviewSourcesRejected=true " +
                 "geometryGenerated=false primitiveCreated=false");
         }
 
@@ -176,16 +182,15 @@ namespace Afareet.Editor
 
         private static void ValidateStaticContract()
         {
-            if (SourcePaths.Length != RivalProductionPolicy.VariantCount)
-                throw new InvalidOperationException("UART-004 stager must define exactly three source paths.");
             if (TransitionHeights.Length != RivalProductionPolicy.MinimumTriangles.Length)
                 throw new InvalidOperationException("UART-004 stager must define exactly three LOD transition heights.");
 
             var unique = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var sourcePath in SourcePaths)
+            for (var variant = 0; variant < RivalProductionPolicy.VariantCount; variant++)
             {
+                var sourcePath = RivalProductionPolicy.StagingSourcePath(variant);
                 if (!RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath))
-                    throw new InvalidOperationException($"UART-004 invalid staged source path: {sourcePath}");
+                    throw new InvalidOperationException($"UART-004 invalid staged production source path: {sourcePath}");
                 if (!unique.Add(sourcePath))
                     throw new InvalidOperationException($"UART-004 stager source reuse is forbidden: {sourcePath}");
             }
