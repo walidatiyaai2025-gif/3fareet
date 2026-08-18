@@ -83,20 +83,20 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         self.assertIn("cannot reuse rival", text)
         self.assertNotIn("GameObject.CreatePrimitive", text)
 
-    def test_prefab_stager_only_assembles_imported_source_meshes_and_delegates_binding(self):
+    def test_prefab_stager_uses_only_isolated_production_sources_and_preflights_all_before_mutation(self):
         path = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs"
         self.assertTrue(path.is_file())
         self.assertTrue(path.with_suffix(path.suffix + ".meta").is_file())
         text = path.read_text(encoding="utf-8")
 
-        for source in (
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
-        ):
-            self.assertIn(source, text)
-
         for required in (
+            "RivalProductionPolicy.StagingSourcePath(0)",
+            "RivalProductionPolicy.StagingSourcePath(1)",
+            "RivalProductionPolicy.StagingSourcePath(2)",
+            "internal static void ValidateAllSourcesBeforeMutation()",
+            "ValidateSourceAvailable(variant)",
+            "AFAREET_UART004_SOURCE_PREFLIGHT_OK",
+            "mutationStarted=false",
             "Stage + Bind All Rival Prefabs",
             "AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath)",
             "PrefabUtility.InstantiatePrefab(sourceModel)",
@@ -119,6 +119,15 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
 
+        self.assertLess(text.index("ValidateAllSourcesBeforeMutation();"), text.index("for (var variant = 0; variant < RivalProductionPolicy.VariantCount; variant++)\n                StageAndBind(variant);"))
+
+        for review_source in (
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
+        ):
+            self.assertNotIn(review_source, text)
+
         for forbidden in (
             "GameObject.CreatePrimitive",
             "new Mesh(",
@@ -128,12 +137,14 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
-    def test_rival_quality_contract_requires_surface_authoring_identity_and_external_model_source(self):
+    def test_rival_quality_contract_requires_isolated_production_root_and_external_model_source(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
         for required in (
-            "Art/Vehicles/Rivals/Production/PF_Rival_01_Production",
-            "Art/Vehicles/Rivals/Production/PF_Rival_02_Production",
-            "Art/Vehicles/Rivals/Production/PF_Rival_03_Production",
+            'ProductionSourceRoot = "Assets/Afareet/ArtSource/Vehicles/Rivals/Production/"',
+            'ProductionSourceRoot + "Rival_01_WedgeCoupe_Production.obj"',
+            'ProductionSourceRoot + "Rival_02_FastbackMuscle_Production.obj"',
+            'ProductionSourceRoot + "Rival_03_CompactPrototype_Production.obj"',
+            "StagingSourcePath",
             "authoredExternalSource",
             "uv0Authored",
             "normalsAuthored",
@@ -142,12 +153,15 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "sourceFingerprint",
             "sourceGuid",
             "sourceDependencyHash",
-            "mesh.uv",
-            "mesh.normals",
-            "material.mainTexture",
             "IsSupportedAuthoredModelSource",
-            'StartsWith("Assets/"',
-            'IndexOf("/Generated/"',
+            "StartsWith(ProductionSourceRoot",
+            '"/Generated/"',
+            '"/Preview/"',
+            '"/Refinement/"',
+            '"/RefinementCandidates/"',
+            '"/Blockout/"',
+            '"/Review/"',
+            '"/ReviewPackaging/"',
             '".fbx"',
             '".obj"',
             '".blend"',
@@ -185,6 +199,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/\n",
             "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals.meta\n",
             "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/\n",
+            "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/\n",
         ):
             self.assertNotIn(
                 forbidden_ignore,
