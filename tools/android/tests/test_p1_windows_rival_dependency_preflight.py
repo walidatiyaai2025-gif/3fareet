@@ -157,7 +157,13 @@ class WindowsRivalDependencyPreflightTests(unittest.TestCase):
             self._init_fixture(root, omit_texture_meta=True)
             result = self._run([pwsh, "-NoProfile", "-File", str(NATIVE_PREFLIGHT), "-RepoRoot", str(root)])
         self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn("Rival texture Unity metadata is missing", result.stdout)
+        for expected in (
+            "AFAREET_UART004_RIVAL_NATIVE_PREFLIGHT_ERROR",
+            "Rival texture Unity",
+            "metadata is missing:",
+            "rival_1.png.meta",
+        ):
+            self.assertIn(expected, result.stdout)
 
     def test_native_and_staging_scripts_parse_with_pwsh(self):
         pwsh = shutil.which("pwsh")
