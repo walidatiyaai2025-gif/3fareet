@@ -107,6 +107,50 @@ def test_ai_racer_difficulty_hook_preserves_deterministic_base_profile():
     assert "Random.Range" not in source
 
 
+def test_race_director_applies_challenge_roster_only_in_safe_phases():
+    source = read(RACE_DIR / "RaceDirector.cs")
+
+    for token in (
+        "private RaceChallengeConfiguration challengeConfiguration = RaceChallengeConfiguration.Standard",
+        "private bool challengeRosterDirty = true",
+        "public RaceChallengeConfiguration ChallengeConfiguration => challengeConfiguration",
+        "public int RequestedActiveRivalCount => challengeConfiguration.ActiveRivalCount",
+        "public int ActiveRivalCount => Math.Max(0, racers.Count - 1)",
+        "public void ApplyChallengeConfiguration(RaceChallengeConfiguration configuration)",
+        "Phase == RaceRoundPhase.Countdown || Phase == RaceRoundPhase.Racing",
+        "RebuildChallengeRoster()",
+        "Math.Min(challengeConfiguration.ActiveRivalCount, registeredRivals.Count)",
+        "rival.gameObject.SetActive(false)",
+        "ai.ApplyDifficultyTuning(challengeConfiguration.AiDifficulty)",
+    ):
+        assert token in source
+
+    apply_block = source.split("public void ApplyChallengeConfiguration", 1)[1].split("public void StartRace", 1)[0]
+    assert "throw new InvalidOperationException" in apply_block
+    assert "challengeRosterDirty = true" in apply_block
+    assert "RaceRoundPhase.Ready" in apply_block
+    assert "Afareet.Progression" not in source
+    assert "Afareet.CareerRuntime" not in source
+
+
+def test_career_game_session_applies_node_balance_on_initial_bind_and_advance():
+    source = read(CAREER_DIR / "CareerGameSession.cs")
+
+    for token in (
+        "public RaceChallengeConfiguration ActiveChallengeConfiguration",
+        "ApplyChallengeConfiguration(activeDefinition)",
+        "var previousChallenge = race.ChallengeConfiguration",
+        "ApplyChallengeConfiguration(next)",
+        "race.ApplyChallengeConfiguration(previousChallenge)",
+        "CareerChallengeBalancePolicy.Resolve(definition.Node)",
+    ):
+        assert token in source
+
+    helper = source.split("private void ApplyChallengeConfiguration", 1)[1].split("private void BindAdapter", 1)[0]
+    assert "race.ApplyChallengeConfiguration" in helper
+    assert "CareerChallengeBalancePolicy.Resolve" in helper
+
+
 def test_existing_race_and_progression_assemblies_remain_decoupled():
     race_source = read(RACE_DIR / "RaceDirector.cs")
     progression_source = read(PROGRESSION_DIR / "CareerObjectiveEvaluation.cs")
