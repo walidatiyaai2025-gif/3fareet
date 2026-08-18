@@ -34,7 +34,7 @@ class PostP1RaceRewardSettlementContractTests(unittest.TestCase):
         self.assertIn("magnitude: 2d", enchanted)
         self.assertIn("legacy PR #9", defaults)
 
-    def test_race_director_captures_finish_snapshot_before_results_cleanup(self):
+    def test_race_director_captures_successful_finish_snapshot_before_results_cleanup_and_suppresses_elimination(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs")
 
         for required in (
@@ -44,17 +44,26 @@ class PostP1RaceRewardSettlementContractTests(unittest.TestCase):
             "CapturePlayerFinishRewardSnapshot(float finishTime)",
             "powerUpRuntime.CaptureRewardSettlementSnapshot(",
             "playerFinishRewardSnapshot = null;",
+            "playerFinishRewardSnapshot = playerWasEliminated",
+            "? null",
+            ": CapturePlayerFinishRewardSnapshot(finishTime);",
+            "before a successful race finish",
         ):
             self.assertIn(required, source)
 
         handler_start = source.index("private void OnRoundResultsReady(float finishTime)")
         handler_end = source.index("private void OnRoundReset()", handler_start)
         handler = source[handler_start:handler_end]
-        capture = handler.index("playerFinishRewardSnapshot = CapturePlayerFinishRewardSnapshot(finishTime);")
+        assignment = handler.index("playerFinishRewardSnapshot = playerWasEliminated")
+        elimination_suppression = handler.index("? null", assignment)
+        successful_capture = handler.index(": CapturePlayerFinishRewardSnapshot(finishTime);", assignment)
         drive_reset = handler.index("ResetPowerUpDriveModifiers();")
         publish = handler.index("ResultsReady?.Invoke(finishTime);")
-        self.assertLess(capture, drive_reset)
-        self.assertLess(capture, publish)
+
+        self.assertLess(assignment, elimination_suppression)
+        self.assertLess(elimination_suppression, successful_capture)
+        self.assertLess(successful_capture, drive_reset)
+        self.assertLess(successful_capture, publish)
 
     def test_settlement_tests_and_metadata_are_present(self):
         tests = self._read("unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs")
