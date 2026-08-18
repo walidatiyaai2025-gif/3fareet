@@ -24,6 +24,8 @@ on:
       - 'tools/android/tests/test_verify_release_with_production_art.py'
       - 'tools/android/tests/test_verify_release_with_smoke_contract.py'
       - 'tools/android/tests/test_p1_production_art_workflow_coverage_contract.py'
+      - 'tools/android/tests/test_p1_final_gate_plan_current_state_contract.py'
+      - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
       - 'docs/qa/P1_PRODUCTION_ART_GATE.md'
       - 'docs/qa/P1_PRODUCTION_ART_FINGERPRINTING.md'
       - '.github/workflows/p1-production-art-gate.yml'
@@ -52,6 +54,8 @@ on:
       - 'tools/android/tests/test_verify_release_with_production_art.py'
       - 'tools/android/tests/test_verify_release_with_smoke_contract.py'
       - 'tools/android/tests/test_p1_production_art_workflow_coverage_contract.py'
+      - 'tools/android/tests/test_p1_final_gate_plan_current_state_contract.py'
+      - 'docs/qa/P1_FINAL_5_GATE_PLAN.md'
       - 'docs/qa/P1_PRODUCTION_ART_GATE.md'
       - 'docs/qa/P1_PRODUCTION_ART_FINGERPRINTING.md'
       - '.github/workflows/p1-production-art-gate.yml'
@@ -92,7 +96,8 @@ jobs:
             tools/android/tests/test_verify_release_publication.py \
             tools/android/tests/test_verify_release_with_production_art.py \
             tools/android/tests/test_verify_release_with_smoke_contract.py \
-            tools/android/tests/test_p1_production_art_workflow_coverage_contract.py
+            tools/android/tests/test_p1_production_art_workflow_coverage_contract.py \
+            tools/android/tests/test_p1_final_gate_plan_current_state_contract.py
           python3 tools/android/analyze_device_smoke.py --help >/dev/null
           python3 tools/android/fingerprint_p1_production_art_manifest.py --help >/dev/null
           python3 tools/android/verify_p1_production_art.py --help >/dev/null
@@ -119,3 +124,4 @@ jobs:
           python3 -m unittest discover -s tools/android/tests -p 'test_verify_release_with_production_art.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_verify_release_with_smoke_contract.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_p1_production_art_workflow_coverage_contract.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_final_gate_plan_current_state_contract.py' -v
