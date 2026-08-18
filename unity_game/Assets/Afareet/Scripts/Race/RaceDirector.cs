@@ -333,9 +333,7 @@ namespace Afareet.Race
             if (runtime == null || runtime.Eliminated || runtime.Lap.IsFinished || powerUpRuntime == null || powerUpRuntimeDirty)
                 return false;
 
-            return AiHostilePowerUpPressurePolicy.IsUsable(
-                powerUpRuntime.GetInventorySnapshot(runtime.RacerId, raceTimeSeconds),
-                kind);
+            return powerUpRuntime.IsPowerUpUsable(runtime.RacerId, kind, raceTimeSeconds);
         }
 
         private void FixedUpdate()
