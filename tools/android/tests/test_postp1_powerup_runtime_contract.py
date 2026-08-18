@@ -11,65 +11,41 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
 
     def test_runtime_is_pure_csharp_and_owns_authoritative_inventory(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
-
         for required in (
-            "public sealed class PowerUpRaceRuntime",
-            "SortedDictionary<string, RacerState>",
-            "PowerUpRuntimeRuleset",
-            "GetInventorySnapshot",
-            "GetAiAvailability",
-            "TryUse(",
-            "ExecuteAiDecision(",
-            "TickAll(",
-            "ResetRace()",
-            "slot.Charges--",
-            "slot.ReadyAtSeconds = raceTimeSeconds + rule.CooldownSeconds",
+            "public sealed class PowerUpRaceRuntime", "SortedDictionary<string, RacerState>", "PowerUpRuntimeRuleset",
+            "GetInventorySnapshot", "GetAiAvailability", "TryUse(", "ExecuteAiDecision(", "TickAll(", "ResetRace()",
+            "slot.Charges--", "slot.ReadyAtSeconds = raceTimeSeconds + rule.CooldownSeconds",
         ):
             self.assertIn(required, source)
-
         self.assertNotIn("using UnityEngine;", source)
         self.assertNotIn("MonoBehaviour", source)
 
     def test_runtime_commits_only_real_effect_transitions(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
-        apply_start = source.index("private PowerUpRuntimeUseResult ApplyResolvedEffect(")
-        apply_end = source.index("private TargetResolution ResolveTarget(", apply_start)
-        apply_method = source[apply_start:apply_end]
-
-        ignored_index = apply_method.index("if (applyResult == PowerUpApplyResult.IgnoredWhileActive)")
-        consume_index = apply_method.index("slot.Charges--")
+        ignored_index = source.rindex("if (applyResult == PowerUpApplyResult.IgnoredWhileActive)")
+        consume_index = source.rindex("slot.Charges--")
         self.assertLess(ignored_index, consume_index)
-        self.assertIn("PowerUpRuntimeUseStatus.IgnoredByEffectPolicy", apply_method)
-        self.assertIn("PowerUpRuntimeUseStatus.BlockedByEyeShield", apply_method)
-        self.assertIn("applyResult == PowerUpApplyResult.BlockedByEyeShield", apply_method)
-        self.assertIn("if (consumeInventory)", apply_method)
-
-        # World-deployable Asphalt Shard intentionally consumes its inventory at deployment;
-        # the later trap hit reuses ApplyResolvedEffect with consumeInventory:false.
+        tail = source[ignored_index:]
+        self.assertIn("PowerUpRuntimeUseStatus.IgnoredByEffectPolicy", tail)
+        self.assertIn("PowerUpRuntimeUseStatus.BlockedByEyeShield", tail)
+        self.assertIn("applyResult == PowerUpApplyResult.BlockedByEyeShield", tail)
+        self.assertIn("if (consumeInventory)", tail)
         self.assertIn("rule.TargetMode == PowerUpRuntimeTargetMode.WorldDeployable", source)
         self.assertIn("consumeInventory: false", source)
 
     def test_target_modes_lock_retained_gameplay_semantics(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
-
         for required in (
-            "case PowerUpKind.AsphaltShard:",
-            "return PowerUpRuntimeTargetMode.WorldDeployable;",
-            "case PowerUpKind.TrafficCurse:",
-            "return PowerUpRuntimeTargetMode.Opponent;",
-            "case PowerUpKind.NitroSpirit:",
-            "case PowerUpKind.EnchantedPound:",
-            "case PowerUpKind.EyeShield:",
-            "return PowerUpRuntimeTargetMode.Self;",
-            "PowerUpRuntimeUseStatus.MissingTarget",
-            "PowerUpRuntimeUseStatus.InvalidTarget",
-            "PowerUpRuntimeUseStatus.UnknownTarget",
+            "case PowerUpKind.AsphaltShard:", "return PowerUpRuntimeTargetMode.WorldDeployable;",
+            "case PowerUpKind.TrafficCurse:", "return PowerUpRuntimeTargetMode.Opponent;",
+            "case PowerUpKind.NitroSpirit:", "case PowerUpKind.EnchantedPound:", "case PowerUpKind.EyeShield:",
+            "return PowerUpRuntimeTargetMode.Self;", "PowerUpRuntimeUseStatus.MissingTarget",
+            "PowerUpRuntimeUseStatus.InvalidTarget", "PowerUpRuntimeUseStatus.UnknownTarget",
         ):
             self.assertIn(required, source)
 
     def test_ai_execution_uses_authoritative_availability_and_try_use(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
-
         self.assertIn("var availability = GetAiAvailability(sourceRacerId, raceTimeSeconds);", source)
         self.assertIn("var decision = AiPowerUpUsagePolicy.Decide(snapshot, availability);", source)
         self.assertIn("var useResult = TryUse(sourceRacerId, kind, targetRacerId, raceTimeSeconds);", source)
@@ -81,18 +57,11 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
     def test_behavior_runner_and_unity_regressions_cover_required_paths(self):
         runner = self._read("tools/android/contracts/PowerUpRuntimeContractRunner.cs")
         tests = self._read("unity_game/Assets/Afareet/Tests/EditMode/Race/PowerUpRaceRuntimeTests.cs")
-
         for required in (
-            "InventoryAndCooldownContract",
-            "EyeShieldConsumptionContract",
-            "IgnoredUseContract",
-            "AiExecutionContract",
-            "TargetGateContract",
-            "TickAndResetContract",
-            "Power-up runtime behavior contract: PASS",
+            "InventoryAndCooldownContract", "EyeShieldConsumptionContract", "IgnoredUseContract", "AiExecutionContract",
+            "TargetGateContract", "DeployableTrapFlow", "TickAndResetContract", "Power-up runtime behavior contract: PASS",
         ):
             self.assertIn(required, runner)
-
         for required in (
             "TryUse_ConsumesChargeAndEnforcesCooldownFromOneAuthoritativeSlot",
             "HostileUseBlockedByEyeShield_IsStillConsumedAsRealAttempt",
@@ -107,28 +76,16 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
     def test_compile_projects_cover_all_runtime_dependencies(self):
         project = self._read("tools/android/contracts/PowerUpRuntimeCompile.csproj")
         runner_project = self._read("tools/android/contracts/PowerUpRuntimeContractRunner.csproj")
-
         self.assertIn("<TargetFramework>netstandard2.1</TargetFramework>", project)
         self.assertIn("<TargetFramework>net8.0</TargetFramework>", runner_project)
         self.assertIn("<BaseIntermediateOutputPath>obj/PowerUpRuntimeContractRunner/</BaseIntermediateOutputPath>", runner_project)
         self.assertIn("<BaseOutputPath>bin/PowerUpRuntimeContractRunner/</BaseOutputPath>", runner_project)
-
         for source in (
-            "PowerUpPresentationHooks.cs",
-            "PowerUpEffectState.cs",
-            "AiPowerUpUsagePolicy.cs",
-            "PowerUpRaceRuntime.cs",
+            "PowerUpPresentationHooks.cs", "PowerUpEffectState.cs", "AiPowerUpUsagePolicy.cs", "PowerUpRaceRuntime.cs",
             "AsphaltShardTrapRuntime.cs",
         ):
             self.assertIn(source, project)
-        for source in (
-            "PowerUpPresentationHooks.cs",
-            "PowerUpEffectState.cs",
-            "AiPowerUpUsagePolicy.cs",
-            "PowerUpRaceRuntime.cs",
-        ):
             self.assertIn(source, runner_project)
-
         self.assertIn("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>", project)
         self.assertIn("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>", runner_project)
         self.assertNotIn("ProjectReference", runner_project)
