@@ -66,7 +66,22 @@ namespace Afareet.Editor
         public void OnPreprocessBuild(BuildReport report)
         {
             if (report == null || report.summary.platform != BuildTarget.Android) return;
+            if (IsDedicatedExperimentalBuild(report))
+            {
+                Debug.LogWarning("AFAREET_UART007_EXPERIMENTAL_GATE_BYPASS productionEvidence=false");
+                return;
+            }
             ValidateAndroidCandidateOrThrow();
+        }
+
+        private static bool IsDedicatedExperimentalBuild(BuildReport report)
+        {
+            var output = (report.summary.outputPath ?? string.Empty).Replace('\\', '/');
+            return AfareetBuildContext.IsExperimentalAndroidBuild &&
+                   (report.summary.options & BuildOptions.Development) != 0 &&
+                   output.EndsWith(
+                       "Builds/Android/afareet-unity3d-experimental.apk",
+                       StringComparison.OrdinalIgnoreCase);
         }
 
         [MenuItem("Afareet/P1/Validate Cairo Track Dressing Android Gate")]

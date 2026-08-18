@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.World
 {
@@ -15,8 +16,8 @@ namespace Afareet.World
         private const float RescanSeconds = 1.0f;
         private const float RetrySeconds = 5.0f;
 
-        private readonly HashSet<int> configured = new();
-        private readonly Dictionary<int, float> retryAfter = new();
+        private readonly HashSet<Transform> configured = new();
+        private readonly Dictionary<Transform, float> retryAfter = new();
         private readonly Dictionary<string, GameObject> cache = new(StringComparer.Ordinal);
         private readonly HashSet<string> loggedFailures = new(StringComparer.Ordinal);
         private float nextScanAt;
@@ -44,18 +45,17 @@ namespace Afareet.World
                 var baseName = ResolveBaseName(target.name);
                 if (string.IsNullOrEmpty(baseName)) continue;
 
-                var id = target.gameObject.GetInstanceID();
-                if (configured.Contains(id)) continue;
-                if (retryAfter.TryGetValue(id, out var retryAt) && Time.unscaledTime < retryAt) continue;
+                if (configured.Contains(target)) continue;
+                if (retryAfter.TryGetValue(target, out var retryAt) && Time.unscaledTime < retryAt) continue;
 
                 if (TryConfigure(target, baseName))
                 {
-                    configured.Add(id);
-                    retryAfter.Remove(id);
+                    configured.Add(target);
+                    retryAfter.Remove(target);
                 }
                 else
                 {
-                    retryAfter[id] = Time.unscaledTime + RetrySeconds;
+                    retryAfter[target] = Time.unscaledTime + RetrySeconds;
                 }
             }
         }
@@ -181,17 +181,36 @@ namespace Afareet.World
                 var mesh = filter == null ? null : filter.sharedMesh;
                 if (mesh == null || mesh.vertexCount <= 0)
                     throw new InvalidOperationException($"road/curb LOD has no mesh: {baseName} LOD{lod}");
-                if (mesh.uv == null || mesh.uv.Length != mesh.vertexCount)
-                    throw new InvalidOperationException($"road/curb LOD missing complete UV0: {baseName} LOD{lod}");
-                if (mesh.normals == null || mesh.normals.Length != mesh.vertexCount)
-                    throw new InvalidOperationException($"road/curb LOD missing complete normals: {baseName} LOD{lod}");
+                if (!mesh.HasVertexAttribute(VertexAttribute.TexCoord0))
+                    throw new InvalidOperationException($"road/curb LOD missing UV0 vertex attribute: {baseName} LOD{lod}");
+                if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
+                    throw new InvalidOperationException($"road/curb LOD missing normal vertex attribute: {baseName} LOD{lod}");
 
                 var textured = false;
                 foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
-                    if (material != null && material.mainTexture != null) { textured = true; break; }
+                {
+                    if (HasAssignedTexture(material))
+                    {
+                        textured = true;
+                        break;
+                    }
+                }
                 if (!textured)
                     throw new InvalidOperationException($"road/curb LOD missing texture-mapped material: {baseName} LOD{lod}");
             }
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static HashSet<Mesh> CollectMeshes(Renderer[] renderers)

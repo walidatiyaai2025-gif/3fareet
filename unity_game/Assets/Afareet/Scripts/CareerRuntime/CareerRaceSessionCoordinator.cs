@@ -15,6 +15,11 @@ namespace Afareet.CareerRuntime
         int DriftScore { get; }
     }
 
+    public interface ICareerRaceOutcomeMetricsSource : ICareerRaceMetricsSource
+    {
+        bool FinishedSuccessfully { get; }
+    }
+
     public sealed class CareerRaceSessionCoordinator : IDisposable
     {
         private readonly ICareerRaceEventSource source;
@@ -68,8 +73,10 @@ namespace Afareet.CareerRuntime
             if (disposed)
                 return;
 
+            var finishedSuccessfully = !(metricsSource is ICareerRaceOutcomeMetricsSource outcomeMetrics) ||
+                                       outcomeMetrics.FinishedSuccessfully;
             var outcome = new CareerEventOutcome(
-                finished: true,
+                finished: finishedSuccessfully,
                 restartCount: restartCount,
                 finishTimeSeconds: Math.Max(0d, finishTime),
                 finalPosition: metricsSource?.FinalPosition,

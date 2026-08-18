@@ -1,0 +1,29 @@
+3FAREET — ASSET CREATION REQUESTS
+=================================
+
+COMPATIBILITY POINTER — DO NOT ADD REQUESTS HERE
+------------------------------------------------
+The single canonical root-level external asset creation/handoff ledger is:
+
+    EXTERNAL_ASSET_REQUESTS.txt
+
+All programmers, AI agents, designers and integrators MUST add/update external asset requests there only.
+That canonical file contains the mandatory policy, asset name, creation prompt/art brief, recommended tool,
+helper script/workflow, output path/format, technical constraints, acceptance criteria, provenance/license
+requirements and integration notes.
+
+Programming Closure Mode remains active until the project owner explicitly asks to resume visual polish.
+Programming, tests, CI, runtime contracts, validation, deterministic pipelines and evidence tooling come first.
+If code discovers an external asset dependency, register it in EXTERNAL_ASSET_REQUESTS.txt in the same PR/branch;
+do not fabricate production art and do not weaken a production/P1 gate.
+
+Detailed inventory/status remains in:
+
+    docs/MISSED_ASSETS.md
+
+Canonical handoff ledger:
+
+    EXTERNAL_ASSET_REQUESTS.txt
+
+This alias exists only because an earlier Step-26 commit introduced the alternate filename. It intentionally
+contains no independent request IDs so the repository has one source of truth and cannot drift.

@@ -47,9 +47,12 @@ class Uart005MobileLodContractTests(unittest.TestCase):
             'TryValidateExistingGroup',
             'ExpectedLodLevels',
             'ValidateRendererSet',
-            'mesh.uv',
-            'mesh.normals',
-            'material.mainTexture',
+            'using UnityEngine.Rendering;',
+            'mesh.HasVertexAttribute(VertexAttribute.TexCoord0)',
+            'mesh.HasVertexAttribute(VertexAttribute.Normal)',
+            'HasAssignedTexture',
+            'material.GetTexturePropertyNames()',
+            'material.GetTexture(propertyName)',
             'MeshesOverlap',
             'RejectSecondaryLodColliders',
             'UnityEngine.Object.Destroy(group)',
@@ -59,11 +62,31 @@ class Uart005MobileLodContractTests(unittest.TestCase):
             'resourceCache=true',
         ):
             self.assertIn(s,text)
+        for forbidden in ('mesh.uv', 'mesh.normals', 'material.mainTexture'):
+            self.assertNotIn(forbidden, text)
 
     def test_android_gate_requires_distinct_source_paths_and_monotonic_topology(self):
         text=self._read('unity_game/Assets/Afareet/Editor/P1ProductionMobileLodBuildGate.cs')
-        for s in ('IPreprocessBuildWithReport','BuildTarget.Android','StageTrackedSourcesOrThrow','AssetDatabase.GetAssetPath','mesh.uv','mesh.normals','material.mainTexture','triangleCounts[0] > triangleCounts[1]','triangleCounts[1] > triangleCounts[2]','fake same-source LOD reuse rejected','AFAREET_UART005_MOBILE_LOD_GATE_OK','AFAREET_UART005_MOBILE_LOD_GATE_BLOCKED'):
+        for s in (
+            'IPreprocessBuildWithReport',
+            'BuildTarget.Android',
+            'StageTrackedSourcesOrThrow',
+            'AssetDatabase.GetAssetPath',
+            'using UnityEngine.Rendering;',
+            'mesh.HasVertexAttribute(VertexAttribute.TexCoord0)',
+            'mesh.HasVertexAttribute(VertexAttribute.Normal)',
+            'HasAssignedTexture',
+            'material.GetTexturePropertyNames()',
+            'material.GetTexture(propertyName)',
+            'triangleCounts[0] > triangleCounts[1]',
+            'triangleCounts[1] > triangleCounts[2]',
+            'fake same-source LOD reuse rejected',
+            'AFAREET_UART005_MOBILE_LOD_GATE_OK',
+            'AFAREET_UART005_MOBILE_LOD_GATE_BLOCKED'
+        ):
             self.assertIn(s,text)
+        for forbidden in ('mesh.uv', 'mesh.normals', 'material.mainTexture'):
+            self.assertNotIn(forbidden, text)
 
     def test_android_gate_rejects_secondary_colliders_untracked_paths_and_mesh_reuse(self):
         text=self._read('unity_game/Assets/Afareet/Editor/P1ProductionMobileLodBuildGate.cs')

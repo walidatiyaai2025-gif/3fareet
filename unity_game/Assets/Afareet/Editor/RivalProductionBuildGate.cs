@@ -22,6 +22,11 @@ namespace Afareet.Editor
         public void OnPreprocessBuild(BuildReport report)
         {
             if (report.summary.platform != BuildTarget.Android) return;
+            if (IsDedicatedExperimentalBuild(report))
+            {
+                Debug.LogWarning("AFAREET_UART004_EXPERIMENTAL_GATE_BYPASS productionEvidence=false");
+                return;
+            }
 
             RivalProductionPolicy.ValidateContract();
             var usedSourceGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -47,6 +52,16 @@ namespace Afareet.Editor
             Debug.Log(
                 "AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK variants=3 source=external-authored-3d " +
                 "importedSources=3 distinctSources=3 guidHashBound=true meshSourceBound=true primitiveFallback=false");
+        }
+
+        private static bool IsDedicatedExperimentalBuild(BuildReport report)
+        {
+            var output = (report.summary.outputPath ?? string.Empty).Replace('\\', '/');
+            return AfareetBuildContext.IsExperimentalAndroidBuild &&
+                   (report.summary.options & BuildOptions.Development) != 0 &&
+                   output.EndsWith(
+                       "Builds/Android/afareet-unity3d-experimental.apk",
+                       StringComparison.OrdinalIgnoreCase);
         }
 
         private static string ValidateExternalSourceProvenanceOrThrow(GameObject prefab, int variant, string prefabPath)

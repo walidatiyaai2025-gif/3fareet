@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.Vehicle
 {
@@ -175,12 +176,12 @@ namespace Afareet.Vehicle
                     var mesh = MeshFor(renderer);
                     if (mesh == null) { reason = $"lod{lod}-renderer-missing-mesh"; return false; }
                     triangles += TriangleCount(mesh);
-                    allUv0 &= mesh.uv != null && mesh.uv.Length == mesh.vertexCount;
-                    allNormals &= mesh.normals != null && mesh.normals.Length == mesh.vertexCount;
+                    allUv0 &= mesh.HasVertexAttribute(VertexAttribute.TexCoord0);
+                    allNormals &= mesh.HasVertexAttribute(VertexAttribute.Normal);
                     if (renderer.sharedMaterials != null)
                     {
                         foreach (var material in renderer.sharedMaterials)
-                            if (material != null && material.mainTexture != null) hasTexture = true;
+                            if (HasAssignedTexture(material)) hasTexture = true;
                     }
                 }
 
@@ -217,6 +218,19 @@ namespace Afareet.Vehicle
             if (renderer is SkinnedMeshRenderer skinned) return skinned.sharedMesh;
             var filter = renderer.GetComponent<MeshFilter>();
             return filter == null ? null : filter.sharedMesh;
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static int TriangleCount(Mesh mesh)

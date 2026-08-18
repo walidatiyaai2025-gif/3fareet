@@ -22,6 +22,7 @@ namespace Afareet.Vehicle
         private float stuckDriveSeconds;
         private float recoveryInputLockRemaining;
         private ArcadeDriveModifier externalDriveModifier = ArcadeDriveModifier.Neutral();
+        private VehiclePerformanceProfile vehiclePerformanceProfile = VehiclePerformanceProfile.Identity;
 
         public bool AcceptsPlayerInput { get; set; }
         public float SpeedKph => body == null ? 0f : Vector3.Dot(body.linearVelocity, transform.forward) * 3.6f;
@@ -53,6 +54,7 @@ namespace Afareet.Vehicle
         public bool CurrentBrakeInput => brakeInput;
         public float RecoveryInputLockRemaining => recoveryInputLockRemaining;
         public ArcadeDriveModifier ExternalDriveModifier => externalDriveModifier;
+        public VehiclePerformanceProfile VehiclePerformanceProfile => vehiclePerformanceProfile;
 
         private void Awake()
         {
@@ -74,7 +76,18 @@ namespace Afareet.Vehicle
 
         private void FixedUpdate()
         {
-            if (config == null) return;
+            if (config == null || body == null) return;
+
+            // RaceDirector intentionally freezes all racers as kinematic bodies during
+            // Ready/Countdown/Results. Unity 6 rejects linear/angular velocity writes on
+            // kinematic Rigidbodies, so the vehicle controller must be completely passive
+            // until RaceDirector releases the body back to dynamic simulation.
+            if (body.isKinematic)
+            {
+                DriftChargeActive = false;
+                foreach (var trail in trails) trail.emitting = false;
+                return;
+            }
 #if UNITY_EDITOR || UNITY_STANDALONE
             if (AcceptsPlayerInput) ReadDesktopInput();
 #endif
@@ -108,6 +121,7 @@ namespace Afareet.Vehicle
 
             var surfaceResponse = config.SurfaceResponseFor(surfaceSensor.CurrentSurface);
             var driveModifier = externalDriveModifier;
+            var performance = vehiclePerformanceProfile;
             nitroCooldownRemaining = VehicleSpiritPolicy.AdvanceCooldown(nitroCooldownRemaining, Time.fixedDeltaTime);
 
             var localVelocity = transform.InverseTransformDirection(body.linearVelocity);
@@ -151,9 +165,11 @@ namespace Afareet.Vehicle
                 config.tractionStrength);
             var accelerating = (tractionDrive >= 0f ? config.acceleration : config.reverseAcceleration) *
                                surfaceResponse.AccelerationMultiplier *
+                               (float)performance.AccelerationMultiplier *
                                (float)driveModifier.AccelerationMultiplier;
             var surfaceMaxSpeed = config.maxSpeedMetersPerSecond *
                                   surfaceResponse.MaxSpeedMultiplier *
+                                  (float)performance.MaxSpeedMultiplier *
                                   (float)driveModifier.MaxSpeedMultiplier;
             if (grounded &&
                 (Mathf.Abs(forwardSpeed) < surfaceMaxSpeed || Mathf.Sign(tractionDrive) != Mathf.Sign(forwardSpeed)))
@@ -206,6 +222,7 @@ namespace Afareet.Vehicle
                 body.MoveRotation(body.rotation * Quaternion.Euler(
                     0f,
                     steerInput * config.steerStrengthDegrees * speedFactor * direction *
+                    (float)performance.SteeringAuthorityMultiplier *
                     (float)driveModifier.SteeringAuthorityMultiplier * Time.fixedDeltaTime,
                     0f));
 
@@ -215,11 +232,13 @@ namespace Afareet.Vehicle
                     lateralSlip,
                     config.driftGripMinimumSteer,
                     config.driftGripFullSlipMetersPerSecond);
+                driftBlend = Mathf.Clamp01(driftBlend * (float)performance.DriftAuthorityMultiplier);
                 var effectiveGrip = VehicleHandlingPolicy.EffectiveGrip(
                                         config.grip,
                                         config.driftGrip,
                                         driftBlend,
                                         surfaceResponse.GripMultiplier) *
+                                    (float)performance.GripMultiplier *
                                     (float)driveModifier.GripMultiplier;
                 localVelocity.x = Mathf.Lerp(localVelocity.x, 0f, effectiveGrip * Time.fixedDeltaTime);
             }
@@ -227,8 +246,12 @@ namespace Afareet.Vehicle
             var maxForwardSpeed = config.maxSpeedMetersPerSecond *
                                   (grounded ? surfaceResponse.MaxSpeedMultiplier : 1f) *
                                   (nitroActive ? 1.22f : 1f) *
+                                  (float)performance.MaxSpeedMultiplier *
                                   (float)driveModifier.MaxSpeedMultiplier;
-            localVelocity.z = Mathf.Clamp(localVelocity.z, -config.maxSpeedMetersPerSecond * 0.3f, maxForwardSpeed);
+            localVelocity.z = Mathf.Clamp(
+                localVelocity.z,
+                -config.maxSpeedMetersPerSecond * .3f * (float)performance.MaxSpeedMultiplier,
+                maxForwardSpeed);
             body.linearVelocity = transform.TransformDirection(localVelocity);
 
             foreach (var trail in trails) trail.emitting = IsDrifting || nitroActive;
@@ -265,11 +288,23 @@ namespace Afareet.Vehicle
                 throw new System.ArgumentException(error, nameof(vehicleConfig));
 
             config = vehicleConfig;
+            ResetVehiclePerformanceProfile();
             ResetExternalDriveModifier();
             body.mass = config.massKilograms;
             body.linearDamping = config.linearDamping;
             body.angularDamping = config.angularDamping;
             body.centerOfMass = config.centerOfMass;
+        }
+
+        public void SetVehiclePerformanceProfile(VehiclePerformanceProfile profile)
+        {
+            VehiclePerformanceProfile.ValidateInitialized(profile, nameof(profile));
+            vehiclePerformanceProfile = profile;
+        }
+
+        public void ResetVehiclePerformanceProfile()
+        {
+            vehiclePerformanceProfile = VehiclePerformanceProfile.Identity;
         }
 
         public void SetExternalDriveModifier(ArcadeDriveModifier modifier)
@@ -299,10 +334,15 @@ namespace Afareet.Vehicle
 
         private void RecoverToTrack(string reason)
         {
+            if (body == null)
+                body = GetComponent<Rigidbody>();
+
             var checkpoint = GetComponent<LastCheckpointTracker>();
             var source = "spawn";
             var targetPosition = spawnPosition + Vector3.up * VehicleRecoveryPolicy.RecoveryUpOffsetMeters;
-            var targetRotation = spawnRotation;
+            var targetRotation = Quaternion.Dot(spawnRotation, spawnRotation) > 0.999f
+                ? spawnRotation
+                : transform.rotation;
 
             if (checkpoint != null && checkpoint.HasCheckpoint)
             {
@@ -313,9 +353,13 @@ namespace Afareet.Vehicle
 
             // Teleport the physics body directly; using Transform.SetPositionAndRotation on
             // an interpolated dynamic Rigidbody can leave the physics pose/contact state one
-            // simulation step behind the visual Transform.
-            body.linearVelocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
+            // simulation step behind the visual Transform. Velocity writes are valid only for
+            // a dynamic body; Ready/Countdown/Results deliberately keep the racer kinematic.
+            if (!body.isKinematic)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+            }
             body.position = targetPosition;
             body.rotation = targetRotation;
             ClearDriveInputs();

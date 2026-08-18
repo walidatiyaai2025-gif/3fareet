@@ -1,0 +1,8 @@
+{
+  "name": "Afareet.GarageEditModeTests",
+  "rootNamespace": "Afareet.Tests.Garage",
+  "references": ["Afareet.GarageRuntime", "Afareet.CareerRuntime", "Afareet.Progression"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

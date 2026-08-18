@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/GarageRuntime/GarageCatalog.cs" Link="GarageCatalog.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/GarageRuntime/GarageState.cs" Link="GarageState.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/GarageRuntime/GarageService.cs" Link="GarageService.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/GarageRuntime/GaragePersistence.cs" Link="GaragePersistence.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageVehicleRuntime.cs" Link="CareerGarageVehicleRuntime.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Vehicle/VehiclePerformanceProfile.cs" Link="VehiclePerformanceProfile.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Core/GarageVehiclePerformanceProjection.cs" Link="GarageVehiclePerformanceProjection.cs" />
+  </ItemGroup>
+</Project>

@@ -185,12 +185,15 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
             "facades=3 awnings=2 signs=1",
             "selection=stable-position-hash",
             "playerMaterials=source-authored",
+            "ApplyNamedMaterialsForEditorPreview",
+            "ApplyMaterialForEditorPreview",
+            "WouldDiscardAuthoredTexture",
         ):
             self.assertIn(required, runtime)
         self.assertIn("if (facade == null) Missing(facadePath);", runtime)
         self.assertIn("if (awning == null) Missing(awningPath);", runtime)
         self.assertIn("if (sign == null) Missing(SignPath);", runtime)
-        self.assertIn("if (!Application.isEditor)", runtime)
+        self.assertIn("if (!Application.isEditor || instance == null)", runtime)
 
     def test_fail_closed_android_surface_and_dependency_contracts_remain(self):
         gate = self._read("unity_game/Assets/Afareet/Editor/P1ProductionWorldBuildGate.cs")
@@ -237,7 +240,10 @@ class Uart005ProductionSurfaceContractTests(unittest.TestCase):
         runtime = self._read("unity_game/Assets/Afareet/Scripts/World/CairoAuthoredStreetKit.cs")
         self.assertIn("ApplyNamedMaterialsForEditorPreview", runtime)
         self.assertIn("ApplyMaterialForEditorPreview", runtime)
-        self.assertIn("if (!Application.isEditor)", runtime)
+        self.assertIn("if (!Application.isEditor || instance == null)", runtime)
+        self.assertIn("WouldDiscardAuthoredTexture", runtime)
+        self.assertIn("RendererHasAssignedTexture", runtime)
+        self.assertIn("MaterialHasAssignedTexture", runtime)
         self.assertIn("player-preserves-source-materials=true", runtime)
         self.assertNotIn("private static void ApplyNamedMaterials(", runtime)
         self.assertNotIn("private static void ApplyMaterial(GameObject", runtime)

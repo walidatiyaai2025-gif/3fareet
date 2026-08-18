@@ -4,6 +4,8 @@ namespace Afareet.Core
 {
     public sealed class CairoMusicLifecycle : MonoBehaviour
     {
+        public const string ProductionMusicResourcePath = "Audio/Production/Music/MUS_CairoNight_Race_Loop";
+
         private static readonly int[] BassNotes = { 0, 0, 3, 2, 0, 5, 3, 2 };
         private static readonly int[] LeadNotes = { 0, 1, 4, 5, 4, 1, 0, -2 };
         private static CairoMusicLifecycle instance;
@@ -33,7 +35,32 @@ namespace Afareet.Core
             source.playOnAwake = false;
             source.spatialBlend = 0f;
             source.volume = .30f;
-            source.clip = BuildLoop();
+
+            var productionClip = Resources.Load<AudioClip>(ProductionMusicResourcePath);
+            if (productionClip != null)
+            {
+                source.clip = productionClip;
+                Debug.Log(
+                    $"AFAREET_AUDIO_PRODUCTION_MUSIC_ACTIVE resource={ProductionMusicResourcePath} " +
+                    $"samples={productionClip.samples} frequency={productionClip.frequency}");
+            }
+            else
+            {
+#if UNITY_EDITOR || AFAREET_EXPERIMENTAL_APK
+                source.clip = BuildPrototypeLoop();
+                Debug.LogWarning(
+                    $"AFAREET_AUDIO_PROTOTYPE_FALLBACK_ACTIVE resource={ProductionMusicResourcePath} " +
+                    "classification=PROTOTYPE production=false");
+#else
+                Debug.LogError(
+                    $"AFAREET_AUDIO_PRODUCTION_REQUIRED resource={ProductionMusicResourcePath} " +
+                    "procedural-fallback-disabled=true");
+                enabled = false;
+                source.enabled = false;
+                return;
+#endif
+            }
+
             source.Play();
         }
 
@@ -58,7 +85,8 @@ namespace Afareet.Core
             else source.UnPause();
         }
 
-        private static AudioClip BuildLoop()
+#if UNITY_EDITOR || AFAREET_EXPERIMENTAL_APK
+        private static AudioClip BuildPrototypeLoop()
         {
             const int sampleRate = 22050;
             const float bpm = 100f;
@@ -90,9 +118,10 @@ namespace Afareet.Core
                 data[i] = Mathf.Clamp(kick + clap + bass + lead, -.9f, .9f);
             }
 
-            var clip = AudioClip.Create("3Fareet Cairo Rap Shaabi Loop", sampleCount, 1, sampleRate, false);
+            var clip = AudioClip.Create("3Fareet Cairo Prototype Loop", sampleCount, 1, sampleRate, false);
             clip.SetData(data, 0);
             return clip;
         }
+#endif
     }
 }

@@ -10,9 +10,12 @@ namespace Afareet.World
         private const string RunePath = ResourceRoot + "/SM_Track_SpiritRune_A";
         private const string GroundPath = ResourceRoot + "/SM_Track_DesertGround_A";
         private const string SectorBeaconPath = ResourceRoot + "/SM_Track_SectorBeacon_A";
+        private const float FinishGateForwardOffset = 10f;
         private const float SectorBeaconLateralOffset = 15f;
         private static bool activationLogged;
+        private static bool finishGatePlacementLogged;
         private static bool editorMaterialOverrideLogged;
+        private static bool editorTexturePreservationLogged;
 
         public static bool TryCreateGround(Transform parent, Material ground, Material accent)
         {
@@ -47,9 +50,17 @@ namespace Afareet.World
             if (source == null) return Missing(FinishGatePath);
             var instance = UnityEngine.Object.Instantiate(source, parent, false);
             instance.name = "AUTHORED Cairo Finish Gate";
-            instance.transform.SetPositionAndRotation(start.position, start.rotation);
+
+            // Waypoint 0 is also the front grid anchor. Placing a ~15m wide / 9m tall authored
+            // gate directly on that transform leaves the 7.2m chase camera almost inside the
+            // landmark at race start. Keep race/grid logic untouched and move only the visual
+            // landmark forward along the track so the gate frames the sightline instead of
+            // occluding it.
+            var visualPosition = start.position + start.forward * FinishGateForwardOffset;
+            instance.transform.SetPositionAndRotation(visualPosition, start.rotation);
             instance.transform.localScale = Vector3.one;
             ApplyByNameForEditorPreview(instance, cyan, purple, gold, cyan);
+            LogFinishGatePlacement();
             LogActivation();
             return true;
         }
@@ -66,11 +77,6 @@ namespace Afareet.World
             if (source == null) return Missing(SectorBeaconPath);
             var instance = UnityEngine.Object.Instantiate(source, parent, false);
             instance.name = "AUTHORED Cairo Sector Beacon";
-
-            // Keep the 2.45m-wide authored beacon outside the 14m road/rail envelope while
-            // retaining safe clearance from CairoTrackBuilder's +right roadside buildings,
-            // whose closest centers are 22m from the racing line. The former 18m placement
-            // could overlap a rotated 5m building footprint at waypoint 36.
             instance.transform.SetPositionAndRotation(
                 anchor.position + anchor.right * SectorBeaconLateralOffset,
                 anchor.rotation);
@@ -90,8 +96,9 @@ namespace Afareet.World
         {
             if (!Application.isEditor)
                 return;
+            if (instance == null)
+                return;
 
-            LogEditorMaterialOverride();
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
                 if (renderer == null) continue;
@@ -101,7 +108,7 @@ namespace Afareet.World
                 else if (Contains(name, "Secondary")) selected = secondary ?? dark;
                 else if (Contains(name, "Gold") || Contains(name, "Spire")) selected = gold ?? dark;
                 else if (Contains(name, "Crown") || Contains(name, "Lantern")) selected = primary ?? dark;
-                SetAllMaterials(renderer, selected);
+                SetAllMaterialsForEditorPreview(renderer, selected);
             }
         }
 
@@ -109,8 +116,9 @@ namespace Afareet.World
         {
             if (!Application.isEditor)
                 return;
+            if (instance == null)
+                return;
 
-            LogEditorMaterialOverride();
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
                 if (renderer == null) continue;
@@ -119,17 +127,59 @@ namespace Afareet.World
                 if (Contains(name, "Gold") || Contains(name, "Crest") || Contains(name, "Crown")) selected = gold ?? baseMaterial;
                 else if (Contains(name, "Spirit") || Contains(name, "Rune") || Contains(name, "Dune")) selected = spirit ?? baseMaterial;
                 else if (Contains(name, "Arch") || Contains(name, "Pylon") || Contains(name, "Edge")) selected = cyan ?? baseMaterial;
-                SetAllMaterials(renderer, selected);
+                SetAllMaterialsForEditorPreview(renderer, selected);
             }
         }
 
-        private static void SetAllMaterials(Renderer renderer, Material selected)
+        private static void SetAllMaterialsForEditorPreview(Renderer renderer, Material selected)
         {
             if (renderer == null || selected == null) return;
+            if (WouldDiscardAuthoredTexture(renderer, selected))
+            {
+                LogEditorTexturePreservation();
+                return;
+            }
+
+            LogEditorMaterialOverride();
             var count = Mathf.Max(1, renderer.sharedMaterials == null ? 0 : renderer.sharedMaterials.Length);
             var materials = new Material[count];
             for (var i = 0; i < materials.Length; i++) materials[i] = selected;
             renderer.sharedMaterials = materials;
+        }
+
+        private static bool WouldDiscardAuthoredTexture(Renderer renderer, Material previewMaterial) =>
+            RendererHasAssignedTexture(renderer) && !MaterialHasAssignedTexture(previewMaterial);
+
+        private static bool RendererHasAssignedTexture(Renderer renderer)
+        {
+            if (renderer == null) return false;
+            foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
+            {
+                if (MaterialHasAssignedTexture(material))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool MaterialHasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
+        }
+
+        private static void LogFinishGatePlacement()
+        {
+            if (finishGatePlacementLogged) return;
+            finishGatePlacementLogged = true;
+            Debug.Log(
+                $"AFAREET_UART007_FINISH_GATE_VISUAL_CLEARANCE_ACTIVE forwardOffset={FinishGateForwardOffset:F1}m " +
+                "waypoint0Unchanged=true gridLogicUnchanged=true");
         }
 
         private static void LogEditorMaterialOverride()
@@ -137,6 +187,13 @@ namespace Afareet.World
             if (editorMaterialOverrideLogged) return;
             editorMaterialOverrideLogged = true;
             Debug.Log("AFAREET_UART007_EDITOR_PREVIEW_MATERIAL_OVERRIDE production=false player-preserves-source-materials=true");
+        }
+
+        private static void LogEditorTexturePreservation()
+        {
+            if (editorTexturePreservationLogged) return;
+            editorTexturePreservationLogged = true;
+            Debug.Log("AFAREET_UART007_EDITOR_SOURCE_TEXTURE_PRESERVED previewOverrideSkipped=true production=false");
         }
 
         private static bool Contains(string value, string token) => value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
@@ -153,7 +210,8 @@ namespace Afareet.World
             activationLogged = true;
             Debug.Log(
                 $"AFAREET_UART007_AUTHORED_TRACK_DRESSING_ACTIVE geometry=tracked-obj resources=staged " +
-                $"playerMaterials=source-authored sectorBeaconOffset={SectorBeaconLateralOffset:F1}");
+                $"playerMaterials=source-authored finishGateForwardOffset={FinishGateForwardOffset:F1} " +
+                $"sectorBeaconOffset={SectorBeaconLateralOffset:F1}");
         }
     }
 }

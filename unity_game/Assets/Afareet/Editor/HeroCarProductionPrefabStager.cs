@@ -4,6 +4,7 @@ using System.IO;
 using Afareet.Vehicle;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.Editor
 {
@@ -21,7 +22,7 @@ namespace Afareet.Editor
         {
             var sourcePath = SelectedSourcePath();
             return HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath) &&
-                   sourcePath.IndexOf("/Generated/", StringComparison.OrdinalIgnoreCase) < 0;
+                   !HeroCarProductionAssetMetadata.IsNonProductionSourcePath(sourcePath);
         }
 
         [MenuItem(MenuPath)]
@@ -37,8 +38,8 @@ namespace Afareet.Editor
 
             if (!HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath))
                 throw new InvalidOperationException($"UART-003 stager requires a supported external model: {sourcePath}");
-            if (sourcePath.IndexOf("/Generated/", StringComparison.OrdinalIgnoreCase) >= 0)
-                throw new InvalidOperationException($"UART-003 generated preview/source cannot be staged as production: {sourcePath}");
+            if (HeroCarProductionAssetMetadata.IsNonProductionSourcePath(sourcePath))
+                throw new InvalidOperationException($"UART-003 non-production preview/refinement source cannot be staged as production: {sourcePath}");
 
             var importer = AssetImporter.GetAtPath(sourcePath);
             var sourceModel = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
@@ -161,15 +162,15 @@ namespace Afareet.Editor
                 throw new InvalidOperationException(
                     $"UART-003 stager refuses non-source mesh at LOD{lod}: mesh={meshPath} source={sourcePath}");
 
-            if (mesh.uv == null || mesh.uv.Length != mesh.vertexCount)
-                throw new InvalidOperationException($"UART-003 imported LOD{lod} is missing complete UV0: {renderer.name}");
-            if (mesh.normals == null || mesh.normals.Length != mesh.vertexCount)
-                throw new InvalidOperationException($"UART-003 imported LOD{lod} is missing authored normals: {renderer.name}");
+            if (!mesh.HasVertexAttribute(VertexAttribute.TexCoord0))
+                throw new InvalidOperationException($"UART-003 imported LOD{lod} is missing UV0 vertex attribute: {renderer.name}");
+            if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
+                throw new InvalidOperationException($"UART-003 imported LOD{lod} is missing authored normal vertex attribute: {renderer.name}");
 
             var textureMapped = false;
             foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
             {
-                if (material != null && material.mainTexture != null)
+                if (HasAssignedTexture(material))
                 {
                     textureMapped = true;
                     break;
@@ -177,6 +178,19 @@ namespace Afareet.Editor
             }
             if (!textureMapped)
                 throw new InvalidOperationException($"UART-003 imported LOD{lod} has no texture-mapped material: {renderer.name}");
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static int TriangleCount(Mesh mesh)

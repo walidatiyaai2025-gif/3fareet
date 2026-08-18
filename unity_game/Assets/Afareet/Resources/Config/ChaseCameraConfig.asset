@@ -12,10 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3796b45b5ba6a3a4ba0c34da9ef215aa, type: 3}
   m_Name: ChaseCameraConfig
   m_EditorClassIdentifier: Afareet.Vehicle::Afareet.Vehicle.ChaseCameraConfig
-  offset: {x: 0, y: 4.4, z: -8.5}
-  positionDamping: 7
-  rotationDamping: 9
-  lookAheadMeters: 8
-  normalFieldOfView: 65
-  nitroFieldOfView: 78
-  fieldOfViewDamping: 5
+  offset: {x: 0, y: 3.25, z: -7.2}
+  positionDamping: 8
+  rotationDamping: 10
+  lookAheadMeters: 6
+  lookHeight: 1.25
+  normalFieldOfView: 68
+  nitroFieldOfView: 80
+  fieldOfViewDamping: 6
+  collisionRadius: 0.35
+  collisionPadding: 0.25
+  minimumOcclusionDistance: 1.1

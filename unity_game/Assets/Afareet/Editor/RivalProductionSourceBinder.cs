@@ -3,6 +3,7 @@ using System.IO;
 using Afareet.Vehicle;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.Editor
 {
@@ -104,15 +105,15 @@ namespace Afareet.Editor
                                 $"UART-004 rival {variant + 1} LOD{lod} mesh is not backed by selected source. " +
                                 $"mesh={meshPath} source={sourcePath}");
 
-                        allUv0 &= mesh.uv != null && mesh.uv.Length == mesh.vertexCount;
-                        allNormals &= mesh.normals != null && mesh.normals.Length == mesh.vertexCount;
+                        allUv0 &= mesh.HasVertexAttribute(VertexAttribute.TexCoord0);
+                        allNormals &= mesh.HasVertexAttribute(VertexAttribute.Normal);
 
                         var rendererHasTexture = false;
                         if (renderer.sharedMaterials != null)
                         {
                             foreach (var material in renderer.sharedMaterials)
                             {
-                                if (material != null && material.mainTexture != null)
+                                if (HasAssignedTexture(material))
                                 {
                                     rendererHasTexture = true;
                                     break;
@@ -162,6 +163,19 @@ namespace Afareet.Editor
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static void EnsureSourceIsUniqueAcrossOtherVariants(int targetVariant, string sourcePath)

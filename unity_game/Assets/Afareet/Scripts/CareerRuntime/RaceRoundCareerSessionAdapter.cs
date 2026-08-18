@@ -4,13 +4,14 @@ using Afareet.Race;
 
 namespace Afareet.CareerRuntime
 {
-    public sealed class RaceDirectorCareerMetricsSource : ICareerRaceMetricsSource
+    public sealed class RaceDirectorCareerMetricsSource : ICareerRaceOutcomeMetricsSource
     {
         private readonly RaceDirector director;
         private readonly RacePerformanceMetricsTracker performance;
 
         public int FinalPosition => director.Position;
         public int DriftScore => performance?.DriftScore ?? 0;
+        public bool FinishedSuccessfully => !director.WasPlayerEliminated;
 
         public RaceDirectorCareerMetricsSource(
             RaceDirector director,

@@ -111,19 +111,25 @@ namespace Afareet.UI
             briefingPanel = new GameObject("Career Briefing Panel", typeof(RectTransform), typeof(Image));
             briefingPanel.transform.SetParent(safeRoot, false);
             var panelRect = briefingPanel.GetComponent<RectTransform>();
-            panelRect.anchorMin = panelRect.anchorMax = new Vector2(.5f, .5f);
-            panelRect.pivot = new Vector2(.5f, .5f);
-            panelRect.sizeDelta = new Vector2(720f, 410f);
-            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.anchorMin = panelRect.anchorMax = new Vector2(0f, 1f);
+            panelRect.pivot = new Vector2(0f, 1f);
+            panelRect.sizeDelta = new Vector2(430f, 190f);
+            panelRect.anchoredPosition = new Vector2(20f, -88f);
             var image = briefingPanel.GetComponent<Image>();
-            image.color = new Color(.012f, .008f, .035f, .94f);
+            image.color = new Color(.012f, .008f, .035f, .82f);
             image.raycastTarget = false;
 
-            titleText = CreateText(panelRect, "Event Title", new Vector2(0f, 142f), new Vector2(620f, 54f), 30, FontStyle.Bold);
-            objectivesText = CreateText(panelRect, "Objectives", new Vector2(0f, 78f), new Vector2(600f, 110f), 19, FontStyle.Normal);
+            titleText = CreateText(panelRect, "Event Title", new Vector2(0f, 62f), new Vector2(390f, 36f), 23, FontStyle.Bold);
+            titleText.alignment = TextAnchor.MiddleLeft;
+
+            objectivesText = CreateText(panelRect, "Objectives", new Vector2(0f, 12f), new Vector2(390f, 78f), 15, FontStyle.Normal);
             objectivesText.alignment = TextAnchor.UpperLeft;
-            profileText = CreateText(panelRect, "Profile", new Vector2(0f, -114f), new Vector2(600f, 44f), 20, FontStyle.Bold);
-            recoveryText = CreateText(panelRect, "Recovery", new Vector2(0f, -162f), new Vector2(620f, 32f), 14, FontStyle.Bold);
+
+            profileText = CreateText(panelRect, "Profile", new Vector2(0f, -56f), new Vector2(390f, 30f), 15, FontStyle.Bold);
+            profileText.alignment = TextAnchor.MiddleLeft;
+
+            recoveryText = CreateText(panelRect, "Recovery", new Vector2(0f, -80f), new Vector2(390f, 24f), 11, FontStyle.Bold);
+            recoveryText.alignment = TextAnchor.MiddleLeft;
             recoveryText.color = new Color(1f, .72f, .25f);
         }
 

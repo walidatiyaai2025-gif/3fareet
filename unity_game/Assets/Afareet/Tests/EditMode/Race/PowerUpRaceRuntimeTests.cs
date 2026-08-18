@@ -176,7 +176,7 @@ namespace Afareet.Tests.Race
         {
             return new PowerUpRuntimeRuleset(new List<PowerUpRuntimeRule>
             {
-                Rule(PowerUpKind.AsphaltShard, asphaltCharges, 0d, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.Opponent),
+                Rule(PowerUpKind.AsphaltShard, asphaltCharges, 0d, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.WorldDeployable),
                 Rule(PowerUpKind.NitroSpirit, nitroCharges, nitroCooldown, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.Self),
                 Rule(PowerUpKind.TrafficCurse, trafficCharges, 0d, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.Opponent),
                 Rule(PowerUpKind.EnchantedPound, enchantedCharges, enchantedCooldown, effectDuration, PowerUpRefreshPolicy.IgnoreWhileActive, PowerUpRuntimeTargetMode.Self),

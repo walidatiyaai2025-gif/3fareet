@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Afareet.World
 {
@@ -337,7 +338,6 @@ namespace Afareet.World
             obj.GetComponent<Renderer>().material = material;
             return obj;
         }
-
         private static GameObject Sphere(Transform parent, string name, Vector3 position, Vector3 scale, Material material)
         {
             var obj = GameObject.CreatePrimitive(PrimitiveType.Sphere);

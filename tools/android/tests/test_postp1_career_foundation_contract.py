@@ -56,6 +56,26 @@ class CareerFoundationContractTests(unittest.TestCase):
             self.assertIn(token, source)
         self.assertEqual(source.count("new CareerRaceNode("), 5)
 
+    def test_navigation_domain_is_pure_deterministic_and_fail_closed(self):
+        source = (SOURCE_ROOT / "CareerNavigation.cs").read_text(encoding="utf-8")
+        self.assertNotIn("UnityEngine", source)
+        for token in (
+            "sealed class CareerNavigationNodeSnapshot",
+            "sealed class CareerNavigationSnapshot",
+            "sealed class CareerNavigationService",
+            "CareerNodeState.Completed",
+            "CareerNodeState.Locked",
+            "CareerNodeState.Available",
+            "progress.Stars >= chapter.RequiredStars",
+            "new HashSet<string>(StringComparer.Ordinal)",
+            "Career navigation contains duplicate node id",
+            "Unknown Career navigation node",
+            "public CareerNavigationSnapshot Select",
+            "public CareerNavigationSnapshot Move",
+            "var raw = (long)snapshot.SelectedIndex + delta",
+        ):
+            self.assertIn(token, source)
+
     def test_unity_test_and_metadata_contract(self):
         test_source = (TEST_ROOT / "CareerFoundationTests.cs").read_text(encoding="utf-8")
         for test_name in (
@@ -66,6 +86,16 @@ class CareerFoundationContractTests(unittest.TestCase):
             "NodeState_CompletedWinsOtherwiseUsesStarGate",
         ):
             self.assertIn(test_name, test_source)
+
+        navigation_tests = (TEST_ROOT / "CareerNavigationTests.cs").read_text(encoding="utf-8")
+        for test_name in (
+            "Build_DefaultsToFirstAvailableAndPreservesDeterministicOrder",
+            "Build_DerivesCompletedAvailableAndLockedFromAuthoritativeProgress",
+            "SelectAndMove_UseStableIdsAndWrapBothDirections",
+            "Build_RespectsChapterGateWhileCompletedStateWins",
+            "Build_FailsClosedOnDuplicateNodeIdsAcrossChapters",
+        ):
+            self.assertIn(test_name, navigation_tests)
 
         prod_asmdef = (SOURCE_ROOT / "Afareet.Progression.asmdef").read_text(encoding="utf-8")
         test_asmdef = (TEST_ROOT / "Afareet.ProgressionEditModeTests.asmdef").read_text(encoding="utf-8")
@@ -78,8 +108,10 @@ class CareerFoundationContractTests(unittest.TestCase):
         for path in (
             SOURCE_ROOT / "CareerDefinition.cs.meta",
             SOURCE_ROOT / "ChapterOneCareerContent.cs.meta",
+            SOURCE_ROOT / "CareerNavigation.cs.meta",
             SOURCE_ROOT / "Afareet.Progression.asmdef.meta",
             TEST_ROOT / "CareerFoundationTests.cs.meta",
+            TEST_ROOT / "CareerNavigationTests.cs.meta",
             TEST_ROOT / "Afareet.ProgressionEditModeTests.asmdef.meta",
         ):
             text = path.read_text(encoding="utf-8")
@@ -95,8 +127,10 @@ class CareerFoundationContractTests(unittest.TestCase):
         self.assertIn("<TargetFramework>netstandard2.1</TargetFramework>", compile_project)
         self.assertIn("CareerDefinition.cs", compile_project)
         self.assertIn("ChapterOneCareerContent.cs", compile_project)
+        self.assertIn("CareerNavigation.cs", compile_project)
         self.assertIn("<TargetFramework>net8.0</TargetFramework>", runner_project)
         self.assertIn("Career foundation behavior contract: PASS", runner)
+        self.assertIn("NavigationContract();", runner)
         self.assertIn("dotnet build tools/android/contracts/CareerFoundationCompile.csproj", workflow)
         self.assertIn("dotnet run --project tools/android/contracts/CareerFoundationContractRunner.csproj", workflow)
         self.assertIn("python3 tools/android/tests/test_postp1_career_foundation_contract.py", workflow)

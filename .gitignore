@@ -17,6 +17,15 @@ coverage/
 # They must originate from external authored 3D sources and are required by
 # RivalProductionBuildGate; ignoring this tree would make accepted art impossible to commit.
 
+# UART-004 local authored-review packaging is deliberately NOT production evidence.
+# Unity 6000.5 can flatten the tracked multi-LOD OBJ into one Mesh, so the Editor review
+# stager repackages the exact existing OBJ records into one local import file per authored LOD.
+# Neither these packages nor their review prefabs may be committed as production art.
+unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/ReviewPackaging/
+unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/ReviewPackaging.meta
+unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Review/
+unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Review.meta
+
 # Android generated/local
 android/.gradle/
 android/local.properties
@@ -30,6 +39,14 @@ unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit/Genera
 unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit/Generated.meta
 unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated/
 unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated.meta
+
+# UART-003 Blender handoff is a hash-pinned local refinement preview only.
+# Keep both the external intake bytes and the Unity-staged review prefab out of Git so
+# they cannot be mistaken for the final externally-authored production Hero source.
+unity_game/Assets/Afareet/ArtSource/Vehicles/RefinementCandidates/
+unity_game/Assets/Afareet/ArtSource/Vehicles/RefinementCandidates.meta
+unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Refinement/
+unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Refinement.meta
 
 # Local CI / QA evidence outputs (generated, never source-of-truth)
 /artifacts/

@@ -12,5 +12,6 @@
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerSaveCodec.cs" Link="CareerSaveCodec.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerContent.cs" Link="CareerContent.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerObjectiveEvaluation.cs" Link="CareerObjectiveEvaluation.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerNavigation.cs" Link="CareerNavigation.cs" />
   </ItemGroup>
 </Project>

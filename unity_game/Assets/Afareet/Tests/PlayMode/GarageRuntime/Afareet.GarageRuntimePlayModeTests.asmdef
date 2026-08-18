@@ -1,0 +1,14 @@
+{
+  "name": "Afareet.GarageRuntimePlayModeTests",
+  "rootNamespace": "Afareet.Tests.PlayMode.GarageRuntime",
+  "references": [
+    "Afareet.Core",
+    "Afareet.GarageRuntime",
+    "Afareet.Race",
+    "Afareet.Vehicle",
+    "Afareet.World"
+  ],
+  "includePlatforms": [],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

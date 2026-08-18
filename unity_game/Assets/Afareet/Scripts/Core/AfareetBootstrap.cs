@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using Afareet.CareerRuntime;
+using Afareet.GarageRuntime;
 using Afareet.Race;
 using Afareet.UI;
 using Afareet.Vehicle;
@@ -27,9 +29,11 @@ namespace Afareet.Core
         {
             var vehicleConfig = LoadConfig<ArcadeCarConfig>("Config/ArcadeCarConfig");
             var cameraConfig = LoadConfig<ChaseCameraConfig>("Config/ChaseCameraConfig");
+            var garageCatalog = GarageCatalog.CreateDefault();
 
             SetupLighting();
-            var track = CairoTrackBuilder.Build(transform);
+            var trackBuild = CairoCareerTrackBuilder.Build(transform, CairoCareerTrackCatalog.CornicheNightId);
+            var track = trackBuild.Track;
             var player = CarFactory.CreatePlayer(track.StartPosition, track.StartRotation, transform, vehicleConfig);
 
             var race = gameObject.AddComponent<RaceDirector>();
@@ -37,19 +41,45 @@ namespace Afareet.Core
             var performance = gameObject.AddComponent<RacePerformanceMetricsTracker>();
             performance.Configure(player, race);
 
+            var rivals = new List<ArcadeCarController>(3);
             for (var i = 0; i < 3; i++)
             {
                 var ai = CarFactory.CreateRival(i, track.GridPosition(i + 1), track.StartRotation, transform, vehicleConfig);
                 ai.gameObject.AddComponent<AiRacer>().Configure(track.Waypoints, i);
                 race.RegisterRival(ai);
+                rivals.Add(ai);
             }
 
+            var careerTracks = new CareerTrackRuntimeController(
+                transform,
+                trackBuild.Root,
+                CairoCareerTrackCatalog.CornicheNightId,
+                player,
+                rivals,
+                race);
+            var careerBossVehicles = new CareerBossVehicleRuntimeController(
+                garageCatalog,
+                race,
+                rivals);
             var career = gameObject.AddComponent<CareerGameSession>();
             career.Configure(
                 player.GetComponent<RaceRoundController>(),
                 race,
                 performance,
-                new PlayerPrefsCareerProgressStorage());
+                new PlayerPrefsCareerProgressStorage(),
+                careerTracks,
+                careerBossVehicles);
+
+            var garageVehicleRuntime = new CareerGarageVehicleRuntimeController(
+                garageCatalog,
+                race,
+                player);
+            var garage = gameObject.AddComponent<CareerGarageSession>();
+            garage.ConfigureWithPlayerPrefs(career, garageVehicleRuntime, garageCatalog);
+            Debug.Log(
+                $"AFAREET_GARAGE_SESSION_ACTIVE equipped={garage.State.EquippedVehicleId} " +
+                $"runtimeVehicle={garage.ActiveRuntimeVehicleId} " +
+                $"migratedLegacy={garage.MigratedLegacyGarageSave} recoveredInvalid={garage.RecoveredInvalidGarageSave}");
 
             CreateCamera(player.transform, cameraConfig);
             InstallRuntimeUi(player, race, career);
@@ -96,26 +126,61 @@ namespace Afareet.Core
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogDensity = 0.006f;
 
+            var disabledLegacyLights = 0;
+            foreach (var light in UnityEngine.Object.FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (light == null || light.type != LightType.Directional || light.gameObject.name != "Directional Light")
+                    continue;
+                if (!light.enabled) continue;
+                light.enabled = false;
+                disabledLegacyLights++;
+            }
+
             var moon = new GameObject("Moon Light").AddComponent<Light>();
             moon.type = LightType.Directional;
             moon.color = new Color(0.45f, 0.62f, 1f);
             moon.intensity = 1.15f;
             moon.transform.rotation = Quaternion.Euler(42f, -28f, 0f);
             moon.shadows = LightShadows.Soft;
+
+            Debug.Log(
+                $"AFAREET_NIGHT_LIGHTING_NORMALIZED active=Moon Light disabledLegacyDirectional={disabledLegacyLights}");
         }
 
         private static void CreateCamera(Transform target, ChaseCameraConfig config)
         {
+            var disabledLegacyCameras = 0;
+            foreach (var existingCamera in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (existingCamera == null || existingCamera.gameObject.name != "Main Camera" || !existingCamera.enabled)
+                    continue;
+                existingCamera.enabled = false;
+                disabledLegacyCameras++;
+            }
+
+            var disabledListeners = 0;
+            foreach (var listener in UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (listener == null || !listener.enabled) continue;
+                listener.enabled = false;
+                disabledListeners++;
+            }
+
             var cameraObject = new GameObject("Racing Camera");
             cameraObject.tag = "MainCamera";
             var camera = cameraObject.AddComponent<Camera>();
-            camera.fieldOfView = 65f;
-            camera.nearClipPlane = 0.15f;
-            camera.farClipPlane = 850f;
+            camera.fieldOfView = 68f;
+            camera.nearClipPlane = 0.12f;
+            camera.farClipPlane = 950f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.012f, 0.018f, 0.055f);
-            cameraObject.AddComponent<AudioListener>();
-            cameraObject.AddComponent<ChaseCamera>().Configure(target, config);
+            var activeListener = cameraObject.AddComponent<AudioListener>();
+            activeListener.enabled = true;
+            cameraObject.AddComponent<ChaseCamera>().Configure(target, cameraConfig);
+
+            Debug.Log(
+                $"AFAREET_RACE_CAMERA_NORMALIZED active=Racing Camera disabledLegacyCameras={disabledLegacyCameras} " +
+                $"disabledAudioListeners={disabledListeners} enabledAudioListeners=1");
         }
 
         private static T LoadConfig<T>(string resourcePath) where T : ScriptableObject

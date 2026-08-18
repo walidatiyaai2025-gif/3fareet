@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.World
 {
@@ -17,11 +18,11 @@ namespace Afareet.World
         private const float RetryDelaySeconds = 5.0f;
         private const int ExpectedLodLevels = 3;
 
-        private readonly HashSet<int> configuredInstanceIds = new();
+        private readonly HashSet<Transform> configuredInstances = new();
         private readonly HashSet<string> missingLogged = new(StringComparer.Ordinal);
         private readonly HashSet<string> bindingFailureLogged = new(StringComparer.Ordinal);
-        private readonly HashSet<int> invalidExistingGroupLogged = new();
-        private readonly Dictionary<int, float> retryAfterByInstance = new();
+        private readonly HashSet<Transform> invalidExistingGroupLogged = new();
+        private readonly Dictionary<Transform, float> retryAfterByInstance = new();
         private readonly Dictionary<string, GameObject> resourceCache = new(StringComparer.Ordinal);
         private float nextScanAt;
         private static bool activationLogged;
@@ -57,9 +58,8 @@ namespace Afareet.World
                 var baseName = ResolveSourceBaseName(target.name);
                 if (string.IsNullOrEmpty(baseName)) continue;
 
-                var id = target.gameObject.GetInstanceID();
-                if (configuredInstanceIds.Contains(id)) continue;
-                if (retryAfterByInstance.TryGetValue(id, out var retryAt) && Time.unscaledTime < retryAt)
+                if (configuredInstances.Contains(target)) continue;
+                if (retryAfterByInstance.TryGetValue(target, out var retryAt) && Time.unscaledTime < retryAt)
                     continue;
 
                 var existingGroup = target.GetComponent<LODGroup>();
@@ -67,24 +67,24 @@ namespace Afareet.World
                 {
                     if (TryValidateExistingGroup(target, baseName, existingGroup))
                     {
-                        configuredInstanceIds.Add(id);
-                        retryAfterByInstance.Remove(id);
+                        configuredInstances.Add(target);
+                        retryAfterByInstance.Remove(target);
                     }
                     else
                     {
-                        retryAfterByInstance[id] = Time.unscaledTime + RetryDelaySeconds;
+                        retryAfterByInstance[target] = Time.unscaledTime + RetryDelaySeconds;
                     }
                     continue;
                 }
 
                 if (TryAttachDistinctLods(target, baseName))
                 {
-                    configuredInstanceIds.Add(id);
-                    retryAfterByInstance.Remove(id);
+                    configuredInstances.Add(target);
+                    retryAfterByInstance.Remove(target);
                 }
                 else
                 {
-                    retryAfterByInstance[id] = Time.unscaledTime + RetryDelaySeconds;
+                    retryAfterByInstance[target] = Time.unscaledTime + RetryDelaySeconds;
                 }
             }
         }
@@ -200,8 +200,7 @@ namespace Afareet.World
             }
             catch (Exception ex)
             {
-                var id = target.gameObject.GetInstanceID();
-                if (invalidExistingGroupLogged.Add(id))
+                if (invalidExistingGroupLogged.Add(target))
                     Debug.LogError($"AFAREET_UART005_MOBILE_LOD_EXISTING_BLOCKED source={baseName} reason={ex.Message}");
                 return false;
             }
@@ -234,10 +233,10 @@ namespace Afareet.World
                     throw new InvalidOperationException($"UART-005 mobile LOD renderer is missing a mesh: {baseName} LOD{lod}");
                 if (mesh.vertexCount <= 0)
                     throw new InvalidOperationException($"UART-005 mobile LOD mesh has no vertices: {baseName} LOD{lod}");
-                if (mesh.uv == null || mesh.uv.Length != mesh.vertexCount)
-                    throw new InvalidOperationException($"UART-005 mobile LOD missing complete UV0: {baseName} LOD{lod}");
-                if (mesh.normals == null || mesh.normals.Length != mesh.vertexCount)
-                    throw new InvalidOperationException($"UART-005 mobile LOD missing complete normals: {baseName} LOD{lod}");
+                if (!mesh.HasVertexAttribute(VertexAttribute.TexCoord0))
+                    throw new InvalidOperationException($"UART-005 mobile LOD missing UV0 vertex attribute: {baseName} LOD{lod}");
+                if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
+                    throw new InvalidOperationException($"UART-005 mobile LOD missing normal vertex attribute: {baseName} LOD{lod}");
 
                 var meshTriangles = 0;
                 for (var sub = 0; sub < mesh.subMeshCount; sub++)
@@ -248,7 +247,7 @@ namespace Afareet.World
                 var textured = false;
                 foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
                 {
-                    if (material != null && material.mainTexture != null)
+                    if (HasAssignedTexture(material))
                     {
                         textured = true;
                         break;
@@ -257,6 +256,19 @@ namespace Afareet.World
                 if (!textured)
                     throw new InvalidOperationException($"UART-005 mobile LOD renderer has no texture-mapped material: {baseName} LOD{lod}");
             }
+        }
+
+        private static bool HasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
         }
 
         private static HashSet<Mesh> CollectMeshes(Renderer[] renderers)

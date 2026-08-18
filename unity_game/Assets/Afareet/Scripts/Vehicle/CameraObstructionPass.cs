@@ -7,8 +7,7 @@ namespace Afareet.Vehicle
     {
         private Camera targetCamera;
         private ChaseCamera chase;
-        private const float ProbeRadius = .28f;
-        private const float SurfacePadding = .18f;
+        private bool correctionLogged;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
@@ -24,28 +23,25 @@ namespace Afareet.Vehicle
             var target = chase.Target;
             if (target == null) return;
 
-            var focus = target.position + Vector3.up * 1.2f;
-            var desired = targetCamera.transform.position;
-            var delta = desired - focus;
+            // ChaseCamera is the sole owner of world-occlusion sphere casts. This late
+            // safety pass must never run a second obstruction solve that can compress
+            // the camera inside the Hero after ChaseCamera already produced a safe pose.
+            var focus = chase.FocusPoint;
+            var delta = targetCamera.transform.position - focus;
             var distance = delta.magnitude;
-            if (distance <= .25f) return;
+            var minimumDistance = chase.MinimumBodyClearanceDistance;
+            if (minimumDistance <= 0f || distance >= minimumDistance - .001f) return;
 
-            var direction = delta / distance;
-            var hits = Physics.SphereCastAll(focus, ProbeRadius, direction, distance, ~0, QueryTriggerInteraction.Ignore);
-            var nearest = distance;
-            var found = false;
-            for (var i = 0; i < hits.Length; i++)
-            {
-                var hitTransform = hits[i].collider == null ? null : hits[i].collider.transform;
-                if (hitTransform == null || hitTransform.IsChildOf(target)) continue;
-                if (hits[i].distance >= nearest) continue;
-                nearest = hits[i].distance;
-                found = true;
-            }
+            var direction = distance > .001f
+                ? delta / distance
+                : (-target.forward + Vector3.up * .2f).normalized;
+            targetCamera.transform.position = focus + direction * minimumDistance;
 
-            if (!found) return;
-            var safeDistance = Mathf.Max(.35f, nearest - SurfacePadding);
-            targetCamera.transform.position = focus + direction * safeDistance;
+            if (correctionLogged) return;
+            correctionLogged = true;
+            Debug.Log(
+                $"AFAREET_CAMERA_BODY_CLEARANCE_RECOVERED previous={distance:F2}m " +
+                $"minimum={minimumDistance:F2}m postPassClamp=true secondOcclusionSolve=false");
         }
 
         private bool ResolveCamera()

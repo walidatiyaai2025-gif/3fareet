@@ -47,6 +47,19 @@ namespace Afareet.Race
             return true;
         }
 
+        public bool CompleteRoundExternally(float finishTime)
+        {
+            EnsureConfigured();
+            if (finishTime < 0f || float.IsNaN(finishTime) || float.IsInfinity(finishTime))
+                throw new ArgumentOutOfRangeException(nameof(finishTime));
+            if (flow.Phase != RaceRoundPhase.Racing)
+                return false;
+
+            flow.Finish(finishTime);
+            ResultsReady?.Invoke(finishTime);
+            return true;
+        }
+
         public void RestartRound()
         {
             EnsureConfigured();
@@ -62,9 +75,7 @@ namespace Afareet.Race
 
         private void OnRaceFinished(float finishTime)
         {
-            if (flow == null || flow.Phase != RaceRoundPhase.Racing) return;
-            flow.Finish(finishTime);
-            ResultsReady?.Invoke(finishTime);
+            CompleteRoundExternally(finishTime);
         }
 
         private void OnDestroy()

@@ -159,6 +159,26 @@ class CairoAuthoredTrackDressingContractTests(unittest.TestCase):
         self.assertGreaterEqual(half_span, 7.0)
         self.assertLessEqual(half_span, 8.5)
 
+    def test_finish_gate_visual_clears_start_grid_chase_camera(self):
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        match = re.search(r"FinishGateForwardOffset\s*=\s*([0-9.]+)f", adapter)
+        self.assertIsNotNone(match)
+        forward_offset = float(match.group(1))
+
+        # The authoritative chase camera sits 7.2m behind the hero. Keep enough forward
+        # separation that the authored arch/pylons frame the start rather than surround the
+        # camera, while keeping the landmark near waypoint 0 for start/finish readability.
+        self.assertGreaterEqual(forward_offset, 8.0)
+        self.assertLessEqual(forward_offset, 14.0)
+        self.assertIn("start.position + start.forward * FinishGateForwardOffset", adapter)
+        self.assertIn("AFAREET_UART007_FINISH_GATE_VISUAL_CLEARANCE_ACTIVE", adapter)
+        self.assertIn("waypoint0Unchanged=true", adapter)
+        self.assertIn("gridLogicUnchanged=true", adapter)
+        self.assertNotIn(
+            "instance.transform.SetPositionAndRotation(start.position, start.rotation);",
+            adapter,
+        )
+
     def test_stager_packages_models_and_material_dependencies_before_gate(self):
         stager = STAGER.read_text(encoding="utf-8")
         for model in EXPECTED_MODELS:

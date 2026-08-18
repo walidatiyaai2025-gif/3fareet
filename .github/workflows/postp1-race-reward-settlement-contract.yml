@@ -7,8 +7,14 @@ on:
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceRewardSettlement.cs.meta'
       - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRuntimeDefaults.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs'
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGameSession.cs'
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerPlayerProfile.cs'
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerPlayerProfileRewardApplication.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Progression/CareerEventSettlement.cs'
       - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs'
       - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs.meta'
+      - 'unity_game/Assets/Afareet/Tests/PlayMode/CareerRewardMultiplierPlayModeTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/PlayMode/CareerRewardMultiplierPlayModeTests.cs.meta'
       - 'tools/android/contracts/PowerUpRuntimeCompile.csproj'
       - 'tools/android/contracts/RaceRewardSettlementContractRunner.cs'
       - 'tools/android/contracts/RaceRewardSettlementContractRunner.csproj'
@@ -23,8 +29,14 @@ on:
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceRewardSettlement.cs.meta'
       - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRuntimeDefaults.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs'
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGameSession.cs'
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerPlayerProfile.cs'
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerPlayerProfileRewardApplication.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Progression/CareerEventSettlement.cs'
       - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs'
       - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs.meta'
+      - 'unity_game/Assets/Afareet/Tests/PlayMode/CareerRewardMultiplierPlayModeTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/PlayMode/CareerRewardMultiplierPlayModeTests.cs.meta'
       - 'tools/android/contracts/PowerUpRuntimeCompile.csproj'
       - 'tools/android/contracts/RaceRewardSettlementContractRunner.cs'
       - 'tools/android/contracts/RaceRewardSettlementContractRunner.csproj'
@@ -37,7 +49,7 @@ permissions:
 
 jobs:
   reward-settlement-contract:
-    name: Reward settlement compile + behavior contract
+    name: Reward settlement compile + Career wallet behavior contract
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -47,8 +59,8 @@ jobs:
       - name: Compile pure C# power-up runtime with reward settlement
         run: dotnet build tools/android/contracts/PowerUpRuntimeCompile.csproj --configuration Release --nologo
 
-      - name: Run race reward settlement behavior contract
+      - name: Run race reward settlement and Career wallet behavior contract
         run: dotnet run --project tools/android/contracts/RaceRewardSettlementContractRunner.csproj --configuration Release --nologo
 
-      - name: Run race reward settlement source contracts
+      - name: Run race reward settlement and Career wallet source contracts
         run: python3 tools/android/tests/test_postp1_race_reward_settlement_contract.py

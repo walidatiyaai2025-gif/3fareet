@@ -10,6 +10,23 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
     def _read(self, relative: str) -> str:
         return (REPO_ROOT / relative).read_text(encoding="utf-8")
 
+    def _assert_unity6_safe_surface_validation(self, text: str):
+        for required in (
+            "using UnityEngine.Rendering;",
+            "HasVertexAttribute(VertexAttribute.TexCoord0)",
+            "HasVertexAttribute(VertexAttribute.Normal)",
+            "HasAssignedTexture",
+            "material.GetTexturePropertyNames()",
+            "material.GetTexture(propertyName)",
+        ):
+            self.assertIn(required, text)
+        for forbidden in (
+            "mesh.uv",
+            "mesh.normals",
+            "material.mainTexture",
+        ):
+            self.assertNotIn(forbidden, text)
+
     def test_player_runtime_uses_authored_rival_resources(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalVariantPass.cs")
         self.assertIn("RivalProductionPolicy.ResourcePath", text)
@@ -72,18 +89,16 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "AssetDatabase.GetAssetDependencyHash",
             "AssetDatabase.GetAssetPath(mesh)",
             "mesh is not backed by selected source",
-            "mesh.uv",
-            "mesh.normals",
-            "material.mainTexture",
             "metadata.Configure",
             "ValidateProductionPrefab",
             "AFAREET_UART004_SOURCE_BIND_OK",
         ):
             self.assertIn(required, text)
+        self._assert_unity6_safe_surface_validation(text)
         self.assertIn("cannot reuse rival", text)
         self.assertNotIn("GameObject.CreatePrimitive", text)
 
-    def test_prefab_stager_only_assembles_imported_source_meshes_and_delegates_binding(self):
+    def test_prefab_stager_only_wraps_imported_source_meshes_and_delegates_binding(self):
         path = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs"
         self.assertTrue(path.is_file())
         self.assertTrue(path.with_suffix(path.suffix + ".meta").is_file())
@@ -99,15 +114,12 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         for required in (
             "Stage + Bind All Rival Prefabs",
             "AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath)",
-            "PrefabUtility.InstantiatePrefab(sourceModel)",
-            "GetComponentsInChildren<Renderer>(true)",
-            "ResolveLod",
-            'EndsWith($"_LOD{lod}"',
-            "RivalProductionPolicy.MeshFor(renderer)",
+            "RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)",
+            "RivalImportedLodResolver.ResolveImportedMeshesOrThrow(sourcePath, sourceModel, signature)",
+            "RivalImportedLodResolver.ResolveImportedMaterialsOrThrow(sourcePath, sourceModel, signature)",
             "AssetDatabase.GetAssetPath(mesh)",
-            "mesh.uv",
-            "mesh.normals",
-            "material.mainTexture",
+            "filter.sharedMesh = mesh",
+            "renderer.sharedMaterials = materials[lod]",
             "new LOD(",
             "group.SetLODs(lods)",
             "PrefabUtility.SaveAsPrefabAsset",
@@ -120,6 +132,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             self.assertIn(required, text)
 
         for forbidden in (
+            "PrefabUtility.InstantiatePrefab(sourceModel)",
             "GameObject.CreatePrimitive",
             "new Mesh(",
             "new Mesh {",
@@ -142,9 +155,6 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "sourceFingerprint",
             "sourceGuid",
             "sourceDependencyHash",
-            "mesh.uv",
-            "mesh.normals",
-            "material.mainTexture",
             "IsSupportedAuthoredModelSource",
             'StartsWith("Assets/"',
             'IndexOf("/Generated/"',
@@ -155,6 +165,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             '".gltf"',
         ):
             self.assertIn(required, text)
+        self._assert_unity6_safe_surface_validation(text)
 
     def test_tracked_design_pack_is_brief_not_production_provenance(self):
         path = REPO_ROOT / "docs/assets/01_vehicles/rival_cars_production/RIVAL_DESIGN_PROFILES.json"

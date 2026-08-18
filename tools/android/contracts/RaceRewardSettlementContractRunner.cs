@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using Afareet.CareerRuntime;
+using Afareet.Progression;
 using Afareet.Race;
 
 internal static class RaceRewardSettlementContractRunner
@@ -11,6 +13,7 @@ internal static class RaceRewardSettlementContractRunner
             LegacyParityContract();
             RuntimeSettlementContract();
             SnapshotSurvivesResetContract();
+            CareerWalletApplicationContract();
             RoundingContract();
             InvalidAndOverflowContract();
             Console.WriteLine("Race reward settlement behavior contract: PASS");
@@ -58,6 +61,89 @@ internal static class RaceRewardSettlementContractRunner
             "finish snapshot must retain the captured multiplier after reset");
         Require(settlement.SettledRewardUnits == 700,
             "captured x2 finish snapshot must settle after runtime reset");
+    }
+
+    private static void CareerWalletApplicationContract()
+    {
+        var baseProfile = new CareerPlayerProfile(
+            CareerProgress.Empty(),
+            coins: 100,
+            spirit: 7,
+            unlockedVehicleIds: new[] { "afareet_king" });
+        var firstClaim = Settlement(
+            new CareerReward(coins: 250, spirit: 5, unlockVehicleId: "djinn_spirit"));
+        var doubled = RaceRewardSettlementPolicy.Settle(firstClaim.CoinsGranted, 2d);
+        var applied = CareerPlayerProfileRewardApplication.ApplyWithSettledCoins(
+            baseProfile,
+            firstClaim,
+            doubled.SettledRewardUnits);
+
+        Require(applied.Coins == 600, "Career wallet must receive the settled x2 coin amount exactly once");
+        Require(applied.Spirit == 12, "race coin multiplier must not modify Career Spirit rewards");
+        Require(applied.IsVehicleUnlocked("afareet_king"), "existing vehicle unlock must remain present");
+        Require(applied.IsVehicleUnlocked("djinn_spirit"), "vehicle unlock payload must survive adjusted coin application");
+
+        var neutralClaim = Settlement(new CareerReward(coins: 250));
+        var neutral = RaceRewardSettlementPolicy.Settle(neutralClaim.CoinsGranted, 1d);
+        var neutralApplied = CareerPlayerProfileRewardApplication.ApplyWithSettledCoins(
+            CareerPlayerProfile.Empty(),
+            neutralClaim,
+            neutral.SettledRewardUnits);
+        Require(neutralApplied.Coins == 250, "neutral multiplier must preserve exact legacy Career coin value");
+
+        var replay = EmptySettlement();
+        var replayApplied = CareerPlayerProfileRewardApplication.ApplyWithSettledCoins(applied, replay, 0);
+        Require(replayApplied.Coins == applied.Coins && replayApplied.Spirit == applied.Spirit,
+            "reward-less replay must not mutate wallet balances");
+
+        var spiritOnly = Settlement(new CareerReward(spirit: 4));
+        var spiritApplied = CareerPlayerProfileRewardApplication.ApplyWithSettledCoins(applied, spiritOnly, 0);
+        Require(spiritApplied.Coins == applied.Coins && spiritApplied.Spirit == applied.Spirit + 4,
+            "non-coin rewards must remain independent from race coin settlement");
+
+        Expect<ArgumentException>(() => CareerPlayerProfileRewardApplication.ApplyWithSettledCoins(
+            CareerPlayerProfile.Empty(),
+            spiritOnly,
+            1));
+        Expect<ArgumentOutOfRangeException>(() => CareerPlayerProfileRewardApplication.ApplyWithSettledCoins(
+            CareerPlayerProfile.Empty(),
+            neutralClaim,
+            249));
+        Expect<OverflowException>(() => CareerPlayerProfileRewardApplication.ApplyWithSettledCoins(
+            new CareerPlayerProfile(CareerProgress.Empty(), int.MaxValue, 0, Array.Empty<string>()),
+            Settlement(new CareerReward(coins: 1)),
+            1));
+    }
+
+    private static CareerEventSettlement Settlement(params CareerReward[] rewards)
+    {
+        var ids = rewards.Select((_, index) => $"reward_{index:00}").ToArray();
+        return new CareerEventSettlement(
+            Evaluation(),
+            CareerProgress.Empty(),
+            nodeCompletedNow: true,
+            starsEarned: 3,
+            grantedRewards: rewards,
+            grantedRewardIds: ids);
+    }
+
+    private static CareerEventSettlement EmptySettlement()
+    {
+        return new CareerEventSettlement(
+            Evaluation(),
+            CareerProgress.Empty(),
+            nodeCompletedNow: false,
+            starsEarned: 0,
+            grantedRewards: Array.Empty<CareerReward>(),
+            grantedRewardIds: Array.Empty<string>());
+    }
+
+    private static CareerObjectiveEvaluation Evaluation()
+    {
+        return new CareerObjectiveEvaluation(new[]
+        {
+            new CareerObjectiveEvaluationEntry("finish_contract", 1d, 1d)
+        });
     }
 
     private static void RoundingContract()

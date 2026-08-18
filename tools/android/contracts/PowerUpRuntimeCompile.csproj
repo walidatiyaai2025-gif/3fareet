@@ -15,5 +15,6 @@
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpVehicleEffectProjection.cs" Link="PowerUpVehicleEffectProjection.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntimeProjectionExtensions.cs" Link="PowerUpRaceRuntimeProjectionExtensions.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/RaceRewardSettlement.cs" Link="RaceRewardSettlement.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/AsphaltShardTrapRuntime.cs" Link="AsphaltShardTrapRuntime.cs" />
   </ItemGroup>
 </Project>

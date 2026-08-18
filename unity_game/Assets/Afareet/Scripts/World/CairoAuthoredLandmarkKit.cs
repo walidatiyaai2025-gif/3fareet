@@ -5,8 +5,9 @@ namespace Afareet.World
 {
     /// <summary>
     /// Runtime adapter for tracked UART-006 authored Cairo landmark OBJ sources.
-    /// No mesh is procedurally constructed here. Editor preview may use temporary identity
-    /// materials; Player builds preserve imported authored source materials and textures.
+    /// No mesh is procedurally constructed here. Editor preview materials are applied only
+    /// when they do not discard an authored texture binding; Player builds always preserve
+    /// imported authored source materials and textures.
     /// </summary>
     public static class CairoAuthoredLandmarkKit
     {
@@ -18,6 +19,7 @@ namespace Afareet.World
         private const float DomeGateLateralOffset = 35f;
         private static bool activationLogged;
         private static bool editorMaterialOverrideLogged;
+        private static bool editorTexturePreservationLogged;
 
         public static bool TryBuildMinarets(Transform anchor, Material dark, Material purple, Material cyan, Material gold)
         {
@@ -37,10 +39,6 @@ namespace Afareet.World
             var source = Resources.Load<GameObject>(DomeGatePath);
             if (source == null) return Missing(DomeGatePath);
 
-            // Waypoint 36 also owns the +right roadside-building slot in CairoTrackBuilder.
-            // The authored gate spans X=+-6.5m, so the former +24m root intersected that
-            // building's conservative rotated footprint. Keep the landmark readable but
-            // move its complete authored silhouette beyond the roadside-building envelope.
             var root = Root("AUTHORED Neon Dome Gate", anchor, anchor.right * DomeGateLateralOffset);
             Create(source, root, "Authored Dome Gate", Vector3.zero, Vector3.one, dark, purple, gold, cyan);
             LogActivation();
@@ -99,12 +97,8 @@ namespace Afareet.World
         {
             if (!Application.isEditor)
                 return;
-
-            if (!editorMaterialOverrideLogged)
-            {
-                editorMaterialOverrideLogged = true;
-                Debug.Log("AFAREET_UART006_EDITOR_PREVIEW_MATERIAL_OVERRIDE production=false player-preserves-source-materials=true");
-            }
+            if (instance == null)
+                return;
 
             foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
             {
@@ -119,11 +113,58 @@ namespace Afareet.World
                     selected = cyanMaterial;
 
                 if (selected == null) continue;
+                if (WouldDiscardAuthoredTexture(renderer, selected))
+                {
+                    LogEditorTexturePreservation();
+                    continue;
+                }
+
+                LogEditorMaterialOverride();
                 var count = Mathf.Max(1, renderer.sharedMaterials == null ? 0 : renderer.sharedMaterials.Length);
                 var bindings = new Material[count];
                 for (var i = 0; i < bindings.Length; i++) bindings[i] = selected;
                 renderer.sharedMaterials = bindings;
             }
+        }
+
+        private static bool WouldDiscardAuthoredTexture(Renderer renderer, Material previewMaterial) =>
+            RendererHasAssignedTexture(renderer) && !MaterialHasAssignedTexture(previewMaterial);
+
+        private static bool RendererHasAssignedTexture(Renderer renderer)
+        {
+            if (renderer == null) return false;
+            foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
+            {
+                if (MaterialHasAssignedTexture(material))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool MaterialHasAssignedTexture(Material material)
+        {
+            if (material == null || material.shader == null)
+                return false;
+            foreach (var propertyName in material.GetTexturePropertyNames())
+            {
+                if (material.GetTexture(propertyName) != null)
+                    return true;
+            }
+            return false;
+        }
+
+        private static void LogEditorMaterialOverride()
+        {
+            if (editorMaterialOverrideLogged) return;
+            editorMaterialOverrideLogged = true;
+            Debug.Log("AFAREET_UART006_EDITOR_PREVIEW_MATERIAL_OVERRIDE production=false player-preserves-source-materials=true");
+        }
+
+        private static void LogEditorTexturePreservation()
+        {
+            if (editorTexturePreservationLogged) return;
+            editorTexturePreservationLogged = true;
+            Debug.Log("AFAREET_UART006_EDITOR_SOURCE_TEXTURE_PRESERVED previewOverrideSkipped=true production=false");
         }
 
         private static bool Contains(string value, string token) =>

@@ -63,8 +63,10 @@ namespace Afareet.Editor
                 Fail($"samplesPerControlPoint={document.samplesPerControlPoint}");
             if (document.points == null || document.points.Length != RequiredControlPoints)
                 Fail($"controlPoints={(document.points == null ? 0 : document.points.Length)} expected={RequiredControlPoints}");
-            if (RequiredControlPoints * SamplesPerControlPoint != RequiredRuntimeSegments)
-                Fail("internal-runtime-segment-contract-invalid");
+            if (document.points.Length * document.samplesPerControlPoint != RequiredRuntimeSegments)
+                Fail(
+                    $"runtimeSegments={document.points.Length * document.samplesPerControlPoint} " +
+                    $"expected={RequiredRuntimeSegments}");
 
             var sectors = new HashSet<string>(StringComparer.Ordinal);
             var minX = float.PositiveInfinity;

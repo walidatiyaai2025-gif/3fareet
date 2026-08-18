@@ -20,6 +20,7 @@ namespace Afareet.Editor
         {
             var sourcePath = SelectedSourcePath();
             return HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath) &&
+                   !HeroCarProductionAssetMetadata.IsNonProductionSourcePath(sourcePath) &&
                    AssetDatabase.LoadAssetAtPath<GameObject>(HeroCarLodPolicy.ProductionAssetPath) != null;
         }
 
@@ -38,8 +39,8 @@ namespace Afareet.Editor
             sourcePath = (sourcePath ?? string.Empty).Replace('\\', '/');
             if (!HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath))
                 throw new InvalidOperationException($"UART-003 selected asset is not a supported external 3D model: {sourcePath}");
-            if (sourcePath.IndexOf("/Generated/", StringComparison.OrdinalIgnoreCase) >= 0)
-                throw new InvalidOperationException($"UART-003 generated source cannot be bound as production art: {sourcePath}");
+            if (HeroCarProductionAssetMetadata.IsNonProductionSourcePath(sourcePath))
+                throw new InvalidOperationException($"UART-003 non-production source cannot be bound as production art: {sourcePath}");
             if (AssetImporter.GetAtPath(sourcePath) == null || AssetDatabase.LoadMainAssetAtPath(sourcePath) == null)
                 throw new InvalidOperationException($"UART-003 source is not importable by Unity: {sourcePath}");
 
