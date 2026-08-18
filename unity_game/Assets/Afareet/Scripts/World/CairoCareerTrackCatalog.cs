@@ -6,29 +6,25 @@ namespace Afareet.World
     public sealed class CairoCareerTrackSpec
     {
         public string Id { get; }
-        public float ScaleX { get; }
-        public float ScaleZ { get; }
+        public float UniformScale { get; }
         public float YawDegrees { get; }
 
-        public CairoCareerTrackSpec(string id, float scaleX, float scaleZ, float yawDegrees)
+        public CairoCareerTrackSpec(string id, float uniformScale, float yawDegrees)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("Track id is required.", nameof(id));
-            if (!IsFinite(scaleX) || scaleX < .65f || scaleX > 1.4f)
-                throw new ArgumentOutOfRangeException(nameof(scaleX));
-            if (!IsFinite(scaleZ) || scaleZ < .65f || scaleZ > 1.4f)
-                throw new ArgumentOutOfRangeException(nameof(scaleZ));
+            if (!IsFinite(uniformScale) || uniformScale < .65f || uniformScale > 1.4f)
+                throw new ArgumentOutOfRangeException(nameof(uniformScale));
             if (!IsFinite(yawDegrees) || yawDegrees < -180f || yawDegrees > 180f)
                 throw new ArgumentOutOfRangeException(nameof(yawDegrees));
 
             Id = id;
-            ScaleX = scaleX;
-            ScaleZ = scaleZ;
+            UniformScale = uniformScale;
             YawDegrees = yawDegrees;
         }
 
         public string DeterministicSignature =>
-            $"{Id}|{ScaleX:0.000}|{ScaleZ:0.000}|{YawDegrees:0.000}";
+            $"{Id}|{UniformScale:0.000}|{YawDegrees:0.000}";
 
         private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
@@ -45,11 +41,11 @@ namespace Afareet.World
             Array.AsReadOnly(new[]
             {
                 // Identity transform intentionally preserves the existing P1 Cairo authored route.
-                new CairoCareerTrackSpec(CornicheNightId, 1f, 1f, 0f),
-                new CairoCareerTrackSpec(KhanSprintId, .82f, 1.08f, 17f),
-                new CairoCareerTrackSpec(RingRoadMidnightId, 1.18f, .86f, -11f),
-                new CairoCareerTrackSpec(CitadelDriftId, .90f, 1.20f, 29f),
-                new CairoCareerTrackSpec(PyramidsSpiritRunId, 1.26f, .98f, -24f)
+                new CairoCareerTrackSpec(CornicheNightId, 1f, 0f),
+                new CairoCareerTrackSpec(KhanSprintId, .86f, 17f),
+                new CairoCareerTrackSpec(RingRoadMidnightId, 1.12f, -11f),
+                new CairoCareerTrackSpec(CitadelDriftId, .96f, 29f),
+                new CairoCareerTrackSpec(PyramidsSpiritRunId, 1.22f, -24f)
             });
 
         public static IReadOnlyList<CairoCareerTrackSpec> Specs => specs;
