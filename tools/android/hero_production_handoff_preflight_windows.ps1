@@ -89,6 +89,40 @@ function Resolve-PackageDependency([string]$PackageRoot,[string]$BaseDirectory,[
     return $resolved
 }
 
+function Split-WavefrontArguments([string]$Value,[string]$Label) {
+    if ($null -eq $Value) { $Value = '' }
+    $tokens = New-Object System.Collections.Generic.List[string]
+    $current = New-Object System.Text.StringBuilder
+    $quote = [char]0
+    $tokenStarted = $false
+    foreach ($char in $Value.ToCharArray()) {
+        if ($quote -ne [char]0) {
+            if ($char -eq $quote) { $quote = [char]0 } else { [void]$current.Append($char) }
+            $tokenStarted = $true
+            continue
+        }
+        if ($char -eq [char]34 -or $char -eq [char]39) {
+            $quote = $char
+            $tokenStarted = $true
+            continue
+        }
+        if ($char -eq [char]35) { break }
+        if ([char]::IsWhiteSpace($char)) {
+            if ($tokenStarted) {
+                $tokens.Add($current.ToString())
+                [void]$current.Clear()
+                $tokenStarted = $false
+            }
+            continue
+        }
+        [void]$current.Append($char)
+        $tokenStarted = $true
+    }
+    if ($quote -ne [char]0) { Fail "$Label has an unterminated quoted argument." }
+    if ($tokenStarted) { $tokens.Add($current.ToString()) }
+    return $tokens.ToArray()
+}
+
 function Parse-PolicyArray([string]$Text,[string]$Name) {
     $match = [regex]::Match($Text,[regex]::Escape($Name) + '\s*=\s*\{\s*([^}]*)\}')
     if (-not $match.Success) { Fail "cannot parse HeroCarLodPolicy.$Name" }
@@ -182,9 +216,11 @@ foreach ($raw in Get-Content -LiteralPath $sourcePath) {
     }
     if ($op -eq 'usemtl') { $currentMaterial = (($parts | Select-Object -Skip 1) -join ' ').Trim(); continue }
     if ($op -eq 'mtllib') {
-        $reference = $line.Substring('mtllib'.Length).Trim()
-        if ([string]::IsNullOrWhiteSpace($reference)) { Fail 'Hero OBJ has an empty mtllib reference.' }
-        if (-not $mtllibs.Contains($reference)) { $mtllibs.Add($reference) }
+        $references = @(Split-WavefrontArguments ($line.Substring('mtllib'.Length).Trim()) 'Hero OBJ mtllib')
+        if ($references.Count -eq 0) { Fail 'Hero OBJ has an empty mtllib reference.' }
+        foreach ($reference in $references) {
+            if (-not $mtllibs.Contains($reference)) { $mtllibs.Add($reference) }
+        }
         continue
     }
     if ($op -ne 'f') { continue }
@@ -244,7 +280,7 @@ foreach ($mtllib in $mtllibs) {
         $mtlLine = $rawMtl.Trim()
         if ([string]::IsNullOrWhiteSpace($mtlLine) -or $mtlLine.StartsWith('#')) { continue }
         if ($mtlLine -match '^newmtl\s+(.+)$') { $currentMtlMaterial = $Matches[1].Trim(); continue }
-        $tokens = @($mtlLine -split '\s+')
+        $tokens = @(Split-WavefrontArguments $mtlLine 'Hero MTL texture directive')
         if ($tokens.Count -lt 2 -or ($tokens[0].ToLowerInvariant() -notin $BaseColorDirectives)) { continue }
         if ([string]::IsNullOrWhiteSpace($currentMtlMaterial)) { Fail 'Hero MTL contains a base-color texture directive before newmtl.' }
         $textureRef = $tokens[-1]
