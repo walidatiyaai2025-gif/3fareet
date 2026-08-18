@@ -135,7 +135,10 @@ class HeroProductionHandoffTests(unittest.TestCase):
         self.assertIsNone(MODULE.classify_lod("AFAREET_KING_LOD10"))
         root = make_repo(lod1_name="AFAREET_KING_LOD10")
         try:
-            with self.assertRaisesRegex(MODULE.HeroHandoffError, "unclassified|missing an authored _LOD1"):
+            with self.assertRaisesRegex(
+                MODULE.HeroHandoffError,
+                "outside explicit _LOD0/_LOD1/_LOD2|missing an authored _LOD1",
+            ):
                 MODULE.validate_intake(root, (HERO_ROOT / "AfareetKing_Production.obj").as_posix())
         finally:
             shutil.rmtree(root, ignore_errors=True)
