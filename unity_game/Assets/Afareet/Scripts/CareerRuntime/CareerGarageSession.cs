@@ -12,11 +12,13 @@ namespace Afareet.CareerRuntime
         private GarageCatalog catalog;
         private GarageStateStore stateStore;
         private GarageService garage;
+        private ICareerGarageVehicleRuntime vehicleRuntime;
         private bool configured;
         private bool suppressPersistence;
 
         public GarageService Garage => garage;
         public GarageState State => garage?.State;
+        public string ActiveRuntimeVehicleId => vehicleRuntime?.ActiveVehicleId;
         public bool IsConfigured => configured;
         public bool RecoveredInvalidGarageSave { get; private set; }
         public bool MigratedLegacyGarageSave { get; private set; }
@@ -30,14 +32,29 @@ namespace Afareet.CareerRuntime
             IGarageStateStorage storage,
             GarageCatalog garageCatalog = null)
         {
+            Configure(
+                careerSession,
+                storage,
+                new PassiveCareerGarageVehicleRuntime(),
+                garageCatalog);
+        }
+
+        public void Configure(
+            CareerGameSession careerSession,
+            IGarageStateStorage storage,
+            ICareerGarageVehicleRuntime garageVehicleRuntime,
+            GarageCatalog garageCatalog = null)
+        {
             if (careerSession == null) throw new ArgumentNullException(nameof(careerSession));
             if (careerSession.Profile == null)
                 throw new InvalidOperationException("CareerGameSession must be configured before CareerGarageSession.");
             if (storage == null) throw new ArgumentNullException(nameof(storage));
+            if (garageVehicleRuntime == null) throw new ArgumentNullException(nameof(garageVehicleRuntime));
 
             Unbind();
             career = careerSession;
             catalog = garageCatalog ?? GarageCatalog.CreateDefault();
+            vehicleRuntime = garageVehicleRuntime;
             CareerGarageBridge.ValidateCareerVehicleRewardsOrThrow(
                 ChapterOneCareerEventContent.CreateDefinitions(),
                 catalog);
@@ -50,6 +67,8 @@ namespace Afareet.CareerRuntime
             GarageSaveRecoveryError = load.Error;
 
             garage = new GarageService(catalog, unlocked, load.State);
+            vehicleRuntime.ValidateApply(garage.State.EquippedVehicleId);
+            vehicleRuntime.ApplyEquippedVehicle(garage.State.EquippedVehicleId);
             garage.StateChanged += OnGarageStateChanged;
             career.ProgressChanged += OnCareerProgressChanged;
             configured = true;
@@ -63,6 +82,20 @@ namespace Afareet.CareerRuntime
             Configure(
                 careerSession,
                 new PlayerPrefsGarageStateStorage(playerPrefsKey),
+                new PassiveCareerGarageVehicleRuntime(),
+                garageCatalog);
+        }
+
+        public void ConfigureWithPlayerPrefs(
+            CareerGameSession careerSession,
+            ICareerGarageVehicleRuntime garageVehicleRuntime,
+            GarageCatalog garageCatalog = null,
+            string playerPrefsKey = PlayerPrefsGarageStateStorage.DefaultKey)
+        {
+            Configure(
+                careerSession,
+                new PlayerPrefsGarageStateStorage(playerPrefsKey),
+                garageVehicleRuntime,
                 garageCatalog);
         }
 
@@ -81,6 +114,7 @@ namespace Afareet.CareerRuntime
         public GarageState Equip(string vehicleId)
         {
             EnsureConfigured();
+            vehicleRuntime.ValidateApply(vehicleId);
             return garage.Equip(vehicleId);
         }
 
@@ -127,6 +161,7 @@ namespace Afareet.CareerRuntime
             {
                 suppressPersistence = false;
             }
+            EnsureRuntimeEquippedVehicle(garage.State);
             stateStore.Save(garage.State, unlocked);
             GarageUnlocksChanged?.Invoke();
             GarageStateChanged?.Invoke(garage.State);
@@ -135,6 +170,7 @@ namespace Afareet.CareerRuntime
         private void OnGarageStateChanged(GarageState state)
         {
             if (!configured || state == null) return;
+            EnsureRuntimeEquippedVehicle(state);
             if (!suppressPersistence)
             {
                 var unlocked = CareerGarageBridge.ResolveUnlockedVehicleIds(career.Profile, catalog);
@@ -143,9 +179,18 @@ namespace Afareet.CareerRuntime
             GarageStateChanged?.Invoke(state);
         }
 
+        private void EnsureRuntimeEquippedVehicle(GarageState state)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (StringComparer.Ordinal.Equals(vehicleRuntime.ActiveVehicleId, state.EquippedVehicleId))
+                return;
+            vehicleRuntime.ValidateApply(state.EquippedVehicleId);
+            vehicleRuntime.ApplyEquippedVehicle(state.EquippedVehicleId);
+        }
+
         private void EnsureConfigured()
         {
-            if (!configured || career == null || catalog == null || stateStore == null || garage == null)
+            if (!configured || career == null || catalog == null || stateStore == null || garage == null || vehicleRuntime == null)
                 throw new InvalidOperationException("CareerGarageSession must be configured before use.");
         }
 
@@ -161,6 +206,7 @@ namespace Afareet.CareerRuntime
             garage = null;
             stateStore = null;
             catalog = null;
+            vehicleRuntime = null;
             career = null;
         }
 
