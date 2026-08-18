@@ -272,21 +272,59 @@ namespace Afareet.Race
             }
 
             var byKind = BuildInventoryIndex(inventory);
+            return DecideCore(
+                snapshot,
+                IsUsable(byKind, PowerUpKind.AsphaltShard),
+                IsUsable(byKind, PowerUpKind.NitroSpirit),
+                IsUsable(byKind, PowerUpKind.TrafficCurse),
+                IsUsable(byKind, PowerUpKind.EnchantedPound),
+                IsUsable(byKind, PowerUpKind.EyeShield));
+        }
 
-            if (snapshot.IncomingHostilePressure && IsUsable(byKind, PowerUpKind.EyeShield))
+        internal static AiPowerUpDecision Decide(
+            AiPowerUpRaceSnapshot snapshot,
+            bool asphaltShardUsable,
+            bool nitroSpiritUsable,
+            bool trafficCurseUsable,
+            bool enchantedPoundUsable,
+            bool eyeShieldUsable)
+        {
+            if (snapshot == null)
+            {
+                throw new ArgumentNullException(nameof(snapshot));
+            }
+
+            return DecideCore(
+                snapshot,
+                asphaltShardUsable,
+                nitroSpiritUsable,
+                trafficCurseUsable,
+                enchantedPoundUsable,
+                eyeShieldUsable);
+        }
+
+        private static AiPowerUpDecision DecideCore(
+            AiPowerUpRaceSnapshot snapshot,
+            bool asphaltShardUsable,
+            bool nitroSpiritUsable,
+            bool trafficCurseUsable,
+            bool enchantedPoundUsable,
+            bool eyeShieldUsable)
+        {
+            if (snapshot.IncomingHostilePressure && eyeShieldUsable)
             {
                 return AiPowerUpDecision.Use(PowerUpKind.EyeShield, AiPowerUpDecisionReason.DefensiveShield);
             }
 
             if (snapshot.HasChaserBehind &&
                 snapshot.GapFromChaserSeconds <= DefensiveChaserGapSeconds &&
-                IsUsable(byKind, PowerUpKind.AsphaltShard))
+                asphaltShardUsable)
             {
                 return AiPowerUpDecision.Use(PowerUpKind.AsphaltShard, AiPowerUpDecisionReason.DefendFromChaser);
             }
 
             if (snapshot.Position > 1 &&
-                IsUsable(byKind, PowerUpKind.NitroSpirit) &&
+                nitroSpiritUsable &&
                 ShouldUseNitro(snapshot))
             {
                 return AiPowerUpDecision.Use(PowerUpKind.NitroSpirit, AiPowerUpDecisionReason.CatchUpOrFinalPush);
@@ -295,7 +333,7 @@ namespace Afareet.Race
             if (snapshot.Position > 1 &&
                 snapshot.HasTargetAhead &&
                 snapshot.GapToTargetSeconds <= TrafficCurseMaxTargetGapSeconds &&
-                IsUsable(byKind, PowerUpKind.TrafficCurse))
+                trafficCurseUsable)
             {
                 return AiPowerUpDecision.Use(PowerUpKind.TrafficCurse, AiPowerUpDecisionReason.TargetLeader);
             }
@@ -304,7 +342,7 @@ namespace Afareet.Race
                 snapshot.NormalizedProgress >= RewardOptimizationMinProgress &&
                 !snapshot.IncomingHostilePressure &&
                 HasStableLead(snapshot) &&
-                IsUsable(byKind, PowerUpKind.EnchantedPound))
+                enchantedPoundUsable)
             {
                 return AiPowerUpDecision.Use(PowerUpKind.EnchantedPound, AiPowerUpDecisionReason.RewardOptimization);
             }
