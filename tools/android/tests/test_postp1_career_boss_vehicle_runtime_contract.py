@@ -55,7 +55,8 @@ def test_production_bootstrap_installs_real_boss_runtime_and_shared_catalog():
         "new CareerBossVehicleRuntimeController(",
         "garageCatalog,",
         "careerBossVehicles);",
-        "garage.ConfigureWithPlayerPrefs(career, garageCatalog)",
+        "new CareerGarageVehicleRuntimeController(",
+        "garage.ConfigureWithPlayerPrefs(career, garageVehicleRuntime, garageCatalog)",
     ):
         assert token in source
     assert "new PassiveCareerBossVehicleRuntime" not in source
@@ -67,6 +68,7 @@ def test_production_boss_controller_uses_authoritative_catalog_stats_and_asset_l
         "CareerBossVehicleRuntimeController : ICareerBossVehicleRuntime",
         "catalog.GetRequired(bossVehicleId)",
         "catalog.NormalizeStats(bossVehicleId)",
+        "GarageVehiclePerformanceProjection.Project",
         "SetVehiclePerformanceProfile",
         "ResetVehiclePerformanceProfile",
         "Resources.Load<GameObject>(definition.PreviewResourcePath)",
