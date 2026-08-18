@@ -19,6 +19,8 @@ namespace Afareet.Race
             public OneLapRaceTracker Lap;
             public int StableOrder;
             public string RacerId;
+            public bool Eliminated;
+            public Action<int> CheckpointAcceptedHandler;
         }
 
         private readonly List<ArcadeCarController> registeredRivals = new();
@@ -28,11 +30,14 @@ namespace Afareet.Race
         private TrackRuntime track;
         private RaceRoundController round;
         private PowerUpRaceRuntime powerUpRuntime;
+        private EliminationRaceRuntime eliminationRuntime;
         private Transform checkpointRoot;
         private Transform boundaryRoot;
         private bool racersReleased;
         private bool powerUpRuntimeDirty = true;
         private bool challengeRosterDirty = true;
+        private bool playerWasEliminated;
+        private int playerEliminationPosition;
         private double nextPowerUpDecisionRaceTime;
         private RaceRewardSettlementSnapshot playerFinishRewardSnapshot;
         private RaceChallengeConfiguration challengeConfiguration = RaceChallengeConfiguration.Standard;
@@ -44,10 +49,12 @@ namespace Afareet.Race
         public bool IsPaused { get; private set; }
         public bool HasPowerUpRuntime => powerUpRuntime != null && !powerUpRuntimeDirty;
         public bool HasPlayerFinishRewardSnapshot => playerFinishRewardSnapshot != null;
+        public bool WasPlayerEliminated => playerWasEliminated;
         public RaceRewardSettlementSnapshot PlayerFinishRewardSnapshot => playerFinishRewardSnapshot;
         public RaceChallengeConfiguration ChallengeConfiguration => challengeConfiguration;
         public int RequestedActiveRivalCount => challengeConfiguration.ActiveRivalCount;
-        public int ActiveRivalCount => Math.Max(0, racers.Count - 1);
+        public int ActiveRivalCount => CountActiveRivals();
+        public int EliminatedRacerCount => eliminationRuntime?.EliminatedRacerCount ?? 0;
         public string CountdownText
         {
             get
@@ -58,7 +65,9 @@ namespace Afareet.Race
             }
         }
 
-        public int Position => CalculatePosition(player);
+        public int Position => playerWasEliminated && playerEliminationPosition > 0
+            ? playerEliminationPosition
+            : CalculatePosition(player);
 
         public event Action<bool> PauseChanged;
         public event Action<float> ResultsReady;
@@ -72,13 +81,17 @@ namespace Afareet.Race
             if (runtimeTrack.Waypoints.Count < 2) throw new ArgumentException("Track requires at least two ordered waypoints.", nameof(runtimeTrack));
 
             UnsubscribeRound();
+            UnsubscribeCheckpointHandlers();
             player = playerCar;
             track = runtimeTrack;
             racers.Clear();
             asphaltShardTraps.ResetRace();
             powerUpRuntime = null;
+            eliminationRuntime = null;
             powerUpRuntimeDirty = true;
             challengeRosterDirty = true;
+            playerWasEliminated = false;
+            playerEliminationPosition = 0;
             nextPowerUpDecisionRaceTime = 0d;
             playerFinishRewardSnapshot = null;
 
@@ -145,6 +158,7 @@ namespace Afareet.Race
             }
 
             playerFinishRewardSnapshot = null;
+            ResetEliminationRuntime();
             EnsurePowerUpRuntime();
             ResetPowerUpDriveModifiers();
             nextPowerUpDecisionRaceTime = 0d;
@@ -188,7 +202,7 @@ namespace Afareet.Race
         public RaceRewardSettlement SettlePlayerFinishReward(int baseRewardUnits)
         {
             if (playerFinishRewardSnapshot == null)
-                throw new InvalidOperationException("Player finish reward snapshot is unavailable before race results.");
+                throw new InvalidOperationException("Player finish reward snapshot is unavailable before a successful race finish.");
 
             return playerFinishRewardSnapshot.Settle(baseRewardUnits);
         }
@@ -196,7 +210,7 @@ namespace Afareet.Race
         public IReadOnlyList<PowerUpInventorySnapshot> GetPlayerPowerUpInventory()
         {
             var source = PlayerRuntime;
-            if (source == null || powerUpRuntime == null || powerUpRuntimeDirty)
+            if (source == null || source.Eliminated || powerUpRuntime == null || powerUpRuntimeDirty)
                 return Array.Empty<PowerUpInventorySnapshot>();
 
             var raceTimeSeconds = Math.Max(0d, source.Lap.ElapsedTime);
@@ -209,7 +223,7 @@ namespace Afareet.Race
                 return null;
 
             var source = PlayerRuntime;
-            if (source == null || source.Lap.IsFinished)
+            if (source == null || source.Eliminated || source.Lap.IsFinished)
                 return null;
 
             var raceTimeSeconds = Math.Max(0d, source.Lap.ElapsedTime);
@@ -237,7 +251,7 @@ namespace Afareet.Race
                 return null;
 
             var source = FindRuntime(racerId);
-            if (source == null || source.Lap.IsFinished)
+            if (source == null || source.Eliminated || source.Lap.IsFinished)
                 return null;
 
             var ranked = BuildRankedRace();
@@ -313,7 +327,7 @@ namespace Afareet.Race
             PowerUpKind kind,
             double raceTimeSeconds)
         {
-            if (runtime == null || runtime.Lap.IsFinished || powerUpRuntime == null || powerUpRuntimeDirty)
+            if (runtime == null || runtime.Eliminated || runtime.Lap.IsFinished || powerUpRuntime == null || powerUpRuntimeDirty)
                 return false;
 
             return AiHostilePowerUpPressurePolicy.IsUsable(
@@ -343,6 +357,7 @@ namespace Afareet.Race
                 nextPowerUpDecisionRaceTime = raceTimeSeconds + AiPowerUpDecisionCadenceSeconds;
                 for (var i = 1; i < racers.Count; i++)
                 {
+                    if (racers[i].Eliminated) continue;
                     var ai = racers[i].Car.GetComponent<AiRacer>();
                     if (ai == null) continue;
 
@@ -365,9 +380,11 @@ namespace Afareet.Race
             if (player == null || track == null)
                 return;
 
+            UnsubscribeCheckpointHandlers();
             ResetPowerUpDriveModifiers();
             racers.Clear();
             powerUpRuntime = null;
+            eliminationRuntime = null;
             powerUpRuntimeDirty = true;
             asphaltShardTraps.ResetRace();
             nextPowerUpDecisionRaceTime = 0d;
@@ -428,17 +445,84 @@ namespace Afareet.Race
                     ai.ApplyDifficultyTuning(challengeConfiguration.AiDifficulty);
             }
 
-            racers.Add(new RacerRuntime
+            var runtime = new RacerRuntime
             {
                 Car = car,
                 Checkpoints = checkpoints,
                 Lap = lap,
                 StableOrder = stableOrder,
-                RacerId = racerId
-            });
+                RacerId = racerId,
+                Eliminated = false
+            };
+            runtime.CheckpointAcceptedHandler = checkpointIndex => OnRacerCheckpointAccepted(runtime, checkpointIndex);
+            checkpoints.CheckpointAccepted += runtime.CheckpointAcceptedHandler;
+            racers.Add(runtime);
+
             powerUpRuntimeDirty = true;
             if (powerUpRuntime != null)
                 ResetPowerUpDriveModifiers();
+        }
+
+        private void ResetEliminationRuntime()
+        {
+            playerWasEliminated = false;
+            playerEliminationPosition = 0;
+            for (var i = 0; i < racers.Count; i++)
+                racers[i].Eliminated = false;
+
+            eliminationRuntime = challengeConfiguration.EliminationEnabled && racers.Count > 1
+                ? new EliminationRaceRuntime(track.Waypoints.Count, racers.Count - 1)
+                : null;
+        }
+
+        private void OnRacerCheckpointAccepted(RacerRuntime source, int checkpointIndex)
+        {
+            if (source == null || source.Eliminated || Phase != RaceRoundPhase.Racing ||
+                !challengeConfiguration.EliminationEnabled || eliminationRuntime == null)
+            {
+                return;
+            }
+
+            var ranked = BuildRankedRace();
+            var rankedIds = new List<string>(ranked.Count);
+            for (var index = 0; index < ranked.Count; index++)
+                rankedIds.Add(ranked[index].Progress.RacerId);
+
+            if (!eliminationRuntime.TryResolveGate(checkpointIndex, rankedIds, out var decision))
+                return;
+
+            var eliminated = FindRuntime(decision.EliminatedRacerId);
+            if (eliminated == null || eliminated.Eliminated)
+                throw new InvalidOperationException($"Elimination selected unavailable racer '{decision.EliminatedRacerId}'.");
+
+            EliminateRacer(eliminated, decision);
+        }
+
+        private void EliminateRacer(RacerRuntime runtime, EliminationDecision decision)
+        {
+            runtime.Eliminated = true;
+            challengeRosterDirty = true;
+            runtime.Car.ResetExternalDriveModifier();
+            FreezeRacer(runtime.Car);
+
+            Debug.Log(
+                $"AFAREET_ELIMINATION gate={decision.GateCheckpointIndex} racer={decision.EliminatedRacerId} " +
+                $"fieldBefore={decision.FieldSizeBeforeElimination} remaining={decision.RemainingRacerCount}");
+
+            if (runtime.Car == player)
+            {
+                playerWasEliminated = true;
+                playerEliminationPosition = decision.FieldSizeBeforeElimination;
+                var eliminationTime = Math.Max(0f, RaceTime);
+                if (!round.CompleteRoundExternally(eliminationTime))
+                    throw new InvalidOperationException("Player elimination could not resolve the active race round.");
+                return;
+            }
+
+            var recovery = runtime.Car.GetComponent<RivalResetController>();
+            if (recovery != null) recovery.SetActive(false);
+            if (runtime.Car.gameObject.activeSelf)
+                runtime.Car.gameObject.SetActive(false);
         }
 
         private void EnsurePowerUpRuntime()
@@ -449,6 +533,7 @@ namespace Afareet.Race
             var registrations = new List<PowerUpRacerRegistration>(racers.Count);
             for (var i = 0; i < racers.Count; i++)
             {
+                if (racers[i].Eliminated) continue;
                 var racerId = racers[i].RacerId;
                 registrations.Add(new PowerUpRacerRegistration(
                     racerId,
@@ -465,6 +550,7 @@ namespace Afareet.Race
 
             for (var i = 1; i < racers.Count; i++)
             {
+                if (racers[i].Eliminated) continue;
                 var ai = racers[i].Car.GetComponent<AiRacer>();
                 if (ai != null)
                     ai.BindPowerUpRuntime(this, racers[i].RacerId);
@@ -473,7 +559,7 @@ namespace Afareet.Race
 
         private void DeployAsphaltShardTrap(RacerRuntime source, double raceTimeSeconds)
         {
-            if (source?.Car == null) return;
+            if (source?.Car == null || source.Eliminated) return;
             var transform = source.Car.transform;
             var deploymentPosition = transform.position -
                                      transform.forward * (float)AsphaltShardTrapRuntime.PlacementBehindVehicleMeters;
@@ -495,7 +581,7 @@ namespace Afareet.Race
             for (var i = 0; i < racers.Count; i++)
             {
                 var runtime = racers[i];
-                if (runtime.Car == null || runtime.Lap.IsFinished) continue;
+                if (runtime.Eliminated || runtime.Car == null || runtime.Lap.IsFinished) continue;
                 if (!asphaltShardTraps.TryTrigger(
                         runtime.RacerId,
                         ToTrapPoint(runtime.Car.transform.position),
@@ -532,6 +618,11 @@ namespace Afareet.Race
             for (var i = 0; i < racers.Count; i++)
             {
                 var runtime = racers[i];
+                if (runtime.Eliminated)
+                {
+                    runtime.Car.ResetExternalDriveModifier();
+                    continue;
+                }
                 var projection = powerUpRuntime.GetVehicleEffectProjection(runtime.RacerId, raceTimeSeconds);
                 runtime.Car.SetExternalDriveModifier(new ArcadeDriveModifier(
                     projection.AccelerationMultiplier,
@@ -544,7 +635,7 @@ namespace Afareet.Race
         private RaceRewardSettlementSnapshot CapturePlayerFinishRewardSnapshot(float finishTime)
         {
             var raceTimeSeconds = Math.Max(0d, finishTime);
-            if (powerUpRuntime == null || powerUpRuntimeDirty || PlayerRuntime == null)
+            if (powerUpRuntime == null || powerUpRuntimeDirty || PlayerRuntime == null || PlayerRuntime.Eliminated)
                 return new RaceRewardSettlementSnapshot(raceTimeSeconds, 1d);
 
             return powerUpRuntime.CaptureRewardSettlementSnapshot(
@@ -558,7 +649,7 @@ namespace Afareet.Race
                 return null;
 
             var source = PlayerRuntime;
-            if (source == null)
+            if (source == null || source.Eliminated)
                 return null;
 
             var ranked = BuildRankedRace();
@@ -603,13 +694,15 @@ namespace Afareet.Race
         private void OnRoundRaceStarted()
         {
             for (var i = 1; i < racers.Count; i++)
-                if (!racers[i].Lap.IsStarted) racers[i].Lap.StartRace();
+                if (!racers[i].Eliminated && !racers[i].Lap.IsStarted) racers[i].Lap.StartRace();
             ReleaseRacers();
         }
 
         private void OnRoundResultsReady(float finishTime)
         {
-            playerFinishRewardSnapshot = CapturePlayerFinishRewardSnapshot(finishTime);
+            playerFinishRewardSnapshot = playerWasEliminated
+                ? null
+                : CapturePlayerFinishRewardSnapshot(finishTime);
             SetPausedInternal(false);
             ResetPowerUpDriveModifiers();
             FreezeRacers();
@@ -621,6 +714,9 @@ namespace Afareet.Race
             racersReleased = false;
             nextPowerUpDecisionRaceTime = 0d;
             playerFinishRewardSnapshot = null;
+            playerWasEliminated = false;
+            playerEliminationPosition = 0;
+            eliminationRuntime = null;
             asphaltShardTraps.ResetRace();
             if (powerUpRuntime != null)
                 powerUpRuntime.ResetRace();
@@ -635,6 +731,7 @@ namespace Afareet.Race
 
             for (var i = 0; i < racers.Count; i++)
             {
+                if (racers[i].Eliminated) continue;
                 var car = racers[i].Car;
                 var body = car.GetComponent<Rigidbody>();
                 if (body != null) body.isKinematic = false;
@@ -667,9 +764,6 @@ namespace Afareet.Race
             var body = car.GetComponent<Rigidbody>();
             if (body != null)
             {
-                // FreezeRacer is intentionally idempotent: Configure, StartRace and RestartRace
-                // can all request a freeze while the body is already kinematic. Unity 6 rejects
-                // velocity writes to kinematic bodies, so only clear motion while still dynamic.
                 if (!body.isKinematic)
                 {
                     body.linearVelocity = Vector3.zero;
@@ -685,6 +779,7 @@ namespace Afareet.Race
         {
             for (var i = 1; i < racers.Count; i++)
             {
+                if (racers[i].Eliminated) continue;
                 var reset = racers[i].Car.GetComponent<RivalResetController>();
                 if (reset != null) reset.SetActive(active);
             }
@@ -697,6 +792,7 @@ namespace Afareet.Race
             for (var i = 0; i < racers.Count; i++)
             {
                 var runtime = racers[i];
+                if (runtime.Eliminated) continue;
                 var targetPosition = track.GridPosition(runtime.StableOrder);
                 var body = runtime.Car.GetComponent<Rigidbody>();
                 if (body == null)
@@ -705,9 +801,6 @@ namespace Afareet.Race
                     continue;
                 }
 
-                // Configure/Restart intentionally call this after FreezeRacers. Preserve the
-                // kinematic state and move the Rigidbody pose directly; only dynamic bodies may
-                // receive velocity writes in Unity 6.
                 if (!body.isKinematic)
                 {
                     body.linearVelocity = Vector3.zero;
@@ -724,6 +817,7 @@ namespace Afareet.Race
             for (var i = 0; i < racers.Count; i++)
             {
                 var runtime = racers[i];
+                if (runtime.Eliminated) continue;
                 snapshots.Add(RaceRanking.Capture(
                     runtime.RacerId,
                     runtime.Checkpoints,
@@ -762,6 +856,14 @@ namespace Afareet.Race
             return Mathf.Clamp01(Vector3.Dot(runtime.Car.transform.position - a, segment) / denominator);
         }
 
+        private int CountActiveRivals()
+        {
+            var count = 0;
+            for (var i = 1; i < racers.Count; i++)
+                if (!racers[i].Eliminated) count++;
+            return count;
+        }
+
         private RacerRuntime FindRuntime(ArcadeCarController car)
         {
             for (var i = 0; i < racers.Count; i++)
@@ -775,6 +877,16 @@ namespace Afareet.Race
             for (var i = 0; i < racers.Count; i++)
                 if (StringComparer.Ordinal.Equals(racers[i].RacerId, racerId)) return racers[i];
             return null;
+        }
+
+        private void UnsubscribeCheckpointHandlers()
+        {
+            for (var i = 0; i < racers.Count; i++)
+            {
+                var runtime = racers[i];
+                if (runtime?.Checkpoints != null && runtime.CheckpointAcceptedHandler != null)
+                    runtime.Checkpoints.CheckpointAccepted -= runtime.CheckpointAcceptedHandler;
+            }
         }
 
         private void SetPausedInternal(bool paused)
@@ -796,6 +908,7 @@ namespace Afareet.Race
         private void OnDestroy()
         {
             ResetPowerUpDriveModifiers();
+            UnsubscribeCheckpointHandlers();
             UnsubscribeRound();
             if (IsPaused) Time.timeScale = 1f;
         }
