@@ -287,6 +287,16 @@ namespace Afareet.UI
             resumeLabel.text = RuntimeLocalization.Text("resume");
             restartLabel.text = "RETRY";
             nextLabel.text = "NEXT EVENT";
+
+            // Results ranking/settlement formatting is allocation-heavy and immutable once
+            // the active round has ended. Never perform that work while the Results panel is
+            // hidden during Ready/Countdown/Racing/Pause presentation.
+            if (mode != RaceOverlayMode.Results)
+            {
+                nextButtonRect.gameObject.SetActive(false);
+                return;
+            }
+
             positionLabel.text = $"{RuntimeLocalization.Text("position")}  {race.Position}/4";
             timeLabel.text = $"{RuntimeLocalization.Text("time")}  {Mathf.Max(0f, race.FinishTime):0.00} s";
 
