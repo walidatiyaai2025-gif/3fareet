@@ -26,6 +26,8 @@ class P1ProductionArtWorkflowCoverageContractTests(unittest.TestCase):
             "tools/android/tests/test_verify_release_publication.py",
             "tools/android/tests/test_verify_release_with_production_art.py",
             "tools/android/tests/test_p1_production_art_workflow_coverage_contract.py",
+            "tools/android/tests/test_p1_final_gate_plan_current_state_contract.py",
+            "docs/qa/P1_FINAL_5_GATE_PLAN.md",
         )
         for relative in required_paths:
             self.assertEqual(
@@ -45,13 +47,14 @@ class P1ProductionArtWorkflowCoverageContractTests(unittest.TestCase):
             "test_verify_release_with_production_art.py",
             "test_verify_release_with_smoke_contract.py",
             "test_p1_production_art_workflow_coverage_contract.py",
+            "test_p1_final_gate_plan_current_state_contract.py",
         ):
             self.assertIn(
                 f"python3 -m unittest discover -s tools/android/tests -p '{test_name}' -v",
                 text,
             )
 
-    def test_workflow_syntax_checks_transitive_release_sources(self):
+    def test_workflow_syntax_checks_transitive_release_sources_and_runbook_contract(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         syntax_block = text.split("python3 -m py_compile", 1)[1].split(
             "python3 tools/android/analyze_device_smoke.py --help",
@@ -62,6 +65,7 @@ class P1ProductionArtWorkflowCoverageContractTests(unittest.TestCase):
             "tools/android/p1_gate_readiness.py",
             "tools/android/prepare_candidate_device.py",
             "tools/android/verify_device_review_bundle.py",
+            "tools/android/tests/test_p1_final_gate_plan_current_state_contract.py",
         ):
             self.assertIn(relative, syntax_block)
 
