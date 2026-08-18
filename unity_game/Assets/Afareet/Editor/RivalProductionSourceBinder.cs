@@ -9,7 +9,8 @@ namespace Afareet.Editor
     /// <summary>
     /// Binds one selected externally-authored model source to one UART-004 production rival.
     /// The binder refuses to record provenance unless every LOD mesh is actually backed by
-    /// the selected model and the imported prefab already satisfies the production surface contract.
+    /// the exact deterministic source assigned to that variant and the imported prefab already
+    /// satisfies the production surface contract.
     /// </summary>
     public static class RivalProductionSourceBinder
     {
@@ -36,7 +37,7 @@ namespace Afareet.Editor
         private static bool CanBind(int variant)
         {
             var sourcePath = SelectedSourcePath();
-            return RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath) &&
+            return RivalProductionPolicy.IsExactProductionSourceForVariant(variant, sourcePath) &&
                    AssetDatabase.LoadAssetAtPath<GameObject>(RivalProductionPolicy.AssetPath(variant)) != null;
         }
 
@@ -55,9 +56,11 @@ namespace Afareet.Editor
             RivalProductionPolicy.ValidateContract();
             sourcePath = (sourcePath ?? string.Empty).Replace('\\', '/');
 
-            if (!RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath))
+            var expectedSourcePath = RivalProductionPolicy.StagingSourcePath(variant);
+            if (!RivalProductionPolicy.IsExactProductionSourceForVariant(variant, sourcePath))
                 throw new InvalidOperationException(
-                    $"UART-004 selected asset is not a supported non-generated external 3D model: {sourcePath}");
+                    $"UART-004 rival {variant + 1} source must match its deterministic production exchange path. " +
+                    $"expected={expectedSourcePath} actual={sourcePath}");
             if (AssetImporter.GetAtPath(sourcePath) == null || AssetDatabase.LoadMainAssetAtPath(sourcePath) == null)
                 throw new InvalidOperationException($"UART-004 source is not importable by Unity: {sourcePath}");
 
@@ -156,7 +159,7 @@ namespace Afareet.Editor
 
                 Debug.Log(
                     $"AFAREET_UART004_SOURCE_BIND_OK variant={variant + 1} source={sourcePath} " +
-                    $"guid={guid} dependencyHash={dependencyHash} distinctSource=true");
+                    $"guid={guid} dependencyHash={dependencyHash} exactVariantSource=true distinctSource=true");
             }
             finally
             {

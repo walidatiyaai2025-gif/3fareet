@@ -34,6 +34,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "RivalProductionPolicy.AssetPath",
             "ValidateProductionPrefab",
             "missing-external-authored-prefab",
+            "IsExactProductionSourceForVariant",
             "AssetDatabase.LoadMainAssetAtPath",
             "AssetImporter.GetAtPath",
             "AssetDatabase.AssetPathToGUID",
@@ -45,6 +46,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "mesh-not-backed-by-source",
             "AFAREET_UART004_PRODUCTION_RIVALS_GATE_BLOCKED",
             "AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK",
+            "exactVariantSources=true",
             "guidHashBound=true",
             "meshSourceBound=true",
         ):
@@ -66,7 +68,8 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "Rival 2 Source",
             "Rival 3 Source",
             "internal static void BindSource",
-            "RivalProductionPolicy.IsSupportedAuthoredModelSource",
+            "RivalProductionPolicy.IsExactProductionSourceForVariant",
+            "RivalProductionPolicy.StagingSourcePath",
             "EnsureSourceIsUniqueAcrossOtherVariants",
             "AssetDatabase.AssetPathToGUID",
             "AssetDatabase.GetAssetDependencyHash",
@@ -78,6 +81,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "metadata.Configure",
             "ValidateProductionPrefab",
             "AFAREET_UART004_SOURCE_BIND_OK",
+            "exactVariantSource=true",
         ):
             self.assertIn(required, text)
         self.assertIn("cannot reuse rival", text)
@@ -145,6 +149,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             'ProductionSourceRoot + "Rival_02_FastbackMuscle_Production.obj"',
             'ProductionSourceRoot + "Rival_03_CompactPrototype_Production.obj"',
             "StagingSourcePath",
+            "IsExactProductionSourceForVariant",
             "authoredExternalSource",
             "uv0Authored",
             "normalsAuthored",

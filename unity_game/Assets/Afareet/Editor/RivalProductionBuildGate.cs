@@ -12,8 +12,8 @@ namespace Afareet.Editor
     /// Fail-closed UART-004 Android gate. Production builds may never synthesize rival
     /// production assets from code/design profiles at build time. Three externally authored
     /// model-backed prefabs must already exist, pass production validation and remain bound
-    /// to the exact imported source model GUID/dependency hash used by every LOD mesh.
-    /// Each rival must also use a distinct authored model source.
+    /// to the exact deterministic source model assigned to each variant, including its
+    /// Unity GUID/dependency hash and every LOD mesh. Each rival must also use a distinct source.
     /// </summary>
     public sealed class RivalProductionBuildGate : IPreprocessBuildWithReport
     {
@@ -46,7 +46,7 @@ namespace Afareet.Editor
 
             Debug.Log(
                 "AFAREET_UART004_PRODUCTION_RIVALS_GATE_OK variants=3 source=external-authored-3d " +
-                "importedSources=3 distinctSources=3 guidHashBound=true meshSourceBound=true primitiveFallback=false");
+                "importedSources=3 distinctSources=3 exactVariantSources=true guidHashBound=true meshSourceBound=true primitiveFallback=false");
         }
 
         private static string ValidateExternalSourceProvenanceOrThrow(GameObject prefab, int variant, string prefabPath)
@@ -56,15 +56,18 @@ namespace Afareet.Editor
                 Fail(variant, $"reason=missing-production-metadata prefab={prefabPath}");
 
             var sourcePath = (metadata.SourceAssetId ?? string.Empty).Replace('\\', '/');
-            if (!RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath))
-                Fail(variant, $"reason=unsupported-authored-model-source source={sourcePath} prefab={prefabPath}");
+            var expectedSourcePath = RivalProductionPolicy.StagingSourcePath(variant);
+            if (!RivalProductionPolicy.IsExactProductionSourceForVariant(variant, sourcePath))
+                Fail(
+                    variant,
+                    $"reason=unexpected-authored-model-source expected={expectedSourcePath} actual={sourcePath} prefab={prefabPath}");
 
             var importedSource = AssetDatabase.LoadMainAssetAtPath(sourcePath);
             if (importedSource == null || AssetImporter.GetAtPath(sourcePath) == null)
                 Fail(
                     variant,
                     $"reason=missing-imported-authored-source source={sourcePath} prefab={prefabPath} " +
-                    "expected=tracked-Unity-Assets-model(.fbx|.obj|.blend|.glb|.gltf)");
+                    "expected=tracked-Unity-Assets-model(.obj)");
 
             var importedPath = AssetDatabase.GetAssetPath(importedSource).Replace('\\', '/');
             if (!string.Equals(importedPath, sourcePath, StringComparison.Ordinal))
