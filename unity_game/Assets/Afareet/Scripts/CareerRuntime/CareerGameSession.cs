@@ -82,7 +82,11 @@ namespace Afareet.CareerRuntime
             EnsureConfigured();
             if (activeDefinition == null)
                 return false;
-            return race.RestartRace();
+
+            var restarted = race.RestartRace();
+            if (restarted)
+                LastSettlement = null;
+            return restarted;
         }
 
         public CareerNavigationSnapshot SelectCareerNode(string nodeId)
