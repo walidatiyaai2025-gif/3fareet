@@ -47,3 +47,7 @@ Thumbs.db
 # UART-006 convergence-only staged landmark runtime art
 unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated/
 unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated.meta
+
+# Python generated caches
+__pycache__/
+*.py[cod]
