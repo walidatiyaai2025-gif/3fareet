@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Afareet.CareerRuntime;
 using Afareet.Race;
 using Afareet.UI;
@@ -29,7 +30,8 @@ namespace Afareet.Core
             var cameraConfig = LoadConfig<ChaseCameraConfig>("Config/ChaseCameraConfig");
 
             SetupLighting();
-            var track = CairoTrackBuilder.Build(transform);
+            var trackBuild = CairoCareerTrackBuilder.Build(transform, CairoCareerTrackCatalog.CornicheNightId);
+            var track = trackBuild.Track;
             var player = CarFactory.CreatePlayer(track.StartPosition, track.StartRotation, transform, vehicleConfig);
 
             var race = gameObject.AddComponent<RaceDirector>();
@@ -37,19 +39,29 @@ namespace Afareet.Core
             var performance = gameObject.AddComponent<RacePerformanceMetricsTracker>();
             performance.Configure(player, race);
 
+            var rivals = new List<ArcadeCarController>(3);
             for (var i = 0; i < 3; i++)
             {
                 var ai = CarFactory.CreateRival(i, track.GridPosition(i + 1), track.StartRotation, transform, vehicleConfig);
                 ai.gameObject.AddComponent<AiRacer>().Configure(track.Waypoints, i);
                 race.RegisterRival(ai);
+                rivals.Add(ai);
             }
 
+            var careerTracks = new CareerTrackRuntimeController(
+                transform,
+                trackBuild.Root,
+                CairoCareerTrackCatalog.CornicheNightId,
+                player,
+                rivals,
+                race);
             var career = gameObject.AddComponent<CareerGameSession>();
             career.Configure(
                 player.GetComponent<RaceRoundController>(),
                 race,
                 performance,
-                new PlayerPrefsCareerProgressStorage());
+                new PlayerPrefsCareerProgressStorage(),
+                careerTracks);
 
             var garage = gameObject.AddComponent<CareerGarageSession>();
             garage.ConfigureWithPlayerPrefs(career);
