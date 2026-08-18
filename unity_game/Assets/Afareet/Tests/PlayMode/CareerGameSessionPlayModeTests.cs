@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using Afareet.CareerRuntime;
 using Afareet.Progression;
 using Afareet.Race;
@@ -26,6 +27,7 @@ namespace Afareet.Tests.PlayMode
             public void Clear() => Payload = null;
         }
 
+        private readonly List<ArcadeCarController> rivals = new List<ArcadeCarController>();
         private GameObject root;
         private GameObject playerObject;
         private ArcadeCarController player;
@@ -38,6 +40,7 @@ namespace Afareet.Tests.PlayMode
         public IEnumerator SetUp()
         {
             Time.timeScale = 1f;
+            rivals.Clear();
             root = new GameObject("CAREER SESSION TEST ROOT");
             playerObject = new GameObject("CAREER SESSION TEST PLAYER");
             playerObject.AddComponent<Rigidbody>();
@@ -170,6 +173,112 @@ namespace Afareet.Tests.PlayMode
             Assert.That(new CareerPlayerProfileCodec().Decode(storage.Payload).Career.Stars, Is.EqualTo(3));
         }
 
+        [UnityTest]
+        public IEnumerator Elimination_PlayerLastAtGate_EndsAsLossAndRestartRestoresRoster()
+        {
+            SeedEliminationProfile();
+            Object.Destroy(career);
+            yield return null;
+            career = root.AddComponent<CareerGameSession>();
+            career.Configure(player.GetComponent<RaceRoundController>(), race, performance, storage);
+
+            Assert.That(career.ActiveDefinition.Node.Id, Is.EqualTo("c01_r03"));
+            Assert.That(career.ActiveChallengeConfiguration.EliminationEnabled, Is.True);
+            Assert.That(race.ActiveRivalCount, Is.EqualTo(3));
+
+            race.StartRace();
+            var round = player.GetComponent<RaceRoundController>();
+            Assert.That(round.AdvanceCountdown(3f), Is.True);
+
+            SetBodyPosition(player, new Vector3(0f, 0f, 0f));
+            SetBodyPosition(rivals[0], new Vector3(19f, 0f, 0f));
+            SetBodyPosition(rivals[1], new Vector3(14f, 0f, 0f));
+            SetBodyPosition(rivals[2], new Vector3(12f, 0f, 0f));
+            var leaderCheckpoints = rivals[0].GetComponent<RacerCheckpointTracker>();
+            Assert.That(leaderCheckpoints.TryPassCheckpoint(1), Is.EqualTo(CheckpointValidationResult.Accepted));
+            yield return null;
+
+            Assert.That(race.Phase, Is.EqualTo(RaceRoundPhase.Results));
+            Assert.That(race.WasPlayerEliminated, Is.True);
+            Assert.That(race.Position, Is.EqualTo(4));
+            Assert.That(race.EliminatedRacerCount, Is.EqualTo(1));
+            Assert.That(race.HasPlayerFinishRewardSnapshot, Is.False);
+            Assert.That(career.LastSettlement, Is.Not.Null);
+            Assert.That(career.LastSettlement.NodeCompletedNow, Is.False);
+            Assert.That(career.Progress.IsNodeCompleted("c01_r03"), Is.False);
+            Assert.That(career.TryAdvanceToNextEvent(), Is.False);
+
+            Assert.That(career.RestartCurrentEvent(), Is.True);
+            Assert.That(race.Phase, Is.EqualTo(RaceRoundPhase.Countdown));
+            Assert.That(race.WasPlayerEliminated, Is.False);
+            Assert.That(race.EliminatedRacerCount, Is.Zero);
+            Assert.That(race.ActiveRivalCount, Is.EqualTo(3));
+            Assert.That(career.LastSettlement, Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator Elimination_PlayerSurvivesAllGates_FinishesFirstAndCompletesNode()
+        {
+            SeedEliminationProfile();
+            Object.Destroy(career);
+            yield return null;
+            career = root.AddComponent<CareerGameSession>();
+            career.Configure(player.GetComponent<RaceRoundController>(), race, performance, storage);
+
+            race.StartRace();
+            var round = player.GetComponent<RaceRoundController>();
+            Assert.That(round.AdvanceCountdown(3f), Is.True);
+
+            var playerCheckpoints = player.GetComponent<RacerCheckpointTracker>();
+            var rivalOneCheckpoints = rivals[0].GetComponent<RacerCheckpointTracker>();
+
+            Assert.That(rivalOneCheckpoints.TryPassCheckpoint(1), Is.EqualTo(CheckpointValidationResult.Accepted));
+            Assert.That(race.ActiveRivalCount, Is.EqualTo(2));
+            Assert.That(race.EliminatedRacerCount, Is.EqualTo(1));
+
+            Assert.That(playerCheckpoints.TryPassCheckpoint(1), Is.EqualTo(CheckpointValidationResult.Accepted));
+            Assert.That(playerCheckpoints.TryPassCheckpoint(2), Is.EqualTo(CheckpointValidationResult.Accepted));
+            Assert.That(race.ActiveRivalCount, Is.EqualTo(1));
+            Assert.That(race.EliminatedRacerCount, Is.EqualTo(2));
+
+            Assert.That(playerCheckpoints.TryPassCheckpoint(3), Is.EqualTo(CheckpointValidationResult.Accepted));
+            Assert.That(race.ActiveRivalCount, Is.Zero);
+            Assert.That(race.EliminatedRacerCount, Is.EqualTo(3));
+            Assert.That(race.WasPlayerEliminated, Is.False);
+
+            Assert.That(playerCheckpoints.TryPassCheckpoint(0), Is.EqualTo(CheckpointValidationResult.Accepted));
+            yield return null;
+
+            Assert.That(race.Phase, Is.EqualTo(RaceRoundPhase.Results));
+            Assert.That(race.Position, Is.EqualTo(1));
+            Assert.That(race.HasPlayerFinishRewardSnapshot, Is.True);
+            Assert.That(career.LastSettlement, Is.Not.Null);
+            Assert.That(career.LastSettlement.NodeCompletedNow, Is.True);
+            Assert.That(career.Progress.IsNodeCompleted("c01_r03"), Is.True);
+        }
+
+        private void SeedEliminationProfile()
+        {
+            var seededCareer = new CareerProgress(
+                CareerProgress.CurrentVersion,
+                6,
+                new[] { "c01_r01", "c01_r02" },
+                new[] { "career:c01_r01:reward:00", "career:c01_r02:reward:00" });
+            var seededProfile = new CareerPlayerProfile(
+                seededCareer,
+                600,
+                11,
+                Array.Empty<string>());
+            storage.Payload = new CareerPlayerProfileCodec().Encode(seededProfile);
+        }
+
+        private static void SetBodyPosition(ArcadeCarController car, Vector3 position)
+        {
+            var body = car.GetComponent<Rigidbody>();
+            body.position = position;
+            car.transform.position = position;
+        }
+
         private void RegisterTestRivals(int count)
         {
             for (var index = 0; index < count; index++)
@@ -179,6 +288,7 @@ namespace Afareet.Tests.PlayMode
                 rivalObject.AddComponent<Rigidbody>();
                 var rival = rivalObject.AddComponent<ArcadeCarController>();
                 rivalObject.AddComponent<AiRacer>();
+                rivals.Add(rival);
                 race.RegisterRival(rival);
             }
         }
