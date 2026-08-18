@@ -17,9 +17,11 @@ namespace Afareet.Race
         private float laneBias;
         private float aggression;
         private float overtakeSide;
+        private AiDifficultyTuning difficultyTuning = AiDifficultyTuning.Standard;
 
         public string PowerUpRacerId => powerUpRacerId;
         public bool HasPowerUpRuntimeBinding => powerUpDirector != null && !string.IsNullOrWhiteSpace(powerUpRacerId);
+        public AiDifficultyTuning DifficultyTuning => difficultyTuning;
 
         public void Configure(IReadOnlyList<Transform> path, int rivalIndex)
         {
@@ -30,6 +32,14 @@ namespace Afareet.Race
             overtakeSide = random.Next(0, 2) == 0 ? -1f : 1f;
             skill = Mathf.Clamp(.78f + rivalIndex * .07f + aggression * .08f, .80f, .98f);
             waypointIndex = (path.Count - rivalIndex * 2) % path.Count;
+        }
+
+        public void ApplyDifficultyTuning(AiDifficultyTuning tuning)
+        {
+            // AiDifficultyTuning validates its range at construction. Keeping this as a separate
+            // multiplier preserves the deterministic seeded base profile and makes Standard
+            // (1.0 / 1.0) exactly equivalent to the pre-Career behavior.
+            difficultyTuning = tuning;
         }
 
         public void BindPowerUpRuntime(RaceDirector director, string racerId)
@@ -51,17 +61,19 @@ namespace Afareet.Race
         {
             if (waypoints == null || waypoints.Count < 3) return;
 
+            var effectiveSkill = Mathf.Clamp(skill * difficultyTuning.PaceMultiplier, .55f, 1.25f);
+            var effectiveAggression = Mathf.Clamp(aggression * difficultyTuning.AggressionMultiplier, .50f, 1.30f);
             var racingPlan = RacingLineLookahead.Plan(waypoints, waypointIndex, Mathf.Abs(car.SpeedKph));
             var target = waypoints[racingPlan.AimWaypointIndex];
             var targetPosition = target.position + target.right * laneBias;
             var local = transform.InverseTransformPoint(targetPosition);
             var steer = Mathf.Clamp(local.x / Mathf.Max(2f, local.magnitude * .28f), -1f, 1f);
 
-            var avoidance = ComputeAvoidance(out var carAhead, out var nearestCarDistance);
+            var avoidance = ComputeAvoidance(effectiveAggression, out var carAhead, out var nearestCarDistance);
             steer = Mathf.Clamp(steer + avoidance, -1f, 1f);
 
             var brakeStrength = racingPlan.SpeedPlan.Brake01;
-            var throttle = Mathf.Lerp(skill, .12f, brakeStrength);
+            var throttle = Mathf.Lerp(effectiveSkill, .12f, brakeStrength);
             if (carAhead && nearestCarDistance < 3.5f)
             {
                 throttle *= .68f;
@@ -69,7 +81,7 @@ namespace Afareet.Race
             }
             else if (carAhead)
             {
-                throttle = Mathf.Min(1f, throttle + aggression * .08f);
+                throttle = Mathf.Min(1f, throttle + effectiveAggression * .08f);
             }
 
             var corner = Mathf.Max(racingPlan.SpeedPlan.Severity01, Mathf.Abs(steer));
@@ -86,7 +98,7 @@ namespace Afareet.Race
                 waypointIndex = (waypointIndex + 1) % waypoints.Count;
         }
 
-        private float ComputeAvoidance(out bool carAhead, out float nearestCarDistance)
+        private float ComputeAvoidance(float effectiveAggression, out bool carAhead, out float nearestCarDistance)
         {
             carAhead = false;
             nearestCarDistance = float.MaxValue;
@@ -113,7 +125,7 @@ namespace Afareet.Race
                 var localHit = transform.InverseTransformPoint(hit.point);
                 var side = Mathf.Abs(localHit.x) < .2f ? overtakeSide : -Mathf.Sign(localHit.x);
                 var proximity = 1f - Mathf.Clamp01(hit.distance / 8f);
-                avoidance += side * proximity * Mathf.Lerp(.34f, .68f, aggression);
+                avoidance += side * proximity * Mathf.Lerp(.34f, .68f, effectiveAggression);
             }
 
             return Mathf.Clamp(avoidance, -.7f, .7f);
