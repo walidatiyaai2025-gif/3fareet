@@ -91,6 +91,45 @@ def _face_has_uv_and_normal(token: str) -> bool:
     return len(fields) >= 3 and bool(fields[0]) and bool(fields[1]) and bool(fields[2])
 
 
+def _split_wavefront_arguments(value: str, *, label: str) -> list[str]:
+    """Tokenize OBJ/MTL arguments without applying shell escaping semantics.
+
+    Unquoted whitespace separates arguments, single/double quotes preserve whitespace,
+    and an unquoted # starts an inline comment. Backslashes are preserved so dependency
+    resolution can normalize exporter-specific Windows/POSIX separators later.
+    """
+    tokens: list[str] = []
+    current: list[str] = []
+    quote = ""
+    token_started = False
+    for char in value or "":
+        if quote:
+            if char == quote:
+                quote = ""
+            else:
+                current.append(char)
+            token_started = True
+            continue
+        if char in {'"', "'"}:
+            quote = char
+            token_started = True
+            continue
+        if char == "#":
+            break
+        if char.isspace():
+            if token_started:
+                tokens.append("".join(current))
+                current = []
+                token_started = False
+            continue
+        current.append(char)
+        token_started = True
+    _require(not quote, f"{label} has an unterminated quoted argument")
+    if token_started:
+        tokens.append("".join(current))
+    return tokens
+
+
 def parse_obj(path: Path, policy: dict[str, Any], variant: int) -> dict[str, Any]:
     _require(path.is_file(), f"Rival {variant + 1} OBJ does not exist: {path}")
     expected_name = policy["sourceFileNames"][variant]
@@ -121,9 +160,14 @@ def parse_obj(path: Path, policy: dict[str, Any], variant: int) -> dict[str, Any
             source_normals += 1
             continue
         if line.startswith("mtllib "):
-            library = line[len("mtllib ") :].strip()
-            if library and library not in mtllibs:
-                mtllibs.append(library)
+            libraries = _split_wavefront_arguments(
+                line[len("mtllib ") :],
+                label=f"Rival {variant + 1} mtllib at line {line_number}",
+            )
+            _require(libraries, f"Rival {variant + 1} has an empty mtllib at line {line_number}")
+            for library in libraries:
+                if library not in mtllibs:
+                    mtllibs.append(library)
             continue
         if line.startswith("o "):
             current_object = line[2:].strip()
@@ -197,8 +241,8 @@ def parse_obj(path: Path, policy: dict[str, Any], variant: int) -> dict[str, Any
     }
 
 
-def _parse_texture_reference(line: str) -> str:
-    parts = line.split()
+def _parse_texture_reference(line: str, *, label: str) -> str:
+    parts = _split_wavefront_arguments(line, label=label)
     return parts[-1] if len(parts) >= 2 else ""
 
 
@@ -235,7 +279,7 @@ def validate_mtl_and_textures(obj_path: Path, obj_result: dict[str, Any]) -> lis
         _require(mtl_path.is_file(), f"{obj_path.name} references missing MTL: {library}")
         current_material = ""
         textures: set[str] = set()
-        for raw in mtl_path.read_text(encoding="utf-8", errors="strict").splitlines():
+        for line_number, raw in enumerate(mtl_path.read_text(encoding="utf-8", errors="strict").splitlines(), start=1):
             line = raw.strip()
             if not line or line.startswith("#"):
                 continue
@@ -246,7 +290,10 @@ def validate_mtl_and_textures(obj_path: Path, obj_result: dict[str, Any]) -> lis
             directive = lower.split(maxsplit=1)[0]
             if directive not in TEXTURE_DIRECTIVES or not current_material:
                 continue
-            texture_ref = _parse_texture_reference(line)
+            texture_ref = _parse_texture_reference(
+                line,
+                label=f"{mtl_path.name} texture directive at line {line_number}",
+            )
             _require(texture_ref, f"{mtl_path.name} has an empty texture reference for {current_material}")
             texture_path = _resolve_local_dependency(package_root, mtl_path.parent, texture_ref, label=f"{mtl_path.name} texture")
             _require(texture_path.is_file(), f"{mtl_path.name} material {current_material} references missing texture: {texture_ref}")
