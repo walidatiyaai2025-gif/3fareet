@@ -2,8 +2,9 @@
 """Fail-closed audit for the U-P1 programming-closure phase.
 
 This does NOT mark tasks DONE/VERIFIED. It only proves that the active Unity register
-contains no explicit TODO/READY programming queue and that every BLOCKED task is one
-of the known external asset/device/owner/publication evidence gates.
+contains no explicit programming queue, has not self-promoted tasks into completion,
+and that every BLOCKED task is one of the known external asset/device/owner/publication
+evidence gates.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -19,6 +21,19 @@ from typing import Iterable
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REGISTER = REPO_ROOT / "docs/tasks/06-UNITY-3D-MIGRATION.md"
 ASSET_POLICY = REPO_ROOT / "EXTERNAL_ASSET_REQUESTS.txt"
+
+EXPECTED_TASK_TOTAL = 65
+EXPECTED_IN_REVIEW = 54
+EXPECTED_BLOCKED = 11
+EXPECTED_READY = 0
+EXPECTED_TODO = 0
+EXPECTED_PROFILE = (
+    EXPECTED_IN_REVIEW,
+    EXPECTED_READY,
+    EXPECTED_TODO,
+    EXPECTED_BLOCKED,
+    EXPECTED_TASK_TOTAL,
+)
 
 KNOWN_EXTERNAL_BLOCKERS = {
     "UART-003": "external authored Hero source + licensed binding + owner acceptance",
@@ -35,6 +50,8 @@ KNOWN_EXTERNAL_BLOCKERS = {
 }
 
 ACTIVE_STATUSES = {"TODO", "READY", "IN PROGRESS", "BLOCKED", "IN REVIEW", "DONE", "VERIFIED"}
+PROGRAMMING_QUEUE_STATUSES = {"TODO", "READY", "IN PROGRESS"}
+SELF_PROMOTION_STATUSES = {"DONE", "VERIFIED"}
 ROW_RE = re.compile(r"^\|\s*([A-Z][A-Z0-9-]+)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|")
 AGGREGATE_RE = re.compile(
     r"U-P1 aggregate:\*\*\s*`IN REVIEW\s+(\d+)\s*\|\s*READY\s+(\d+)\s*\|\s*TODO\s+(\d+)\s*\|\s*BLOCKED\s+(\d+)\s*=\s*(\d+)`"
@@ -82,10 +99,23 @@ def audit(register_text: str, asset_policy_text: str) -> dict:
     if duplicate_ids:
         raise RuntimeError("PROGRAMMING_CLOSURE_BLOCKED reason=duplicate-task-ids ids=" + ",".join(duplicate_ids))
 
-    explicit_programming_queue = [row.task_id for row in rows if row.status in {"TODO", "READY", "IN PROGRESS"}]
+    if len(rows) != EXPECTED_TASK_TOTAL:
+        raise RuntimeError(
+            f"PROGRAMMING_CLOSURE_BLOCKED reason=fixed-register-size-drift expected={EXPECTED_TASK_TOTAL} actual={len(rows)}"
+        )
+
+    status_counts = Counter(row.status for row in rows)
+
+    explicit_programming_queue = [row.task_id for row in rows if row.status in PROGRAMMING_QUEUE_STATUSES]
     if explicit_programming_queue:
         raise RuntimeError(
             "PROGRAMMING_CLOSURE_BLOCKED reason=explicit-programming-queue ids=" + ",".join(explicit_programming_queue)
+        )
+
+    self_promoted = [row.task_id for row in rows if row.status in SELF_PROMOTION_STATUSES]
+    if self_promoted:
+        raise RuntimeError(
+            "PROGRAMMING_CLOSURE_BLOCKED reason=unexpected-closure-state ids=" + ",".join(self_promoted)
         )
 
     blocked = {row.task_id for row in rows if row.status == "BLOCKED"}
@@ -97,18 +127,33 @@ def audit(register_text: str, asset_policy_text: str) -> dict:
     if missing_known_blockers:
         raise RuntimeError("PROGRAMMING_CLOSURE_BLOCKED reason=known-blocker-set-drift missing=" + ",".join(missing_known_blockers))
 
+    parsed_profile = (
+        status_counts["IN REVIEW"],
+        status_counts["READY"],
+        status_counts["TODO"],
+        status_counts["BLOCKED"],
+        len(rows),
+    )
+    if parsed_profile != EXPECTED_PROFILE:
+        raise RuntimeError(
+            "PROGRAMMING_CLOSURE_BLOCKED reason=fixed-register-status-drift "
+            f"expected={EXPECTED_PROFILE} actual={parsed_profile}"
+        )
+
     aggregate_match = AGGREGATE_RE.search(register_text)
     if not aggregate_match:
         raise RuntimeError("PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-missing")
-    in_review, ready, todo, aggregate_blocked, total = map(int, aggregate_match.groups())
-    if ready != 0 or todo != 0:
-        raise RuntimeError(f"PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-programming-queue ready={ready} todo={todo}")
-    if aggregate_blocked != len(expected_blocked):
+    aggregate_profile = tuple(map(int, aggregate_match.groups()))
+    if aggregate_profile != EXPECTED_PROFILE:
         raise RuntimeError(
-            f"PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-blocker-count expected={len(expected_blocked)} actual={aggregate_blocked}"
+            "PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-profile-drift "
+            f"expected={EXPECTED_PROFILE} actual={aggregate_profile}"
         )
-    if total != len(rows):
-        raise RuntimeError(f"PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-total-mismatch aggregate={total} parsed={len(rows)}")
+    if aggregate_profile != parsed_profile:
+        raise RuntimeError(
+            "PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-register-mismatch "
+            f"aggregate={aggregate_profile} parsed={parsed_profile}"
+        )
 
     for required in (
         "EXTERNAL ASSET REQUEST POLICY & ACTIVE REQUESTS",
@@ -121,10 +166,13 @@ def audit(register_text: str, asset_policy_text: str) -> dict:
 
     return {
         "status": "PROGRAMMING_CLOSURE_QUEUE_CLEAR",
+        "register_profile": "U-P1-65-54-review-11-external-blocked",
         "task_total": len(rows),
-        "in_review": in_review,
+        "in_review": status_counts["IN REVIEW"],
         "blocked_external_only": len(blocked),
         "explicit_programming_queue": 0,
+        "done": status_counts["DONE"],
+        "verified": status_counts["VERIFIED"],
         "external_blockers": [
             {"task_id": task_id, "reason": KNOWN_EXTERNAL_BLOCKERS[task_id]}
             for task_id in sorted(KNOWN_EXTERNAL_BLOCKERS)
@@ -147,6 +195,7 @@ def main() -> int:
             "PROGRAMMING_CLOSURE_QUEUE_CLEAR "
             f"tasks={result['task_total']} inReview={result['in_review']} "
             f"blockedExternalOnly={result['blocked_external_only']} programmingQueue=0 "
+            f"done={result['done']} verified={result['verified']} "
             "verifiedUnchanged=true p1StatusPromoted=false canonicalAssetLedger=EXTERNAL_ASSET_REQUESTS.txt"
         )
         for blocker in result["external_blockers"]:
