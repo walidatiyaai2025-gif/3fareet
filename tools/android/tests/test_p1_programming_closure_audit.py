@@ -111,7 +111,9 @@ class ProgrammingClosureAuditTests(unittest.TestCase):
             module.audit(mutated, self.policy_text)
 
     def test_audit_fails_if_fixed_register_row_disappears(self):
-        mutated = self.register_text.replace(self.u3d001_in_review + "\n", "", 1)
+        self.assertIn(self.u3d001_in_review, self.register_text)
+        mutated = self.register_text.replace(self.u3d001_in_review, "", 1)
+        self.assertNotEqual(self.register_text, mutated)
         with self.assertRaisesRegex(RuntimeError, "fixed-register-size-drift"):
             module.audit(mutated, self.policy_text)
 
