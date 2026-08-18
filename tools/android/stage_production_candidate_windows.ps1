@@ -46,15 +46,35 @@ if ($LASTEXITCODE -ne 0) {
 }
 if ($initialDirty.Count -gt 0) {
     $initialDirty | ForEach-Object { Write-Warning "INITIAL_TREE_DIRTY $_" }
-    Fail "Staging handoff requires a clean Git tree. Commit the real Hero source package first, then rerun."
+    Fail "Staging handoff requires a clean Git tree. Commit the real Hero and Rival production source packages first, then rerun."
+}
+
+function Assert-TrackedNonEmptyFile([string]$RepoRelative, [string]$Label) {
+    $normalized = ($RepoRelative.Trim().Trim('"') -replace '\\', '/')
+    $absolute = Join-Path $RepoRoot ($normalized -replace '/', [System.IO.Path]::DirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $absolute -PathType Leaf)) {
+        Fail "$Label is missing: $normalized"
+    }
+
+    $item = Get-Item -LiteralPath $absolute
+    if ($item.Length -le 0) {
+        Fail "$Label is empty: $normalized"
+    }
+
+    & $git.Source -C $RepoRoot ls-files --error-unmatch -- $normalized *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Fail "$Label must already be tracked in the clean starting commit before licensed staging: $normalized"
+    }
+
+    return $item.Length
 }
 
 $HeroSource = ($HeroSource.Trim().Trim('"') -replace '\\', '/')
 if (-not $HeroSource.StartsWith('Assets/', [System.StringComparison]::Ordinal)) {
     Fail "HeroSource must be a Unity Assets/ path, for example Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing.fbx"
 }
-if ($HeroSource -match '(?i)/(Generated|Preview|Blockout)/') {
-    Fail "HeroSource cannot be under Generated, Preview or Blockout: $HeroSource"
+if ($HeroSource -match '(?i)/(Generated|Preview|Refinement|RefinementCandidates|Blockout|Review)/') {
+    Fail "HeroSource cannot be under Generated, Preview, Refinement, Blockout or Review: $HeroSource"
 }
 $extension = [System.IO.Path]::GetExtension($HeroSource).ToLowerInvariant()
 if ($extension -notin @('.fbx', '.obj', '.blend', '.glb', '.gltf')) {
@@ -62,15 +82,26 @@ if ($extension -notin @('.fbx', '.obj', '.blend', '.glb', '.gltf')) {
 }
 
 $heroRepoRelative = ('unity_game/' + $HeroSource).Replace('//', '/')
-$heroAbsolute = Join-Path $RepoRoot ($heroRepoRelative -replace '/', [System.IO.Path]::DirectorySeparatorChar)
-if (-not (Test-Path -LiteralPath $heroAbsolute -PathType Leaf)) {
-    Fail "Tracked Hero source file is missing: $heroRepoRelative"
+$heroMetaRelative = $heroRepoRelative + '.meta'
+$heroBytes = Assert-TrackedNonEmptyFile $heroRepoRelative 'Hero production source'
+$heroMetaBytes = Assert-TrackedNonEmptyFile $heroMetaRelative 'Hero production source Unity metadata'
+
+$rivalSources = @(
+    'unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj',
+    'unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj',
+    'unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj'
+)
+
+$rivalBytes = 0L
+foreach ($rivalSource in $rivalSources) {
+    $rivalBytes += Assert-TrackedNonEmptyFile $rivalSource 'Rival production source'
+    $rivalMetaBytes = Assert-TrackedNonEmptyFile ($rivalSource + '.meta') 'Rival production source Unity metadata'
+    if ($rivalMetaBytes -le 0) {
+        Fail "Rival production source Unity metadata unexpectedly reported zero bytes: $($rivalSource).meta"
+    }
 }
 
-& $git.Source -C $RepoRoot ls-files --error-unmatch -- $heroRepoRelative *> $null
-if ($LASTEXITCODE -ne 0) {
-    Fail "Hero source must already be tracked in the clean starting commit before licensed staging: $heroRepoRelative"
-}
+Write-Host "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK gitSha=$gitSha heroBytes=$heroBytes heroMetaBytes=$heroMetaBytes rivalSources=3 rivalBytes=$rivalBytes verified=false"
 
 if ([string]::IsNullOrWhiteSpace($UnityPath)) {
     $defaultUnity = Join-Path $env:ProgramFiles "Unity\Hub\Editor\$ExpectedUnityVersion\Editor\Unity.exe"
@@ -99,7 +130,7 @@ $StatusPath = Join-Path $ReportDir "p1-staging-handoff.git-status.txt"
 $ReportPath = Join-Path $ReportDir "p1-staging-handoff.json"
 Remove-Item -Force $LogPath, $StatusPath, $ReportPath -ErrorAction SilentlyContinue
 
-Write-Host "AFAREET_P1_STAGING_HANDOFF_START gitSha=$gitSha heroSource=$HeroSource unity=$UnityPath"
+Write-Host "AFAREET_P1_STAGING_HANDOFF_START gitSha=$gitSha heroSource=$HeroSource rivals=3 unity=$UnityPath"
 
 $unityArgs = @(
     '-batchmode',
