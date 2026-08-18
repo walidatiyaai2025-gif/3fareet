@@ -387,8 +387,7 @@ namespace Afareet.Race
             }
 
             var racer = GetRacerOrThrow(racerId);
-            var slot = racer.Inventory[kind];
-            return slot.Charges > 0 && slot.ReadyAtSeconds <= raceTimeSeconds;
+            return IsSlotUsable(racer.Inventory[kind], raceTimeSeconds);
         }
 
         public PowerUpRuntimeUseResult TryUse(
@@ -511,8 +510,15 @@ namespace Afareet.Race
                 throw new ArgumentNullException(nameof(snapshot));
             }
 
-            var availability = GetAiAvailability(sourceRacerId, raceTimeSeconds);
-            var decision = AiPowerUpUsagePolicy.Decide(snapshot, availability);
+            ValidateRaceTime(raceTimeSeconds);
+            var source = GetRacerOrThrow(sourceRacerId);
+            var decision = AiPowerUpUsagePolicy.Decide(
+                snapshot,
+                IsSlotUsable(source.Inventory[PowerUpKind.AsphaltShard], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.NitroSpirit], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.TrafficCurse], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.EnchantedPound], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.EyeShield], raceTimeSeconds));
             if (!decision.ShouldUse)
             {
                 return new AiPowerUpExecutionResult(decision, null);
@@ -665,6 +671,11 @@ namespace Afareet.Race
             }
 
             return (target, null);
+        }
+
+        private static bool IsSlotUsable(InventorySlot slot, double raceTimeSeconds)
+        {
+            return slot.Charges > 0 && slot.ReadyAtSeconds <= raceTimeSeconds;
         }
 
         private static PowerUpRuntimeUseResult GateResult(
