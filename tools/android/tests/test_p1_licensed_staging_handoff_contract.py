@@ -214,7 +214,11 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
                 "[ref]$tokens, [ref]$errors) | Out-Null; "
                 "if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }"
             )
-            result = subprocess.run([pwsh, "-NoProfile", "-Command", command, capture_output=True, text=True)
+            result = subprocess.run(
+                [pwsh, "-NoProfile", "-Command", command],
+                capture_output=True,
+                text=True,
+            )
             self.assertEqual(0, result.returncode, msg=f"{script.name}\n{result.stdout}{result.stderr}")
 
 
