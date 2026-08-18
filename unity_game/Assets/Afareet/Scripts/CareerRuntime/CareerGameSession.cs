@@ -145,7 +145,7 @@ namespace Afareet.CareerRuntime
                 return;
 
             var outcome = new CareerEventOutcome(
-                finished: true,
+                finished: !race.WasPlayerEliminated,
                 restartCount: adapter?.RestartCount ?? 0,
                 finishTimeSeconds: Math.Max(0d, finishTime),
                 finalPosition: Math.Max(1, race.Position),
