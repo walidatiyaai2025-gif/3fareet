@@ -64,3 +64,11 @@ Thumbs.db
 # UART-006 convergence-only staged landmark runtime art
 unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated/
 unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated.meta
+
+# Unity directory metadata created by deterministic UART-005/006/007 local Resources staging.
+# These intermediate folder .meta files are generated packaging, not source-of-truth art.unity_game/Assets/Afareet/Resources/Art/Architecture.meta
+unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing.meta
+
