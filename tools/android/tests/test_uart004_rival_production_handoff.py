@@ -182,6 +182,59 @@ class RivalProductionHandoffTests(unittest.TestCase):
         self.assertEqual(reports[0]["fileName"], "materials/rival_1.mtl")
         self.assertEqual(reports[0]["textures"], ["../textures/rival_albedo.png"])
 
+    def test_multiple_quoted_mtllibs_and_optioned_spaced_texture_paths_pass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            package = Path(directory)
+            materials = package / "materials"
+            textures = package / "textures"
+            materials.mkdir()
+            textures.mkdir()
+            (textures / "rival base.png").write_bytes(b"texture-with-space")
+
+            primary = materials / "rival primary.mtl"
+            primary.write_text(
+                "\n".join((
+                    "newmtl Mat_LOD0",
+                    "Kd 1 1 1",
+                    'map_Kd -s 1 1 1 "../textures/rival base.png" # exporter options',
+                    "newmtl Mat_LOD1",
+                    "Kd 1 1 1",
+                    'map_Kd -o 0 0 0 "../textures/rival base.png"',
+                )) + "\n",
+                encoding="utf-8",
+            )
+            secondary = materials / "rival secondary.mtl"
+            secondary.write_text(
+                "\n".join((
+                    "newmtl Mat_LOD2",
+                    "Kd 1 1 1",
+                    'map_Kd -clamp on "../textures/rival base.png" # shared texture',
+                )) + "\n",
+                encoding="utf-8",
+            )
+
+            path = self.write_obj(
+                package,
+                0,
+                mtl_reference='"materials/rival primary.mtl" "materials/rival secondary.mtl" # exported by DCC',
+            )
+            parsed = MODULE.parse_obj(path, self.policy, 0)
+            self.assertEqual(
+                parsed["mtllibs"],
+                ["materials/rival primary.mtl", "materials/rival secondary.mtl"],
+            )
+            reports = MODULE.validate_mtl_and_textures(path, parsed)
+
+        self.assertEqual(len(reports), 2)
+        self.assertEqual(reports[0]["fileName"], "materials/rival primary.mtl")
+        self.assertEqual(reports[1]["fileName"], "materials/rival secondary.mtl")
+        for report in reports:
+            self.assertEqual(report["textures"], ["../textures/rival base.png"])
+
+    def test_unterminated_wavefront_dependency_quote_fails_closed(self):
+        with self.assertRaisesRegex(MODULE.HandoffError, "unterminated quoted argument"):
+            MODULE._split_wavefront_arguments('"materials/rival primary.mtl', label="fixture")
+
     def test_mtllib_cannot_escape_handoff_package_even_if_target_exists(self):
         with tempfile.TemporaryDirectory() as directory:
             outer = Path(directory)
@@ -243,6 +296,8 @@ class RivalProductionHandoffTests(unittest.TestCase):
             "TECHNICAL_SOURCE_PREFLIGHT_ONLY_LICENSE_VISUAL_UNITY_DEVICE_OWNER_GATES_REQUIRED",
             "dependenciesPackageLocal",
             "mtl_path.parent",
+            "_split_wavefront_arguments",
+            "unterminated quoted argument",
         ):
             self.assertIn(required, source)
         for forbidden in ('"productionGate": True', '"ownerApproval": True', '"verified": True'):
