@@ -68,9 +68,12 @@ class PostP1LiveAiPowerUpBridgeContractTests(unittest.TestCase):
             "segmentProgress: SegmentProgress(source)",
             "targetDistanceMeters:",
             "chaserDistanceMeters:",
-            "return powerUpRuntime.ExecuteAiDecision(",
+            "var execution = powerUpRuntime.ExecuteAiDecision(",
             "targetAhead?.RacerId",
             "chaserBehind?.RacerId",
+            "execution.UseResult.Kind == PowerUpKind.AsphaltShard",
+            "DeployAsphaltShardTrap(source, elapsedRaceSeconds);",
+            "return execution;",
         ):
             self.assertIn(required, source)
 
