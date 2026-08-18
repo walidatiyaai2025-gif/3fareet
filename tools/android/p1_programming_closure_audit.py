@@ -18,7 +18,7 @@ from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REGISTER = REPO_ROOT / "docs/tasks/06-UNITY-3D-MIGRATION.md"
-ASSET_POLICY = REPO_ROOT / "ASSET_CREATION_REQUESTS.txt"
+ASSET_POLICY = REPO_ROOT / "EXTERNAL_ASSET_REQUESTS.txt"
 
 KNOWN_EXTERNAL_BLOCKERS = {
     "UART-003": "external authored Hero source + licensed binding + owner acceptance",
@@ -80,15 +80,12 @@ def audit(register_text: str, asset_policy_text: str) -> dict:
 
     duplicate_ids = duplicates(row.task_id for row in rows)
     if duplicate_ids:
-        raise RuntimeError(
-            "PROGRAMMING_CLOSURE_BLOCKED reason=duplicate-task-ids ids=" + ",".join(duplicate_ids)
-        )
+        raise RuntimeError("PROGRAMMING_CLOSURE_BLOCKED reason=duplicate-task-ids ids=" + ",".join(duplicate_ids))
 
     explicit_programming_queue = [row.task_id for row in rows if row.status in {"TODO", "READY", "IN PROGRESS"}]
     if explicit_programming_queue:
         raise RuntimeError(
-            "PROGRAMMING_CLOSURE_BLOCKED reason=explicit-programming-queue ids="
-            + ",".join(explicit_programming_queue)
+            "PROGRAMMING_CLOSURE_BLOCKED reason=explicit-programming-queue ids=" + ",".join(explicit_programming_queue)
         )
 
     blocked = {row.task_id for row in rows if row.status == "BLOCKED"}
@@ -96,40 +93,31 @@ def audit(register_text: str, asset_policy_text: str) -> dict:
     unexpected_blocked = sorted(blocked - expected_blocked)
     missing_known_blockers = sorted(expected_blocked - blocked)
     if unexpected_blocked:
-        raise RuntimeError(
-            "PROGRAMMING_CLOSURE_BLOCKED reason=unexpected-blocked-task ids=" + ",".join(unexpected_blocked)
-        )
+        raise RuntimeError("PROGRAMMING_CLOSURE_BLOCKED reason=unexpected-blocked-task ids=" + ",".join(unexpected_blocked))
     if missing_known_blockers:
-        raise RuntimeError(
-            "PROGRAMMING_CLOSURE_BLOCKED reason=known-blocker-set-drift missing=" + ",".join(missing_known_blockers)
-        )
+        raise RuntimeError("PROGRAMMING_CLOSURE_BLOCKED reason=known-blocker-set-drift missing=" + ",".join(missing_known_blockers))
 
     aggregate_match = AGGREGATE_RE.search(register_text)
     if not aggregate_match:
         raise RuntimeError("PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-missing")
     in_review, ready, todo, aggregate_blocked, total = map(int, aggregate_match.groups())
     if ready != 0 or todo != 0:
-        raise RuntimeError(
-            f"PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-programming-queue ready={ready} todo={todo}"
-        )
+        raise RuntimeError(f"PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-programming-queue ready={ready} todo={todo}")
     if aggregate_blocked != len(expected_blocked):
         raise RuntimeError(
             f"PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-blocker-count expected={len(expected_blocked)} actual={aggregate_blocked}"
         )
     if total != len(rows):
-        raise RuntimeError(
-            f"PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-total-mismatch aggregate={total} parsed={len(rows)}"
-        )
+        raise RuntimeError(f"PROGRAMMING_CLOSURE_BLOCKED reason=aggregate-total-mismatch aggregate={total} parsed={len(rows)}")
 
     for required in (
-        "Policy ID: AFA-POL-ASSET-001",
-        "PROGRAMMING CLOSURE MODE",
-        "MANDATORY RULE FOR EVERY PROGRAMMER / AI AGENT",
+        "EXTERNAL ASSET REQUEST POLICY & ACTIVE REQUESTS",
+        "POLICY — MANDATORY FOR EVERY PROGRAMMER / AI AGENT",
+        "Programming first.",
+        "Prompts must be ready to copy/paste",
     ):
         if required not in asset_policy_text:
-            raise RuntimeError(
-                "PROGRAMMING_CLOSURE_BLOCKED reason=asset-policy-contract-missing token=" + required
-            )
+            raise RuntimeError("PROGRAMMING_CLOSURE_BLOCKED reason=asset-policy-contract-missing token=" + required)
 
     return {
         "status": "PROGRAMMING_CLOSURE_QUEUE_CLEAR",
@@ -151,10 +139,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     args = parser.parse_args()
 
-    register_text = REGISTER.read_text(encoding="utf-8")
-    asset_policy_text = ASSET_POLICY.read_text(encoding="utf-8")
-    result = audit(register_text, asset_policy_text)
-
+    result = audit(REGISTER.read_text(encoding="utf-8"), ASSET_POLICY.read_text(encoding="utf-8"))
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
@@ -162,11 +147,10 @@ def main() -> int:
             "PROGRAMMING_CLOSURE_QUEUE_CLEAR "
             f"tasks={result['task_total']} inReview={result['in_review']} "
             f"blockedExternalOnly={result['blocked_external_only']} programmingQueue=0 "
-            "verifiedUnchanged=true p1StatusPromoted=false"
+            "verifiedUnchanged=true p1StatusPromoted=false canonicalAssetLedger=EXTERNAL_ASSET_REQUESTS.txt"
         )
         for blocker in result["external_blockers"]:
             print(f"PROGRAMMING_CLOSURE_EXTERNAL_BLOCKER {blocker['task_id']} reason={blocker['reason']}")
-
     return 0
 
 
