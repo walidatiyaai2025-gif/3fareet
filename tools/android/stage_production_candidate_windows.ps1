@@ -25,8 +25,10 @@ if ($null -eq $git) {
     Fail "git is required for exact-SHA staging handoff."
 }
 
-$gitTop = (& $git.Source -C $RepoRoot rev-parse --show-toplevel 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitTop)) {
+$gitTopOutput = @(& $git.Source -C $RepoRoot rev-parse --show-toplevel 2>$null)
+$gitTopExitCode = $LASTEXITCODE
+$gitTop = ($gitTopOutput | Select-Object -First 1)
+if ($gitTopExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($gitTop)) {
     Fail "Unable to resolve Git worktree root: $RepoRoot"
 }
 $gitTop = (Resolve-Path $gitTop.Trim()).Path
@@ -34,14 +36,21 @@ if (-not [string]::Equals($gitTop, $RepoRoot, [System.StringComparison]::Ordinal
     Fail "RepoRoot must be the exact Git worktree root. resolved=$gitTop requested=$RepoRoot"
 }
 
-$gitSha = (& $git.Source -C $RepoRoot rev-parse HEAD 2>$null | Select-Object -First 1).Trim()
-if ($LASTEXITCODE -ne 0 -or $gitSha -notmatch '^[0-9a-fA-F]{40}$') {
+$gitShaOutput = @(& $git.Source -C $RepoRoot rev-parse HEAD 2>$null)
+$gitShaExitCode = $LASTEXITCODE
+$gitSha = ($gitShaOutput | Select-Object -First 1)
+if ($gitShaExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($gitSha)) {
+    Fail "Unable to resolve the current Git SHA."
+}
+$gitSha = $gitSha.Trim()
+if ($gitSha -notmatch '^[0-9a-fA-F]{40}$') {
     Fail "Unable to resolve a full 40-character Git SHA."
 }
 $gitSha = $gitSha.ToLowerInvariant()
 
 $initialDirty = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
-if ($LASTEXITCODE -ne 0) {
+$initialDirtyExitCode = $LASTEXITCODE
+if ($initialDirtyExitCode -ne 0) {
     Fail "Unable to inspect the initial Git working tree."
 }
 if ($initialDirty.Count -gt 0) {
@@ -62,7 +71,8 @@ function Assert-TrackedNonEmptyFile([string]$RepoRelative, [string]$Label) {
     }
 
     & $git.Source -C $RepoRoot ls-files --error-unmatch -- $normalized *> $null
-    if ($LASTEXITCODE -ne 0) {
+    $trackedExitCode = $LASTEXITCODE
+    if ($trackedExitCode -ne 0) {
         Fail "$Label must already be tracked in the clean starting commit before licensed staging: $normalized"
     }
 
@@ -110,7 +120,15 @@ foreach ($rivalSource in $rivalSources) {
     }
 }
 
-Write-Host "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK gitSha=$gitSha heroBytes=$heroBytes heroMetaBytes=$heroMetaBytes rivalSources=3 rivalBytes=$rivalBytes verified=false"
+$rivalDependencyPreflight = Join-Path $PSScriptRoot 'rival_production_handoff_preflight_windows.ps1'
+if (-not (Test-Path -LiteralPath $rivalDependencyPreflight -PathType Leaf)) {
+    Fail "Native Rival dependency preflight is missing: $rivalDependencyPreflight"
+}
+Write-Host "AFAREET_STAGING_RIVAL_DEPENDENCY_PREFLIGHT_START gitSha=$gitSha rivals=3 mutationStarted=false verified=false"
+& $rivalDependencyPreflight -RepoRoot $RepoRoot
+Write-Host "AFAREET_STAGING_RIVAL_DEPENDENCY_PREFLIGHT_OK gitSha=$gitSha rivals=3 dependenciesTracked=true dependenciesPackageLocal=true mutationStarted=false verified=false"
+
+Write-Host "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK gitSha=$gitSha heroBytes=$heroBytes heroMetaBytes=$heroMetaBytes rivalSources=3 rivalBytes=$rivalBytes rivalDependencies=tracked-package-local mutationStarted=false verified=false"
 
 if ([string]::IsNullOrWhiteSpace($UnityPath)) {
     $defaultUnity = Join-Path $env:ProgramFiles "Unity\Hub\Editor\$ExpectedUnityVersion\Editor\Unity.exe"
@@ -168,7 +186,8 @@ if (-not (Test-Path -LiteralPath $ReportPath -PathType Leaf) -or (Get-Item $Repo
 }
 
 $changes = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
-if ($LASTEXITCODE -ne 0) {
+$changesExitCode = $LASTEXITCODE
+if ($changesExitCode -ne 0) {
     Fail "Unable to inspect Git changes after licensed staging."
 }
 $changes | Set-Content -Encoding UTF8 $StatusPath
