@@ -1,6 +1,8 @@
 using System;
 using Afareet.CareerRuntime;
+using Afareet.Core;
 using Afareet.GarageRuntime;
+using Afareet.Vehicle;
 
 internal static class GarageRuntimeContractRunner
 {
@@ -14,6 +16,7 @@ internal static class GarageRuntimeContractRunner
             PersistenceContract();
             MigrationRecoveryContract();
             EquippedVehicleRuntimeSeamContract();
+            PerformanceProjectionContract();
             Console.WriteLine("Garage runtime behavior contract: PASS");
             return 0;
         }
@@ -140,6 +143,35 @@ internal static class GarageRuntimeContractRunner
         Require(runtime.ActiveVehicleId == "wedge_coupe", "passive runtime updates retained stable id");
         RequireThrows<ArgumentException>(() => runtime.ValidateApply(" "), "blank equipped vehicle id rejected");
         RequireThrows<ArgumentException>(() => runtime.ApplyEquippedVehicle(null), "null equipped vehicle id rejected");
+    }
+
+    private static void PerformanceProjectionContract()
+    {
+        Require(Math.Abs(GarageVehiclePerformanceProjection.Scale(0f) - .90d) < .000001d,
+            "normalized zero must map to 0.90 multiplier");
+        Require(Math.Abs(GarageVehiclePerformanceProjection.Scale(.5f) - 1d) < .000001d,
+            "normalized midpoint must map to neutral 1.00 multiplier");
+        Require(Math.Abs(GarageVehiclePerformanceProjection.Scale(1f) - 1.10d) < .000001d,
+            "normalized one must map to 1.10 multiplier");
+        RequireThrows<ArgumentOutOfRangeException>(() => GarageVehiclePerformanceProjection.Scale(-.01f),
+            "negative normalized stat rejected");
+        RequireThrows<ArgumentOutOfRangeException>(() => GarageVehiclePerformanceProjection.Scale(1.01f),
+            "normalized stat above one rejected");
+
+        var catalog = GarageCatalog.CreateDefault();
+        foreach (var definition in catalog.Vehicles)
+        {
+            var profile = GarageVehiclePerformanceProjection.Project(catalog.NormalizeStats(definition.Id));
+            VehiclePerformanceProfile.ValidateInitialized(profile, nameof(profile));
+            Require(profile.AccelerationMultiplier >= .90d && profile.AccelerationMultiplier <= 1.10d,
+                $"acceleration profile range for {definition.Id}");
+            Require(profile.MaxSpeedMultiplier >= .90d && profile.MaxSpeedMultiplier <= 1.10d,
+                $"speed profile range for {definition.Id}");
+            Require(Math.Abs(profile.SteeringAuthorityMultiplier - profile.GripMultiplier) < .000001d,
+                $"handling must project equally to steering and grip for {definition.Id}");
+            Require(profile.DriftAuthorityMultiplier >= .90d && profile.DriftAuthorityMultiplier <= 1.10d,
+                $"drift profile range for {definition.Id}");
+        }
     }
 
     private static bool InUnitRange(float value) => value >= 0f && value <= 1f;
