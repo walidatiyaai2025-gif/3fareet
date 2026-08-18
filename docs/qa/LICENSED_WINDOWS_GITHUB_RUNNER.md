@@ -148,6 +148,38 @@ The workflow uploads, when present:
 
 The artifact name includes the selected mode and exact pinned Git SHA.
 
+## UPER-006 physical-device performance handoff
+
+After a successful **production** candidate run, use the production manifest when collecting performance evidence. Do not type a remembered Git SHA into the evidence file and do not collect against an experimental APK.
+
+On a device-evidence workstation with Python 3 and ADB available:
+
+```powershell
+python tools/android/collect_uper006_performance.py `
+  --apk artifacts/android-local/afareet-unity3d-debug.apk `
+  --candidate-manifest artifacts/local-candidate-manifest.json `
+  --serial <ADB_SERIAL> `
+  --output artifacts/device-evidence/uper006-performance-evidence.json
+```
+
+Before running the collector, install that exact production APK on the selected physical device and run it long enough for the in-app `uper006-performance-baseline.json` report to reach the required sample count.
+
+The collector fails closed unless:
+
+- the candidate manifest is schema-compatible and identifies `local-windows-licensed-unity`;
+- manifest `releaseEvidenceEligible=true`, `readyForDeviceEvidence=true`, `verified=false`, and verdict remains `READY_FOR_PHYSICAL_DEVICE_EVIDENCE`;
+- manifest Git SHA is a full exact SHA;
+- manifest package id matches the requested package;
+- manifest APK SHA-256 matches the local APK bytes;
+- the selected ADB target is a real connected `device` state;
+- `pm path` resolves to one standalone installed APK rather than an ambiguous split-package set;
+- the installed `base.apk` bytes hash to the **same SHA-256** as the candidate APK file;
+- the runtime report has the UPER-006 schema/evidence id, required metric/sample fields, and the same Unity version as the licensed candidate manifest.
+
+The resulting envelope records candidate-manifest hash, Git SHA, local APK hash, installed APK path/hash, ADB serial, reported device/GPU/OS and runtime metrics. Its verdict intentionally remains `COLLECTED_NOT_VERIFIED`; provenance is not the same as acceptance.
+
+`--git-sha` remains a legacy collection option for non-manifest diagnostics only. Evidence intended for P1 review should use `--candidate-manifest` so the licensed test/build chain is retained end-to-end.
+
 ## Remaining gates
 
 A successful `experimental` run means a current unified test APK exists; it does **not** make it release evidence or physical-device verified.
