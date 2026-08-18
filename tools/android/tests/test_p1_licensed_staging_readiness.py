@@ -74,19 +74,12 @@ def write_valid_rival_handoff(root: Path) -> None:
         mtl = materials / f"rival_{variant}.mtl"
         mtl.write_text(
             "\n".join(
-                line
-                for lod in range(3)
-                for line in (
-                    f"newmtl Mat_LOD{lod}",
-                    "Kd 1 1 1",
-                    f"map_Kd ../textures/rival_{variant}.png",
-                )
-            )
-            + "\n",
+                line for lod in range(3)
+                for line in (f"newmtl Mat_LOD{lod}", "Kd 1 1 1", f"map_Kd ../textures/rival_{variant}.png")
+            ) + "\n",
             encoding="utf-8",
         )
         Path(str(mtl) + ".meta").write_text(f"guid: mtl{variant}\n", encoding="utf-8")
-
         texture = textures / f"rival_{variant}.png"
         texture.write_bytes(f"texture-{variant}".encode("ascii"))
         Path(str(texture) + ".meta").write_text(f"guid: texture{variant}\n", encoding="utf-8")
@@ -109,7 +102,6 @@ def make_fixture() -> Path:
 
     write_rival_policy(temp)
     write_valid_rival_handoff(temp)
-
     run_git(temp, "add", ".")
     run_git(temp, "commit", "-m", "fixture")
     return temp
@@ -118,7 +110,6 @@ def make_fixture() -> Path:
 class P1LicensedStagingReadinessTests(unittest.TestCase):
     def test_current_repo_is_fail_closed_without_hero_and_isolated_rival_production_sources(self):
         report = MODULE.audit(REPO, hero_source=None, require_clean=False)
-
         self.assertEqual(2, report["schemaVersion"])
         self.assertEqual("BLOCKED", report["state"])
         self.assertFalse(report["readyForLicensedStaging"])
@@ -129,17 +120,11 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
         self.assertFalse(report["verified"])
         self.assertIn("UART-003_HERO_SOURCE_SUPPLIED", report["blockedCheckIds"])
         self.assertIn("UART-004_RIVAL_HANDOFF_STRUCTURE", report["blockedCheckIds"])
-
         rival_blockers = [item for item in report["blockedCheckIds"] if item.startswith("RIVAL:")]
         self.assertEqual(list(MODULE.RIVAL_REQUIRED_FILES), [item.removeprefix("RIVAL:") for item in rival_blockers])
         for blocker in rival_blockers:
             self.assertIn("/Rivals/Production/", blocker)
-
-        unexpected = [
-            item
-            for item in report["blockedCheckIds"]
-            if item.startswith("HANDOFF:") or item.startswith("WORLD:")
-        ]
+        unexpected = [item for item in report["blockedCheckIds"] if item.startswith("HANDOFF:") or item.startswith("WORLD:")]
         self.assertEqual([], unexpected, f"Existing convergence support drifted unexpectedly: {unexpected}")
 
     def test_complete_clean_tracked_fixture_is_ready_for_licensed_staging_only(self):
@@ -150,16 +135,31 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             self.assertTrue(report["readyForLicensedStaging"])
             self.assertEqual([], report["blockedCheckIds"])
             check_ids = [item["id"] for item in report["checks"]]
+            self.assertIn("UART-003_HERO_HANDOFF_PREFLIGHT", check_ids)
             self.assertIn("UART-004_RIVAL_HANDOFF_STRUCTURE", check_ids)
             self.assertIn("UART-004_RIVAL_DEPENDENCY_SET", check_ids)
             self.assertTrue(any(item.startswith("RIVAL_DEP:") for item in check_ids))
-            self.assertFalse(report["candidateBuildStarted"])
-            self.assertFalse(report["publicationEligible"])
-            self.assertFalse(report["runtimeVerified"])
-            self.assertFalse(report["ownerAccepted"])
-            self.assertFalse(report["verified"])
-            self.assertIn("tracked Hero + three isolated Rival production sources", report["nextAction"])
-            self.assertIn("MTL/texture/.meta dependencies", report["nextAction"])
+            hero_check = next(item for item in report["checks"] if item["id"] == "UART-003_HERO_HANDOFF_PREFLIGHT")
+            self.assertIn("verdict=UNITY_INSPECTION_REQUIRED", hero_check["detail"])
+            self.assertIn("unityInspectionRequired=true", hero_check["detail"])
+            for key in ("candidateBuildStarted", "publicationEligible", "runtimeVerified", "ownerAccepted", "verified"):
+                self.assertFalse(report[key], key)
+            self.assertIn("preflighted tracked Hero source", report["nextAction"])
+            self.assertIn("opaque Hero formats still require Unity importer inspection", report["nextAction"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_invalid_tracked_hero_obj_blocks_handoff_preflight(self):
+        root = make_fixture()
+        try:
+            hero = root / "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/Bad_Production.obj"
+            hero.write_text("v 0 0 0\n", encoding="utf-8")
+            Path(str(hero) + ".meta").write_text("guid: badobj\n", encoding="utf-8")
+            run_git(root, "add", ".")
+            run_git(root, "commit", "-m", "bad hero obj")
+            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/Bad_Production.obj")
+            self.assertEqual("BLOCKED", report["state"])
+            self.assertIn("UART-003_HERO_HANDOFF_PREFLIGHT", report["blockedCheckIds"])
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
@@ -207,13 +207,13 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             preview = root / "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/Refinement/AfareetKing_Generated.fbx"
             preview.parent.mkdir(parents=True, exist_ok=True)
             preview.write_text("preview\n", encoding="utf-8")
-            (preview.parent / (preview.name + ".meta")).write_text("meta\n", encoding="utf-8")
+            Path(str(preview) + ".meta").write_text("meta\n", encoding="utf-8")
             run_git(root, "add", ".")
             run_git(root, "commit", "-m", "add nonproduction hero")
-
             report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/Refinement/AfareetKing_Generated.fbx")
             self.assertEqual("BLOCKED", report["state"])
             self.assertIn("UART-003_HERO_NOT_NONPRODUCTION_PATH", report["blockedCheckIds"])
+            self.assertIn("UART-003_HERO_HANDOFF_PREFLIGHT", report["blockedCheckIds"])
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
@@ -223,10 +223,9 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             source = root / "unity_game/Assets/Afareet/ArtSource/Characters/Hero/AfareetKing_Production.fbx"
             source.parent.mkdir(parents=True, exist_ok=True)
             source.write_text("hero\n", encoding="utf-8")
-            (source.parent / (source.name + ".meta")).write_text("meta\n", encoding="utf-8")
+            Path(str(source) + ".meta").write_text("meta\n", encoding="utf-8")
             run_git(root, "add", ".")
             run_git(root, "commit", "-m", "add wrong-role hero")
-
             report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Characters/Hero/AfareetKing_Production.fbx")
             self.assertEqual("BLOCKED", report["state"])
             self.assertIn("UART-003_HERO_VEHICLE_ROLE", report["blockedCheckIds"])
@@ -236,10 +235,7 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
     def test_traversal_hero_path_is_rejected_before_staging(self):
         root = make_fixture()
         try:
-            report = MODULE.audit(
-                root,
-                hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/../Hero/AfareetKing_Production.fbx",
-            )
+            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/../Hero/AfareetKing_Production.fbx")
             self.assertEqual("BLOCKED", report["state"])
             self.assertIn("UART-003_HERO_NO_TRAVERSAL", report["blockedCheckIds"])
         finally:
@@ -248,10 +244,7 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
     def test_rival_source_cannot_be_reused_as_hero(self):
         root = make_fixture()
         try:
-            report = MODULE.audit(
-                root,
-                hero_source="Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj",
-            )
+            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj")
             self.assertEqual("BLOCKED", report["state"])
             self.assertIn("UART-003_HERO_NOT_RIVAL_SOURCE", report["blockedCheckIds"])
         finally:
@@ -267,6 +260,7 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing_Production.fbx")
             self.assertEqual("BLOCKED", report["state"])
             self.assertIn("UART-003_HERO_META_TRACKED_BY_HEAD", report["blockedCheckIds"])
+            self.assertIn("UART-003_HERO_HANDOFF_PREFLIGHT", report["blockedCheckIds"])
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
@@ -279,17 +273,13 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             self.assertTrue(good.is_file())
             payload = json.loads(good.read_text(encoding="utf-8"))
             self.assertEqual("BLOCKED", payload["state"])
-
             with self.assertRaises(ValueError):
                 MODULE._write_report(root, root / "docs" / "readiness.json", report)
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
     def test_assets_prefix_normalizes_to_unity_project_path(self):
-        self.assertEqual(
-            "unity_game/Assets/Afareet/Hero.fbx",
-            MODULE._normalize_hero_path("Assets/Afareet/Hero.fbx"),
-        )
+        self.assertEqual("unity_game/Assets/Afareet/Hero.fbx", MODULE._normalize_hero_path("Assets/Afareet/Hero.fbx"))
 
 
 if __name__ == "__main__":
