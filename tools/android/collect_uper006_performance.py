@@ -21,8 +21,13 @@ DEFAULT_PACKAGE = "com.fiftysolutions.afareetunity3d"
 RUNTIME_REPORT_FILE = "uper006-performance-baseline.json"
 EXPECTED_RUNTIME_SCHEMA = 1
 EXPECTED_EVIDENCE_ID = "UPER-006"
+EXPECTED_CANDIDATE_MANIFEST_SCHEMA = 1
+EXPECTED_CANDIDATE_TYPE = "local-windows-licensed-unity"
+EXPECTED_CANDIDATE_VERDICT = "READY_FOR_PHYSICAL_DEVICE_EVIDENCE"
 ENVELOPE_SCHEMA = 1
 COLLECTION_VERDICT = "COLLECTED_NOT_VERIFIED"
+MANIFEST_BINDING = "LICENSED_CANDIDATE_MANIFEST"
+LEGACY_BINDING = "USER_SUPPLIED_GIT_SHA_ONLY"
 
 
 class EvidenceError(RuntimeError):
@@ -37,10 +42,23 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def sha256_bytes(payload: bytes) -> str:
+    if not payload:
+        raise EvidenceError("installed APK payload was empty")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def validate_git_sha(value: str) -> str:
     normalized = value.strip().lower()
     if len(normalized) != 40 or any(ch not in "0123456789abcdef" for ch in normalized):
         raise EvidenceError("--git-sha must be the exact 40-character hexadecimal Git commit SHA")
+    return normalized
+
+
+def validate_sha256(value: str, *, label: str) -> str:
+    normalized = value.strip().lower()
+    if len(normalized) != 64 or any(ch not in "0123456789abcdef" for ch in normalized):
+        raise EvidenceError(f"{label} must be the exact 64-character hexadecimal SHA-256")
     return normalized
 
 
@@ -116,6 +134,62 @@ def validate_runtime_report(report: dict[str, Any], *, minimum_samples: int = 30
     return report
 
 
+def load_json_object(path: Path, *, label: str) -> dict[str, Any]:
+    if not path.is_file():
+        raise EvidenceError(f"{label} does not exist: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise EvidenceError(f"{label} is not valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise EvidenceError(f"{label} must be a JSON object")
+    return payload
+
+
+def validate_candidate_manifest(
+    manifest: dict[str, Any],
+    *,
+    local_apk_sha256: str,
+    package: str,
+) -> str:
+    if manifest.get("schemaVersion") != EXPECTED_CANDIDATE_MANIFEST_SCHEMA:
+        raise EvidenceError(
+            "candidate manifest schemaVersion must be "
+            f"{EXPECTED_CANDIDATE_MANIFEST_SCHEMA}, got {manifest.get('schemaVersion')!r}"
+        )
+    if manifest.get("candidateType") != EXPECTED_CANDIDATE_TYPE:
+        raise EvidenceError(
+            f"candidate manifest candidateType must be {EXPECTED_CANDIDATE_TYPE!r}"
+        )
+    git_sha = validate_git_sha(_require_text(manifest, "gitSha"))
+    if _require_text(manifest, "packageId") != package:
+        raise EvidenceError(
+            f"candidate manifest packageId does not match requested package {package!r}"
+        )
+    if manifest.get("releaseEvidenceEligible") is not True:
+        raise EvidenceError("candidate manifest releaseEvidenceEligible must be JSON boolean true")
+    if manifest.get("readyForDeviceEvidence") is not True:
+        raise EvidenceError("candidate manifest readyForDeviceEvidence must be JSON boolean true")
+    if manifest.get("verified") is not False:
+        raise EvidenceError("candidate manifest verified must remain JSON boolean false before device evidence")
+    if manifest.get("verdict") != EXPECTED_CANDIDATE_VERDICT:
+        raise EvidenceError(
+            f"candidate manifest verdict must be {EXPECTED_CANDIDATE_VERDICT!r}"
+        )
+
+    apk = manifest.get("apk")
+    if not isinstance(apk, dict):
+        raise EvidenceError("candidate manifest apk must be a JSON object")
+    declared_hash = validate_sha256(_require_text(apk, "sha256"), label="candidate manifest apk.sha256")
+    if declared_hash != local_apk_sha256:
+        raise EvidenceError(
+            f"candidate manifest APK SHA-256 mismatch: manifest={declared_hash} local={local_apk_sha256}"
+        )
+    _require_text(apk, "fileName")
+    _require_text(manifest, "unityVersion")
+    return git_sha
+
+
 def run_adb(adb: str, serial: str | None, args: list[str]) -> subprocess.CompletedProcess[str]:
     command = [adb]
     if serial:
@@ -133,6 +207,24 @@ def run_adb(adb: str, serial: str | None, args: list[str]) -> subprocess.Complet
         raise EvidenceError(
             f"ADB command failed ({completed.returncode}): {rendered}\n"
             f"stdout={completed.stdout.strip()}\nstderr={completed.stderr.strip()}"
+        )
+    return completed
+
+
+def run_adb_bytes(adb: str, serial: str, args: list[str]) -> subprocess.CompletedProcess[bytes]:
+    command = [adb, "-s", serial]
+    command.extend(args)
+    completed = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if completed.returncode != 0:
+        rendered = " ".join(command)
+        stderr = completed.stderr.decode("utf-8", errors="replace").strip()
+        raise EvidenceError(
+            f"ADB binary command failed ({completed.returncode}): {rendered}\nstderr={stderr}"
         )
     return completed
 
@@ -155,6 +247,42 @@ def resolve_serial(adb: str, requested_serial: str | None) -> str:
             f"exactly one connected ADB device is required when --serial is omitted; found {len(devices)}"
         )
     return devices[0]
+
+
+def parse_installed_apk_path(pm_path_output: str, *, package: str) -> str:
+    paths = []
+    for raw_line in pm_path_output.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if not line.startswith("package:"):
+            raise EvidenceError(f"unexpected pm path output for {package!r}: {line!r}")
+        path = line[len("package:"):].strip()
+        if not path:
+            raise EvidenceError(f"pm path returned an empty APK path for {package!r}")
+        paths.append(path)
+
+    if not paths:
+        raise EvidenceError(f"package {package!r} is not installed on the selected device")
+    if len(paths) != 1:
+        raise EvidenceError(
+            f"package {package!r} is installed as {len(paths)} split APKs; UPER-006 exact standalone APK evidence requires one base APK"
+        )
+    if not paths[0].lower().endswith(".apk"):
+        raise EvidenceError(f"installed package path is not an APK: {paths[0]!r}")
+    return paths[0]
+
+
+def resolve_installed_apk_path(adb: str, serial: str, package: str) -> str:
+    completed = run_adb(adb, serial, ["shell", "pm", "path", package])
+    return parse_installed_apk_path(completed.stdout, package=package)
+
+
+def hash_installed_apk(adb: str, serial: str, installed_apk_path: str) -> str:
+    if not installed_apk_path.strip():
+        raise EvidenceError("installed APK path must be non-blank")
+    payload = run_adb_bytes(adb, serial, ["exec-out", "cat", installed_apk_path]).stdout
+    return sha256_bytes(payload)
 
 
 def pull_runtime_report(adb: str, serial: str, package: str) -> dict[str, Any]:
@@ -185,17 +313,32 @@ def build_envelope(
     apk_sha256: str,
     device_serial: str,
     package: str,
+    installed_apk_path: str | None = None,
+    installed_apk_sha256: str | None = None,
+    candidate_manifest_path: Path | None = None,
+    candidate_manifest_sha256: str | None = None,
+    candidate_binding: str = LEGACY_BINDING,
 ) -> dict[str, Any]:
     return {
         "schemaVersion": ENVELOPE_SCHEMA,
         "evidenceId": EXPECTED_EVIDENCE_ID,
         "verdict": COLLECTION_VERDICT,
         "collectedUtc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "candidateBinding": {
+            "mode": candidate_binding,
+            "manifestFile": candidate_manifest_path.name if candidate_manifest_path else None,
+            "manifestSha256": candidate_manifest_sha256,
+        },
         "candidate": {
             "gitSha": git_sha,
             "apkFile": apk_path.name,
             "apkSha256": apk_sha256,
             "package": package,
+        },
+        "installedApk": {
+            "path": installed_apk_path,
+            "sha256": installed_apk_sha256,
+            "matchesCandidate": installed_apk_sha256 == apk_sha256 if installed_apk_sha256 else None,
         },
         "device": {
             "adbSerial": device_serial,
@@ -205,7 +348,8 @@ def build_envelope(
         },
         "runtimeReport": report,
         "verificationBoundary": (
-            "Collection only. This file does not satisfy physical-device acceptance, owner approval, "
+            "Collection only. Candidate-manifest and installed-APK binding prove evidence provenance, "
+            "not acceptance. This file does not satisfy physical-device acceptance, owner approval, "
             "UPER-006 completion, Last Verified APK, or publication approval by itself."
         ),
     }
@@ -214,7 +358,15 @@ def build_envelope(
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apk", type=Path, required=True, help="Exact APK installed on the target device")
-    parser.add_argument("--git-sha", required=True, help="Exact 40-character Git SHA used to build the APK")
+    parser.add_argument(
+        "--candidate-manifest",
+        type=Path,
+        help="Licensed local-candidate-manifest.json that binds Git SHA and APK hash",
+    )
+    parser.add_argument(
+        "--git-sha",
+        help="Legacy exact Git SHA when no candidate manifest is available; manifest binding is preferred",
+    )
     parser.add_argument("--serial", help="ADB device serial; omit only when exactly one device is connected")
     parser.add_argument("--package", default=DEFAULT_PACKAGE)
     parser.add_argument("--adb", default="adb", help="ADB executable or path")
@@ -234,21 +386,58 @@ def main(argv: list[str] | None = None) -> int:
             raise EvidenceError(f"--apk must point to an .apk file: {apk_path}")
         if args.minimum_samples <= 0:
             raise EvidenceError("--minimum-samples must be positive")
+        if not args.candidate_manifest and not args.git_sha:
+            raise EvidenceError("provide --candidate-manifest for exact candidate binding or legacy --git-sha")
 
-        git_sha = validate_git_sha(args.git_sha)
         apk_sha256 = sha256_file(apk_path)
         if args.expected_apk_sha256:
-            expected = args.expected_apk_sha256.strip().lower()
+            expected = validate_sha256(args.expected_apk_sha256, label="--expected-apk-sha256")
             if expected != apk_sha256:
                 raise EvidenceError(
                     f"APK SHA-256 mismatch: expected {expected}, actual {apk_sha256}"
                 )
 
+        candidate_manifest = None
+        candidate_manifest_path = None
+        candidate_manifest_sha256 = None
+        candidate_binding = LEGACY_BINDING
+        if args.candidate_manifest:
+            candidate_manifest_path = args.candidate_manifest.resolve()
+            candidate_manifest = load_json_object(candidate_manifest_path, label="candidate manifest")
+            candidate_manifest_sha256 = sha256_file(candidate_manifest_path)
+            git_sha = validate_candidate_manifest(
+                candidate_manifest,
+                local_apk_sha256=apk_sha256,
+                package=args.package,
+            )
+            candidate_binding = MANIFEST_BINDING
+            if args.git_sha and validate_git_sha(args.git_sha) != git_sha:
+                raise EvidenceError(
+                    f"--git-sha does not match candidate manifest: cli={args.git_sha} manifest={git_sha}"
+                )
+        else:
+            git_sha = validate_git_sha(args.git_sha)
+
         serial = resolve_serial(args.adb, args.serial)
+        installed_apk_path = resolve_installed_apk_path(args.adb, serial, args.package)
+        installed_apk_sha256 = hash_installed_apk(args.adb, serial, installed_apk_path)
+        if installed_apk_sha256 != apk_sha256:
+            raise EvidenceError(
+                "installed APK SHA-256 does not match the candidate file: "
+                f"installed={installed_apk_sha256} local={apk_sha256}"
+            )
+
         report = validate_runtime_report(
             pull_runtime_report(args.adb, serial, args.package),
             minimum_samples=args.minimum_samples,
         )
+        if candidate_manifest is not None:
+            manifest_unity = _require_text(candidate_manifest, "unityVersion")
+            if report["unityVersion"] != manifest_unity:
+                raise EvidenceError(
+                    f"runtime Unity version does not match candidate manifest: report={report['unityVersion']} manifest={manifest_unity}"
+                )
+
         envelope = build_envelope(
             report=report,
             git_sha=git_sha,
@@ -256,6 +445,11 @@ def main(argv: list[str] | None = None) -> int:
             apk_sha256=apk_sha256,
             device_serial=serial,
             package=args.package,
+            installed_apk_path=installed_apk_path,
+            installed_apk_sha256=installed_apk_sha256,
+            candidate_manifest_path=candidate_manifest_path,
+            candidate_manifest_sha256=candidate_manifest_sha256,
+            candidate_binding=candidate_binding,
         )
 
         output = args.output.resolve()
@@ -264,7 +458,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "AFAREET_UPER006_PERFORMANCE_EVIDENCE_COLLECTED "
             f"output={output} gitSha={git_sha} apkSha256={apk_sha256} serial={serial} "
-            f"verdict={COLLECTION_VERDICT}"
+            f"binding={candidate_binding} installedApkMatch=true verdict={COLLECTION_VERDICT}"
         )
         return 0
     except EvidenceError as exc:
