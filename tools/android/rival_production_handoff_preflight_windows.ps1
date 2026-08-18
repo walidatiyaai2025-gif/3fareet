@@ -20,8 +20,10 @@ if ($null -eq $git) {
     Fail "git is required for exact-SHA Rival handoff validation."
 }
 
-$gitTop = (& $git.Source -C $RepoRoot rev-parse --show-toplevel 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitTop)) {
+$gitTopOutput = @(& $git.Source -C $RepoRoot rev-parse --show-toplevel 2>$null)
+$gitTopExitCode = $LASTEXITCODE
+$gitTop = ($gitTopOutput | Select-Object -First 1)
+if ($gitTopExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($gitTop)) {
     Fail "Unable to resolve Git worktree root: $RepoRoot"
 }
 $gitTop = (Resolve-Path $gitTop.Trim()).Path
@@ -29,14 +31,21 @@ if (-not [string]::Equals($gitTop, $RepoRoot, [System.StringComparison]::Ordinal
     Fail "RepoRoot must be the exact Git worktree root. resolved=$gitTop requested=$RepoRoot"
 }
 
-$gitSha = (& $git.Source -C $RepoRoot rev-parse HEAD 2>$null | Select-Object -First 1).Trim()
-if ($LASTEXITCODE -ne 0 -or $gitSha -notmatch '^[0-9a-fA-F]{40}$') {
+$gitShaOutput = @(& $git.Source -C $RepoRoot rev-parse HEAD 2>$null)
+$gitShaExitCode = $LASTEXITCODE
+$gitSha = ($gitShaOutput | Select-Object -First 1)
+if ($gitShaExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($gitSha)) {
+    Fail "Unable to resolve the current Git SHA."
+}
+$gitSha = $gitSha.Trim()
+if ($gitSha -notmatch '^[0-9a-fA-F]{40}$') {
     Fail "Unable to resolve a full 40-character Git SHA."
 }
 $gitSha = $gitSha.ToLowerInvariant()
 
 $dirty = @(& $git.Source -C $RepoRoot status --porcelain --untracked-files=all 2>$null)
-if ($LASTEXITCODE -ne 0) {
+$dirtyExitCode = $LASTEXITCODE
+if ($dirtyExitCode -ne 0) {
     Fail "Unable to inspect Git working tree."
 }
 if ($dirty.Count -gt 0) {
@@ -57,7 +66,8 @@ function Assert-TrackedNonEmptyFile([string]$RepoRelative, [string]$Label) {
     }
 
     & $git.Source -C $RepoRoot ls-files --error-unmatch -- $normalized *> $null
-    if ($LASTEXITCODE -ne 0) {
+    $trackedExitCode = $LASTEXITCODE
+    if ($trackedExitCode -ne 0) {
         Fail "$Label must already be tracked in the exact staging commit: $normalized"
     }
 
