@@ -33,6 +33,23 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         self.assertIn("rule.TargetMode == PowerUpRuntimeTargetMode.WorldDeployable", source)
         self.assertIn("consumeInventory: false", source)
 
+    def test_effect_tick_does_not_allocate_temporary_expiry_collections(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpEffectState.cs")
+        start = source.index("private int RemoveExpired(double raceTimeSeconds)")
+        end = source.index("private void EmitPresentation(", start)
+        remove_expired = source[start:end]
+
+        self.assertIn(
+            "private static readonly PowerUpKind[] AllPowerUpKinds =",
+            source,
+        )
+        self.assertIn("for (var index = 0; index < AllPowerUpKinds.Length; index++)", remove_expired)
+        self.assertIn("activeEffects.TryGetValue(kind, out var effect)", remove_expired)
+        self.assertIn("activeEffects.Remove(kind);", remove_expired)
+        self.assertNotIn("new List<PowerUpKind>", remove_expired)
+        self.assertNotIn("expiredKinds.Sort", remove_expired)
+        self.assertNotIn("foreach (var pair in activeEffects)", remove_expired)
+
     def test_target_modes_lock_retained_gameplay_semantics(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
         for required in (
