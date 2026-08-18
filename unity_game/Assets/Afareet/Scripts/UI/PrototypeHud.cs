@@ -27,13 +27,22 @@ namespace Afareet.UI
         private float safeTop;
         private float safeBottom;
         private Vector3 motionBaseline;
+        private ScreenOrientation motionBaselineOrientation;
         private bool hasMotionBaseline;
+        private float smoothedTiltSteer;
+        private float smoothedTiltThrottle;
         private float steerInput;
         private float throttleInput;
         private bool driftInput;
         private bool nitroInput;
         private bool brakeInput;
         private bool brakeReverseInput;
+
+        private bool MotionDrivingAvailable =>
+            Application.isMobilePlatform && SystemInfo.supportsAccelerometer;
+
+        private bool MotionDrivingActive =>
+            MotionDrivingAvailable && hasMotionBaseline;
 
         public void Configure(ArcadeCarController playerCar, RaceDirector director)
         {
@@ -57,6 +66,7 @@ namespace Afareet.UI
             ResetInput();
             if (!race.IsStarted)
             {
+                InvalidateMotionCalibration();
                 player.SetPlayerInput(0f, 0f, false, false, true);
                 ReadStartInput();
                 return;
@@ -64,6 +74,7 @@ namespace Afareet.UI
 
             if (race.IsPaused || race.Phase == RaceRoundPhase.Results)
             {
+                InvalidateMotionCalibration();
                 player.SetPlayerInput(0f, 0f, false, false, true);
                 return;
             }
@@ -110,23 +121,89 @@ namespace Afareet.UI
 
         private void StartRace()
         {
-            motionBaseline = Input.acceleration;
-            hasMotionBaseline = true;
+            CalibrateMotionInput();
             ResetInput();
             race.StartRace();
         }
 
         private void ApplyMotionControls()
         {
-            if (!Application.isMobilePlatform || !hasMotionBaseline) return;
+            if (!MotionDrivingAvailable)
+            {
+                InvalidateMotionCalibration();
+                return;
+            }
+
+            if (!hasMotionBaseline)
+                CalibrateMotionInput();
+            if (!hasMotionBaseline)
+                return;
+
+            RecalibrateIfLandscapeOrientationChanged();
+
             var acceleration = Input.acceleration - motionBaseline;
-            var landscapeLeft = Screen.orientation != ScreenOrientation.LandscapeRight;
-            var steeringTilt = landscapeLeft ? -acceleration.y : acceleration.y;
-            var forwardTilt = landscapeLeft ? -acceleration.x : acceleration.x;
-            steerInput = MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt);
-            throttleInput = 0f;
-            nitroInput = forwardTilt > .32f;
-            brakeInput = forwardTilt < -.32f;
+            var landscapeRight = Screen.orientation == ScreenOrientation.LandscapeRight;
+            var steeringTilt = landscapeRight ? acceleration.y : -acceleration.y;
+            var forwardTilt = landscapeRight ? acceleration.x : -acceleration.x;
+
+            var tiltSteerTarget = MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt);
+            var tiltThrottleTarget = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(forwardTilt);
+            smoothedTiltSteer = MobileDriveInputPolicy.SmoothTiltSteer(
+                smoothedTiltSteer,
+                tiltSteerTarget,
+                Time.unscaledDeltaTime);
+            smoothedTiltThrottle = MobileDriveInputPolicy.SmoothTiltThrottle(
+                smoothedTiltThrottle,
+                tiltThrottleTarget,
+                Time.unscaledDeltaTime);
+
+            steerInput = smoothedTiltSteer;
+            throttleInput = smoothedTiltThrottle;
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus || !MotionDrivingAvailable || race == null)
+                return;
+            if (!race.IsStarted || race.IsPaused || race.Phase == RaceRoundPhase.Results)
+                return;
+
+            CalibrateMotionInput();
+        }
+
+        private void CalibrateMotionInput()
+        {
+            smoothedTiltSteer = 0f;
+            smoothedTiltThrottle = 0f;
+
+            if (!MotionDrivingAvailable)
+            {
+                hasMotionBaseline = false;
+                return;
+            }
+
+            motionBaseline = Input.acceleration;
+            motionBaselineOrientation = Screen.orientation;
+            hasMotionBaseline = true;
+        }
+
+        private void RecalibrateIfLandscapeOrientationChanged()
+        {
+            var orientation = Screen.orientation;
+            if (orientation == motionBaselineOrientation)
+                return;
+            if (orientation != ScreenOrientation.LandscapeLeft &&
+                orientation != ScreenOrientation.LandscapeRight)
+                return;
+
+            CalibrateMotionInput();
+        }
+
+        private void InvalidateMotionCalibration()
+        {
+            hasMotionBaseline = false;
+            smoothedTiltSteer = 0f;
+            smoothedTiltThrottle = 0f;
         }
 
         private void OnGUI()
@@ -195,28 +272,45 @@ namespace Afareet.UI
 
         private void DrawTouchControls()
         {
-            GUI.Box(LeftRect(), "<", steerInput < 0f ? activeButton : button);
-            GUI.Box(RightRect(), ">", steerInput > 0f ? activeButton : button);
+            var motionDriving = MotionDrivingActive;
+            if (!motionDriving)
+            {
+                GUI.Box(LeftRect(), "<", steerInput < 0f ? activeButton : button);
+                GUI.Box(RightRect(), ">", steerInput > 0f ? activeButton : button);
+            }
+
             GUI.Box(BrakeReverseRect(), "BRAKE / REV", brakeReverseInput ? activeButton : button);
             GUI.Box(RecoverRect(), "RECOVER", button);
             GUI.Box(DriftRect(), "DRIFT", driftInput ? activeButton : button);
             GUI.Box(NitroRect(), "SPIRIT", nitroInput ? activeButton : button);
-            GUI.Box(ThrottleRect(), "GO", throttleInput > 0f ? activeButton : button);
+
+            if (!motionDriving)
+                GUI.Box(ThrottleRect(), "GO", throttleInput > 0f ? activeButton : button);
+
+            GUI.Label(
+                new Rect(canvasWidth * .5f - 150f, canvasHeight - safeBottom - 42f, 300f, 24f),
+                motionDriving ? "TILT DRIVE • AUTO CRUISE" : "TOUCH DRIVE",
+                micro);
         }
 
         private void ApplyPointer(Vector2 point)
         {
-            if (LeftRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(-1f);
-            if (RightRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(1f);
+            if (!MotionDrivingActive)
+            {
+                if (LeftRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(-1f);
+                if (RightRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(1f);
+                if (ThrottleRect().Contains(point)) throttleInput = 1f;
+            }
+
             if (BrakeReverseRect().Contains(point)) brakeReverseInput = true;
             if (DriftRect().Contains(point)) driftInput = true;
             if (NitroRect().Contains(point)) nitroInput = true;
-            if (ThrottleRect().Contains(point)) throttleInput = 1f;
         }
 
         private void RecoverPlayer()
         {
             ResetInput();
+            InvalidateMotionCalibration();
             player.SetPlayerInput(0f, 0f, false, false, false);
             player.ResetToSpawn();
         }
