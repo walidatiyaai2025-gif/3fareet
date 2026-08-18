@@ -14,6 +14,7 @@ internal static class PowerUpRuntimeContractRunner
             IgnoredUseContract();
             AiExecutionContract();
             TargetGateContract();
+            DeployableTrapFlow();
             TickAndResetContract();
             Console.WriteLine("Power-up runtime behavior contract: PASS");
             return 0;
@@ -121,6 +122,30 @@ internal static class PowerUpRuntimeContractRunner
         Require(runtime.GetActiveEffect("player", PowerUpKind.TrafficCurse, 0d) != null, "targeted AI effect must apply to supplied opponent");
     }
 
+    private static void DeployableTrapFlow()
+    {
+        var runtime = Runtime(Rules(asphaltCharges: 1));
+        var traps = new AsphaltShardTrapRuntime();
+
+        var deployUse = runtime.TryUse("player", PowerUpKind.AsphaltShard, null, 0d);
+        Require(deployUse.Status == PowerUpRuntimeUseStatus.Used, "Asphalt Shard deployment must consume the authoritative inventory use");
+        Require(deployUse.RemainingCharges == 0, "Asphalt Shard deployment must consume one charge");
+        Require(deployUse.TargetRacerId == null, "world-deployable Asphalt Shard must not require an opponent target at deploy time");
+
+        var deployment = traps.Deploy("player", new AsphaltShardTrapPoint(0d, 0d, 0d), 0d);
+        Require(traps.ActiveCount == 1, "trap runtime must retain one active deployment");
+        Require(!traps.TryTrigger("rival-a", new AsphaltShardTrapPoint(0d, 0d, 0d), .1d, out _), "trap must respect arm delay");
+        Require(!traps.TryTrigger("player", new AsphaltShardTrapPoint(0d, 0d, 0d), 1d, out _), "trap hit its source racer");
+        Require(traps.TryTrigger("rival-a", new AsphaltShardTrapPoint(1d, 0d, 0d), 1d, out var triggered), "armed opponent must trigger nearby trap");
+        Require(triggered.SequenceId == deployment.SequenceId, "triggered deployment identity must remain deterministic");
+
+        var hit = runtime.TryApplyDeployedEffect("player", "rival-a", PowerUpKind.AsphaltShard, 1d);
+        Require(hit.Status == PowerUpRuntimeUseStatus.Used, "deployed trap hit must apply Asphalt Shard effect without a second inventory charge");
+        Require(runtime.GetActiveEffect("rival-a", PowerUpKind.AsphaltShard, 1d) != null, "trap hit must become an active Asphalt Shard effect");
+        Require(!traps.TryTrigger("rival-b", new AsphaltShardTrapPoint(1d, 0d, 0d), 1.1d, out _), "one-shot trap triggered twice");
+        Require(traps.Tick(1.1d) == 1 && traps.ActiveCount == 0, "consumed trap must leave active runtime deterministically");
+    }
+
     private static void TickAndResetContract()
     {
         var runtime = Runtime(Rules(nitroCharges: 2, effectDuration: 1d));
@@ -165,7 +190,7 @@ internal static class PowerUpRuntimeContractRunner
     {
         return new PowerUpRuntimeRuleset(new List<PowerUpRuntimeRule>
         {
-            Rule(PowerUpKind.AsphaltShard, asphaltCharges, 0d, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.Opponent),
+            Rule(PowerUpKind.AsphaltShard, asphaltCharges, 0d, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.WorldDeployable),
             Rule(PowerUpKind.NitroSpirit, nitroCharges, nitroCooldown, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.Self),
             Rule(PowerUpKind.TrafficCurse, trafficCharges, 0d, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.Opponent),
             Rule(PowerUpKind.EnchantedPound, enchantedCharges, enchantedCooldown, effectDuration, PowerUpRefreshPolicy.IgnoreWhileActive, PowerUpRuntimeTargetMode.Self),
