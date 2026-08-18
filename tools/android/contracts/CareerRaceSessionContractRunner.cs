@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using Afareet.CareerRuntime;
 using Afareet.Progression;
 using Afareet.Race;
+using Afareet.World;
 
 internal static class CareerRaceSessionContractRunner
 {
@@ -29,6 +31,7 @@ internal static class CareerRaceSessionContractRunner
             RunFailedOutcomeContract();
             RunChallengeBalanceContract();
             RunEliminationRuntimeContract();
+            RunTrackCatalogContract();
             Console.WriteLine("AFAREET_CAREER_RACE_SESSION_CONTRACT_OK");
             return 0;
         }
@@ -176,6 +179,46 @@ internal static class CareerRaceSessionContractRunner
         RequireThrows<ArgumentOutOfRangeException>(
             () => runtime.TryResolveGate(4, new[] { "R1", "R2" }, out _),
             "Out-of-range checkpoint ids must fail closed.");
+    }
+
+    private static void RunTrackCatalogContract()
+    {
+        var nodes = ChapterOneCareerContent.CreateFoundation().Nodes;
+        var expectedIds = new[]
+        {
+            CairoCareerTrackCatalog.CornicheNightId,
+            CairoCareerTrackCatalog.KhanSprintId,
+            CairoCareerTrackCatalog.RingRoadMidnightId,
+            CairoCareerTrackCatalog.CitadelDriftId,
+            CairoCareerTrackCatalog.PyramidsSpiritRunId
+        };
+
+        Require(CairoCareerTrackCatalog.Specs.Count == expectedIds.Length,
+            "Career TrackId catalog must expose exactly the retained five Chapter 1 specs.");
+        var signatures = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < expectedIds.Length; index++)
+        {
+            Require(nodes[index].TrackId == expectedIds[index],
+                $"Chapter 1 TrackId order drifted at index {index}.");
+            var spec = CairoCareerTrackCatalog.Resolve(expectedIds[index]);
+            Require(StringComparer.Ordinal.Equals(spec.Id, expectedIds[index]),
+                $"Resolved TrackId drifted at index {index}.");
+            Require(signatures.Add(spec.DeterministicSignature),
+                $"Career TrackId spec signature must be distinct: {spec.Id}.");
+        }
+
+        var standard = CairoCareerTrackCatalog.Resolve(CairoCareerTrackCatalog.CornicheNightId);
+        Require(Math.Abs(standard.UniformScale - 1f) < .0001f && Math.Abs(standard.YawDegrees) < .0001f,
+            "Corniche TrackId must preserve the existing P1 authored route transform exactly.");
+        RequireThrows<ArgumentException>(
+            () => CairoCareerTrackCatalog.Resolve("missing_track"),
+            "Unknown Career TrackId must fail closed.");
+
+        var passive = new PassiveCareerTrackRuntime();
+        Require(!passive.ApplyTrack(CairoCareerTrackCatalog.CornicheNightId),
+            "Compatibility TrackId runtime must never claim it rebuilt live race geometry.");
+        Require(passive.ActiveTrackId == CairoCareerTrackCatalog.CornicheNightId,
+            "Compatibility TrackId runtime must still retain the selected stable id.");
     }
 
     private static void RequireChallenge(
