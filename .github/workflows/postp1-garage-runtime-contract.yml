@@ -6,9 +6,16 @@ on:
       - 'unity_game/Assets/Afareet/Scripts/GarageRuntime/**'
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageBridge.cs'
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageSession.cs'
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageVehicleRuntime.cs'
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/Afareet.CareerRuntime.asmdef'
       - 'unity_game/Assets/Afareet/Scripts/Core/AfareetBootstrap.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Core/CareerGarageVehicleRuntimeController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Core/GarageVehiclePerformanceProjection.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Core/CareerBossVehicleRuntimeController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/VehiclePerformanceProfile.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeCarController.cs'
       - 'unity_game/Assets/Afareet/Tests/EditMode/Garage/**'
+      - 'unity_game/Assets/Afareet/Tests/PlayMode/GarageRuntime/**'
       - 'tools/android/contracts/GarageRuntimeCompile.csproj'
       - 'tools/android/contracts/GarageRuntimeContractRunner.csproj'
       - 'tools/android/contracts/GarageRuntimeContractRunner.cs'
@@ -22,9 +29,16 @@ on:
       - 'unity_game/Assets/Afareet/Scripts/GarageRuntime/**'
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageBridge.cs'
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageSession.cs'
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageVehicleRuntime.cs'
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/Afareet.CareerRuntime.asmdef'
       - 'unity_game/Assets/Afareet/Scripts/Core/AfareetBootstrap.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Core/CareerGarageVehicleRuntimeController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Core/GarageVehiclePerformanceProjection.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Core/CareerBossVehicleRuntimeController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/VehiclePerformanceProfile.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeCarController.cs'
       - 'unity_game/Assets/Afareet/Tests/EditMode/Garage/**'
+      - 'unity_game/Assets/Afareet/Tests/PlayMode/GarageRuntime/**'
       - 'tools/android/contracts/GarageRuntimeCompile.csproj'
       - 'tools/android/contracts/GarageRuntimeContractRunner.csproj'
       - 'tools/android/contracts/GarageRuntimeContractRunner.cs'
@@ -44,11 +58,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Compile Garage domain without Unity
+      - name: Compile Garage domain and equipped-vehicle runtime seam without Unity
         run: dotnet build tools/android/contracts/GarageRuntimeCompile.csproj --configuration Release --nologo
 
-      - name: Run Garage behavior contract
+      - name: Run Garage behavior and equipped-vehicle seam contract
         run: dotnet run --project tools/android/contracts/GarageRuntimeContractRunner.csproj --configuration Release --nologo
 
-      - name: Run Garage source contracts
+      - name: Run Garage live-runtime source contracts
         run: python3 tools/android/tests/test_post_p1_garage_runtime_contract.py
