@@ -36,7 +36,7 @@ namespace Afareet.World
             root.transform.SetParent(parent, false);
             root.transform.localPosition = Vector3.zero;
             root.transform.localRotation = Quaternion.Euler(0f, spec.YawDegrees, 0f);
-            root.transform.localScale = new Vector3(spec.ScaleX, 1f, spec.ScaleZ);
+            root.transform.localScale = Vector3.one * spec.UniformScale;
 
             TrackRuntime track;
             try
