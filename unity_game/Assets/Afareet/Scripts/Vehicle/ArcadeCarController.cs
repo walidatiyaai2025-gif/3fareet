@@ -327,6 +327,21 @@ namespace Afareet.Vehicle
             brakeInput = brake;
         }
 
+        public void ResetRaceTransientState()
+        {
+            ClearDriveInputs();
+            NitroEnergy = 1f;
+            nitroCooldownRemaining = 0f;
+            nitroWasActive = false;
+            DriftEnergy = 0f;
+            DriftChargeActive = false;
+            stuckDriveSeconds = 0f;
+            recoveryInputLockRemaining = 0f;
+
+            foreach (var trail in trails)
+                trail.emitting = false;
+        }
+
         public void ResetToSpawn()
         {
             RecoverToTrack("manual");
