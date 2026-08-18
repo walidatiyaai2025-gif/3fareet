@@ -136,6 +136,29 @@ namespace Afareet.Tests.Race
         }
 
         [Test]
+        public void TickAll_WithoutExpirations_ReusesImmutableZeroSnapshot()
+        {
+            var runtime = Runtime(Rules(nitroCharges: 1, effectDuration: 10d));
+            runtime.TryUse("player", PowerUpKind.NitroSpirit, null, 0d);
+
+            var firstSteadyTick = runtime.TickAll(1d);
+            var secondSteadyTick = runtime.TickAll(2d);
+
+            Assert.That(secondSteadyTick, Is.SameAs(firstSteadyTick));
+            Assert.That(firstSteadyTick.All(value => value.ExpiredEffectCount == 0), Is.True);
+
+            var expirationTick = runtime.TickAll(11d);
+            Assert.That(expirationTick, Is.Not.SameAs(firstSteadyTick));
+            Assert.That(
+                expirationTick.Single(value => value.RacerId == "player").ExpiredEffectCount,
+                Is.EqualTo(1));
+
+            var steadyAgain = runtime.TickAll(12d);
+            Assert.That(steadyAgain, Is.SameAs(firstSteadyTick));
+            Assert.That(steadyAgain.All(value => value.ExpiredEffectCount == 0), Is.True);
+        }
+
+        [Test]
         public void InvalidTargetAndMissingTarget_FailClosedWithoutConsumption()
         {
             var runtime = Runtime(Rules(trafficCharges: 1));
@@ -176,7 +199,7 @@ namespace Afareet.Tests.Race
         {
             return new PowerUpRuntimeRuleset(new List<PowerUpRuntimeRule>
             {
-                Rule(PowerUpKind.AsphaltShard, asphaltCharges, 0d, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.Opponent),
+                Rule(PowerUpKind.AsphaltShard, asphaltCharges, 0d, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.WorldDeployable),
                 Rule(PowerUpKind.NitroSpirit, nitroCharges, nitroCooldown, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.Self),
                 Rule(PowerUpKind.TrafficCurse, trafficCharges, 0d, effectDuration, PowerUpRefreshPolicy.RefreshDuration, PowerUpRuntimeTargetMode.Opponent),
                 Rule(PowerUpKind.EnchantedPound, enchantedCharges, enchantedCooldown, effectDuration, PowerUpRefreshPolicy.IgnoreWhileActive, PowerUpRuntimeTargetMode.Self),
