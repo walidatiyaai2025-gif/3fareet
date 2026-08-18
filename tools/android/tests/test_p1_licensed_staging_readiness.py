@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -24,8 +25,10 @@ def make_fixture() -> Path:
     run_git(temp, "config", "user.email", "qa@example.invalid")
     run_git(temp, "config", "user.name", "P1 QA")
 
+    hero = "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing_Production.fbx"
     required = set(MODULE.RIVAL_REQUIRED_FILES) | set(MODULE.HANDOFF_REQUIRED_FILES) | set(MODULE.WORLD_REQUIRED_FILES)
-    required.add("unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing_Production.fbx")
+    required.add(hero)
+    required.add(hero + ".meta")
     for relative in required:
         path = temp / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -37,22 +40,30 @@ def make_fixture() -> Path:
 
 
 class P1LicensedStagingReadinessTests(unittest.TestCase):
-    def test_current_repo_is_fail_closed_without_explicit_hero_source(self):
+    def test_current_repo_is_fail_closed_without_hero_and_isolated_rival_production_sources(self):
         report = MODULE.audit(REPO, hero_source=None, require_clean=False)
 
+        self.assertEqual(2, report["schemaVersion"])
         self.assertEqual("BLOCKED", report["state"])
         self.assertFalse(report["readyForLicensedStaging"])
         self.assertFalse(report["candidateBuildStarted"])
         self.assertFalse(report["publicationEligible"])
+        self.assertFalse(report["runtimeVerified"])
+        self.assertFalse(report["ownerAccepted"])
         self.assertFalse(report["verified"])
         self.assertIn("UART-003_HERO_SOURCE_SUPPLIED", report["blockedCheckIds"])
+
+        rival_blockers = [item for item in report["blockedCheckIds"] if item.startswith("RIVAL:")]
+        self.assertEqual(list(MODULE.RIVAL_REQUIRED_FILES), [item.removeprefix("RIVAL:") for item in rival_blockers])
+        for blocker in rival_blockers:
+            self.assertIn("/Rivals/Production/", blocker)
 
         unexpected = [
             item
             for item in report["blockedCheckIds"]
-            if item.startswith("RIVAL:") or item.startswith("HANDOFF:") or item.startswith("WORLD:")
+            if item.startswith("HANDOFF:") or item.startswith("WORLD:")
         ]
-        self.assertEqual([], unexpected, f"Existing staging support drifted unexpectedly: {unexpected}")
+        self.assertEqual([], unexpected, f"Existing convergence support drifted unexpectedly: {unexpected}")
 
     def test_complete_clean_tracked_fixture_is_ready_for_licensed_staging_only(self):
         root = make_fixture()
@@ -63,9 +74,11 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             self.assertEqual([], report["blockedCheckIds"])
             self.assertFalse(report["candidateBuildStarted"])
             self.assertFalse(report["publicationEligible"])
+            self.assertFalse(report["runtimeVerified"])
+            self.assertFalse(report["ownerAccepted"])
             self.assertFalse(report["verified"])
+            self.assertIn("tracked Hero + three isolated Rival production sources", report["nextAction"])
         finally:
-            import shutil
             shutil.rmtree(root, ignore_errors=True)
 
     def test_dirty_tree_blocks_staging_readiness(self):
@@ -76,33 +89,47 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             self.assertEqual("BLOCKED", report["state"])
             self.assertIn("CLEAN_TREE", report["blockedCheckIds"])
         finally:
-            import shutil
             shutil.rmtree(root, ignore_errors=True)
 
-    def test_preview_or_generated_hero_path_is_rejected_even_if_tracked(self):
+    def test_preview_generated_refinement_or_review_hero_path_is_rejected_even_if_tracked(self):
         root = make_fixture()
         try:
-            preview = root / "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/Preview/AfareetKing_Generated.fbx"
+            preview = root / "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/Refinement/AfareetKing_Generated.fbx"
             preview.parent.mkdir(parents=True, exist_ok=True)
             preview.write_text("preview\n", encoding="utf-8")
+            (preview.parent / (preview.name + ".meta")).write_text("meta\n", encoding="utf-8")
             run_git(root, "add", ".")
-            run_git(root, "commit", "-m", "add preview")
+            run_git(root, "commit", "-m", "add nonproduction hero")
 
-            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/Preview/AfareetKing_Generated.fbx")
+            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/Refinement/AfareetKing_Generated.fbx")
             self.assertEqual("BLOCKED", report["state"])
-            self.assertIn("UART-003_HERO_NOT_PREVIEW_OR_BLOCKOUT", report["blockedCheckIds"])
+            self.assertIn("UART-003_HERO_NOT_NONPRODUCTION_PATH", report["blockedCheckIds"])
         finally:
-            import shutil
             shutil.rmtree(root, ignore_errors=True)
 
     def test_rival_source_cannot_be_reused_as_hero(self):
         root = make_fixture()
         try:
-            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj")
+            report = MODULE.audit(
+                root,
+                hero_source="Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj",
+            )
             self.assertEqual("BLOCKED", report["state"])
             self.assertIn("UART-003_HERO_NOT_RIVAL_SOURCE", report["blockedCheckIds"])
         finally:
-            import shutil
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_missing_hero_meta_blocks_staging(self):
+        root = make_fixture()
+        try:
+            meta = root / "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing_Production.fbx.meta"
+            meta.unlink()
+            run_git(root, "add", "-u")
+            run_git(root, "commit", "-m", "remove hero meta")
+            report = MODULE.audit(root, hero_source="Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing_Production.fbx")
+            self.assertEqual("BLOCKED", report["state"])
+            self.assertIn("UART-003_HERO_META_TRACKED_BY_HEAD", report["blockedCheckIds"])
+        finally:
             shutil.rmtree(root, ignore_errors=True)
 
     def test_report_output_is_confined_to_ignored_artifacts_root(self):
@@ -118,7 +145,6 @@ class P1LicensedStagingReadinessTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 MODULE._write_report(root, root / "docs" / "readiness.json", report)
         finally:
-            import shutil
             shutil.rmtree(root, ignore_errors=True)
 
     def test_assets_prefix_normalizes_to_unity_project_path(self):
