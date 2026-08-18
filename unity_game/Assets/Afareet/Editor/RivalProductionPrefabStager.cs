@@ -19,9 +19,9 @@ namespace Afareet.Editor
 
         private static readonly string[] SourcePaths =
         {
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj"
+            RivalProductionPolicy.StagingSourcePath(0),
+            RivalProductionPolicy.StagingSourcePath(1),
+            RivalProductionPolicy.StagingSourcePath(2)
         };
 
         private static readonly float[] TransitionHeights = { 0.60f, 0.28f, 0.08f };
@@ -41,17 +41,32 @@ namespace Afareet.Editor
         [MenuItem(MenuRoot + "Stage + Bind Rival 3")]
         private static void StageAndBindRival3() => StageAndBind(2);
 
+        internal static void ValidateAllSourcesBeforeMutation()
+        {
+            RivalProductionPolicy.ValidateContract();
+            ValidateStaticContract();
+
+            for (var variant = 0; variant < RivalProductionPolicy.VariantCount; variant++)
+                ValidateSourceAvailable(variant);
+
+            Debug.Log(
+                "AFAREET_UART004_SOURCE_PREFLIGHT_OK variants=3 productionRoot=" +
+                RivalProductionPolicy.ProductionSourceRoot +
+                " mutationStarted=false verified=false");
+        }
+
         internal static void StageAndBindAll()
         {
             RivalProductionPolicy.ValidateContract();
             ValidateStaticContract();
+            ValidateAllSourcesBeforeMutation();
 
             for (var variant = 0; variant < RivalProductionPolicy.VariantCount; variant++)
                 StageAndBind(variant);
 
             AssetDatabase.SaveAssets();
             Debug.Log(
-                "AFAREET_UART004_PREFAB_STAGE_ALL_OK variants=3 source=tracked-imported-models " +
+                "AFAREET_UART004_PREFAB_STAGE_ALL_OK variants=3 source=tracked-imported-production-models " +
                 "geometryGenerated=false primitiveCreated=false bindingDelegated=true");
         }
 
@@ -70,12 +85,12 @@ namespace Afareet.Editor
             var sourceModel = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
             if (importer == null || sourceModel == null)
                 throw new InvalidOperationException(
-                    $"UART-004 tracked source has not been imported by Unity: variant={variant + 1} source={sourcePath}");
+                    $"UART-004 tracked production source has not been imported by Unity: variant={variant + 1} source={sourcePath}");
 
             var sourceGuid = AssetDatabase.AssetPathToGUID(sourcePath);
             if (string.IsNullOrWhiteSpace(sourceGuid))
                 throw new InvalidOperationException(
-                    $"UART-004 imported source has no Unity GUID: variant={variant + 1} source={sourcePath}");
+                    $"UART-004 imported production source has no Unity GUID: variant={variant + 1} source={sourcePath}");
 
             var prefabPath = RivalProductionPolicy.AssetPath(variant);
             EnsureAssetDirectory(prefabPath);
@@ -95,6 +110,27 @@ namespace Afareet.Editor
             Debug.Log(
                 $"AFAREET_UART004_PREFAB_STAGE_OK variant={variant + 1} source={sourcePath} " +
                 $"guid={sourceGuid} prefab={prefabPath} geometryGenerated=false primitiveCreated=false");
+        }
+
+        private static void ValidateSourceAvailable(int variant)
+        {
+            if (variant < 0 || variant >= RivalProductionPolicy.VariantCount)
+                throw new ArgumentOutOfRangeException(nameof(variant));
+
+            var sourcePath = SourcePaths[variant];
+            if (!RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath))
+                throw new InvalidOperationException($"UART-004 preflight source contract rejected: {sourcePath}");
+
+            var importer = AssetImporter.GetAtPath(sourcePath);
+            var sourceModel = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
+            if (importer == null || sourceModel == null)
+                throw new InvalidOperationException(
+                    $"UART-004 production source is missing or not imported: variant={variant + 1} source={sourcePath}");
+
+            var sourceGuid = AssetDatabase.AssetPathToGUID(sourcePath);
+            if (string.IsNullOrWhiteSpace(sourceGuid))
+                throw new InvalidOperationException(
+                    $"UART-004 production source has no Unity GUID: variant={variant + 1} source={sourcePath}");
         }
 
         private static void StagePrefabFromImportedSource(
