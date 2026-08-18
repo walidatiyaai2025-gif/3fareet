@@ -73,8 +73,17 @@ $HeroSource = ($HeroSource.Trim().Trim('"') -replace '\\', '/')
 if (-not $HeroSource.StartsWith('Assets/', [System.StringComparison]::Ordinal)) {
     Fail "HeroSource must be a Unity Assets/ path, for example Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing.fbx"
 }
-if ($HeroSource -match '(?i)/(Generated|Preview|Refinement|RefinementCandidates|Blockout|Review)/') {
-    Fail "HeroSource cannot be under Generated, Preview, Refinement, Blockout or Review: $HeroSource"
+if ($HeroSource.Contains('../')) {
+    Fail "HeroSource cannot contain ../ traversal: $HeroSource"
+}
+if ($HeroSource -notmatch '(?i)/Vehicles/') {
+    Fail "HeroSource must resolve under a /Vehicles/ role path: $HeroSource"
+}
+if ($HeroSource -match '(?i)/Rivals/') {
+    Fail "HeroSource cannot reuse /Rivals/ production art as the Hero source: $HeroSource"
+}
+if ($HeroSource -match '(?i)/(Generated|Placeholder|LegacyProcedural|Preview|Refinement|RefinementCandidates|Blockout|Review|ReviewPackaging)/') {
+    Fail "HeroSource cannot be under Generated, Placeholder, LegacyProcedural, Preview, Refinement, Blockout, Review or ReviewPackaging: $HeroSource"
 }
 $extension = [System.IO.Path]::GetExtension($HeroSource).ToLowerInvariant()
 if ($extension -notin @('.fbx', '.obj', '.blend', '.glb', '.gltf')) {
