@@ -2,6 +2,14 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SourceFbx,
 
+    [string]$CompanionGlb = "",
+
+    [string]$CompanionBlend = "",
+
+    [string]$HandoffReceipt = "",
+
+    [string]$RefinementManifest = "",
+
     [string]$RepositoryRoot = "",
 
     [string]$UnityPath = ""
@@ -24,6 +32,36 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {
     $RepositoryRoot = (Resolve-Path -LiteralPath $RepositoryRoot).Path
+}
+
+$companionGlbProvided = -not [string]::IsNullOrWhiteSpace($CompanionGlb)
+$companionBlendProvided = -not [string]::IsNullOrWhiteSpace($CompanionBlend)
+$receiptOverrideProvided = -not [string]::IsNullOrWhiteSpace($HandoffReceipt)
+$manifestOverrideProvided = -not [string]::IsNullOrWhiteSpace($RefinementManifest)
+
+if ($companionGlbProvided -xor $companionBlendProvided) {
+    throw "Hero refinement companions must be supplied together: -CompanionGlb and -CompanionBlend."
+}
+if (($receiptOverrideProvided -or $manifestOverrideProvided) -and -not ($companionGlbProvided -and $companionBlendProvided)) {
+    throw "Handoff receipt/manifest overrides require both -CompanionGlb and -CompanionBlend."
+}
+
+if ($companionGlbProvided -and $companionBlendProvided) {
+    $handoffVerifier = Join-Path $RepositoryRoot "tools\android\verify_hero_refinement_handoff_windows.ps1"
+    if (-not (Test-Path -LiteralPath $handoffVerifier -PathType Leaf)) {
+        throw "Hero refinement handoff verifier is missing: $handoffVerifier"
+    }
+
+    $handoffParams = @{
+        Fbx = $SourceFbx
+        Glb = $CompanionGlb
+        Blend = $CompanionBlend
+    }
+    if ($receiptOverrideProvided) { $handoffParams.Receipt = $HandoffReceipt }
+    if ($manifestOverrideProvided) { $handoffParams.RefinementManifest = $RefinementManifest }
+
+    & $handoffVerifier @handoffParams
+    Write-Host "AFAREET_HERO_REFINEMENT_HANDOFF_PREFLIGHT_OK productionGate=false verified=false"
 }
 
 $actualHash = (Get-FileHash -LiteralPath $SourceFbx -Algorithm SHA256).Hash.ToLowerInvariant()

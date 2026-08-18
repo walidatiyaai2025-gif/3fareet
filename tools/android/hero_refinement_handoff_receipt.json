@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "task": "UART-003",
+  "classification": "REFINEMENT_CANDIDATE",
+  "origin": "EXTERNAL_USER_HANDOFF",
+  "files": {
+    "fbx": {
+      "fileName": "AfareetKing_Hero.fbx",
+      "sizeBytes": 1475244,
+      "sha256": "97b02c87118c451d068c881fc551787d6e468ec8002cce7802db62258cc4cda2",
+      "role": "UNITY_REFINEMENT_INTAKE"
+    },
+    "glb": {
+      "fileName": "AfareetKing_Hero.glb",
+      "sizeBytes": 1168688,
+      "sha256": "1c0436cde38bc9c468c5dcd96b09a4edfb272aa323f47b320fc50071125312ca",
+      "role": "INSPECTION_COMPANION"
+    },
+    "blend": {
+      "fileName": "AfareetKing_Hero.blend",
+      "sizeBytes": 365320,
+      "sha256": "c4211548cd5864783dcec0823d67a827db1b299f3c5f9e5ea6b2c3449534e871",
+      "role": "DCC_SOURCE_COMPANION"
+    }
+  },
+  "productionGate": false,
+  "visualAcceptance": false,
+  "ownerApproval": false,
+  "verified": false,
+  "inspectionBoundary": "BYTE_IDENTITY_ONLY_LICENSED_UNITY_INSPECTION_REQUIRED",
+  "notes": [
+    "This receipt binds the exact externally supplied Afareet King refinement handoff bytes.",
+    "The FBX identity must remain identical to hero_refinement_candidate_manifest.json.",
+    "Byte identity does not convert the Blender-generated refinement candidate into UART-003 production art.",
+    "Licensed Unity staging, artist refinement/mobile optimization and owner/Art Director acceptance remain required."
+  ]
+}
