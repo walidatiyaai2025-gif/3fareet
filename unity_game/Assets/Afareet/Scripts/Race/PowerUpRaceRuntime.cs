@@ -287,6 +287,7 @@ namespace Afareet.Race
         private readonly PowerUpRuntimeRuleset ruleset;
         private readonly SortedDictionary<string, RacerState> racers =
             new SortedDictionary<string, RacerState>(StringComparer.Ordinal);
+        private readonly IReadOnlyList<PowerUpRuntimeTickResult> zeroTickResults;
 
         public PowerUpRaceRuntime(
             PowerUpRuntimeRuleset ruleset,
@@ -320,6 +321,13 @@ namespace Afareet.Race
             {
                 throw new ArgumentException("At least one racer registration is required.", nameof(registrations));
             }
+
+            var zeroResults = new List<PowerUpRuntimeTickResult>(racers.Count);
+            foreach (var pair in racers)
+            {
+                zeroResults.Add(new PowerUpRuntimeTickResult(pair.Key, 0));
+            }
+            zeroTickResults = zeroResults.AsReadOnly();
         }
 
         public IReadOnlyList<PowerUpInventorySnapshot> GetInventorySnapshot(
@@ -500,15 +508,39 @@ namespace Afareet.Race
         public IReadOnlyList<PowerUpRuntimeTickResult> TickAll(double raceTimeSeconds)
         {
             ValidateRaceTime(raceTimeSeconds);
-            var results = new List<PowerUpRuntimeTickResult>(racers.Count);
+
+            List<PowerUpRuntimeTickResult> changedResults = null;
+            var racerIndex = 0;
             foreach (var pair in racers)
             {
-                results.Add(new PowerUpRuntimeTickResult(
-                    pair.Key,
-                    pair.Value.Effects.Tick(raceTimeSeconds)));
+                var expiredEffectCount = pair.Value.Effects.Tick(raceTimeSeconds);
+                if (changedResults == null && expiredEffectCount == 0)
+                {
+                    racerIndex++;
+                    continue;
+                }
+
+                if (changedResults == null)
+                {
+                    changedResults = new List<PowerUpRuntimeTickResult>(racers.Count);
+                    for (var priorIndex = 0; priorIndex < racerIndex; priorIndex++)
+                    {
+                        changedResults.Add(zeroTickResults[priorIndex]);
+                    }
+                }
+
+                changedResults.Add(expiredEffectCount == 0
+                    ? zeroTickResults[racerIndex]
+                    : new PowerUpRuntimeTickResult(pair.Key, expiredEffectCount));
+                racerIndex++;
             }
 
-            return results.AsReadOnly();
+            // Effect expirations are sparse. Reusing the immutable all-zero snapshot removes
+            // the steady-state List/result/wrapper allocations from RaceDirector.FixedUpdate
+            // while preserving standalone immutable snapshots on frames that report changes.
+            return changedResults == null
+                ? zeroTickResults
+                : changedResults.AsReadOnly();
         }
 
         public ActivePowerUpEffect GetActiveEffect(
@@ -598,7 +630,7 @@ namespace Afareet.Race
                 return (null, PowerUpRuntimeUseStatus.MissingTarget);
             }
 
-            if (StringComparer.Ordinal.Equals(targetRacerId, source.RacerId))
+            if (StringComparer.Ordinal.Equals(source.RacerId, targetRacerId))
             {
                 return (null, PowerUpRuntimeUseStatus.InvalidTarget);
             }
