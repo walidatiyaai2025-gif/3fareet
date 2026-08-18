@@ -28,6 +28,14 @@ namespace Afareet.Race
 
         public void Configure(IReadOnlyList<Transform> path, int rivalIndex)
         {
+            if (path == null) throw new System.ArgumentNullException(nameof(path));
+            if (path.Count < 3) throw new System.ArgumentException("At least three waypoints are required.", nameof(path));
+            for (var index = 0; index < path.Count; index++)
+                if (path[index] == null) throw new System.ArgumentException($"Waypoint {index} is null.", nameof(path));
+
+            // The race path is immutable after runtime composition. Validate the entire path
+            // once here so FixedUpdate can use the prevalidated racing-line hot path instead
+            // of rescanning every waypoint for every rival on every physics tick.
             waypoints = path;
             var random = new System.Random(17011 + rivalIndex * 7919);
             aggression = Mathf.Lerp(.68f, .96f, (float)random.NextDouble());
@@ -88,7 +96,8 @@ namespace Afareet.Race
 
             var effectiveSkill = Mathf.Clamp(skill * difficultyTuning.PaceMultiplier, .55f, 1.25f);
             var effectiveAggression = Mathf.Clamp(aggression * difficultyTuning.AggressionMultiplier, .50f, 1.30f);
-            var racingPlan = RacingLineLookahead.Plan(waypoints, waypointIndex, Mathf.Abs(car.SpeedKph));
+            var speedKph = Mathf.Abs(car.SpeedKph);
+            var racingPlan = RacingLineLookahead.PlanPrevalidated(waypoints, waypointIndex, speedKph);
             var target = waypoints[racingPlan.AimWaypointIndex];
             var targetPosition = target.position + target.right * laneBias;
             var local = transform.InverseTransformPoint(targetPosition);
@@ -110,7 +119,7 @@ namespace Afareet.Race
             }
 
             var corner = Mathf.Max(racingPlan.SpeedPlan.Severity01, Mathf.Abs(steer));
-            var drift = corner > .48f && car.SpeedKph > 65f;
+            var drift = corner > .48f && speedKph > 65f;
             var nitro = racingPlan.UseNitro &&
                         Mathf.Abs(steer) < .22f &&
                         car.NitroEnergy > .35f &&
