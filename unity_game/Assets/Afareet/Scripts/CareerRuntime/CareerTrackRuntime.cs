@@ -5,7 +5,7 @@ namespace Afareet.CareerRuntime
     public interface ICareerTrackRuntime
     {
         string ActiveTrackId { get; }
-        bool ApplyTrack(string trackId);
+        bool ApplyTrack(string trackId, bool forceRebuild = false);
     }
 
     public sealed class PassiveCareerTrackRuntime : ICareerTrackRuntime
@@ -19,13 +19,15 @@ namespace Afareet.CareerRuntime
             ActiveTrackId = initialTrackId;
         }
 
-        public bool ApplyTrack(string trackId)
+        public bool ApplyTrack(string trackId, bool forceRebuild = false)
         {
             if (string.IsNullOrWhiteSpace(trackId))
                 throw new ArgumentException("Career track id is required.", nameof(trackId));
-            if (StringComparer.Ordinal.Equals(ActiveTrackId, trackId))
+            if (StringComparer.Ordinal.Equals(ActiveTrackId, trackId) && !forceRebuild)
                 return false;
             ActiveTrackId = trackId;
+            // Passive compatibility runtime never claims a live Unity rebuild, even when the
+            // caller explicitly requests one. Production orchestration must use the Core runtime.
             return false;
         }
     }
