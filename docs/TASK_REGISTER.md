@@ -15,7 +15,7 @@
 - `VERIFIED` تحتاج Build/Test/Device evidence حسب نوع المهمة.
 - P1 Prototype لا تغلق بدون APK Android Verified في `Last verified APK released/`.
 - **Visual Gate إلزامي:** لا يمكن إعلان P1 VERIFIED إذا كان الشكل بعيدًا عن `docs/ART_DIRECTION.md` حتى لو الكود والأداء ناجحين.
-- **External Asset Handoff Policy إلزامي:** أي مبرمج أو AI agent يكتشف Asset خارجيًا لا يمكن إنشاؤه بشكل صحيح من كود المستودع يجب أن يسجله في ملف root `ASSET_CREATION_REQUESTS.txt` في نفس الـPR/commit مع Tool + Prompt + Procedure + Paths + Acceptance + Provenance. ممنوع اختراع Production asset بديل أو تخفيف gate لإخفاء النقص.
+- **External Asset Handoff Policy إلزامي:** أي مبرمج أو AI agent يكتشف Asset خارجيًا لا يمكن إنشاؤه بشكل صحيح من كود المستودع يجب أن يسجله في ملف root canonical `EXTERNAL_ASSET_REQUESTS.txt` في نفس الـPR/commit مع Asset Name + Tool + copy-ready Prompt/Art Brief + Helper Script/Workflow + Output Path/Format + Technical Constraints + Acceptance + Provenance/License + Integration Notes. ممنوع اختراع Production asset بديل أو تخفيف gate لإخفاء النقص. `ASSET_CREATION_REQUESTS.txt` مجرد compatibility pointer ولا تُضاف له Requests.
 - **Programming Closure Mode:** حتى يطلب Owner صراحة استئناف الـvisual polish/asset production، الأولوية لإغلاق code/contracts/tests/CI/runtime defects. اكتشاف Asset ناقص يُسجل كـhandoff ولا يوقف إغلاق النواقص البرمجية الأخرى.
 - المنتج الأساسي الآن Unity 3D. حالات Flutter `VERIFIED` تاريخ هندسي ولا تعني أن Unity Feature مكتملة.
 - العمل الإنتاجي الجديد يأخذ IDs من سجل Unity؛ Flutter maintenance يأخذ `FLT-*`.
