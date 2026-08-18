@@ -52,7 +52,7 @@ class WindowsHeroHandoffPreflightTests(unittest.TestCase):
             "placeholder", "legacyprocedural", "refinementcandidates", "reviewpackaging",
             "/vehicles/", "/rivals/", "Resolve-Lod", "[char]::IsDigit",
             "MinimumVertices", "VertexBudgets", "MinimumTriangles", "TriangleBudgets",
-            "$Label Unity metadata",
+            "$Label Unity metadata", "Split-WavefrontArguments", "unterminated quoted argument",
             "Assert-TrackedFileWithMeta $mtlPath 'Hero MTL dependency'",
             "Assert-TrackedFileWithMeta $texturePath 'Hero texture dependency'",
             "READY_FOR_LICENSED_UNITY_IMPORT", "UNITY_INSPECTION_REQUIRED",
@@ -74,6 +74,24 @@ class WindowsHeroHandoffPreflightTests(unittest.TestCase):
             self.assertIn("verdict=READY_FOR_LICENSED_UNITY_IMPORT", result.stdout)
             self.assertIn("dependenciesTracked=true", result.stdout)
             self.assertIn("dependenciesPackageLocal=true", result.stdout)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_native_multiple_quoted_mtllibs_and_optioned_spaced_texture_paths_pass(self):
+        pwsh = shutil.which("pwsh")
+        if not pwsh:
+            self.skipTest("pwsh is required for native PowerShell behavior coverage")
+        root = HELPER.make_wavefront_grammar_repo()
+        try:
+            source = (HELPER.HERO_ROOT / "AfareetKing_Production.obj").as_posix()
+            result = self.run_command([pwsh, "-NoProfile", "-File", str(NATIVE), "-RepoRoot", str(root), "-Source", source])
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn("AFAREET_UART003_HERO_NATIVE_PREFLIGHT_OK", result.stdout)
+            self.assertIn("verdict=READY_FOR_LICENSED_UNITY_IMPORT", result.stdout)
+            self.assertIn("mtllibs=2", result.stdout)
+            self.assertIn("textures=1", result.stdout)
+            self.assertIn("dependenciesPackageLocal=true", result.stdout)
+            self.assertIn("verified=false", result.stdout)
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
