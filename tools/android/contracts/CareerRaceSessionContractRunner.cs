@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Afareet.CareerRuntime;
 using Afareet.Progression;
 using Afareet.Race;
@@ -15,11 +14,19 @@ internal static class CareerRaceSessionContractRunner
         public void EmitReset() => RoundReset?.Invoke();
     }
 
+    private sealed class FakeOutcomeMetrics : ICareerRaceOutcomeMetricsSource
+    {
+        public int FinalPosition { get; set; } = 1;
+        public int DriftScore { get; set; }
+        public bool FinishedSuccessfully { get; set; } = true;
+    }
+
     public static int Main()
     {
         try
         {
             Run();
+            RunFailedOutcomeContract();
             RunChallengeBalanceContract();
             RunEliminationRuntimeContract();
             Console.WriteLine("AFAREET_CAREER_RACE_SESSION_CONTRACT_OK");
@@ -93,6 +100,25 @@ internal static class CareerRaceSessionContractRunner
             threw = true;
         }
         Require(threw, "ResetSession after dispose must fail closed.");
+    }
+
+    private static void RunFailedOutcomeContract()
+    {
+        var definition = ChapterOneCareerEventContent.CreateDefinitions()[2];
+        var source = new FakeRaceEventSource();
+        var metrics = new FakeOutcomeMetrics
+        {
+            FinalPosition = 4,
+            FinishedSuccessfully = false
+        };
+        using var coordinator = new CareerRaceSessionCoordinator(source, definition, metrics);
+
+        source.EmitResults(60f);
+        Require(coordinator.HasEvaluation, "Elimination loss must still produce a results evaluation.");
+        Require(coordinator.LastEvaluation.CompletedCount == 0,
+            "Player elimination must fail finish, clean and first-place objectives even though the round reached Results.");
+        Require(!coordinator.LastEvaluation.AllCompleted,
+            "Elimination loss must never complete the Career node.");
     }
 
     private static void RunChallengeBalanceContract()
