@@ -24,17 +24,23 @@ def test_career_runtime_assembly_direction_is_one_way():
     assert "Afareet.CareerRuntime" not in progression.get("references", [])
 
 
-def test_coordinator_is_pure_and_uses_explicit_round_events():
+def test_coordinator_is_pure_and_uses_explicit_round_events_and_outcome_signal():
     source = read(CAREER_DIR / "CareerRaceSessionCoordinator.cs")
 
-    assert "interface ICareerRaceEventSource" in source
-    assert "event Action<float> ResultsReady" in source
-    assert "event Action RoundReset" in source
-    assert "CareerEventOutcome" in source
-    assert "CareerObjectiveEvaluationPolicy.Evaluate" in source
-    assert "restartCount = checked(restartCount + 1)" in source
-    assert "lastEvaluation = null" in source
-    assert "ResetSession()" in source
+    for token in (
+        "interface ICareerRaceEventSource",
+        "event Action<float> ResultsReady",
+        "event Action RoundReset",
+        "interface ICareerRaceOutcomeMetricsSource",
+        "bool FinishedSuccessfully",
+        "metricsSource is ICareerRaceOutcomeMetricsSource",
+        "CareerEventOutcome",
+        "CareerObjectiveEvaluationPolicy.Evaluate",
+        "restartCount = checked(restartCount + 1)",
+        "lastEvaluation = null",
+        "ResetSession()",
+    ):
+        assert token in source
     assert "UnityEngine" not in source
     assert "Afareet.Race" not in source
     assert "RaceRoundController" not in source
@@ -44,12 +50,17 @@ def test_coordinator_is_pure_and_uses_explicit_round_events():
 def test_race_round_adapter_has_no_global_lookup_or_persistence_side_effects():
     source = read(CAREER_DIR / "RaceRoundCareerSessionAdapter.cs")
 
-    assert "RaceRoundController" in source
-    assert "round.ResultsReady += value" in source
-    assert "round.ResultsReady -= value" in source
-    assert "round.RoundReset += value" in source
-    assert "round.RoundReset -= value" in source
-    assert "CareerRaceSessionCoordinator" in source
+    for token in (
+        "RaceDirectorCareerMetricsSource : ICareerRaceOutcomeMetricsSource",
+        "public bool FinishedSuccessfully => !director.WasPlayerEliminated",
+        "RaceRoundController",
+        "round.ResultsReady += value",
+        "round.ResultsReady -= value",
+        "round.RoundReset += value",
+        "round.RoundReset -= value",
+        "CareerRaceSessionCoordinator",
+    ):
+        assert token in source
     for forbidden in (
         "FindObjectOfType",
         "FindFirstObjectByType",
@@ -76,6 +87,7 @@ def test_game_session_exposes_navigation_without_mutating_active_event_on_select
         "navigationService.Move(Navigation, delta)",
         "RefreshNavigation(activeDefinition.Node.Id)",
         "RefreshNavigation(selectedNodeId)",
+        "finished: !race.WasPlayerEliminated",
     ):
         assert token in source
 
@@ -107,21 +119,50 @@ def test_ai_racer_difficulty_hook_preserves_deterministic_base_profile():
     assert "Random.Range" not in source
 
 
-def test_race_director_applies_challenge_roster_only_in_safe_phases():
+def test_elimination_domain_is_pure_deterministic_and_idempotent():
+    source = read(RACE_DIR / "EliminationRaceRuntime.cs")
+    assert "UnityEngine" not in source
+    for token in (
+        "sealed class EliminationDecision",
+        "sealed class EliminationRaceRuntime",
+        "EliminationGatePolicy.Build(checkpointCount, eliminationCount)",
+        "processedGates.Contains(checkpointIndex)",
+        "processedGates.Add(checkpointIndex)",
+        "new HashSet<string>(StringComparer.Ordinal)",
+        "active[active.Count - 1]",
+        "eliminatedRacerIds.Add(eliminated)",
+        "public void Reset()",
+    ):
+        assert token in source
+
+
+def test_race_director_applies_challenge_roster_and_live_elimination_only_in_safe_paths():
     source = read(RACE_DIR / "RaceDirector.cs")
 
     for token in (
         "private RaceChallengeConfiguration challengeConfiguration = RaceChallengeConfiguration.Standard",
         "private bool challengeRosterDirty = true",
+        "private EliminationRaceRuntime eliminationRuntime",
         "public RaceChallengeConfiguration ChallengeConfiguration => challengeConfiguration",
         "public int RequestedActiveRivalCount => challengeConfiguration.ActiveRivalCount",
-        "public int ActiveRivalCount => Math.Max(0, racers.Count - 1)",
+        "public int ActiveRivalCount => CountActiveRivals()",
+        "public bool WasPlayerEliminated => playerWasEliminated",
         "public void ApplyChallengeConfiguration(RaceChallengeConfiguration configuration)",
         "Phase == RaceRoundPhase.Countdown || Phase == RaceRoundPhase.Racing",
         "RebuildChallengeRoster()",
         "Math.Min(challengeConfiguration.ActiveRivalCount, registeredRivals.Count)",
         "rival.gameObject.SetActive(false)",
         "ai.ApplyDifficultyTuning(challengeConfiguration.AiDifficulty)",
+        "ResetEliminationRuntime()",
+        "new EliminationRaceRuntime(track.Waypoints.Count, racers.Count - 1)",
+        "CheckpointAccepted += runtime.CheckpointAcceptedHandler",
+        "CheckpointAccepted -= runtime.CheckpointAcceptedHandler",
+        "eliminationRuntime.TryResolveGate",
+        "runtime.Eliminated = true",
+        "playerEliminationPosition = decision.FieldSizeBeforeElimination",
+        "round.CompleteRoundExternally(eliminationTime)",
+        "playerFinishRewardSnapshot = playerWasEliminated",
+        "if (runtime.Eliminated) continue",
     ):
         assert token in source
 
@@ -131,6 +172,18 @@ def test_race_director_applies_challenge_roster_only_in_safe_phases():
     assert "RaceRoundPhase.Ready" in apply_block
     assert "Afareet.Progression" not in source
     assert "Afareet.CareerRuntime" not in source
+
+
+def test_round_controller_supports_external_results_without_bypassing_flow_state():
+    source = read(RACE_DIR / "RaceRoundController.cs")
+    for token in (
+        "public bool CompleteRoundExternally(float finishTime)",
+        "if (flow.Phase != RaceRoundPhase.Racing)",
+        "flow.Finish(finishTime)",
+        "ResultsReady?.Invoke(finishTime)",
+        "CompleteRoundExternally(finishTime)",
+    ):
+        assert token in source
 
 
 def test_career_game_session_applies_node_balance_on_initial_bind_and_advance():
@@ -153,20 +206,26 @@ def test_career_game_session_applies_node_balance_on_initial_bind_and_advance():
 
 def test_existing_race_and_progression_assemblies_remain_decoupled():
     race_source = read(RACE_DIR / "RaceDirector.cs")
+    elimination_source = read(RACE_DIR / "EliminationRaceRuntime.cs")
     progression_source = read(PROGRESSION_DIR / "CareerObjectiveEvaluation.cs")
 
     assert "Afareet.Progression" not in race_source
     assert "Afareet.CareerRuntime" not in race_source
+    assert "Afareet.Progression" not in elimination_source
+    assert "Afareet.CareerRuntime" not in elimination_source
     assert "Afareet.Race" not in progression_source
     assert "Afareet.CareerRuntime" not in progression_source
 
 
-def test_contract_projects_compile_authoritative_coordinator_source():
+def test_contract_projects_compile_authoritative_coordinator_and_elimination_sources():
     compile_project = read(ROOT / "tools" / "android" / "contracts" / "CareerRaceSessionCompile.csproj")
     runner_project = read(ROOT / "tools" / "android" / "contracts" / "CareerRaceSessionContractRunner.csproj")
 
-    expected = "../../../unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerRaceSessionCoordinator.cs"
-    assert expected in compile_project
-    assert expected in runner_project
+    coordinator = "../../../unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerRaceSessionCoordinator.cs"
+    elimination = "../../../unity_game/Assets/Afareet/Scripts/Race/EliminationRaceRuntime.cs"
+    assert coordinator in compile_project
+    assert coordinator in runner_project
+    assert elimination in compile_project
+    assert elimination in runner_project
     assert "RaceRoundCareerSessionAdapter.cs" not in compile_project
     assert "RaceRoundCareerSessionAdapter.cs" not in runner_project
