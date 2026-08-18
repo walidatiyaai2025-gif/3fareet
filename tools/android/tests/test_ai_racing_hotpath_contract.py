@@ -5,6 +5,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AI_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Race/AiRacer.cs"
 LOOKAHEAD_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Race/RacingLineLookahead.cs"
+DIRECTOR_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs"
 
 
 class AiRacingHotPathContractTests(unittest.TestCase):
@@ -50,6 +51,51 @@ class AiRacingHotPathContractTests(unittest.TestCase):
         self.assertIn("return PlanPrevalidated(waypoints, targetIndex, speedKph, lookAhead);", public_plan)
         self.assertIn("for (var i = 0; i < waypoints.Count; i++)", source)
         self.assertIn("if (waypoints[i] == null)", source)
+
+    def test_ai_powerup_cadence_shares_one_live_ranking_snapshot(self):
+        source = DIRECTOR_PATH.read_text(encoding="utf-8")
+
+        execute_start = source.index("internal AiPowerUpExecutionResult ExecuteBoundAiPowerUp")
+        execute_end = source.index("private bool CanRacerUsePowerUp", execute_start)
+        execute = source[execute_start:execute_end]
+        fixed_start = source.index("private void FixedUpdate()")
+        fixed_end = source.index("private void RebuildChallengeRoster()", fixed_start)
+        fixed_update = source[fixed_start:fixed_end]
+
+        self.assertIn(
+            "private IReadOnlyList<RankedRaceEntry> aiDecisionRankedSnapshot;",
+            source,
+        )
+        self.assertIn(
+            "var ranked = aiDecisionRankedSnapshot ?? BuildRankedRace();",
+            execute,
+        )
+        self.assertNotIn("var ranked = BuildRankedRace();", execute)
+
+        # The cadence is lazy: no active AI means no ranking allocation. Once the first
+        # eligible AI is reached, every subsequent AI in the same batch reuses the same list.
+        self.assertIn("aiDecisionRankedSnapshot ??= BuildRankedRace();", fixed_update)
+        self.assertEqual(fixed_update.count("BuildRankedRace()"), 1)
+        self.assertIn("var execution = ai.EvaluateBoundPowerUpDecision();", fixed_update)
+
+        # try/finally prevents a stale batch snapshot from leaking to player/UI/external calls,
+        # including when one AI decision throws before the loop completes.
+        self.assertIn("try", fixed_update)
+        self.assertIn("finally", fixed_update)
+        self.assertGreaterEqual(fixed_update.count("aiDecisionRankedSnapshot = null;"), 2)
+
+    def test_parallel_branch_preserves_codex_reset_pose_fix(self):
+        source = DIRECTOR_PATH.read_text(encoding="utf-8")
+        reset_start = source.index("private void ResetRacersToGrid()")
+        reset_end = source.index("private IReadOnlyList<RankedRaceEntry> BuildRankedRace()", reset_start)
+        reset = source[reset_start:reset_end]
+
+        self.assertIn("body.position = targetPosition;", reset)
+        self.assertIn("body.rotation = rotation;", reset)
+        self.assertIn(
+            "runtime.Car.transform.SetPositionAndRotation(targetPosition, rotation);",
+            reset,
+        )
 
 
 if __name__ == "__main__":
