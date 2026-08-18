@@ -100,7 +100,16 @@ def _load_sibling(module_name: str, file_name: str):
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load preflight module: {module_path}")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous_module = sys.modules.get(module_name)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        if previous_module is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous_module
+        raise
     return module
 
 
