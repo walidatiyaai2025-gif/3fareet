@@ -32,6 +32,7 @@ internal static class CareerRaceSessionContractRunner
             RunChallengeBalanceContract();
             RunEliminationRuntimeContract();
             RunTrackCatalogContract();
+            RunBossVehicleRuntimeContract();
             Console.WriteLine("AFAREET_CAREER_RACE_SESSION_CONTRACT_OK");
             return 0;
         }
@@ -219,6 +220,30 @@ internal static class CareerRaceSessionContractRunner
             "Compatibility TrackId runtime must never claim it rebuilt live race geometry.");
         Require(passive.ActiveTrackId == CairoCareerTrackCatalog.CornicheNightId,
             "Compatibility TrackId runtime must still retain the selected stable id.");
+    }
+
+    private static void RunBossVehicleRuntimeContract()
+    {
+        var bossNode = ChapterOneCareerContent.CreateFoundation().Nodes[4];
+        Require(bossNode.Mode == CareerRaceMode.Boss, "Retained fifth Chapter 1 node must remain Boss mode.");
+        Require(bossNode.BossVehicleId == "djinn_spirit", "Retained BossVehicleId must remain djinn_spirit.");
+
+        var passive = new PassiveCareerBossVehicleRuntime();
+        Require(passive.ActiveBossVehicleId == null, "Passive boss runtime must start clear.");
+        Require(!passive.ApplyBossVehicle(bossNode.BossVehicleId),
+            "Compatibility boss runtime must never claim it mutated live Unity state.");
+        Require(passive.ActiveBossVehicleId == "djinn_spirit",
+            "Passive boss runtime must retain the stable BossVehicleId for contract compatibility.");
+        Require(!passive.ApplyBossVehicle("djinn_spirit"),
+            "Repeated BossVehicleId apply must be idempotent.");
+        Require(!passive.ClearBossVehicle(),
+            "Compatibility boss runtime clear must not claim live mutation.");
+        Require(passive.ActiveBossVehicleId == null,
+            "Boss runtime clear must remove the active stable ID.");
+        Require(!passive.ClearBossVehicle(), "Repeated boss clear must remain idempotent.");
+        RequireThrows<ArgumentException>(
+            () => passive.ApplyBossVehicle(" "),
+            "Blank BossVehicleId must fail closed.");
     }
 
     private static void RequireChallenge(
