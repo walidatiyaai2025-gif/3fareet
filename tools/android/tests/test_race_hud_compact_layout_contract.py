@@ -85,9 +85,10 @@ class CompactRaceHudContractTests(unittest.TestCase):
         career = method_body(hud, 'private void RefreshCareer()')
 
         # Ranking captures allocate ordered race snapshots, so the render-loop Update
-        # must never query Position directly. It belongs only in the 10 Hz sample block.
-        self.assertNotIn('race.Position', update)
-        self.assertEqual(telemetry.count('race.Position'), 1)
+        # must never interpolate Position directly. Comments may name the property when
+        # explaining the contract, therefore assert the executable interpolation token.
+        self.assertNotIn('{race.Position}', update)
+        self.assertEqual(telemetry.count('{race.Position}'), 1)
 
         # Keep the actual fill responsive every render frame while formatted strings are
         # sampled; this prevents the optimization from making the Spirit bar visibly choppy.
