@@ -87,6 +87,26 @@ def test_game_session_exposes_navigation_without_mutating_active_event_on_select
         assert "StartRace" not in block
 
 
+def test_ai_racer_difficulty_hook_preserves_deterministic_base_profile():
+    source = read(RACE_DIR / "AiRacer.cs")
+
+    for token in (
+        "private AiDifficultyTuning difficultyTuning = AiDifficultyTuning.Standard",
+        "public AiDifficultyTuning DifficultyTuning => difficultyTuning",
+        "public void ApplyDifficultyTuning(AiDifficultyTuning tuning)",
+        "difficultyTuning = tuning",
+        "skill * difficultyTuning.PaceMultiplier",
+        "aggression * difficultyTuning.AggressionMultiplier",
+        "ComputeAvoidance(effectiveAggression",
+    ):
+        assert token in source
+
+    configure_block = source.split("public void Configure", 1)[1].split("public void ApplyDifficultyTuning", 1)[0]
+    assert "new System.Random(17011 + rivalIndex * 7919)" in configure_block
+    assert "difficultyTuning" not in configure_block
+    assert "Random.Range" not in source
+
+
 def test_existing_race_and_progression_assemblies_remain_decoupled():
     race_source = read(RACE_DIR / "RaceDirector.cs")
     progression_source = read(PROGRESSION_DIR / "CareerObjectiveEvaluation.cs")
