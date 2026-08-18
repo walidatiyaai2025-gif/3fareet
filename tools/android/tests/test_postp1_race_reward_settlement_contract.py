@@ -32,6 +32,8 @@ class PostP1RaceRewardSettlementContractTests(unittest.TestCase):
         enchanted = defaults[start:end]
 
         self.assertIn("magnitude: 2d", enchanted)
+        self.assertIn("initialCharges: 1", enchanted)
+        self.assertIn("durationSeconds: 8d", enchanted)
         self.assertIn("legacy PR #9", defaults)
 
     def test_race_director_captures_successful_finish_snapshot_before_results_cleanup_and_suppresses_elimination(self):
@@ -65,6 +67,61 @@ class PostP1RaceRewardSettlementContractTests(unittest.TestCase):
         self.assertLess(successful_capture, drive_reset)
         self.assertLess(successful_capture, publish)
 
+    def test_career_wallet_application_is_pure_and_rejects_phantom_or_reduced_coin_grants(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerPlayerProfileRewardApplication.cs")
+        self.assertNotIn("UnityEngine", source)
+        self.assertNotIn("Afareet.Race", source)
+        for required in (
+            "ApplyWithSettledCoins",
+            "ValidateSettledCoins",
+            "baseCoinsGranted == 0 && settledCoinsGranted != 0",
+            "settledCoinsGranted < baseCoinsGranted",
+            "nextCoins = profile.Coins + settledCoinsGranted",
+            "nextSpirit = profile.Spirit + settlement.SpiritGranted",
+            "settlement.UnlockedVehicleIds",
+        ):
+            self.assertIn(required, source)
+
+        meta = self._read("unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerPlayerProfileRewardApplication.cs.meta")
+        self.assertIn("fileFormatVersion: 2", meta)
+        self.assertIn("guid:", meta)
+
+    def test_career_session_applies_multiplier_only_to_successful_new_coin_claims(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGameSession.cs")
+        for required in (
+            "public RaceRewardSettlement LastCoinRewardSettlement",
+            "LastCoinRewardSettlement = null;",
+            "settlement.CoinsGranted > 0 && outcome.Finished",
+            "race.SettlePlayerFinishReward(settlement.CoinsGranted)",
+            "LastCoinRewardSettlement.SettledRewardUnits",
+            "CareerPlayerProfileRewardApplication.ApplyWithSettledCoins(",
+        ):
+            self.assertIn(required, source)
+
+        handler_start = source.index("private void OnResultsReady(float finishTime)")
+        handler_end = source.index("private void MarkCampaignCompleteIfNeeded()", handler_start)
+        handler = source[handler_start:handler_end]
+        gate = handler.index("settlement.CoinsGranted > 0 && outcome.Finished")
+        settle = handler.index("race.SettlePlayerFinishReward(settlement.CoinsGranted)")
+        wallet = handler.index("CareerPlayerProfileRewardApplication.ApplyWithSettledCoins")
+        self.assertLess(gate, settle)
+        self.assertLess(settle, wallet)
+
+    def test_live_playmode_contract_covers_first_claim_and_replay_idempotence(self):
+        tests = self._read("unity_game/Assets/Afareet/Tests/PlayMode/CareerRewardMultiplierPlayModeTests.cs")
+        meta = self._read("unity_game/Assets/Afareet/Tests/PlayMode/CareerRewardMultiplierPlayModeTests.cs.meta")
+        for required in (
+            "EnchantedPound_DoublesFirstClaimedCoinsAndReplayGrantsNothing",
+            "TryUsePlayerPowerUp(PowerUpKind.EnchantedPound)",
+            "LastCoinRewardSettlement.SettledRewardUnits",
+            "career.Profile.Coins, Is.EqualTo(500)",
+            "career.LastSettlement.CoinsGranted, Is.Zero",
+            "career.LastCoinRewardSettlement, Is.Null",
+        ):
+            self.assertIn(required, tests)
+        self.assertIn("fileFormatVersion: 2", meta)
+        self.assertIn("guid:", meta)
+
     def test_settlement_tests_and_metadata_are_present(self):
         tests = self._read("unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs")
         meta = self._read("unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRewardSettlementTests.cs.meta")
@@ -80,22 +137,30 @@ class PostP1RaceRewardSettlementContractTests(unittest.TestCase):
         self.assertIn("fileFormatVersion: 2", meta)
         self.assertIn("guid:", meta)
 
-    def test_compile_and_executable_contract_cover_reward_source(self):
+    def test_compile_and_executable_contract_cover_reward_source_and_career_wallet(self):
         runtime_project = self._read("tools/android/contracts/PowerUpRuntimeCompile.csproj")
         runner_project = self._read("tools/android/contracts/RaceRewardSettlementContractRunner.csproj")
         runner = self._read("tools/android/contracts/RaceRewardSettlementContractRunner.cs")
 
         self.assertIn("RaceRewardSettlement.cs", runtime_project)
         self.assertIn("<TargetFramework>net8.0</TargetFramework>", runner_project)
-        self.assertIn("RaceRewardSettlement.cs", runner_project)
+        for required in (
+            "RaceRewardSettlement.cs",
+            "CareerPlayerProfile.cs",
+            "CareerPlayerProfileRewardApplication.cs",
+            "CareerEventSettlement.cs",
+        ):
+            self.assertIn(required, runner_project)
         self.assertIn("<BaseIntermediateOutputPath>obj/RaceRewardSettlementContractRunner/</BaseIntermediateOutputPath>", runner_project)
 
         for required in (
             "LegacyParityContract();",
             "RuntimeSettlementContract();",
             "SnapshotSurvivesResetContract();",
+            "CareerWalletApplicationContract();",
             "RoundingContract();",
             "InvalidAndOverflowContract();",
+            "CareerPlayerProfileRewardApplication.ApplyWithSettledCoins",
             "Race reward settlement behavior contract: PASS",
         ):
             self.assertIn(required, runner)
