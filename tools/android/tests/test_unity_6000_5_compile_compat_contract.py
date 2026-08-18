@@ -17,6 +17,12 @@ RUNTIME_ID_FILES = [
     REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoRoadCurbMobileLodRuntimePass.cs",
     REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoStreetKitMobileLodRuntimePass.cs",
 ]
+ANDROID_BUILD_TARGET_GATES = [
+    REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkMaterialDependencyGate.cs",
+    REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionRoadsideClutterBuildGate.cs",
+    REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingMaterialDependencyGate.cs",
+    REPO_ROOT / "unity_game/Assets/Afareet/Editor/P1ProductionWorldMaterialDependencyGate.cs",
+]
 TRACK_BUILDER = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/World/CairoTrackBuilder.cs"
 RIVAL_VARIANT_PASS = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Vehicle/RivalVariantPass.cs"
 
@@ -37,6 +43,16 @@ class Unity60005CompileCompatContractTests(unittest.TestCase):
                 "using Afareet.Progression;",
                 source,
                 msg=f"{path.relative_to(REPO_ROOT)} must import Afareet.Progression",
+            )
+
+    def test_android_build_target_gates_import_unityeditor_namespace(self):
+        for path in ANDROID_BUILD_TARGET_GATES:
+            source = path.read_text(encoding="utf-8-sig")
+            self.assertIn("BuildTarget.Android", source)
+            self.assertRegex(
+                source,
+                r"(?m)^using\s+UnityEditor;\s*$",
+                msg=f"{path.relative_to(REPO_ROOT)} uses BuildTarget but does not import UnityEditor",
             )
 
     def test_runtime_passes_do_not_call_obsolete_get_instance_id(self):
