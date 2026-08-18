@@ -88,28 +88,33 @@ BLOCKS: UART-004 / Issue #128 / UPER-009
 ASSET NAME: Three final production Rival vehicle sources (distinct silhouettes)
 PURPOSE: Replace Editor-only authored-review / blockout fallback with deterministic production Rival assets for the Android candidate.
 TOOL: Blender 4.x LTS or newer. Optional Substance 3D Painter / ArmorPaint / Krita for texture authoring.
-HELPER SCRIPT / WORKFLOW: Engineering owns source validation, Unity import normalization, production prefab staging, provenance and runtime binding. Artist should author geometry; do not use runtime primitives as final vehicle art.
+HELPER SCRIPT / WORKFLOW: Engineering owns source validation, Unity import normalization, production prefab staging, provenance and runtime binding. Step 28 isolates automated production staging under Assets/Afareet/ArtSource/Vehicles/Rivals/Production/ and consumes three exact final OBJ exchange files; artist should author geometry and must not use runtime primitives or the existing review OBJ candidates as final vehicle art.
 OUTPUT / DESTINATION:
-- Editable .blend source per vehicle or one clearly organized master .blend
-- Export each vehicle with three explicit LODs, preferably separate FBX files or a hierarchy Unity preserves deterministically
-- Target source area: Assets/Afareet/ArtSource/Vehicles/Rivals/Production/
+- Editable source: one .blend per Rival or one clearly organized master .blend; retain this as the authoritative DCC source.
+- Optional archival/interchange FBX per Rival is encouraged for hierarchy inspection, but the current deterministic Unity production stager consumes the exact OBJ exchanges below.
+- Required final Unity exchange: Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj
+- Required final Unity exchange: Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj
+- Required final Unity exchange: Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj
+- Each production OBJ must contain independently identifiable LOD0/LOD1/LOD2 authored object groups/material signatures so RivalImportedLodResolver can bind exact imported Mesh/Material sub-assets even when Unity flattens the Model Prefab hierarchy.
 - Production prefab targets remain under Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/
 CREATION PROMPT / ART BRIEF:
-"Create three original mobile-ready supernatural street-racing Rival vehicles for 3FAREET. They must read as three different competitors at chase-camera distance: Rival 01 Wedge Coupe — low, angular, aggressive wedge silhouette; Rival 02 Fastback Muscle — wider, heavier fastback/muscle silhouette; Rival 03 Compact Prototype — shorter, agile futuristic compact silhouette. Preserve the Cairo-night / spirit-racing visual language without copying real manufacturer designs. Each vehicle needs authored body surfaces, four wheels/tires/rims, glass, front/rear lights, readable aero identity and restrained emissive accents. Produce LOD0, LOD1 and LOD2 for every vehicle with preserved silhouette and decreasing complexity. Use meters, applied transforms, centered origin, grounded wheels, deterministic material slots, UV0, authored normals and mobile-friendly texture sets. Export the LODs in a Unity-friendly deterministic package where each LOD remains independently identifiable after import. Do not merge the three LODs into one anonymous mesh named default. Do not include third-party copyrighted logos or unknown-license kitbash parts."
+"Create three original mobile-ready supernatural street-racing Rival vehicles for 3FAREET. They must read as three different competitors at chase-camera distance: Rival 01 Wedge Coupe — low, angular, aggressive wedge silhouette; Rival 02 Fastback Muscle — wider, heavier fastback/muscle silhouette; Rival 03 Compact Prototype — shorter, agile futuristic compact silhouette. Preserve the Cairo-night / spirit-racing visual language without copying real manufacturer designs. Each vehicle needs authored body surfaces, four wheels/tires/rims, glass, front/rear lights, readable aero identity and restrained emissive accents. Produce LOD0, LOD1 and LOD2 for every vehicle with preserved silhouette and decreasing complexity. Use meters, applied transforms, centered origin, grounded wheels, deterministic material slots, UV0, authored normals and mobile-friendly texture sets. Keep editable Blender source and, if useful, FBX interchange copies. For the tracked Unity production handoff, export exactly three final OBJ files named Rival_01_WedgeCoupe_Production.obj, Rival_02_FastbackMuscle_Production.obj and Rival_03_CompactPrototype_Production.obj into Assets/Afareet/ArtSource/Vehicles/Rivals/Production/. Each OBJ must preserve explicit LOD0/LOD1/LOD2 object names and deterministic material assignments; do not collapse the three LODs into one anonymous default mesh. Do not reuse the existing review OBJ candidates as production, and do not include third-party copyrighted logos or unknown-license kitbash parts."
 TECHNICAL CONSTRAINTS:
 - Three genuinely different silhouettes.
-- Exactly LOD0/1/2 per vehicle.
-- Separate/import-stable LOD identity is mandatory; Unity 6000.5 currently flattens the legacy combined OBJ packaging.
-- UV0, normals, texture-mapped materials, stable naming and stable source GUID chain required.
-- Mobile triangle budgets must remain within project policy; engineering validator is authoritative.
+- Exactly LOD0/1/2 per vehicle with explicit import-stable names/material signatures.
+- Unity 6000.5 may flatten the OBJ Model Prefab hierarchy; source identity must still allow RivalImportedLodResolver to recover exact imported Mesh/Material sub-assets and triangle signatures.
+- UV0, authored normals, texture-mapped materials, stable naming and stable Unity source GUID/dependency-hash chain required.
+- Current authoritative Rival production policy defines triangle ranges only: LOD0 1800–16000 triangles; LOD1 800–8000; LOD2 350–4000. Do not invent or claim a vertex acceptance range that is not in RivalProductionPolicy; engineering/Unity validation is authoritative.
+- Review/Generated/Preview/Refinement/Blockout sources are not production-authority paths and cannot satisfy this request.
 ACCEPTANCE CRITERIA:
-- Production sources + .meta committed.
-- Production prefabs stage deterministically and pass UART-004 build gate.
+- Editable source/provenance delivered and the three exact production OBJ exchanges + .meta files committed under Assets/Afareet/ArtSource/Vehicles/Rivals/Production/.
+- Read-only production source preflight succeeds for all three distinct sources before any prefab staging mutation.
+- Production prefabs stage deterministically, bind exact source GUID/dependency hashes and pass UART-004 build gate.
 - Runtime logs production Rival active for variants 1/2/3; no review/blockout fallback.
 - Exact Android candidate shows all three correctly.
 - Owner acceptance recorded.
 PROVENANCE / LICENSE: Original/commissioned or explicitly licensed for commercial modification, source storage and redistribution in game builds.
-INTEGRATION NOTES: Current review packaging exists only to let the Editor show authored source; it is not production acceptance.
+INTEGRATION NOTES: Current `Rival_01_WedgeCoupe.obj`, `Rival_02_FastbackMuscle.obj` and `Rival_03_CompactPrototype.obj` remain authored-review candidates only. Step 28 deliberately isolates them from production source authority; copying/renaming/rebinding the review geometry does not satisfy this request.
 
 ======================================================================
 ACTIVE REQUEST 003
