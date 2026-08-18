@@ -32,7 +32,8 @@ class P1FinalGatePlanCurrentStateContractTests(unittest.TestCase):
         text = PLAN.read_text(encoding="utf-8")
         self.assertIn("candidate_ref`: `agent/p1-remediation-convergence`", text)
         self.assertIn("git reset --hard origin/agent/p1-remediation-convergence", text)
-        self.assertIn("before #144 is allowed to merge", text)
+        self.assertIn("convergence ref is the correct choice", text)
+        self.assertIn("#144 is allowed to merge", text)
         self.assertIn("actual licensed job must execute", text)
         self.assertIn("licensed job `SKIPPED` is not licensed proof", text)
         self.assertNotIn("Enter the then-current reviewed full SHA of `agent/unblock-final-5`", text)
@@ -47,11 +48,12 @@ class P1FinalGatePlanCurrentStateContractTests(unittest.TestCase):
             "verify_p1_production_art.py",
             "verify_release_with_production_art.py",
             "ELIGIBLE_FOR_MANUAL_PUBLICATION_WITH_PRODUCTION_ART_AND_SMOKE_METRICS",
-            "UPER-010 remains the release owner's final manual publication decision",
+            "remains the release owner's final manual publication decision",
         ):
             self.assertIn(required, text)
 
         self.assertIn("Do **not** use `verify_release_publication.py` alone as the final P1 publication command", text)
+        self.assertIn("UPER-010", text)
         self.assertIn("verified=false", text)
 
     def test_plan_keeps_uart004_evidence_bound_to_exact_exchange_sources(self):
