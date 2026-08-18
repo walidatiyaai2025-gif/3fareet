@@ -158,6 +158,30 @@ class RivalProductionHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(MODULE.HandoffError, "not texture-mapped"):
                 MODULE.validate_mtl_and_textures(path, parsed)
 
+    def test_nested_mtl_texture_reference_resolves_relative_to_mtl_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            package = Path(directory)
+            materials = package / "materials"
+            textures = package / "textures"
+            materials.mkdir()
+            textures.mkdir()
+            (textures / "rival_albedo.png").write_bytes(b"texture")
+            mtl = materials / "rival_1.mtl"
+            mtl.write_text(
+                "\n".join(
+                    line
+                    for lod in range(3)
+                    for line in (f"newmtl Mat_LOD{lod}", "Kd 1 1 1", "map_Kd ../textures/rival_albedo.png")
+                ) + "\n",
+                encoding="utf-8",
+            )
+            path = self.write_obj(package, 0, mtl_reference="materials/rival_1.mtl")
+            parsed = MODULE.parse_obj(path, self.policy, 0)
+            reports = MODULE.validate_mtl_and_textures(path, parsed)
+
+        self.assertEqual(reports[0]["fileName"], "materials/rival_1.mtl")
+        self.assertEqual(reports[0]["textures"], ["../textures/rival_albedo.png"])
+
     def test_mtllib_cannot_escape_handoff_package_even_if_target_exists(self):
         with tempfile.TemporaryDirectory() as directory:
             outer = Path(directory)
@@ -165,6 +189,27 @@ class RivalProductionHandoffTests(unittest.TestCase):
             package.mkdir()
             self.write_mtl(outer, "outside.mtl")
             path = self.write_obj(package, 0, mtl_reference="../outside.mtl")
+            parsed = MODULE.parse_obj(path, self.policy, 0)
+            with self.assertRaisesRegex(MODULE.HandoffError, "escapes the handoff package root"):
+                MODULE.validate_mtl_and_textures(path, parsed)
+
+    def test_nested_mtl_texture_cannot_escape_package_from_its_own_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            outer = Path(directory)
+            package = outer / "package"
+            materials = package / "materials"
+            materials.mkdir(parents=True)
+            (outer / "outside.png").write_bytes(b"outside")
+            mtl = materials / "rival_1.mtl"
+            mtl.write_text(
+                "\n".join(
+                    line
+                    for lod in range(3)
+                    for line in (f"newmtl Mat_LOD{lod}", "map_Kd ../../outside.png")
+                ) + "\n",
+                encoding="utf-8",
+            )
+            path = self.write_obj(package, 0, mtl_reference="materials/rival_1.mtl")
             parsed = MODULE.parse_obj(path, self.policy, 0)
             with self.assertRaisesRegex(MODULE.HandoffError, "escapes the handoff package root"):
                 MODULE.validate_mtl_and_textures(path, parsed)
@@ -183,7 +228,7 @@ class RivalProductionHandoffTests(unittest.TestCase):
 
     def test_drive_qualified_dependency_is_rejected_portably(self):
         with self.assertRaisesRegex(MODULE.HandoffError, "drive-qualified"):
-            MODULE._resolve_local_dependency(Path("."), "C:/outside/material.mtl", label="mtllib")
+            MODULE._resolve_local_dependency(Path("."), Path("."), "C:/outside/material.mtl", label="mtllib")
 
     def test_source_contract_never_claims_production_or_owner_verification(self):
         source = MODULE_PATH.read_text(encoding="utf-8")
@@ -197,6 +242,7 @@ class RivalProductionHandoffTests(unittest.TestCase):
             '"verified": False',
             "TECHNICAL_SOURCE_PREFLIGHT_ONLY_LICENSE_VISUAL_UNITY_DEVICE_OWNER_GATES_REQUIRED",
             "dependenciesPackageLocal",
+            "mtl_path.parent",
         ):
             self.assertIn(required, source)
         for forbidden in ('"productionGate": True', '"ownerApproval": True', '"verified": True'):
