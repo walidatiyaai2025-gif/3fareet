@@ -17,7 +17,7 @@ def test_career_runtime_assembly_direction_is_one_way():
     race = json.loads(read(RACE_DIR / "Afareet.Race.asmdef"))
     progression = json.loads(read(PROGRESSION_DIR / "Afareet.Progression.asmdef"))
 
-    assert set(career["references"]) == {"Afareet.Race", "Afareet.Progression"}
+    assert set(career["references"]) == {"Afareet.Race", "Afareet.Progression", "Afareet.GarageRuntime"}
     assert "Afareet.Progression" not in race.get("references", [])
     assert "Afareet.CareerRuntime" not in race.get("references", [])
     assert "Afareet.Race" not in progression.get("references", [])
@@ -229,3 +229,19 @@ def test_contract_projects_compile_authoritative_coordinator_and_elimination_sou
     assert elimination in runner_project
     assert "RaceRoundCareerSessionAdapter.cs" not in compile_project
     assert "RaceRoundCareerSessionAdapter.cs" not in runner_project
+
+
+def main():
+    tests = sorted(
+        (name, value)
+        for name, value in globals().items()
+        if name.startswith("test_") and callable(value)
+    )
+    for name, test in tests:
+        test()
+        print(f"PASS {name}")
+    print(f"AFAREET_CAREER_RACE_SOURCE_CONTRACT_OK tests={len(tests)}")
+
+
+if __name__ == "__main__":
+    main()
