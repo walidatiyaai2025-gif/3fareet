@@ -159,6 +159,66 @@ namespace Afareet.CareerRuntime
             return Navigation;
         }
 
+        public bool TryActivateSelectedEvent()
+        {
+            EnsureConfigured();
+            if (race.Phase == RaceRoundPhase.Countdown || race.Phase == RaceRoundPhase.Racing)
+                return false;
+
+            var selected = Navigation.SelectedNode;
+            if (selected == null || selected.State == CareerNodeState.Locked)
+                return false;
+
+            var next = FindDefinition(selected.Node.Id);
+            if (next == null)
+                throw new InvalidOperationException($"Selected Career node '{selected.Node.Id}' has no event definition.");
+
+            if (race.Phase == RaceRoundPhase.Ready &&
+                activeDefinition != null &&
+                StringComparer.Ordinal.Equals(activeDefinition.Node.Id, next.Node.Id))
+            {
+                return false;
+            }
+
+            var previousChallenge = race.ChallengeConfiguration;
+            var previousTrackId = trackRuntime.ActiveTrackId;
+            var previousBossVehicleId = bossVehicleRuntime.ActiveBossVehicleId;
+            var forceTrackRebuild = race.Phase == RaceRoundPhase.Results;
+            var trackApplied = false;
+
+            try
+            {
+                // Apply all reversible runtime configuration before the TrackId rebuild. A forced
+                // rebuild in Results transitions RaceDirector back to Ready, so no fallible runtime
+                // mutation is allowed after it succeeds.
+                ApplyChallengeConfiguration(next);
+                ApplyBossVehicleConfiguration(next);
+                trackApplied = trackRuntime.ApplyTrack(next.Node.TrackId, forceTrackRebuild);
+
+                if (forceTrackRebuild && race.Phase != RaceRoundPhase.Ready)
+                {
+                    RestoreActivationRuntime(previousTrackId, previousChallenge, previousBossVehicleId);
+                    return false;
+                }
+            }
+            catch
+            {
+                if (!trackApplied || race.Phase != RaceRoundPhase.Ready)
+                    RestoreActivationRuntime(previousTrackId, previousChallenge, previousBossVehicleId);
+                throw;
+            }
+
+            adapter?.Dispose();
+            adapter = null;
+            activeDefinition = next;
+            LastSettlement = null;
+            LastCoinRewardSettlement = null;
+            BindAdapter(activeDefinition);
+            RefreshNavigation(activeDefinition.Node.Id);
+            ActiveEventChanged?.Invoke(activeDefinition);
+            return true;
+        }
+
         public bool TryAdvanceToNextEvent()
         {
             EnsureConfigured();
@@ -291,10 +351,34 @@ namespace Afareet.CareerRuntime
                 bossVehicleRuntime.ApplyBossVehicle(previousBossVehicleId);
         }
 
+        private void RestoreActivationRuntime(
+            string previousTrackId,
+            RaceChallengeConfiguration previousChallenge,
+            string previousBossVehicleId)
+        {
+            if (!string.IsNullOrWhiteSpace(previousTrackId) &&
+                !StringComparer.Ordinal.Equals(trackRuntime.ActiveTrackId, previousTrackId))
+            {
+                trackRuntime.ApplyTrack(previousTrackId);
+            }
+            RestoreBossVehicle(previousBossVehicleId);
+            race.ApplyChallengeConfiguration(previousChallenge);
+        }
+
         private void BindAdapter(CareerNodeDefinition definition)
         {
             var metrics = new RaceDirectorCareerMetricsSource(race, performance);
             adapter = new RaceRoundCareerSessionAdapter(round, definition, metrics);
+        }
+
+        private CareerNodeDefinition FindDefinition(string nodeId)
+        {
+            if (string.IsNullOrWhiteSpace(nodeId) || definitions == null)
+                return null;
+            for (var index = 0; index < definitions.Count; index++)
+                if (StringComparer.Ordinal.Equals(definitions[index].Node.Id, nodeId))
+                    return definitions[index];
+            return null;
         }
 
         private CareerNodeDefinition FindFirstPlayableIncomplete()
