@@ -1,0 +1,260 @@
+3FAREET — EXTERNAL ASSET CREATION POLICY & REQUEST QUEUE
+=========================================================
+Policy ID: AFA-POL-ASSET-001
+Status: ACTIVE / MANDATORY
+Scope: ALL programmers, AI agents, designers, technical artists, integrators and reviewers working in this repository.
+Canonical missing-asset status registry: docs/MISSED_ASSETS.md
+This root file is the operational handoff queue for assets that cannot be completed safely by repository code alone.
+
+PROGRAMMING CLOSURE MODE
+------------------------
+Effective immediately, until the project owner explicitly says to resume visual polish / asset production:
+1. PRIORITY = close programming, validation, integration, tests, CI, runtime contracts and gameplay defects.
+2. DO NOT spend engineering time polishing visuals when a programming task can be closed instead.
+3. If code requires a missing external asset, DO NOT fabricate a fake production asset and DO NOT weaken a production gate.
+4. Record the missing asset in THIS ROOT FILE before or in the same commit/PR that introduces or discovers the dependency.
+5. Continue coding against a clearly labelled review/blockout/fallback path only when the existing gate explicitly permits it.
+6. Production/owner-acceptance state must remain false until the real asset is delivered and verified.
+7. Never mark P1 VERIFIED, close an asset defect, merge a production gate, or publish because a review/blockout asset exists.
+
+MANDATORY RULE FOR EVERY PROGRAMMER / AI AGENT
+----------------------------------------------
+If you discover any asset that cannot be created correctly by code in this repository, you MUST add or update an entry in this file with ALL of these fields:
+- REQUEST ID
+- RELATED TASK / UART / ISSUE
+- ASSET NAME
+- WHY CODE ALONE IS NOT ENOUGH
+- REQUIRED TOOL
+- SOURCE / REFERENCE INPUTS
+- TARGET SOURCE PATH
+- TARGET EXPORT PATH / FORMAT
+- CREATION PROMPT (ready to copy/paste into the named tool/assistant)
+- SCRIPT / PROCEDURE (exact high-level steps or script filename expected)
+- ACCEPTANCE CRITERIA
+- MOBILE / PERFORMANCE BUDGET
+- PROVENANCE REQUIREMENTS
+- CURRENT STATUS
+
+No entry = no untracked external-asset dependency.
+
+STATUS VALUES
+-------------
+REQUESTED -> IN_CREATION -> REVIEW -> READY_FOR_INTEGRATION -> INTEGRATED -> VERIFIED
+Use BLOCKED if source/reference/license/owner approval is missing.
+
+PROVENANCE POLICY
+-----------------
+- Generated/review/blockout/refinement assets MUST be labelled as such.
+- A generated or procedural asset MUST NOT be silently promoted to final production art.
+- Editable source must be preserved where practical (.blend/.svg/.kra/.psd/.wav project/etc.).
+- Exported runtime asset must be reproducible from the editable source.
+- Do not use copyrighted real-world vehicle branding/logos or unlicensed commercial assets.
+- Every final source must have stable ownership/licensing and a documented source path.
+
+====================================================================
+ACTIVE P0 / P1 EXTERNAL-ASSET REQUESTS
+====================================================================
+
+REQUEST: EXT-ASSET-001
+RELATED: UART-003 / Issue #127 / AST-062
+ASSET: Afareet King final production Hero vehicle
+WHY CODE IS NOT ENOUGH: Final hard-surface identity, authored topology, UVs, materials and owner-approved silhouette require 3D authoring; procedural Unity geometry is review-only.
+TOOL: Blender 4.x/5.x + optional Substance Painter
+SOURCE INPUTS: docs/assets/01_vehicles/references/afareet_hero_car_reference.png; current AfareetKing_Hero refinement source only as a starting/reference candidate.
+TARGET SOURCE PATH: docs/assets/01_vehicles/source/AfareetKing_Hero_Production.blend
+TARGET EXPORT: Unity-ready FBX/GLB plus texture set; final Unity production prefab remains under Assets/Afareet/Resources/Art/Vehicles/HeroCar/Production/
+CREATION PROMPT:
+"Create a production-ready fictional Egyptian supernatural racing hero car named Afareet King. Preserve the approved black/purple/gold spirit identity and recognizable aggressive silhouette from the supplied reference. This must be a genuinely authored hard-surface vehicle, not assembled from primitive cubes/cylinders and not a low-detail procedural proxy. Build clean body panels, wheel arches, rims/tires, glass, headlights/tail lights, grille, splitter, diffuser, side skirts, spoiler/aero identity and controlled supernatural spirit accents. Produce LOD0/LOD1/LOD2 with descending complexity, UV0, authored normals, mobile-friendly materials and texture maps. Keep the design fictional and non-infringing. Pivot at vehicle ground center, forward axis compatible with Unity, real-world size approximately 4.6m length, 2.0m width, 1.3m height. Do not bake scene lights/cameras. Name meshes deterministically with _LOD0/_LOD1/_LOD2. Deliver editable .blend and exported FBX/GLB plus textures."
+SCRIPT / PROCEDURE: Blender: clean topology -> apply transforms -> UV unwrap -> material authoring -> make LODs with manual cleanup/decimation -> verify normals -> set pivot/axis -> export FBX/GLB. Optional helper script may validate names/dimensions/triangle counts but must not procedurally replace authored modeling.
+ACCEPTANCE: Recognizable approved Hero identity; no procedural fallback for acceptance; 3 authoritative LOD levels; UV/normals/textures present; correct scale/pivot/axis; clean import; owner Visual Gate approval.
+MOBILE BUDGET: Follow HeroCarLodPolicy production ranges in code; LOD triangle counts must decrease with distance and remain inside current policy.
+PROVENANCE: Final editable source + export + textures must be owner-approved and externally authored; refinement/generated classifications remain false for production.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-002
+RELATED: UART-004 / Issue #128
+ASSET: Rival 01 — Wedge Coupe production vehicle source package
+WHY CODE IS NOT ENOUGH: Unity review packaging can display the current authored OBJ, but production acceptance requires stable authored source packaging, materials/textures, LOD provenance and owner approval.
+TOOL: Blender 4.x/5.x
+SOURCE INPUTS: Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj and its MTL/textures/reference material.
+TARGET SOURCE PATH: docs/assets/01_vehicles/source/Rival_01_WedgeCoupe_Production.blend
+TARGET EXPORT: three deterministic FBX files or one FBX preserving separate LOD0/LOD1/LOD2 nodes reliably in Unity, plus textures.
+CREATION PROMPT:
+"Re-author/package the supplied fictional Wedge Coupe rival as a Unity-production vehicle without changing its intended silhouette. Preserve the source design but clean topology, UVs, normals and materials. Produce deterministic LOD0, LOD1 and LOD2 objects that Unity imports as distinct meshes, with descending triangle counts and no merged default mesh. Use original/non-infringing fictional branding only. Standardize pivot at ground center, forward axis for Unity, transforms applied, material slots stable, textures mobile-friendly. Deliver editable Blender source and Unity-tested FBX exports."
+SCRIPT / PROCEDURE: Import OBJ -> inspect/fix object boundaries -> create/verify 3 LOD objects -> apply transforms -> UV/material validation -> export with Apply Transform and stable node names -> test Unity import yields 3 distinct mesh sub-assets.
+ACCEPTANCE: Unity imports 3 distinct source-backed LOD meshes; UV0/normals/textures valid; no runtime-generated mesh; correct pivot/scale; owner acceptance.
+MOBILE BUDGET: Follow RivalProductionPolicy LOD budgets in repository code.
+PROVENANCE: Stable .blend + exported FBX + textures + Unity .meta/GUID tracked at integration.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-003
+RELATED: UART-004 / Issue #128
+ASSET: Rival 02 — Fastback Muscle production vehicle source package
+TOOL: Blender 4.x/5.x
+SOURCE INPUTS: Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj
+TARGET SOURCE PATH: docs/assets/01_vehicles/source/Rival_02_FastbackMuscle_Production.blend
+TARGET EXPORT: Unity FBX with distinct LOD0/LOD1/LOD2 + texture set.
+CREATION PROMPT:
+"Convert/re-author the supplied fictional Fastback Muscle rival into a production-safe Unity source package. Preserve the approved silhouette and fictional identity. Deliver three distinct source-authored LOD meshes, clean topology, UV0, normals, stable material slots, mobile textures, ground-center pivot and Unity-compatible axis. Unity must import LOD0/LOD1/LOD2 as distinct meshes rather than flattening them into a single default mesh. Deliver .blend + FBX + textures."
+SCRIPT / PROCEDURE: Same deterministic Blender/Unity import validation procedure as EXT-ASSET-002.
+ACCEPTANCE: Three distinct imported LOD meshes, source-backed materials/textures, correct scale/pivot, owner review.
+MOBILE BUDGET: RivalProductionPolicy.
+PROVENANCE: Stable editable source and tracked exports/meta.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-004
+RELATED: UART-004 / Issue #128
+ASSET: Rival 03 — Compact Prototype production vehicle source package
+TOOL: Blender 4.x/5.x
+SOURCE INPUTS: Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj
+TARGET SOURCE PATH: docs/assets/01_vehicles/source/Rival_03_CompactPrototype_Production.blend
+TARGET EXPORT: Unity FBX with distinct LOD0/LOD1/LOD2 + texture set.
+CREATION PROMPT:
+"Convert/re-author the supplied fictional Compact Prototype rival into a production-safe Unity source package. Keep its compact silhouette distinct from the other rivals. Build/verify three separate authored LOD meshes, UV0, normals, stable mobile material slots and textures, correct ground-center pivot and Unity axis. Ensure Unity imports LOD0/LOD1/LOD2 as separate mesh assets and does not flatten them into one default mesh. Deliver editable .blend, FBX and textures."
+SCRIPT / PROCEDURE: Same deterministic Blender/Unity import validation procedure as EXT-ASSET-002.
+ACCEPTANCE: Three distinct imported LOD meshes, valid material/texture mapping, correct scale/pivot, owner review.
+MOBILE BUDGET: RivalProductionPolicy.
+PROVENANCE: Stable editable source and tracked exports/meta.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-005
+RELATED: UART-005 / UART-007 / URAC-011
+ASSET: Cairo fantasy road/curb/barrier production kit
+WHY CODE IS NOT ENOUGH: Runtime code can place/validate modules but final topology, UVs, authored materials and visually clean corner modules require DCC authoring.
+TOOL: Blender 4.x/5.x + Substance Painter/Krita optional
+SOURCE INPUTS: existing Cairo street-kit OBJ/MTL sources under docs/assets/02_tracks_environments/cairo_street_kit/source/ and current Unity screenshots.
+TARGET SOURCE PATH: docs/assets/02_tracks_environments/cairo_street_kit/source_production/
+TARGET EXPORT: modular FBX/OBJ road, curb, barrier, corner/transition pieces + textures.
+CREATION PROMPT:
+"Create a production-ready modular Cairo fantasy night-racing road kit matching the existing track proportions. Required modules: straight road, inner/outer curb, left/right barriers, shallow/medium/tight turn transition pieces, intersection/merge pieces and start/finish approach. Preserve a readable 14m road width contract. Use clean tiling UVs and mobile-friendly PBR/emissive materials. Geometry must join without diagonal spikes, z-fighting or rails crossing the drive lane. Keep collision-friendly silhouettes and deterministic pivots at module connection points. Deliver authored source and Unity-ready exports."
+SCRIPT / PROCEDURE: Build modular grid -> snap pivots -> UV tile -> generate turn variants manually -> export -> Unity seam test over full 72-segment loop.
+ACCEPTANCE: No lane-crossing geometry at signed joins; seamless visual joins; source-backed materials; correct pivot scale; Android-friendly.
+MOBILE BUDGET: Static batching/LOD compatible; avoid unnecessary subdivisions; atlas materials where practical.
+PROVENANCE: Editable source plus exports/textures; no runtime procedural geometry counted as production art.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-006
+RELATED: UART-006 / Issue #128
+ASSET: Cairo authored landmark pack — production pass
+TOOL: Blender 4.x/5.x
+SOURCE INPUTS: existing Dome Gate, Bridge Gantry, pyramid/minaret references and authored sources.
+TARGET SOURCE PATH: docs/assets/02_tracks_environments/landmarks/source_production/
+TARGET EXPORT: FBX + textures for Dome Gate, Cairo bridge gantry, pyramid horizon/minaret/fantasy landmarks.
+CREATION PROMPT:
+"Create/refine a cohesive production landmark pack for a fictional supernatural Cairo night race: neon dome gate, Cairo-inspired bridge gantry, minaret skyline feature and pyramid-horizon fantasy silhouettes. Keep all architecture original/fantasy rather than exact protected branding. Optimize for mobile, use clean UVs and a shared material/texture atlas where practical. Maintain strong silhouettes from racing distance, correct scale and pivots, and avoid large opaque geometry that blocks the chase camera. Deliver LOD where needed, editable source, FBX and textures."
+SCRIPT / PROCEDURE: Model/refine -> atlas UVs -> LOD large assets -> pivot/scale validation -> Unity camera-clearance review.
+ACCEPTANCE: Readable skyline, no chase-camera occlusion at authored anchors, stable materials/textures, mobile budget, owner visual approval.
+MOBILE BUDGET: LOD large landmarks; atlas materials; low draw-call target.
+PROVENANCE: Editable source and licenses/ownership documented.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-007
+RELATED: UART-007 / Issue #128
+ASSET: Cairo track dressing production prop pack
+TOOL: Blender 4.x/5.x + Krita/Substance Painter
+SOURCE INPUTS: existing authored track dressing sources and current neon Cairo visual direction.
+TARGET SOURCE PATH: docs/assets/02_tracks_environments/props/source_production/
+TARGET EXPORT: FBX + atlas textures.
+CREATION PROMPT:
+"Build a mobile production prop kit for a fictional Cairo supernatural street race: Egyptian road barriers, neon street lights, fictional Arabic fantasy signage, cones/crates/barrels, banners, posts and small roadside dressing. Use consistent black/gold/cyan/magenta night-race art direction, original fictional signs, clean UV atlas, simple colliders and LOD only where useful. Props must remain outside the drive lane and preserve camera sightlines. Deliver editable Blender source, FBX exports and atlas textures."
+SCRIPT / PROCEDURE: Model modular props -> pack atlas -> set pivots/collider proxies -> export -> Unity placement validation.
+ACCEPTANCE: No primitive-only final props; source textures assigned; stable pivots; mobile-friendly draw calls; owner approval.
+MOBILE BUDGET: Shared atlas/materials; low-poly static props.
+PROVENANCE: Original fictional content, editable source, no unlicensed logos.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-008
+RELATED: P1 VFX
+ASSET: Tire smoke + drift sparks + nitro spirit + speed streak production VFX set
+TOOL: Unity Shuriken/VFX Graph where supported + Krita/Photoshop for sprite sheets
+SOURCE INPUTS: existing black/purple/gold/cyan spirit palette.
+TARGET SOURCE PATH: docs/assets/04_vfx/source/ and Unity VFX/Materials paths defined by integration PR.
+TARGET EXPORT: texture/sprite sheets + Unity prefabs/materials.
+CREATION PROMPT:
+"Create a coherent mobile racing VFX set for 3Fareet: pooled tire smoke, wheel drift sparks, three-level magic drift aura, nitro spirit apparition, nitro speed streaks and crash burst. Style: supernatural Egyptian street-racing, black/purple/gold/cyan, readable at speed but not screen-filling. Provide low/medium/high quality profiles, alpha-safe sprite sheets and additive/emissive variants where appropriate. Avoid expensive transparent overdraw and long-lived particles."
+SCRIPT / PROCEDURE: Author sprite sheets -> configure pooled Unity particle prefabs -> quality tiers -> profiler validation.
+ACCEPTANCE: Pooled, intensity-driven, correct vehicle anchors, no GC spikes, mobile profiler pass.
+MOBILE BUDGET: Prefer Shuriken/mobile-safe effects; strict overdraw and particle-count limits.
+PROVENANCE: Original textures/effects.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-009
+RELATED: P1 Audio
+ASSET: Core vehicle/race SFX pack
+TOOL: Reaper/Audacity/DAW + original/owned recordings or synthesis
+SOURCE INPUTS: game pacing and current race states.
+TARGET SOURCE PATH: assets/audio/sfx/source/; runtime exports under assets/audio/sfx/
+TARGET EXPORT: WAV/OGG as project audio pipeline requires.
+CREATION PROMPT:
+"Produce an original, licensable mobile racing SFX pack: engine idle/low/high loops, tire skid/drift loop, nitro supernatural activation, light/medium/heavy crash impacts, UI click/confirm/back, countdown 3-2-1-Go and short race finish success/fail stings. Keep engine layers phase/loop clean and transitions smooth. Nitro should have a distinct supernatural Egyptian-fantasy signature without copyrighted samples. Deliver mastered but headroom-safe files and editable DAW session or source notes."
+SCRIPT / PROCEDURE: Record/synthesize -> edit seamless loops -> normalize loudness consistently -> export -> Unity mixer integration and device smoke.
+ACCEPTANCE: Seamless loops, no clipping, consistent loudness, legally usable source, Android device audio smoke.
+MOBILE BUDGET: Compressed runtime formats where appropriate; mono for non-spatial/UI where appropriate.
+PROVENANCE: Original/owned/licensed source documented.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-010
+RELATED: P1 UI identity
+ASSET: Arabic game logo + HUD art family
+TOOL: Figma/Inkscape/Illustrator + Krita/Photoshop optional
+SOURCE INPUTS: current 3Fareet black/purple/gold/cyan visual language and existing HUD functional layout.
+TARGET SOURCE PATH: docs/assets/05_ui_hud/source/
+TARGET EXPORT: SVG + transparent PNG variants.
+CREATION PROMPT:
+"Design an original Arabic 3Fareet game logo and compact mobile racing HUD art family. Preserve the functional positions already implemented in code; do not redesign interaction flow. Style: supernatural Egyptian street-racing, premium black base with purple/gold/cyan accents. Required art: logo, spirit meter frame, position badges 1-4, pause icon/button states, race result medal family and minimal power-up frame. Prioritize readability at phone size and transparent/vector delivery."
+SCRIPT / PROCEDURE: Design vector masters -> export 1x/2x/4x PNG where needed -> Unity safe-area review.
+ACCEPTANCE: Readable Arabic, scalable/vector master, no baked gameplay text where localization is needed, mobile safe-area friendly.
+MOBILE BUDGET: Atlas/sprite packing friendly.
+PROVENANCE: Original artwork and font/license documented.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-011
+RELATED: P1 Textures
+ASSET: Road surface + neon asphalt crack + environment atlas production textures
+TOOL: Substance Designer/Painter, Krita, Blender bake tools
+SOURCE INPUTS: existing Cairo authored meshes/material direction.
+TARGET SOURCE PATH: docs/assets/02_tracks_environments/textures/source/
+TARGET EXPORT: tileable base color/normal/roughness/metallic/emissive as supported, mobile resolutions.
+CREATION PROMPT:
+"Create an original mobile texture set for a supernatural Cairo night-racing track: tileable asphalt road surface, curb/barrier materials, neon magic asphalt cracks with emissive mask and a compact environment prop/building atlas. Maintain visual readability at racing speed, avoid noisy high-frequency detail, and support black/purple/gold/cyan night lighting. Deliver editable source plus optimized runtime maps."
+SCRIPT / PROCEDURE: Author tileables/atlas -> bake/pack maps -> compression review -> Unity material validation.
+ACCEPTANCE: Seamless tiles, correct channels, source meshes use assigned texture maps, no shader-property warnings.
+MOBILE BUDGET: Prefer 1K/2K shared atlases; compression and mipmaps enabled appropriately.
+PROVENANCE: Original texture sources.
+STATUS: REQUESTED
+
+REQUEST: EXT-ASSET-012
+RELATED: P1 Localization/UI
+ASSET: Arabic + Latin UI font selection/license package
+TOOL: Font licensing source + font inspection tools
+SOURCE INPUTS: Arabic UI strings and Latin numerals.
+TARGET SOURCE PATH: docs/licenses/fonts/ plus approved runtime font asset path.
+TARGET EXPORT: legally redistributable font files or documented system/package dependency; NEVER commit a font unless license permits repository redistribution.
+CREATION PROMPT:
+"Select a highly readable Arabic UI typeface with strong Latin numerals for a mobile racing game. It must support Arabic shaping, common punctuation and English/Latin fallback, remain readable at small HUD sizes and have a license compatible with commercial mobile distribution. Provide the exact license text/source and recommended weights. Do not provide or commit a restricted font file."
+SCRIPT / PROCEDURE: License review -> glyph coverage test -> Unity TMP font asset generation if redistribution is permitted -> Arabic/English device smoke.
+ACCEPTANCE: Commercially usable license, Arabic shaping works, Latin numerals readable, no missing glyphs in current UI corpus.
+MOBILE BUDGET: TMP atlas size controlled; only required glyph ranges where practical.
+PROVENANCE: License evidence mandatory.
+STATUS: REQUESTED
+
+====================================================================
+PROGRAMMER ENTRY TEMPLATE — COPY FOR EVERY NEW EXTERNAL DEPENDENCY
+====================================================================
+REQUEST: EXT-ASSET-XXX
+RELATED:
+ASSET:
+WHY CODE IS NOT ENOUGH:
+TOOL:
+SOURCE INPUTS:
+TARGET SOURCE PATH:
+TARGET EXPORT:
+CREATION PROMPT:
+"..."
+SCRIPT / PROCEDURE:
+ACCEPTANCE:
+MOBILE BUDGET:
+PROVENANCE:
+STATUS: REQUESTED
+
+END OF POLICY / QUEUE
