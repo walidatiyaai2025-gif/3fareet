@@ -5,17 +5,19 @@ namespace Afareet.Vehicle
 {
     /// <summary>
     /// Explicit authoring provenance attached to the real UART-003 production prefab.
-    /// The generated/refinement/review Editor paths intentionally cannot satisfy production
-    /// source authority. Human/owner visual acceptance is still required separately by UPER-009.
+    /// Generated/refinement/review or non-Hero vehicle roles intentionally cannot satisfy
+    /// production source authority. Human/owner visual acceptance remains a separate UPER-009 gate.
     /// </summary>
     public sealed class HeroCarProductionAssetMetadata : MonoBehaviour
     {
+        private const string VehiclePathMarker = "/Vehicles/";
+
         private static readonly string[] SupportedExternalModelSuffixes =
         {
             ".fbx", ".obj", ".blend", ".glb", ".gltf"
         };
 
-        private static readonly string[] NonProductionSourceMarkers =
+        private static readonly string[] RejectedHeroSourceMarkers =
         {
             "/Generated/",
             "/Placeholder/",
@@ -25,7 +27,8 @@ namespace Afareet.Vehicle
             "/RefinementCandidates/",
             "/Blockout/",
             "/Review/",
-            "/ReviewPackaging/"
+            "/ReviewPackaging/",
+            "/Rivals/"
         };
 
         [SerializeField] private bool authoredExternalSource;
@@ -63,6 +66,7 @@ namespace Afareet.Vehicle
             var normalized = assetPath.Replace('\\', '/');
             if (!normalized.StartsWith("Assets/", StringComparison.Ordinal)) return false;
             if (normalized.IndexOf("../", StringComparison.Ordinal) >= 0) return false;
+            if (normalized.IndexOf(VehiclePathMarker, StringComparison.OrdinalIgnoreCase) < 0) return false;
 
             var suffixSupported = false;
             foreach (var extension in SupportedExternalModelSuffixes)
@@ -73,7 +77,7 @@ namespace Afareet.Vehicle
             }
             if (!suffixSupported) return false;
 
-            foreach (var marker in NonProductionSourceMarkers)
+            foreach (var marker in RejectedHeroSourceMarkers)
             {
                 if (normalized.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0)
                     return false;
