@@ -16,7 +16,17 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 SUPPORTED_HERO_EXTENSIONS = {".fbx", ".obj", ".blend", ".glb", ".gltf"}
-FORBIDDEN_HERO_TOKENS = ("generated", "preview", "refinement", "refinementcandidates", "blockout", "review")
+FORBIDDEN_HERO_TOKENS = (
+    "generated",
+    "placeholder",
+    "legacyprocedural",
+    "preview",
+    "refinement",
+    "refinementcandidates",
+    "blockout",
+    "review",
+    "reviewpackaging",
+)
 
 RIVAL_REQUIRED_FILES = (
     "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj",
@@ -162,6 +172,22 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
             normalized_hero if under_assets else "Hero must resolve under unity_game/Assets/ (or be passed as Assets/...)",
         )
 
+        no_traversal = "../" not in normalized_hero
+        _check(
+            checks,
+            "UART-003_HERO_NO_TRAVERSAL",
+            no_traversal,
+            "no traversal" if no_traversal else "Hero source path cannot contain ../ traversal",
+        )
+
+        vehicle_role = "/vehicles/" in lower
+        _check(
+            checks,
+            "UART-003_HERO_VEHICLE_ROLE",
+            vehicle_role,
+            "vehicle role path" if vehicle_role else "Hero production source must resolve under a /Vehicles/ role path",
+        )
+
         extension_ok = Path(normalized_hero).suffix.lower() in SUPPORTED_HERO_EXTENSIONS
         _check(
             checks,
@@ -198,7 +224,7 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
             "tracked non-empty Unity metadata" if hero_meta_ok else "Hero .meta must be non-empty and committed before licensed staging starts",
         )
 
-        not_rival = "/Rivals/" not in normalized_hero.replace("\\", "/")
+        not_rival = "/rivals/" not in lower
         _check(
             checks,
             "UART-003_HERO_NOT_RIVAL_SOURCE",
