@@ -84,6 +84,20 @@ class AiRacingHotPathContractTests(unittest.TestCase):
         self.assertIn("finally", fixed_update)
         self.assertGreaterEqual(fixed_update.count("aiDecisionRankedSnapshot = null;"), 2)
 
+    def test_ai_pressure_check_reads_one_authoritative_slot_without_snapshot_allocation(self):
+        source = DIRECTOR_PATH.read_text(encoding="utf-8")
+        start = source.index("private bool CanRacerUsePowerUp(")
+        end = source.index("private void FixedUpdate()", start)
+        method = source[start:end]
+
+        self.assertIn(
+            "powerUpRuntime.IsPowerUpUsable(runtime.RacerId, kind, raceTimeSeconds)",
+            method,
+        )
+        self.assertNotIn("GetInventorySnapshot", method)
+        self.assertNotIn("GetAiAvailability", method)
+        self.assertNotIn("AiHostilePowerUpPressurePolicy.IsUsable", method)
+
     def test_parallel_branch_preserves_codex_reset_pose_fix(self):
         source = DIRECTOR_PATH.read_text(encoding="utf-8")
         reset_start = source.index("private void ResetRacersToGrid()")
