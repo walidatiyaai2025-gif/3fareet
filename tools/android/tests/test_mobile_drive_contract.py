@@ -138,8 +138,7 @@ class MobileDriveContractTests(unittest.TestCase):
             "throttleInput = 0f;",
             "steerInput = 0f;",
             "driftInput = false;",
-            "nitroInput = false;
-",
+            "nitroInput = false;",
             "brakeInput = false;",
         ):
             self.assertIn(required, reset_body)
