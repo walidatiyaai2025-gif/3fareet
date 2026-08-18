@@ -74,8 +74,15 @@ namespace Afareet.Race
                 var distanceSquared = offset.sqrMagnitude;
                 if (distanceSquared >= bestDistanceSquared) continue;
 
-                var forward = delta.normalized;
-                var right = Vector3.Cross(Vector3.up, forward).normalized;
+                // delta is flattened, so Cross(up, normalize(delta)) is exactly
+                // (delta.z, 0, -delta.x) / |delta|. Compute that unit-right vector directly:
+                // one square root per candidate segment instead of normalizing delta and then
+                // normalizing the cross product again on every physics-time corridor sample.
+                var inverseLength = 1f / Mathf.Sqrt(lengthSquared);
+                var right = new Vector3(
+                    delta.z * inverseLength,
+                    0f,
+                    -delta.x * inverseLength);
                 bestDistanceSquared = distanceSquared;
                 bestSegment = i;
                 bestProgress = progress;
