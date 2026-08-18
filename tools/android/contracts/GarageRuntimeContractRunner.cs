@@ -1,4 +1,5 @@
 using System;
+using Afareet.CareerRuntime;
 using Afareet.GarageRuntime;
 
 internal static class GarageRuntimeContractRunner
@@ -12,6 +13,7 @@ internal static class GarageRuntimeContractRunner
             CustomizationContract();
             PersistenceContract();
             MigrationRecoveryContract();
+            EquippedVehicleRuntimeSeamContract();
             Console.WriteLine("Garage runtime behavior contract: PASS");
             return 0;
         }
@@ -120,6 +122,24 @@ internal static class GarageRuntimeContractRunner
         Require(!string.IsNullOrWhiteSpace(recovered.Error), "invalid payload recovery diagnostic");
         Require(storage.Payload.StartsWith(GarageStateCodec.CurrentHeader, StringComparison.Ordinal),
             "invalid storage rewritten to V2");
+    }
+
+    private static void EquippedVehicleRuntimeSeamContract()
+    {
+        var runtime = new PassiveCareerGarageVehicleRuntime();
+        Require(runtime.ActiveVehicleId == null, "passive equipped runtime starts clear");
+        runtime.ValidateApply(GarageCatalog.StarterVehicleId);
+        Require(!runtime.ApplyEquippedVehicle(GarageCatalog.StarterVehicleId),
+            "passive runtime never claims live player mutation");
+        Require(runtime.ActiveVehicleId == GarageCatalog.StarterVehicleId,
+            "passive runtime retains initial stable equipped id");
+        Require(!runtime.ApplyEquippedVehicle(GarageCatalog.StarterVehicleId),
+            "repeated equipped vehicle application is idempotent");
+        Require(!runtime.ApplyEquippedVehicle("wedge_coupe"),
+            "passive runtime keeps compatibility semantics for another stable id");
+        Require(runtime.ActiveVehicleId == "wedge_coupe", "passive runtime updates retained stable id");
+        RequireThrows<ArgumentException>(() => runtime.ValidateApply(" "), "blank equipped vehicle id rejected");
+        RequireThrows<ArgumentException>(() => runtime.ApplyEquippedVehicle(null), "null equipped vehicle id rejected");
     }
 
     private static bool InUnitRange(float value) => value >= 0f && value <= 1f;
