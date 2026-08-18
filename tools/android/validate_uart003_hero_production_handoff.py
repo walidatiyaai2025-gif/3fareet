@@ -161,6 +161,45 @@ def _resolve_obj_index(token: str, count: int) -> int:
     return resolved
 
 
+def _split_wavefront_arguments(value: str, *, label: str) -> list[str]:
+    """Split OBJ/MTL arguments without treating backslashes as shell escapes.
+
+    Whitespace separates unquoted arguments, single/double quotes preserve spaces, and an
+    unquoted # starts an inline comment. This keeps package paths deterministic across Windows
+    and POSIX while accepting common DCC-exported quoted dependency names.
+    """
+    tokens: list[str] = []
+    current: list[str] = []
+    quote = ""
+    token_started = False
+    for char in value or "":
+        if quote:
+            if char == quote:
+                quote = ""
+            else:
+                current.append(char)
+            token_started = True
+            continue
+        if char in {'"', "'"}:
+            quote = char
+            token_started = True
+            continue
+        if char == "#":
+            break
+        if char.isspace():
+            if token_started:
+                tokens.append("".join(current))
+                current = []
+                token_started = False
+            continue
+        current.append(char)
+        token_started = True
+    _require(not quote, f"{label} has an unterminated quoted argument")
+    if token_started:
+        tokens.append("".join(current))
+    return tokens
+
+
 def inspect_obj(path: Path) -> tuple[list[LodStats], tuple[str, ...]]:
     vertex_count = texcoord_count = normal_count = 0
     current_object = current_material = ""
@@ -202,10 +241,11 @@ def inspect_obj(path: Path) -> tuple[list[LodStats], tuple[str, ...]]:
             current_material = " ".join(parts[1:]).strip()
             continue
         if op == "mtllib":
-            reference = line[len("mtllib") :].strip()
-            _require(reference, f"empty mtllib at line {line_number}")
-            if reference not in mtllibs:
-                mtllibs.append(reference)
+            references = _split_wavefront_arguments(line[len("mtllib") :].strip(), label=f"mtllib at line {line_number}")
+            _require(references, f"empty mtllib at line {line_number}")
+            for reference in references:
+                if reference not in mtllibs:
+                    mtllibs.append(reference)
             continue
         if op != "f":
             continue
@@ -262,8 +302,8 @@ def _resolve_package_dependency(package_root: Path, base_dir: Path, reference: s
     return resolved
 
 
-def _texture_reference(line: str) -> str:
-    parts = line.split()
+def _texture_reference(line: str, *, label: str) -> str:
+    parts = _split_wavefront_arguments(line, label=label)
     return parts[-1] if len(parts) >= 2 else ""
 
 
@@ -290,7 +330,7 @@ def validate_material_dependencies(repo: Path, source: Path, mtllibs: Iterable[s
             if directive not in BASE_COLOR_DIRECTIVES:
                 continue
             _require(current_material, f"{mtl_relative} contains a base-color map before newmtl")
-            texture_ref = _texture_reference(line)
+            texture_ref = _texture_reference(line, label=f"{mtl_relative} texture directive")
             _require(texture_ref, f"{mtl_relative} has an empty texture reference for {current_material}")
             texture = _resolve_package_dependency(package_root, mtl.parent, texture_ref, label=f"{mtl_relative} texture")
             texture_relative, texture_meta = _require_file_with_meta(repo, texture, label="Hero texture dependency")
