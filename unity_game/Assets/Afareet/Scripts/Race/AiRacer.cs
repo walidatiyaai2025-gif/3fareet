@@ -22,6 +22,7 @@ namespace Afareet.Race
         public string PowerUpRacerId => powerUpRacerId;
         public bool HasPowerUpRuntimeBinding => powerUpDirector != null && !string.IsNullOrWhiteSpace(powerUpRacerId);
         public AiDifficultyTuning DifficultyTuning => difficultyTuning;
+        public int NavigationWaypointIndex => waypointIndex;
 
         public void Configure(IReadOnlyList<Transform> path, int rivalIndex)
         {
@@ -31,7 +32,15 @@ namespace Afareet.Race
             laneBias = Mathf.Lerp(-1.15f, 1.15f, (float)random.NextDouble());
             overtakeSide = random.Next(0, 2) == 0 ? -1f : 1f;
             skill = Mathf.Clamp(.78f + rivalIndex * .07f + aggression * .08f, .80f, .98f);
-            waypointIndex = (path.Count - rivalIndex * 2) % path.Count;
+            SynchronizeNavigation(path.Count - rivalIndex * 2);
+        }
+
+        public void SynchronizeNavigation(int nextWaypointIndex)
+        {
+            if (waypoints == null || waypoints.Count == 0)
+                return;
+
+            waypointIndex = Wrap(nextWaypointIndex, waypoints.Count);
         }
 
         public void ApplyDifficultyTuning(AiDifficultyTuning tuning)
@@ -129,6 +138,12 @@ namespace Afareet.Race
             }
 
             return Mathf.Clamp(avoidance, -.7f, .7f);
+        }
+
+        private static int Wrap(int index, int count)
+        {
+            var value = index % count;
+            return value < 0 ? value + count : value;
         }
     }
 }
