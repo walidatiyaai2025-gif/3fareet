@@ -28,7 +28,7 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             'NormalizeSha256(nativeHandoffVerificationSha256, "native handoff verification")',
             'NormalizeSha256(operatorChainSha256, "operator chain")',
             "ValidateHeroSourceBeforeMutation(heroSourcePath)",
-            "RivalProductionSourcePreflight.ValidateAllOrThrow()",
+            "RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow()",
             "P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow()",
             "P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow()",
             "P1ProductionTrackDressingAssetStager.StageTrackedSourcesOrThrow()",
@@ -59,7 +59,7 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             self.assertIn(required, text)
 
         self.assertLess(
-            text.index("RivalProductionSourcePreflight.ValidateAllOrThrow()"),
+            text.index("RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow()"),
             text.index("P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow()"),
         )
 
@@ -214,7 +214,7 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
                 "[ref]$tokens, [ref]$errors) | Out-Null; "
                 "if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }"
             )
-            result = subprocess.run([pwsh, "-NoProfile", "-Command", command], capture_output=True, text=True)
+            result = subprocess.run([pwsh, "-NoProfile", "-Command", command, capture_output=True, text=True)
             self.assertEqual(0, result.returncode, msg=f"{script.name}\n{result.stdout}{result.stderr}")
 
 
