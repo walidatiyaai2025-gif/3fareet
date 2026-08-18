@@ -64,18 +64,15 @@ function Assert-TrackedNonEmptyFile([string]$RepoRelative, [string]$Label) {
     if (-not (Test-Path -LiteralPath $absolute -PathType Leaf)) {
         Fail "$Label is missing: $normalized"
     }
-
     $item = Get-Item -LiteralPath $absolute
     if ($item.Length -le 0) {
         Fail "$Label is empty: $normalized"
     }
-
     & $git.Source -C $RepoRoot ls-files --error-unmatch -- $normalized *> $null
     $trackedExitCode = $LASTEXITCODE
     if ($trackedExitCode -ne 0) {
         Fail "$Label must already be tracked in the clean starting commit before licensed staging: $normalized"
     }
-
     return $item.Length
 }
 
@@ -105,6 +102,14 @@ $heroMetaRelative = $heroRepoRelative + '.meta'
 $heroBytes = Assert-TrackedNonEmptyFile $heroRepoRelative 'Hero production source'
 $heroMetaBytes = Assert-TrackedNonEmptyFile $heroMetaRelative 'Hero production source Unity metadata'
 
+$heroHandoffPreflight = Join-Path $PSScriptRoot 'hero_production_handoff_preflight_windows.ps1'
+if (-not (Test-Path -LiteralPath $heroHandoffPreflight -PathType Leaf)) {
+    Fail "Native Hero handoff preflight is missing: $heroHandoffPreflight"
+}
+Write-Host "AFAREET_STAGING_HERO_HANDOFF_PREFLIGHT_START gitSha=$gitSha heroSource=$HeroSource mutationStarted=false verified=false"
+& $heroHandoffPreflight -RepoRoot $RepoRoot -Source $HeroSource
+Write-Host "AFAREET_STAGING_HERO_HANDOFF_PREFLIGHT_OK gitSha=$gitSha heroSource=$HeroSource mutationStarted=false verified=false"
+
 $rivalSources = @(
     'unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj',
     'unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj',
@@ -128,7 +133,7 @@ Write-Host "AFAREET_STAGING_RIVAL_DEPENDENCY_PREFLIGHT_START gitSha=$gitSha riva
 & $rivalDependencyPreflight -RepoRoot $RepoRoot
 Write-Host "AFAREET_STAGING_RIVAL_DEPENDENCY_PREFLIGHT_OK gitSha=$gitSha rivals=3 dependenciesTracked=true dependenciesPackageLocal=true mutationStarted=false verified=false"
 
-Write-Host "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK gitSha=$gitSha heroBytes=$heroBytes heroMetaBytes=$heroMetaBytes rivalSources=3 rivalBytes=$rivalBytes rivalDependencies=tracked-package-local mutationStarted=false verified=false"
+Write-Host "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK gitSha=$gitSha heroBytes=$heroBytes heroMetaBytes=$heroMetaBytes heroHandoff=preflighted rivalSources=3 rivalBytes=$rivalBytes rivalDependencies=tracked-package-local mutationStarted=false verified=false"
 
 if ([string]::IsNullOrWhiteSpace($UnityPath)) {
     $defaultUnity = Join-Path $env:ProgramFiles "Unity\Hub\Editor\$ExpectedUnityVersion\Editor\Unity.exe"
