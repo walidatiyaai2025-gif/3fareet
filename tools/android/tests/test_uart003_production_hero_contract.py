@@ -20,17 +20,17 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
     def test_android_gate_verifies_real_source_guid_hash_and_mesh_backing(self):
         text = self._read("unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs")
         for required in (
+            "HeroCarProductionAssetMetadata.IsSupportedExternalModelSource(sourcePath)",
             "AssetDatabase.AssetPathToGUID",
             "AssetDatabase.GetAssetDependencyHash",
             "AssetDatabase.GetAssetPath(filter.sharedMesh)",
             "source-guid-mismatch",
             "source-dependency-hash-mismatch",
             "mesh-not-backed-by-source",
-            "generated-source-is-not-production",
         ):
             self.assertIn(required, text)
 
-    def test_production_metadata_requires_supported_external_3d_source(self):
+    def test_production_metadata_centrally_rejects_nonproduction_source_paths(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarProductionAssetMetadata.cs")
         for required in (
             "authoredExternalSource",
@@ -39,6 +39,18 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
             "sourceGuid",
             "sourceDependencyHash",
             "IsSupportedExternalModelSource",
+            "StartsWith(\"Assets/\"",
+            'IndexOf("../"',
+            "NonProductionSourceMarkers",
+            '"/Generated/"',
+            '"/Placeholder/"',
+            '"/LegacyProcedural/"',
+            '"/Preview/"',
+            '"/Refinement/"',
+            '"/RefinementCandidates/"',
+            '"/Blockout/"',
+            '"/Review/"',
+            '"/ReviewPackaging/"',
             '".fbx"',
             '".obj"',
             '".blend"',
@@ -46,6 +58,19 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
             '".gltf"',
         ):
             self.assertIn(required, text)
+
+    def test_all_hero_production_entry_points_delegate_to_central_source_policy(self):
+        for relative in (
+            "unity_game/Assets/Afareet/Editor/HeroCarProductionPrefabStager.cs",
+            "unity_game/Assets/Afareet/Editor/HeroCarProductionSourceBinder.cs",
+            "unity_game/Assets/Afareet/Editor/HeroCarProductionBuildPreprocessor.cs",
+        ):
+            text = self._read(relative)
+            self.assertIn(
+                "HeroCarProductionAssetMetadata.IsSupportedExternalModelSource",
+                text,
+                relative,
+            )
 
     def test_source_binder_only_binds_meshes_backed_by_selected_model(self):
         text = self._read("unity_game/Assets/Afareet/Editor/HeroCarProductionSourceBinder.cs")
@@ -72,8 +97,7 @@ class Uart003ProductionHeroContractTests(unittest.TestCase):
 
         for required in (
             "Stage + Bind UART-003 Production Hero Source",
-            "IsSupportedExternalModelSource",
-            'IndexOf("/Generated/"',
+            "HeroCarProductionAssetMetadata.IsSupportedExternalModelSource",
             "AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath)",
             "PrefabUtility.InstantiatePrefab(sourceModel)",
             "GetComponentsInChildren<MeshRenderer>(true)",
