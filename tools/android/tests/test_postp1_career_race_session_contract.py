@@ -74,7 +74,7 @@ def test_race_round_adapter_has_no_global_lookup_or_persistence_side_effects():
         assert forbidden not in source
 
 
-def test_game_session_exposes_navigation_without_mutating_active_event_on_selection():
+def test_game_session_navigation_browsing_remains_side_effect_free():
     source = read(CAREER_DIR / "CareerGameSession.cs")
 
     for token in (
@@ -92,11 +92,49 @@ def test_game_session_exposes_navigation_without_mutating_active_event_on_select
         assert token in source
 
     select_block = source.split("public CareerNavigationSnapshot SelectCareerNode", 1)[1].split("public CareerNavigationSnapshot MoveCareerSelection", 1)[0]
-    move_block = source.split("public CareerNavigationSnapshot MoveCareerSelection", 1)[1].split("public bool TryAdvanceToNextEvent", 1)[0]
+    move_block = source.split("public CareerNavigationSnapshot MoveCareerSelection", 1)[1].split("public bool TryActivateSelectedEvent", 1)[0]
     for block in (select_block, move_block):
         assert "activeDefinition =" not in block
+        assert "ApplyChallengeConfiguration" not in block
+        assert "ApplyBossVehicleConfiguration" not in block
+        assert "ApplyTrack" not in block
         assert "RestartRace" not in block
         assert "StartRace" not in block
+
+
+def test_selected_event_activation_is_explicit_safe_and_atomic():
+    source = read(CAREER_DIR / "CareerGameSession.cs")
+    for token in (
+        "public bool TryActivateSelectedEvent()",
+        "race.Phase == RaceRoundPhase.Countdown || race.Phase == RaceRoundPhase.Racing",
+        "selected.State == CareerNodeState.Locked",
+        "FindDefinition(selected.Node.Id)",
+        "var previousChallenge = race.ChallengeConfiguration",
+        "var previousTrackId = trackRuntime.ActiveTrackId",
+        "var previousBossVehicleId = bossVehicleRuntime.ActiveBossVehicleId",
+        "var forceTrackRebuild = race.Phase == RaceRoundPhase.Results",
+        "ApplyChallengeConfiguration(next)",
+        "ApplyBossVehicleConfiguration(next)",
+        "trackRuntime.ApplyTrack(next.Node.TrackId, forceTrackRebuild)",
+        "forceTrackRebuild && race.Phase != RaceRoundPhase.Ready",
+        "RestoreActivationRuntime(previousTrackId, previousChallenge, previousBossVehicleId)",
+        "activeDefinition = next",
+        "BindAdapter(activeDefinition)",
+        "RefreshNavigation(activeDefinition.Node.Id)",
+        "ActiveEventChanged?.Invoke(activeDefinition)",
+    ):
+        assert token in source
+
+    activation = source.split("public bool TryActivateSelectedEvent()", 1)[1].split("public bool TryAdvanceToNextEvent()", 1)[0]
+    guard = activation.index("RaceRoundPhase.Countdown || race.Phase == RaceRoundPhase.Racing")
+    locked = activation.index("selected.State == CareerNodeState.Locked")
+    mutation = activation.index("ApplyChallengeConfiguration(next)")
+    assignment = activation.index("activeDefinition = next")
+    assert guard < mutation
+    assert locked < mutation
+    assert mutation < assignment
+    assert "StartRace()" not in activation
+    assert "RestartRace()" not in activation
 
 
 def test_ai_racer_difficulty_hook_preserves_deterministic_base_profile():
@@ -199,7 +237,7 @@ def test_career_game_session_applies_node_balance_on_initial_bind_and_advance():
     ):
         assert token in source
 
-    helper = source.split("private void ApplyChallengeConfiguration", 1)[1].split("private void BindAdapter", 1)[0]
+    helper = source.split("private void ApplyChallengeConfiguration", 1)[1].split("private void ApplyBossVehicleConfiguration", 1)[0]
     assert "race.ApplyChallengeConfiguration" in helper
     assert "CareerChallengeBalancePolicy.Resolve" in helper
 
