@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.World
 {
@@ -234,9 +235,11 @@ namespace Afareet.World
                     throw new InvalidOperationException($"UART-005 mobile LOD renderer is missing a mesh: {baseName} LOD{lod}");
                 if (mesh.vertexCount <= 0)
                     throw new InvalidOperationException($"UART-005 mobile LOD mesh has no vertices: {baseName} LOD{lod}");
-                if (mesh.uv == null || mesh.uv.Length != mesh.vertexCount)
+                // Imported runtime meshes may intentionally have Read/Write disabled.
+                // Validate vertex-buffer metadata instead of reading CPU-side arrays.
+                if (!mesh.HasVertexAttribute(VertexAttribute.TexCoord0))
                     throw new InvalidOperationException($"UART-005 mobile LOD missing complete UV0: {baseName} LOD{lod}");
-                if (mesh.normals == null || mesh.normals.Length != mesh.vertexCount)
+                if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
                     throw new InvalidOperationException($"UART-005 mobile LOD missing complete normals: {baseName} LOD{lod}");
 
                 var meshTriangles = 0;
