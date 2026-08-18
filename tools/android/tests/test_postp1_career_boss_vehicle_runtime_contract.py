@@ -78,8 +78,10 @@ def test_production_boss_controller_uses_authoritative_catalog_stats_and_asset_l
         assert token in source
 
     ledger = read(ROOT / "EXTERNAL_ASSET_REQUESTS.txt")
-    assert "EXT-ASSET-002" in ledger
-    assert "Rival_03_CompactPrototype_Production" in ledger
+    assert "REQUEST ID: EXT-ASSET-002" in ledger
+    assert "Rival 03 Compact Prototype" in ledger
+    assert "Assets/Afareet/ArtSource/Vehicles/Rivals/Production/" in ledger
+    assert "Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/" in ledger
 
 
 def test_vehicle_performance_remains_separate_from_powerup_modifier_layer():
