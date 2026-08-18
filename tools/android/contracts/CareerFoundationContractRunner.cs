@@ -11,6 +11,7 @@ internal static class CareerFoundationContractRunner
             ChapterOneParityContract();
             ValidationContract();
             OrderingAndStateContract();
+            NavigationContract();
             Console.WriteLine("Career foundation behavior contract: PASS");
             return 0;
         }
@@ -96,6 +97,80 @@ internal static class CareerFoundationContractRunner
             "node at star gate must be available");
         Require(stateMap.NodeState(drift, 0, new HashSet<string>(StringComparer.Ordinal) { drift.Id }) == CareerNodeState.Completed,
             "completed state must win over star gate");
+    }
+
+    private static void NavigationContract()
+    {
+        var service = new CareerNavigationService();
+        var chapter = ChapterOneCareerContent.CreateFoundation();
+        var map = new CareerMap(new[] { chapter });
+        var initial = service.Build(map, CareerProgress.Empty());
+
+        Require(initial.Nodes.Count == 5, "navigation must flatten all Chapter 1 nodes");
+        Require(initial.SelectedNodeId == "c01_r01", "navigation must select first available node by default");
+        Require(initial.Nodes[0].State == CareerNodeState.Available, "first Chapter 1 node must be available at zero stars");
+        Require(initial.Nodes[1].State == CareerNodeState.Locked, "second Chapter 1 node must respect its star gate");
+        Require(initial.Nodes[0].ChapterIndex == 0 && initial.Nodes[0].NodeIndex == 0 && initial.Nodes[0].FlatIndex == 0,
+            "navigation indices must be deterministic");
+
+        var progressed = new CareerProgress(
+            CareerProgress.CurrentVersion,
+            6,
+            new[] { "c01_r01" },
+            Array.Empty<string>());
+        var selected = service.Build(map, progressed, "c01_r03");
+        Require(selected.SelectedNodeId == "c01_r03", "preferred stable node id must control selection");
+        Require(selected.Nodes[0].State == CareerNodeState.Completed, "completed node must remain completed");
+        Require(selected.Nodes[1].State == CareerNodeState.Available, "star-unlocked node must be available");
+        Require(selected.Nodes[3].State == CareerNodeState.Available, "node at exact star gate must be available");
+        Require(selected.Nodes[4].State == CareerNodeState.Locked, "boss must remain locked below nine stars");
+
+        var wrappedBackward = service.Move(selected, -3);
+        Require(wrappedBackward.SelectedNodeId == "c01_boss", "negative navigation must wrap deterministically");
+        var wrappedForward = service.Move(wrappedBackward, 1);
+        Require(wrappedForward.SelectedNodeId == "c01_r01", "positive navigation must wrap deterministically");
+        var explicitSelection = service.Select(wrappedForward, "c01_r04");
+        Require(explicitSelection.SelectedNodeId == "c01_r04", "explicit selection must use stable node id");
+        RequireThrows(() => service.Select(explicitSelection, "missing"), "unknown selected node id must fail closed");
+        RequireThrows(() => service.Build(map, progressed, "missing"), "unknown preferred node id must fail closed");
+
+        var gatedChapter = new CareerChapter(
+            "gated",
+            "Gated",
+            1,
+            new[] { new CareerRaceNode("gated_race", "Race", CareerRaceMode.Circuit, "track", 0) },
+            requiredStars: 5);
+        var gatedMap = new CareerMap(new[] { gatedChapter });
+        var belowChapterGate = new CareerProgress(
+            CareerProgress.CurrentVersion,
+            4,
+            Array.Empty<string>(),
+            Array.Empty<string>());
+        Require(service.Build(gatedMap, belowChapterGate).Nodes[0].State == CareerNodeState.Locked,
+            "chapter star gate must lock otherwise-open node");
+        var completedBelowGate = new CareerProgress(
+            CareerProgress.CurrentVersion,
+            0,
+            new[] { "gated_race" },
+            Array.Empty<string>());
+        Require(service.Build(gatedMap, completedBelowGate).Nodes[0].State == CareerNodeState.Completed,
+            "completed node must remain completed even below a later chapter gate");
+
+        var duplicateMap = new CareerMap(new[]
+        {
+            new CareerChapter(
+                "one",
+                "One",
+                1,
+                new[] { new CareerRaceNode("shared", "Shared A", CareerRaceMode.Circuit, "a", 0) }),
+            new CareerChapter(
+                "two",
+                "Two",
+                2,
+                new[] { new CareerRaceNode("shared", "Shared B", CareerRaceMode.Circuit, "b", 0) })
+        });
+        RequireThrows(() => service.Build(duplicateMap, CareerProgress.Empty()),
+            "duplicate node ids across chapters must fail closed for navigation");
     }
 
     private static CareerChapter SimpleChapter(string id, int order)
