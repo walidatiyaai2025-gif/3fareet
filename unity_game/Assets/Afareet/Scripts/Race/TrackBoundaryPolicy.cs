@@ -41,6 +41,15 @@ namespace Afareet.Race
             Vector3 worldPosition,
             float roadHalfWidth)
         {
+            ValidatePath(orderedWaypoints);
+            return SamplePrevalidated(orderedWaypoints, worldPosition, roadHalfWidth);
+        }
+
+        internal static TrackBoundarySample SamplePrevalidated(
+            IReadOnlyList<Transform> orderedWaypoints,
+            Vector3 worldPosition,
+            float roadHalfWidth)
+        {
             if (orderedWaypoints == null)
                 throw new ArgumentNullException(nameof(orderedWaypoints));
             if (orderedWaypoints.Count < 2)
@@ -59,9 +68,6 @@ namespace Afareet.Race
             {
                 var current = orderedWaypoints[i];
                 var next = orderedWaypoints[(i + 1) % orderedWaypoints.Count];
-                if (current == null || next == null)
-                    throw new ArgumentException("Ordered waypoints cannot contain null entries.", nameof(orderedWaypoints));
-
                 var start = Flatten(current.position);
                 var end = Flatten(next.position);
                 var delta = end - start;
@@ -99,6 +105,20 @@ namespace Afareet.Race
                 bestSignedLateral,
                 roadHalfWidth,
                 bestClosestPoint);
+        }
+
+        internal static void ValidatePath(IReadOnlyList<Transform> orderedWaypoints)
+        {
+            if (orderedWaypoints == null)
+                throw new ArgumentNullException(nameof(orderedWaypoints));
+            if (orderedWaypoints.Count < 2)
+                throw new ArgumentException("At least two ordered waypoints are required.", nameof(orderedWaypoints));
+
+            for (var i = 0; i < orderedWaypoints.Count; i++)
+            {
+                if (orderedWaypoints[i] == null)
+                    throw new ArgumentException("Ordered waypoints cannot contain null entries.", nameof(orderedWaypoints));
+            }
         }
 
         private static Vector3 Flatten(Vector3 value) => new(value.x, 0f, value.z);
