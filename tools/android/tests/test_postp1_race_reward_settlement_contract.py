@@ -86,6 +86,21 @@ class PostP1RaceRewardSettlementContractTests(unittest.TestCase):
         self.assertIn("fileFormatVersion: 2", meta)
         self.assertIn("guid:", meta)
 
+    def test_career_session_consumes_post_race_director_results_not_raw_round_results(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGameSession.cs")
+        self.assertIn("race.ResultsReady += OnResultsReady;", source)
+        self.assertIn("race.ResultsReady -= OnResultsReady;", source)
+        self.assertNotIn("round.ResultsReady += OnResultsReady;", source)
+        self.assertNotIn("round.ResultsReady -= OnResultsReady;", source)
+
+        race_source = self._read("unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs")
+        handler_start = race_source.index("private void OnRoundResultsReady(float finishTime)")
+        handler_end = race_source.index("private void OnRoundReset()", handler_start)
+        handler = race_source[handler_start:handler_end]
+        snapshot = handler.index("playerFinishRewardSnapshot = playerWasEliminated")
+        publish = handler.index("ResultsReady?.Invoke(finishTime);")
+        self.assertLess(snapshot, publish)
+
     def test_career_session_applies_multiplier_only_to_successful_new_coin_claims(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGameSession.cs")
         for required in (
@@ -149,6 +164,7 @@ class PostP1RaceRewardSettlementContractTests(unittest.TestCase):
             "CareerPlayerProfile.cs",
             "CareerPlayerProfileRewardApplication.cs",
             "CareerEventSettlement.cs",
+            "ChapterOneCareerContent.cs",
         ):
             self.assertIn(required, runner_project)
         self.assertIn("<BaseIntermediateOutputPath>obj/RaceRewardSettlementContractRunner/</BaseIntermediateOutputPath>", runner_project)
