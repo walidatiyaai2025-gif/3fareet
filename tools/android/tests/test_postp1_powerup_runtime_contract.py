@@ -25,10 +25,13 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         start = source.index("public bool IsPowerUpUsable(")
         end = source.index("public PowerUpRuntimeUseResult TryUse(", start)
         method = source[start:end]
+        helper_start = source.index("private static bool IsSlotUsable(")
+        helper_end = source.index("private static PowerUpRuntimeUseResult GateResult(", helper_start)
+        helper = source[helper_start:helper_end]
 
         self.assertIn("var racer = GetRacerOrThrow(racerId);", method)
-        self.assertIn("var slot = racer.Inventory[kind];", method)
-        self.assertIn("return slot.Charges > 0 && slot.ReadyAtSeconds <= raceTimeSeconds;", method)
+        self.assertIn("return IsSlotUsable(racer.Inventory[kind], raceTimeSeconds);", method)
+        self.assertIn("return slot.Charges > 0 && slot.ReadyAtSeconds <= raceTimeSeconds;", helper)
         for forbidden in (
             "GetInventorySnapshot(",
             "GetAiAvailability(",
@@ -38,6 +41,30 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
             ".AsReadOnly()",
         ):
             self.assertNotIn(forbidden, method)
+            self.assertNotIn(forbidden, helper)
+
+    def test_live_ai_execution_reads_slots_without_availability_snapshot_allocations(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
+        start = source.index("public AiPowerUpExecutionResult ExecuteAiDecision(")
+        end = source.index("public IReadOnlyList<PowerUpRuntimeTickResult> TickAll", start)
+        method = source[start:end]
+
+        self.assertIn("ValidateRaceTime(raceTimeSeconds);", method)
+        self.assertIn("var source = GetRacerOrThrow(sourceRacerId);", method)
+        self.assertIn("var decision = AiPowerUpUsagePolicy.Decide(", method)
+        for kind in (
+            "PowerUpKind.AsphaltShard",
+            "PowerUpKind.NitroSpirit",
+            "PowerUpKind.TrafficCurse",
+            "PowerUpKind.EnchantedPound",
+            "PowerUpKind.EyeShield",
+        ):
+            self.assertIn(f"IsSlotUsable(source.Inventory[{kind}], raceTimeSeconds)", method)
+
+        self.assertNotIn("GetAiAvailability(", method)
+        self.assertNotIn("GetInventorySnapshot(", method)
+        self.assertNotIn("new List<", method)
+        self.assertNotIn("new AiPowerUpAvailability", method)
 
     def test_runtime_commits_only_real_effect_transitions(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
@@ -80,10 +107,10 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         ):
             self.assertIn(required, source)
 
-    def test_ai_execution_uses_authoritative_availability_and_try_use(self):
+    def test_ai_execution_uses_authoritative_slots_and_try_use(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
-        self.assertIn("var availability = GetAiAvailability(sourceRacerId, raceTimeSeconds);", source)
-        self.assertIn("var decision = AiPowerUpUsagePolicy.Decide(snapshot, availability);", source)
+        self.assertIn("var source = GetRacerOrThrow(sourceRacerId);", source)
+        self.assertIn("var decision = AiPowerUpUsagePolicy.Decide(", source)
         self.assertIn("var useResult = TryUse(sourceRacerId, kind, targetRacerId, raceTimeSeconds);", source)
         self.assertIn("kind == PowerUpKind.TrafficCurse", source)
         self.assertIn("rule.TargetMode == PowerUpRuntimeTargetMode.WorldDeployable", source)
