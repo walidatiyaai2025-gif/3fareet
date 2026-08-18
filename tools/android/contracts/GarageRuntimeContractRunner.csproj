@@ -14,5 +14,6 @@
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/GarageRuntime/GarageState.cs" Link="GarageState.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/GarageRuntime/GarageService.cs" Link="GarageService.cs" />
     <Compile Include="../../../unity_game/Assets/Afareet/Scripts/GarageRuntime/GaragePersistence.cs" Link="GaragePersistence.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/CareerRuntime/CareerGarageVehicleRuntime.cs" Link="CareerGarageVehicleRuntime.cs" />
   </ItemGroup>
 </Project>
