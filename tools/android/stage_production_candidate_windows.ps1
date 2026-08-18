@@ -15,7 +15,8 @@ function Fail([string]$Message) {
 }
 
 function Normalize-HeroSource([string]$Value) {
-    $normalized = (($Value ?? '').Trim().Trim('"') -replace '\\', '/')
+    $raw = if ($null -eq $Value) { '' } else { $Value }
+    $normalized = ($raw.Trim().Trim('"') -replace '\\', '/')
     while ($normalized.StartsWith('./', [System.StringComparison]::Ordinal)) {
         $normalized = $normalized.Substring(2)
     }
