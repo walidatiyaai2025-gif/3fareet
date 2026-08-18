@@ -17,7 +17,10 @@ namespace Afareet.Vehicle
             ".fbx", ".obj", ".blend", ".glb", ".gltf"
         };
 
-        private static readonly string[] RejectedHeroSourceMarkers =
+        // This remains the central fail-closed marker set used by every Hero production entry point.
+        // `/Rivals/` is production-valid for UART-004, but it is intentionally non-production as a
+        // UART-003 Hero source role and therefore belongs in this Hero-specific rejection set.
+        private static readonly string[] NonProductionSourceMarkers =
         {
             "/Generated/",
             "/Placeholder/",
@@ -77,7 +80,7 @@ namespace Afareet.Vehicle
             }
             if (!suffixSupported) return false;
 
-            foreach (var marker in RejectedHeroSourceMarkers)
+            foreach (var marker in NonProductionSourceMarkers)
             {
                 if (normalized.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0)
                     return false;
