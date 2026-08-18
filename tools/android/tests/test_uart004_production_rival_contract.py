@@ -98,18 +98,23 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         self.assertIn("cannot reuse rival", text)
         self.assertNotIn("GameObject.CreatePrimitive", text)
 
-    def test_prefab_stager_only_wraps_imported_source_meshes_and_delegates_binding(self):
+    def test_prefab_stager_only_uses_central_isolated_production_sources(self):
         path = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs"
         self.assertTrue(path.is_file())
         self.assertTrue(path.with_suffix(path.suffix + ".meta").is_file())
         text = path.read_text(encoding="utf-8")
 
-        for source in (
+        self.assertIn("RivalProductionPolicy.StagingSourcePath(variant)", text)
+        self.assertIn("RivalProductionPolicy.ProductionSourceRoot", text)
+        self.assertIn("RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow()", text)
+        self.assertIn("reviewSourcesRejected=true", text)
+
+        for review_source in (
             "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
             "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
             "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
         ):
-            self.assertIn(source, text)
+            self.assertNotIn(review_source, text)
 
         for required in (
             "Stage + Bind All Rival Prefabs",
@@ -131,6 +136,10 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
 
+        preflight_index = text.index("RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow()")
+        stage_loop_index = text.index("StageAndBind(variant, sourceAlreadyPreflighted: true)")
+        self.assertLess(preflight_index, stage_loop_index)
+
         for forbidden in (
             "PrefabUtility.InstantiatePrefab(sourceModel)",
             "GameObject.CreatePrimitive",
@@ -141,12 +150,17 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
-    def test_rival_quality_contract_requires_surface_authoring_identity_and_external_model_source(self):
+    def test_rival_quality_contract_isolates_production_source_authority(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
         for required in (
             "Art/Vehicles/Rivals/Production/PF_Rival_01_Production",
             "Art/Vehicles/Rivals/Production/PF_Rival_02_Production",
             "Art/Vehicles/Rivals/Production/PF_Rival_03_Production",
+            'ProductionSourceRoot = "Assets/Afareet/ArtSource/Vehicles/Rivals/Production/"',
+            'ProductionSourceRoot + "Rival_01_WedgeCoupe_Production.obj"',
+            'ProductionSourceRoot + "Rival_02_FastbackMuscle_Production.obj"',
+            'ProductionSourceRoot + "Rival_03_CompactPrototype_Production.obj"',
+            "StagingSourcePath(int variantIndex)",
             "authoredExternalSource",
             "uv0Authored",
             "normalsAuthored",
@@ -156,8 +170,14 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "sourceGuid",
             "sourceDependencyHash",
             "IsSupportedAuthoredModelSource",
-            'StartsWith("Assets/"',
-            'IndexOf("/Generated/"',
+            "StartsWith(ProductionSourceRoot",
+            '"/Generated/"',
+            '"/Preview/"',
+            '"/Refinement/"',
+            '"/RefinementCandidates/"',
+            '"/Blockout/"',
+            '"/Review/"',
+            '"/ReviewPackaging/"',
             '".fbx"',
             '".obj"',
             '".blend"',
@@ -166,6 +186,24 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
         ):
             self.assertIn(required, text)
         self._assert_unity6_safe_surface_validation(text)
+
+    def test_review_candidate_paths_cannot_be_production_source_authority(self):
+        policy = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs")
+        review_stager = self._read("unity_game/Assets/Afareet/Editor/RivalAuthoredReviewPrefabStager.cs")
+        production_stager = self._read("unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs")
+        production_preflight = self._read("unity_game/Assets/Afareet/Editor/RivalProductionSourcePreflight.cs")
+        review_sources = (
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
+        )
+        for source in review_sources:
+            self.assertIn(source, review_stager)
+            self.assertNotIn(source, production_stager)
+            self.assertNotIn(source, production_preflight)
+            self.assertNotIn(source, policy)
+        self.assertIn("ReviewPackaging", review_stager)
+        self.assertIn("productionGate=false", review_stager)
 
     def test_tracked_design_pack_is_brief_not_production_provenance(self):
         path = REPO_ROOT / "docs/assets/01_vehicles/rival_cars_production/RIVAL_DESIGN_PROFILES.json"
@@ -196,6 +234,7 @@ class Uart004ProductionRivalContractTests(unittest.TestCase):
             "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/\n",
             "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals.meta\n",
             "unity_game/Assets/Afareet/Resources/Art/Vehicles/Rivals/Production/\n",
+            "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/\n",
         ):
             self.assertNotIn(
                 forbidden_ignore,
