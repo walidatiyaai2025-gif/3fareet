@@ -4,10 +4,7 @@
 OBJ sources are inspected structurally, including their package-local MTL/texture chain.
 FBX/GLB/GLTF/BLEND sources remain explicitly UNITY_INSPECTION_REQUIRED because this
 portable standard-library tool must not pretend to inspect opaque DCC/importer formats.
-
-A successful result is source-readiness evidence only. It never proves provenance,
-visual acceptance, licensed Unity runtime behavior, device evidence, owner approval,
-or UART-003 / UPER-009 completion.
+A successful result is source-readiness evidence only, never production acceptance.
 """
 
 from __future__ import annotations
@@ -22,20 +19,13 @@ from pathlib import Path
 from typing import Any, Iterable
 
 EXPECTED_TASK = "UART-003"
+EXPECTED_LODS = (0, 1, 2)
 SUPPORTED_SUFFIXES = {".obj", ".fbx", ".glb", ".gltf", ".blend"}
 FORBIDDEN_SEGMENTS = {
-    "generated",
-    "placeholder",
-    "legacyprocedural",
-    "preview",
-    "refinement",
-    "refinementcandidates",
-    "blockout",
-    "review",
-    "reviewpackaging",
+    "generated", "placeholder", "legacyprocedural", "preview", "refinement",
+    "refinementcandidates", "blockout", "review", "reviewpackaging",
 }
 POLICY_PATH = Path("unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarLodPolicy.cs")
-EXPECTED_LODS = (0, 1, 2)
 BASE_COLOR_DIRECTIVES = {"map_kd", "map_basecolor", "map_base_color"}
 BOUNDARY = "TECHNICAL_SOURCE_PREFLIGHT_ONLY_LICENSE_VISUAL_UNITY_DEVICE_OWNER_GATES_REQUIRED"
 
@@ -62,13 +52,8 @@ def _require(condition: bool, message: str) -> None:
 
 def _run_git(repo: Path, args: list[str]) -> tuple[int, str]:
     process = subprocess.run(
-        ["git", "-C", str(repo), *args],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
+        ["git", "-C", str(repo), *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, encoding="utf-8", errors="replace", check=False,
     )
     return process.returncode, process.stdout.strip()
 
@@ -112,8 +97,7 @@ def _require_tracked_nonempty(repo: Path, path: Path, *, label: str) -> str:
 
 def _require_file_with_meta(repo: Path, path: Path, *, label: str) -> tuple[str, str]:
     relative = _require_tracked_nonempty(repo, path, label=label)
-    meta_path = Path(str(path) + ".meta")
-    meta_relative = _require_tracked_nonempty(repo, meta_path, label=f"{label} Unity metadata")
+    meta_relative = _require_tracked_nonempty(repo, Path(str(path) + ".meta"), label=f"{label} Unity metadata")
     return relative, meta_relative
 
 
@@ -150,7 +134,19 @@ def validate_source_path(repo: Path, source: str) -> tuple[str, Path]:
 
 def classify_lod(name: str) -> int | None:
     upper = (name or "").upper()
-    matches = [lod for lod in EXPECTED_LODS if f"_LOD{lod}" in upper]
+    matches: list[int] = []
+    for lod in EXPECTED_LODS:
+        token = f"_LOD{lod}"
+        start = 0
+        while start < len(upper):
+            index = upper.find(token, start)
+            if index < 0:
+                break
+            suffix = index + len(token)
+            if suffix == len(upper) or not upper[suffix].isdigit():
+                matches.append(lod)
+                break
+            start = suffix
     return matches[0] if len(matches) == 1 else None
 
 
@@ -166,23 +162,13 @@ def _resolve_obj_index(token: str, count: int) -> int:
 
 
 def inspect_obj(path: Path) -> tuple[list[LodStats], tuple[str, ...]]:
-    vertex_count = 0
-    texcoord_count = 0
-    normal_count = 0
-    current_object = ""
-    current_material = ""
+    vertex_count = texcoord_count = normal_count = 0
+    current_object = current_material = ""
     mtllibs: list[str] = []
     unclassified_faces = 0
     groups: dict[int, dict[str, Any]] = {
-        lod: {
-            "name": "",
-            "vertices": set(),
-            "triangles": 0,
-            "uv_complete": True,
-            "normal_complete": True,
-            "materials": set(),
-        }
-        for lod in EXPECTED_LODS
+        lod: {"name": "", "vertices": set(), "triangles": 0, "uv_complete": True,
+              "normal_complete": True, "materials": set()} for lod in EXPECTED_LODS
     }
 
     for line_number, raw in enumerate(path.read_text(encoding="utf-8", errors="strict").splitlines(), start=1):
@@ -209,10 +195,7 @@ def inspect_obj(path: Path) -> tuple[list[LodStats], tuple[str, ...]]:
             lod = classify_lod(current_object)
             if lod is not None:
                 existing = str(groups[lod]["name"])
-                _require(
-                    not existing or existing == current_object,
-                    f"OBJ must expose exactly one authored object/group for LOD{lod}",
-                )
+                _require(not existing or existing == current_object, f"OBJ must expose exactly one authored object/group for LOD{lod}")
                 groups[lod]["name"] = current_object
             continue
         if op == "usemtl":
@@ -238,8 +221,7 @@ def inspect_obj(path: Path) -> tuple[list[LodStats], tuple[str, ...]]:
         for ref in refs:
             components = ref.split("/")
             _require(components and components[0], f"LOD{lod} face is missing vertex index")
-            vertex_index = _resolve_obj_index(components[0], vertex_count)
-            group["vertices"].add(vertex_index)
+            group["vertices"].add(_resolve_obj_index(components[0], vertex_count))
             has_uv = len(components) >= 2 and bool(components[1])
             has_normal = len(components) >= 3 and bool(components[2])
             if has_uv:
@@ -248,28 +230,22 @@ def inspect_obj(path: Path) -> tuple[list[LodStats], tuple[str, ...]]:
                 _resolve_obj_index(components[2], normal_count)
             group["uv_complete"] = bool(group["uv_complete"]) and has_uv
             group["normal_complete"] = bool(group["normal_complete"]) and has_normal
-        group["triangles"] = int(group["triangles"]) + (len(refs) - 2)
+        group["triangles"] = int(group["triangles"]) + len(refs) - 2
         group["materials"].add(current_material)
 
     _require(unclassified_faces == 0, f"Hero OBJ contains {unclassified_faces} faces outside explicit _LOD0/_LOD1/_LOD2 objects")
     _require(mtllibs, "Hero OBJ must reference at least one MTL file")
-
     stats: list[LodStats] = []
     for lod in EXPECTED_LODS:
         group = groups[lod]
         _require(group["name"], f"Hero OBJ is missing an authored _LOD{lod} object/group")
         _require(int(group["triangles"]) > 0, f"Hero LOD{lod} has no faces")
-        stats.append(
-            LodStats(
-                lod=lod,
-                object_name=str(group["name"]),
-                vertices=len(group["vertices"]),
-                triangles=int(group["triangles"]),
-                has_complete_uv0=bool(group["uv_complete"]),
-                has_complete_normals=bool(group["normal_complete"]),
-                material_names=tuple(sorted(group["materials"])),
-            )
-        )
+        stats.append(LodStats(
+            lod=lod, object_name=str(group["name"]), vertices=len(group["vertices"]),
+            triangles=int(group["triangles"]), has_complete_uv0=bool(group["uv_complete"]),
+            has_complete_normals=bool(group["normal_complete"]),
+            material_names=tuple(sorted(group["materials"])),
+        ))
     return stats, tuple(mtllibs)
 
 
@@ -291,17 +267,11 @@ def _texture_reference(line: str) -> str:
     return parts[-1] if len(parts) >= 2 else ""
 
 
-def validate_material_dependencies(
-    repo: Path,
-    source: Path,
-    mtllibs: Iterable[str],
-    used_materials: set[str],
-) -> dict[str, Any]:
+def validate_material_dependencies(repo: Path, source: Path, mtllibs: Iterable[str], used_materials: set[str]) -> dict[str, Any]:
     package_root = source.parent.resolve()
     mapped_materials: dict[str, set[str]] = {name: set() for name in used_materials}
     mtl_reports: list[dict[str, Any]] = []
     dependency_files: set[str] = set()
-
     for reference in mtllibs:
         mtl = _resolve_package_dependency(package_root, source.parent, reference, label=f"{source.name} mtllib")
         mtl_relative, mtl_meta = _require_file_with_meta(repo, mtl, label="Hero MTL dependency")
@@ -328,13 +298,7 @@ def validate_material_dependencies(
             textures.add(texture_ref)
             if current_material in mapped_materials:
                 mapped_materials[current_material].add(texture_ref)
-        mtl_reports.append(
-            {
-                "fileName": mtl.relative_to(package_root).as_posix(),
-                "textures": sorted(textures),
-            }
-        )
-
+        mtl_reports.append({"fileName": mtl.relative_to(package_root).as_posix(), "textures": sorted(textures)})
     missing = sorted(name for name, textures in mapped_materials.items() if not textures)
     _require(not missing, "Hero materials are not base-color texture-mapped by supplied MTL files: " + ", ".join(missing))
     return {
@@ -348,81 +312,42 @@ def validate_material_dependencies(
 def validate_obj(repo: Path, source: Path) -> dict[str, Any]:
     policy = parse_policy(repo)
     stats, mtllibs = inspect_obj(source)
-    used_materials = {material for item in stats for material in item.material_names}
-    dependencies = validate_material_dependencies(repo, source, mtllibs, used_materials)
-
+    dependencies = validate_material_dependencies(repo, source, mtllibs, {m for item in stats for m in item.material_names})
     for item in stats:
         lod = item.lod
         _require(item.has_complete_uv0, f"Hero LOD{lod} is missing complete UV0")
         _require(item.has_complete_normals, f"Hero LOD{lod} is missing authored normals")
         _require(item.material_names, f"Hero LOD{lod} has no material")
-        minimum_vertices = policy["MinimumVertices"][lod]
-        maximum_vertices = policy["VertexBudgets"][lod]
-        minimum_triangles = policy["MinimumTriangles"][lod]
-        maximum_triangles = policy["TriangleBudgets"][lod]
-        _require(
-            minimum_vertices <= item.vertices <= maximum_vertices,
-            f"Hero LOD{lod} vertex count {item.vertices} is outside [{minimum_vertices}, {maximum_vertices}]",
-        )
-        _require(
-            minimum_triangles <= item.triangles <= maximum_triangles,
-            f"Hero LOD{lod} triangle count {item.triangles} is outside [{minimum_triangles}, {maximum_triangles}]",
-        )
-
-    _require(
-        stats[0].triangles > stats[1].triangles > stats[2].triangles,
-        "Hero triangle counts must decrease LOD0 > LOD1 > LOD2",
-    )
+        min_v, max_v = policy["MinimumVertices"][lod], policy["VertexBudgets"][lod]
+        min_t, max_t = policy["MinimumTriangles"][lod], policy["TriangleBudgets"][lod]
+        _require(min_v <= item.vertices <= max_v, f"Hero LOD{lod} vertex count {item.vertices} is outside [{min_v}, {max_v}]")
+        _require(min_t <= item.triangles <= max_t, f"Hero LOD{lod} triangle count {item.triangles} is outside [{min_t}, {max_t}]")
+    _require(stats[0].triangles > stats[1].triangles > stats[2].triangles, "Hero triangle counts must decrease LOD0 > LOD1 > LOD2")
     return {
-        "sourceInspection": "OBJ_STRUCTURAL_PASS",
-        "preUnitySourceEligible": True,
-        "unityInspectionRequired": False,
-        "lods": [asdict(item) for item in stats],
-        **dependencies,
+        "sourceInspection": "OBJ_STRUCTURAL_PASS", "preUnitySourceEligible": True,
+        "unityInspectionRequired": False, "lods": [asdict(item) for item in stats], **dependencies,
     }
 
 
 def validate_intake(repo: Path, source: str) -> dict[str, Any]:
     repo = repo.resolve()
     normalized, absolute = validate_source_path(repo, source)
-    suffix = absolute.suffix.lower()
     result: dict[str, Any] = {
-        "schemaVersion": 2,
-        "task": EXPECTED_TASK,
-        "source": normalized,
-        "extension": suffix,
-        "productionGate": False,
-        "visualAcceptance": False,
-        "ownerApproval": False,
-        "provenanceAccepted": False,
-        "licensedUnityImportVerified": False,
-        "physicalDeviceVerified": False,
-        "verified": False,
-        "boundary": BOUNDARY,
+        "schemaVersion": 2, "task": EXPECTED_TASK, "source": normalized, "extension": absolute.suffix.lower(),
+        "productionGate": False, "visualAcceptance": False, "ownerApproval": False,
+        "provenanceAccepted": False, "licensedUnityImportVerified": False,
+        "physicalDeviceVerified": False, "verified": False, "boundary": BOUNDARY,
     }
-    if suffix == ".obj":
+    if absolute.suffix.lower() == ".obj":
         result.update(validate_obj(repo, absolute))
         result["verdict"] = "READY_FOR_LICENSED_UNITY_IMPORT"
     else:
-        result.update(
-            {
-                "sourceInspection": "OPAQUE_SOURCE_UNITY_INSPECTION_REQUIRED",
-                "preUnitySourceEligible": True,
-                "unityInspectionRequired": True,
-                "dependenciesPackageLocal": None,
-                "dependenciesTrackedWithMeta": None,
-                "verdict": "UNITY_INSPECTION_REQUIRED",
-            }
-        )
+        result.update({
+            "sourceInspection": "OPAQUE_SOURCE_UNITY_INSPECTION_REQUIRED", "preUnitySourceEligible": True,
+            "unityInspectionRequired": True, "dependenciesPackageLocal": None,
+            "dependenciesTrackedWithMeta": None, "verdict": "UNITY_INSPECTION_REQUIRED",
+        })
     return result
-
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo-root", default=str(Path(__file__).resolve().parents[2]))
-    parser.add_argument("--source", required=True, help="Assets/... or unity_game/Assets/... Hero production source")
-    parser.add_argument("--output", type=Path, help="Optional non-overwriting JSON report under <repo>/artifacts/")
-    return parser
 
 
 def _write_report(repo: Path, output: Path, report: dict[str, Any]) -> None:
@@ -432,6 +357,14 @@ def _write_report(repo: Path, output: Path, report: dict[str, Any]) -> None:
     _require(not output.exists(), f"refusing to overwrite existing report: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo-root", default=str(Path(__file__).resolve().parents[2]))
+    parser.add_argument("--source", required=True, help="Assets/... or unity_game/Assets/... Hero production source")
+    parser.add_argument("--output", type=Path, help="Optional non-overwriting JSON report under <repo>/artifacts/")
+    return parser
 
 
 def main(argv: list[str] | None = None) -> int:
