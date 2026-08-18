@@ -375,6 +375,22 @@ namespace Afareet.Race
             return availability.AsReadOnly();
         }
 
+        public bool IsPowerUpUsable(
+            string racerId,
+            PowerUpKind kind,
+            double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds);
+            if (!Enum.IsDefined(typeof(PowerUpKind), kind))
+            {
+                throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+
+            var racer = GetRacerOrThrow(racerId);
+            var slot = racer.Inventory[kind];
+            return slot.Charges > 0 && slot.ReadyAtSeconds <= raceTimeSeconds;
+        }
+
         public PowerUpRuntimeUseResult TryUse(
             string sourceRacerId,
             PowerUpKind kind,
