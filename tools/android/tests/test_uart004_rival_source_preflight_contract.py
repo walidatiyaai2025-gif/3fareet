@@ -3,6 +3,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+POLICY_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs"
 PREFLIGHT_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionSourcePreflight.cs"
 STAGER_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs"
 RESOLVER_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Editor/RivalImportedLodResolver.cs"
@@ -13,18 +14,31 @@ MARKER_PATH = REPO_ROOT / "unity_game/Assets/Afareet/Scripts/Vehicle/RivalAuthor
 
 
 class RivalSourcePreflightContractTests(unittest.TestCase):
-    def test_preflight_and_stager_share_exact_three_tracked_sources(self):
+    def test_production_preflight_and_stager_share_central_isolated_source_authority(self):
+        policy = POLICY_PATH.read_text(encoding="utf-8")
         preflight = PREFLIGHT_PATH.read_text(encoding="utf-8")
         stager = STAGER_PATH.read_text(encoding="utf-8")
-        sources = (
+
+        for production_source in (
+            'ProductionSourceRoot + "Rival_01_WedgeCoupe_Production.obj"',
+            'ProductionSourceRoot + "Rival_02_FastbackMuscle_Production.obj"',
+            'ProductionSourceRoot + "Rival_03_CompactPrototype_Production.obj"',
+        ):
+            self.assertIn(production_source, policy)
+
+        for source in (preflight, stager):
+            self.assertIn("RivalProductionPolicy.StagingSourcePath(variant)", source)
+            self.assertIn("RivalProductionPolicy.ProductionSourceRoot", source)
+            self.assertIn("reviewSourcesRejected=true", source)
+
+        review_sources = (
             "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
             "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
             "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
         )
-        for source in sources:
-            self.assertIn(source, preflight)
-            self.assertIn(source, stager)
-        self.assertIn("SourcePaths.Length != RivalProductionPolicy.VariantCount", preflight)
+        for review_source in review_sources:
+            self.assertNotIn(review_source, preflight)
+            self.assertNotIn(review_source, stager)
         self.assertIn("distinctSources=3", preflight)
 
     def test_preflight_is_read_only_and_checks_production_surface_contract(self):
@@ -43,6 +57,8 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
             "RivalImportedLodResolver.ResolveImportedMaterialsOrThrow(sourcePath, sourceModel, signature)",
             "AFAREET_UART004_SOURCE_PREFLIGHT_OK",
             "AFAREET_UART004_SOURCE_PREFLIGHT_ALL_OK",
+            "production source is not delivered/imported",
+            "reviewSourcesRejected=true",
         )
         for token in required:
             self.assertIn(token, source)
@@ -56,6 +72,16 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
         )
         for token in forbidden:
             self.assertNotIn(token, source)
+
+    def test_full_set_preflight_occurs_before_first_production_staging_mutation(self):
+        source = STAGER_PATH.read_text(encoding="utf-8")
+        preflight = source.index("RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow();")
+        stage = source.index("StageAndBind(variant, sourceAlreadyPreflighted: true)")
+        save = source.index("PrefabUtility.SaveAsPrefabAsset")
+        self.assertLess(preflight, stage)
+        self.assertLess(preflight, save)
+        self.assertIn("sourceAlreadyPreflighted", source)
+        self.assertIn("reviewSourcesRejected=true", source)
 
     def test_flattened_unity_obj_resolution_uses_mesh_subassets_and_exact_source_signature(self):
         resolver = RESOLVER_PATH.read_text(encoding="utf-8")
@@ -95,11 +121,18 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
             self.assertIn("RivalImportedLodResolver.ResolveImportedMaterialsOrThrow(sourcePath, sourceModel, signature)", source)
             self.assertIn("resolver=imported-mesh-subassets+exact-source-signature", source)
 
-    def test_authored_review_packaging_is_source_exact_local_only_and_non_production(self):
+    def test_authored_review_packaging_remains_on_review_sources_only_and_non_production(self):
         stager = REVIEW_STAGER_PATH.read_text(encoding="utf-8")
         marker = MARKER_PATH.read_text(encoding="utf-8")
         runtime = RUNTIME_PATH.read_text(encoding="utf-8")
         ignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+
+        for review_source in (
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
+        ):
+            self.assertIn(review_source, stager)
 
         for required in (
             "RivalImportedLodResolver.ParseSourceOrThrow(sourcePath)",
@@ -123,6 +156,7 @@ class RivalSourcePreflightContractTests(unittest.TestCase):
             "new Mesh(",
             "RivalProductionSourceBinder.BindSource",
             "RivalProductionAssetMetadata>() ??",
+            "RivalProductionPolicy.StagingSourcePath",
         ):
             self.assertNotIn(forbidden, stager)
 
