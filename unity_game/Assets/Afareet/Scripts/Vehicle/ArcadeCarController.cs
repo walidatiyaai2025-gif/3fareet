@@ -349,10 +349,15 @@ namespace Afareet.Vehicle
 
         private void RecoverToTrack(string reason)
         {
+            if (body == null)
+                body = GetComponent<Rigidbody>();
+
             var checkpoint = GetComponent<LastCheckpointTracker>();
             var source = "spawn";
             var targetPosition = spawnPosition + Vector3.up * VehicleRecoveryPolicy.RecoveryUpOffsetMeters;
-            var targetRotation = spawnRotation;
+            var targetRotation = Quaternion.Dot(spawnRotation, spawnRotation) > 0.999f
+                ? spawnRotation
+                : transform.rotation;
 
             if (checkpoint != null && checkpoint.HasCheckpoint)
             {
