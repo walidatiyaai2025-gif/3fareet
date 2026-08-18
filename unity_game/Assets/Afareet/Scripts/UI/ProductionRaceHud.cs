@@ -10,6 +10,8 @@ namespace Afareet.UI
     public sealed class ProductionRaceHud : MonoBehaviour
     {
         private const string HostName = "AFAREET PRODUCTION RACE HUD";
+        private const float TelemetryRefreshIntervalSeconds = .1f;
+        private const float CareerRefreshIntervalSeconds = .25f;
 
         private ArcadeCarController player;
         private RaceDirector race;
@@ -22,6 +24,8 @@ namespace Afareet.UI
         private Text careerText;
         private Image spiritFill;
         private Rect lastSafeArea;
+        private float nextTelemetryRefreshTime;
+        private float nextCareerRefreshTime;
 
         public bool HasRuntimeBinding => player != null && race != null;
 
@@ -56,6 +60,8 @@ namespace Afareet.UI
             player = playerCar ?? throw new ArgumentNullException(nameof(playerCar));
             race = director ?? throw new ArgumentNullException(nameof(director));
             career = careerSession;
+            nextTelemetryRefreshTime = 0f;
+            nextCareerRefreshTime = 0f;
         }
 
         private void Update()
@@ -64,20 +70,37 @@ namespace Afareet.UI
             if (safeRoot == null) BuildHud();
             ApplySafeArea();
 
-            positionText.text = $"POS  {race.Position}/4";
-            timeText.text = $"{race.RaceTime:0.0} s";
-            speedText.text = $"{Mathf.Abs(player.SpeedKph):000}\nKM/H";
-            spiritText.text = $"SPIRIT  {Mathf.RoundToInt(player.NitroEnergy * 100f)}%";
-            spiritFill.fillAmount = Mathf.Clamp01(player.NitroEnergy);
-
-            // READY already has the event briefing and START RACE action. Hiding the
-            // drive-only telemetry keeps those regions readable; the same panels become
-            // visible automatically as soon as the race leaves the Ready phase.
             var showDriveTelemetry = race.Phase != RaceRoundPhase.Ready;
             SetPanelActive(spiritText, showDriveTelemetry);
             SetPanelActive(speedText, showDriveTelemetry);
 
-            RefreshCareer();
+            // The HUD displays race time to one decimal place, so evaluating ranking and
+            // formatting telemetry faster than 10 Hz has no visible information benefit.
+            // In particular race.Position builds ordered race snapshots; sampling it once
+            // per 100 ms removes that allocation-heavy work from the 60 FPS render loop.
+            var now = Time.unscaledTime;
+            if (now + .0001f >= nextTelemetryRefreshTime)
+            {
+                RefreshTelemetry();
+                nextTelemetryRefreshTime = now + TelemetryRefreshIntervalSeconds;
+            }
+
+            // Keep the fill visually smooth without allocating formatted strings/rankings.
+            spiritFill.fillAmount = Mathf.Clamp01(player.NitroEnergy);
+
+            if (now + .0001f >= nextCareerRefreshTime)
+            {
+                RefreshCareer();
+                nextCareerRefreshTime = now + CareerRefreshIntervalSeconds;
+            }
+        }
+
+        private void RefreshTelemetry()
+        {
+            positionText.text = $"POS  {race.Position}/4";
+            timeText.text = $"{race.RaceTime:0.0} s";
+            speedText.text = $"{Mathf.Abs(player.SpeedKph):000}\nKM/H";
+            spiritText.text = $"SPIRIT  {Mathf.RoundToInt(player.NitroEnergy * 100f)}%";
         }
 
         private void RefreshCareer()
