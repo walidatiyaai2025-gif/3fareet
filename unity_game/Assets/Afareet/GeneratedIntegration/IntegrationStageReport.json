@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "classification": "GENERATED_INTEGRATION_CANDIDATE",
+  "productionAccepted": false,
+  "verified": false,
+  "vehiclePrefabs": 4,
+  "scene": "Assets/Afareet/GeneratedIntegration/Scenes/SCN_3FAREET_GeneratedIntegration.unity",
+  "note": "Technical/programmer integration only; does not satisfy UART-003/004/005/006/007, URAC-011 or UPER-009 production acceptance."
+}
