@@ -121,6 +121,40 @@ function Resolve-PackageDependency(
     return $resolved
 }
 
+function Split-WavefrontArguments([string]$Value,[string]$Label) {
+    if ($null -eq $Value) { $Value = '' }
+    $tokens = New-Object System.Collections.Generic.List[string]
+    $current = New-Object System.Text.StringBuilder
+    $quote = [char]0
+    $tokenStarted = $false
+    foreach ($char in $Value.ToCharArray()) {
+        if ($quote -ne [char]0) {
+            if ($char -eq $quote) { $quote = [char]0 } else { [void]$current.Append($char) }
+            $tokenStarted = $true
+            continue
+        }
+        if ($char -eq [char]34 -or $char -eq [char]39) {
+            $quote = $char
+            $tokenStarted = $true
+            continue
+        }
+        if ($char -eq [char]35) { break }
+        if ([char]::IsWhiteSpace($char)) {
+            if ($tokenStarted) {
+                $tokens.Add($current.ToString())
+                [void]$current.Clear()
+                $tokenStarted = $false
+            }
+            continue
+        }
+        [void]$current.Append($char)
+        $tokenStarted = $true
+    }
+    if ($quote -ne [char]0) { Fail "$Label has an unterminated quoted argument." }
+    if ($tokenStarted) { $tokens.Add($current.ToString()) }
+    return $tokens.ToArray()
+}
+
 $packageRepoRelative = 'unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production'
 $packageRoot = Join-Path $RepoRoot ($packageRepoRelative -replace '/', [System.IO.Path]::DirectorySeparatorChar)
 if (-not (Test-Path -LiteralPath $packageRoot -PathType Container)) {
@@ -133,7 +167,10 @@ $rivalSources = @(
     'Rival_02_FastbackMuscle_Production.obj',
     'Rival_03_CompactPrototype_Production.obj'
 )
-$textureDirectivePattern = '^(map_ka|map_kd|map_ks|map_ke|map_ns|map_d|map_bump|bump|disp|decal|norm|map_pr|map_pm)\s+(.+)$'
+$TextureDirectives = @(
+    'map_ka','map_kd','map_ks','map_ke','map_ns','map_d','map_bump',
+    'bump','disp','decal','norm','map_pr','map_pm'
+)
 $mtlSeen = @{}
 $textureSeen = @{}
 
@@ -149,9 +186,10 @@ foreach ($rivalFile in $rivalSources) {
         $line = $rawLine.Trim()
         if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) { continue }
         if ($line -match '^mtllib\s+(.+)$') {
-            $reference = $Matches[1].Trim()
-            if (-not [string]::IsNullOrWhiteSpace($reference) -and -not $mtllibReferences.Contains($reference)) {
-                $mtllibReferences.Add($reference)
+            $references = @(Split-WavefrontArguments $Matches[1] "$rivalFile mtllib")
+            if ($references.Count -le 0) { Fail "$rivalFile has an empty mtllib declaration." }
+            foreach ($reference in $references) {
+                if (-not $mtllibReferences.Contains($reference)) { $mtllibReferences.Add($reference) }
             }
             continue
         }
@@ -186,16 +224,17 @@ foreach ($rivalFile in $rivalSources) {
                 $currentMaterial = $Matches[1].Trim()
                 continue
             }
-            if ($mtlLine -notmatch $textureDirectivePattern) { continue }
+
+            $mtlTokens = @(Split-WavefrontArguments $mtlLine "$mtlRepoRelative texture directive")
+            if ($mtlTokens.Count -lt 2 -or ($mtlTokens[0].ToLowerInvariant() -notin $TextureDirectives)) { continue }
             if ([string]::IsNullOrWhiteSpace($currentMaterial)) {
                 Fail "$mtlRepoRelative contains a texture directive before newmtl."
             }
 
-            $tokens = @($Matches[2].Trim() -split '\s+')
-            if ($tokens.Count -le 0 -or [string]::IsNullOrWhiteSpace($tokens[-1])) {
+            $textureReference = $mtlTokens[-1]
+            if ([string]::IsNullOrWhiteSpace($textureReference)) {
                 Fail "$mtlRepoRelative has an empty texture reference for material $currentMaterial."
             }
-            $textureReference = $tokens[-1]
             $texturePath = Resolve-PackageDependency $packageRoot (Split-Path -Parent $mtlPath) $textureReference "$mtlRepoRelative texture"
             $textureRepoRelative = Convert-ToRepoRelative $texturePath "$mtlRepoRelative texture"
             $null = Assert-TrackedNonEmptyFile $textureRepoRelative "Rival texture dependency"
