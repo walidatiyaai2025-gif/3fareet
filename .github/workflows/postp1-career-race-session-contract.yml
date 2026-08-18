@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/**'
+      - 'unity_game/Assets/Afareet/Scripts/Core/AfareetBootstrap.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Core/CareerTrackRuntimeController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/World/CairoCareerTrackCatalog.cs'
+      - 'unity_game/Assets/Afareet/Scripts/World/CairoCareerTrackBuilder.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceRoundController.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceChallengeConfiguration.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/EliminationRaceRuntime.cs'
@@ -13,14 +17,20 @@ on:
       - 'unity_game/Assets/Afareet/Scripts/Progression/**'
       - 'unity_game/Assets/Afareet/Tests/EditMode/CareerRuntime/**'
       - 'unity_game/Assets/Afareet/Tests/PlayMode/CareerGameSessionPlayModeTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/PlayMode/CareerTrackRuntimePlayModeTests.cs'
       - 'tools/android/contracts/CareerRaceSessionCompile.csproj'
       - 'tools/android/contracts/CareerRaceSessionContractRunner.cs'
       - 'tools/android/contracts/CareerRaceSessionContractRunner.csproj'
       - 'tools/android/tests/test_postp1_career_race_session_contract.py'
+      - 'tools/android/tests/test_postp1_career_track_runtime_contract.py'
       - '.github/workflows/postp1-career-race-session-contract.yml'
   push:
     paths:
       - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/**'
+      - 'unity_game/Assets/Afareet/Scripts/Core/AfareetBootstrap.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Core/CareerTrackRuntimeController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/World/CairoCareerTrackCatalog.cs'
+      - 'unity_game/Assets/Afareet/Scripts/World/CairoCareerTrackBuilder.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceRoundController.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/RaceChallengeConfiguration.cs'
       - 'unity_game/Assets/Afareet/Scripts/Race/EliminationRaceRuntime.cs'
@@ -30,10 +40,12 @@ on:
       - 'unity_game/Assets/Afareet/Scripts/Progression/**'
       - 'unity_game/Assets/Afareet/Tests/EditMode/CareerRuntime/**'
       - 'unity_game/Assets/Afareet/Tests/PlayMode/CareerGameSessionPlayModeTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/PlayMode/CareerTrackRuntimePlayModeTests.cs'
       - 'tools/android/contracts/CareerRaceSessionCompile.csproj'
       - 'tools/android/contracts/CareerRaceSessionContractRunner.cs'
       - 'tools/android/contracts/CareerRaceSessionContractRunner.csproj'
       - 'tools/android/tests/test_postp1_career_race_session_contract.py'
+      - 'tools/android/tests/test_postp1_career_track_runtime_contract.py'
       - '.github/workflows/postp1-career-race-session-contract.yml'
   workflow_dispatch:
 
@@ -45,11 +57,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Compile pure Career race-session coordinator
+      - name: Compile pure Career race-session coordinator and TrackId catalog
         run: dotnet build tools/android/contracts/CareerRaceSessionCompile.csproj --configuration Release --nologo
 
-      - name: Run Career race-session behavior contract
+      - name: Run Career race-session and TrackId behavior contract
         run: dotnet run --project tools/android/contracts/CareerRaceSessionContractRunner.csproj --configuration Release
 
       - name: Run Career race-session source contracts
         run: python3 tools/android/tests/test_postp1_career_race_session_contract.py
+
+      - name: Run Career TrackId runtime source contracts
+        run: python3 tools/android/tests/test_postp1_career_track_runtime_contract.py
