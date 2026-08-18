@@ -1,6 +1,7 @@
 using System;
 using Afareet.CareerRuntime;
 using Afareet.Progression;
+using Afareet.Race;
 
 internal static class CareerRaceSessionContractRunner
 {
@@ -18,6 +19,7 @@ internal static class CareerRaceSessionContractRunner
         try
         {
             Run();
+            RunChallengeBalanceContract();
             Console.WriteLine("AFAREET_CAREER_RACE_SESSION_CONTRACT_OK");
             return 0;
         }
@@ -89,6 +91,70 @@ internal static class CareerRaceSessionContractRunner
             threw = true;
         }
         Require(threw, "ResetSession after dispose must fail closed.");
+    }
+
+    private static void RunChallengeBalanceContract()
+    {
+        var nodes = ChapterOneCareerContent.CreateFoundation().Nodes;
+        Require(nodes.Count == 5, "Chapter 1 challenge balance contract requires the retained five-node order.");
+
+        RequireChallenge(
+            CareerChallengeBalancePolicy.Resolve(nodes[0]),
+            activeRivals: 3,
+            pace: .88f,
+            aggression: .90f,
+            elimination: false,
+            label: "Circuit");
+        RequireChallenge(
+            CareerChallengeBalancePolicy.Resolve(nodes[1]),
+            activeRivals: 0,
+            pace: 1f,
+            aggression: 1f,
+            elimination: false,
+            label: "Time Trial");
+        RequireChallenge(
+            CareerChallengeBalancePolicy.Resolve(nodes[2]),
+            activeRivals: 3,
+            pace: .98f,
+            aggression: 1.04f,
+            elimination: true,
+            label: "Elimination");
+        RequireChallenge(
+            CareerChallengeBalancePolicy.Resolve(nodes[3]),
+            activeRivals: 0,
+            pace: 1f,
+            aggression: 1f,
+            elimination: false,
+            label: "Drift");
+        RequireChallenge(
+            CareerChallengeBalancePolicy.Resolve(nodes[4]),
+            activeRivals: 1,
+            pace: 1.08f,
+            aggression: 1.14f,
+            elimination: false,
+            label: "Boss");
+
+        RequireChallenge(
+            RaceChallengeConfiguration.Standard,
+            activeRivals: 3,
+            pace: 1f,
+            aggression: 1f,
+            elimination: false,
+            label: "Standard P1");
+    }
+
+    private static void RequireChallenge(
+        RaceChallengeConfiguration configuration,
+        int activeRivals,
+        float pace,
+        float aggression,
+        bool elimination,
+        string label)
+    {
+        Require(configuration.ActiveRivalCount == activeRivals, $"{label} active-rival count drifted.");
+        Require(Math.Abs(configuration.AiDifficulty.PaceMultiplier - pace) < .0001f, $"{label} AI pace drifted.");
+        Require(Math.Abs(configuration.AiDifficulty.AggressionMultiplier - aggression) < .0001f, $"{label} AI aggression drifted.");
+        Require(configuration.EliminationEnabled == elimination, $"{label} elimination flag drifted.");
     }
 
     private static void Require(bool condition, string message)
