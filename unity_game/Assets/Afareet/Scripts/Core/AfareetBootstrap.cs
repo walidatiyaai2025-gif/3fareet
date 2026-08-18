@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Afareet.CareerRuntime;
+using Afareet.GarageRuntime;
 using Afareet.Race;
 using Afareet.UI;
 using Afareet.Vehicle;
@@ -28,6 +29,7 @@ namespace Afareet.Core
         {
             var vehicleConfig = LoadConfig<ArcadeCarConfig>("Config/ArcadeCarConfig");
             var cameraConfig = LoadConfig<ChaseCameraConfig>("Config/ChaseCameraConfig");
+            var garageCatalog = GarageCatalog.CreateDefault();
 
             SetupLighting();
             var trackBuild = CairoCareerTrackBuilder.Build(transform, CairoCareerTrackCatalog.CornicheNightId);
@@ -55,16 +57,21 @@ namespace Afareet.Core
                 player,
                 rivals,
                 race);
+            var careerBossVehicles = new CareerBossVehicleRuntimeController(
+                garageCatalog,
+                race,
+                rivals);
             var career = gameObject.AddComponent<CareerGameSession>();
             career.Configure(
                 player.GetComponent<RaceRoundController>(),
                 race,
                 performance,
                 new PlayerPrefsCareerProgressStorage(),
-                careerTracks);
+                careerTracks,
+                careerBossVehicles);
 
             var garage = gameObject.AddComponent<CareerGarageSession>();
-            garage.ConfigureWithPlayerPrefs(career);
+            garage.ConfigureWithPlayerPrefs(career, garageCatalog);
             Debug.Log(
                 $"AFAREET_GARAGE_SESSION_ACTIVE equipped={garage.State.EquippedVehicleId} " +
                 $"migratedLegacy={garage.MigratedLegacyGarageSave} recoveredInvalid={garage.RecoveredInvalidGarageSave}");
@@ -164,7 +171,7 @@ namespace Afareet.Core
             camera.backgroundColor = new Color(0.012f, 0.018f, 0.055f);
             var activeListener = cameraObject.AddComponent<AudioListener>();
             activeListener.enabled = true;
-            cameraObject.AddComponent<ChaseCamera>().Configure(target, config);
+            cameraObject.AddComponent<ChaseCamera>().Configure(target, cameraConfig);
 
             Debug.Log(
                 $"AFAREET_RACE_CAMERA_NORMALIZED active=Racing Camera disabledLegacyCameras={disabledLegacyCameras} " +
