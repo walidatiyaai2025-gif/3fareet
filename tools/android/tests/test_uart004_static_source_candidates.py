@@ -8,6 +8,11 @@ MANIFEST = REPO_ROOT / "docs/assets/01_vehicles/rival_cars_production/SOURCE_CAN
 ASSET_ROOT = REPO_ROOT / "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals"
 BANDS = ((1800, 16000), (800, 8000), (350, 4000))
 
+def canonical_text_sha256(path: Path):
+    data = path.read_bytes()
+    data = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(data).hexdigest()
+
 def parse_obj(path: Path):
     lines = path.read_text(encoding="utf-8").splitlines()
     vertices = [line for line in lines if line.startswith("v ")]
@@ -49,7 +54,7 @@ class Uart004StaticSourceCandidateTests(unittest.TestCase):
             self.assertTrue(mtl.is_file(), mtl)
             self.assertTrue(texture.is_file(), texture)
             self.assertEqual(bytes((137,80,78,71,13,10,26,10)), texture.read_bytes()[:8])
-            digest = hashlib.sha256(obj.read_bytes()).hexdigest()
+            digest = canonical_text_sha256(obj)
             self.assertEqual(entry["sha256"], digest)
             digests.add(digest)
 

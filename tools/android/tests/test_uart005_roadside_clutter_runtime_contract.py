@@ -53,11 +53,15 @@ class Uart005RoadsideClutterRuntimeContractTests(unittest.TestCase):
             "AFAREET UART005 ROADSIDE CLUTTER PASS",
             "FindObjectsByType<Transform>",
             'StartsWith("AUTHORED CAIRO BUILDING"',
-            "decoratedBuildingIds",
+            "HashSet<GameObject> decoratedBuildings",
+            "var candidateObject = candidate.gameObject",
+            "decoratedBuildings.Contains(candidateObject)",
             "CairoAuthoredRoadsideClutter.TryDecorateBuilding",
-            "decoratedBuildingIds.Add(instanceId)",
+            "decoratedBuildings.Add(candidateObject)",
         ):
             self.assertIn(required, text)
+        self.assertNotIn("decoratedBuildingIds", text)
+        self.assertNotIn("GetInstanceID()", text)
         self.assertNotIn("GameObject.CreatePrimitive", text)
         self.assertNotIn("new Mesh(", text)
 

@@ -13,6 +13,12 @@ class Uart005RoadCurbMobileLodExtensionTests(unittest.TestCase):
     def _read(self, path):
         return (REPO_ROOT / path).read_text(encoding='utf-8')
 
+    @staticmethod
+    def _canonical_text_sha256(path):
+        data = path.read_bytes()
+        data = data.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
+        return hashlib.sha256(data).hexdigest()
+
     def test_manifest_covers_all_13_modules_and_26_distinct_sources(self):
         manifest = json.loads(MANIFEST.read_text(encoding='utf-8'))
         self.assertEqual('BLOCKED', manifest['reviewState'])
@@ -29,7 +35,7 @@ class Uart005RoadCurbMobileLodExtensionTests(unittest.TestCase):
             for key in ('lod1', 'lod2'):
                 path = SOURCE / module[key]['model']
                 self.assertTrue(path.is_file(), path)
-                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                digest = self._canonical_text_sha256(path)
                 self.assertEqual(module[key]['sha256'], digest)
                 self.assertNotIn(digest, digests)
                 digests.add(digest)
@@ -70,12 +76,18 @@ class Uart005RoadCurbMobileLodExtensionTests(unittest.TestCase):
             '_LOD1', '_LOD2', 'LODGroup',
             'fake same-mesh road/curb LOD reuse rejected',
             't0 > t1 && t1 > t2 && t2 > 0',
-            'mesh.uv', 'mesh.normals', 'material.mainTexture',
+            'mesh.HasVertexAttribute(VertexAttribute.TexCoord0)',
+            'mesh.HasVertexAttribute(VertexAttribute.Normal)',
+            'HasBoundTexture', 'Application.isEditor',
+            'material.HasProperty("_MainTex")',
+            'material.HasProperty("_BaseMap")',
             'secondary road/curb LOD must not introduce colliders',
             'AFAREET_UART005_ROAD_CURB_MOBILE_LOD_ACTIVE',
             'AFAREET_UART005_ROAD_CURB_MOBILE_LOD_BLOCKED',
         ):
             self.assertIn(required, text)
+        for obsolete in ('mesh.uv', 'mesh.normals', 'material.mainTexture'):
+            self.assertNotIn(obsolete, text)
         for forbidden in ('GameObject.CreatePrimitive', 'new Mesh(', 'RecalculateNormals'):
             self.assertNotIn(forbidden, text)
 
