@@ -14,15 +14,26 @@ SPEC.loader.exec_module(MODULE)
 
 
 class P1VisualSourceReadinessTests(unittest.TestCase):
-    def test_current_repo_has_five_source_ready_tasks_and_only_hero_source_blocked(self):
+    def test_current_repo_has_four_source_ready_tasks_and_hero_and_rivals_blocked(self):
         report = MODULE.audit_visual_sources(REPO, hero_source=None)
         self.assertEqual("BLOCKED", report["state"])
-        self.assertEqual(5, report["sourceReadyCount"])
-        self.assertEqual(1, report["blockedCount"])
-        self.assertEqual(["UART-003"], report["blockedTaskIds"])
-        states = {item["taskId"]: item["state"] for item in report["tasks"]}
-        for task_id in ("UART-004", "UART-005", "UART-006", "UART-007", "URAC-011"):
-            self.assertEqual("SOURCE_READY_FOR_LICENSED_RUNTIME_PROOF", states[task_id])
+        self.assertEqual(4, report["sourceReadyCount"])
+        self.assertEqual(2, report["blockedCount"])
+        self.assertEqual(["UART-003", "UART-004"], report["blockedTaskIds"])
+
+        tasks = {item["taskId"]: item for item in report["tasks"]}
+        self.assertEqual("BLOCKED", tasks["UART-003"]["state"])
+        self.assertEqual("BLOCKED", tasks["UART-004"]["state"])
+        self.assertFalse(tasks["UART-003"]["sourceReady"])
+        self.assertFalse(tasks["UART-004"]["sourceReady"])
+        self.assertTrue(tasks["UART-004"]["blockedCheckIds"])
+        for blocked_check in tasks["UART-004"]["blockedCheckIds"]:
+            if blocked_check.startswith("UART-004:TRACKED:"):
+                self.assertIn("/Rivals/Production/", blocked_check)
+
+        for task_id in ("UART-005", "UART-006", "UART-007", "URAC-011"):
+            self.assertEqual("SOURCE_READY_FOR_LICENSED_RUNTIME_PROOF", tasks[task_id]["state"])
+            self.assertTrue(tasks[task_id]["sourceReady"])
 
     def test_every_task_preserves_runtime_owner_and_verification_boundary(self):
         report = MODULE.audit_visual_sources(REPO, hero_source=None)

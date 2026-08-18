@@ -28,6 +28,23 @@ function Normalize-Sha256($Value, [string]$Label) {
     return $sha
 }
 
+function Assert-TrackedNonEmptyFile([string]$RepoRelativePath, [string]$Label) {
+    $normalized = $RepoRelativePath.Replace('\\', '/')
+    $absolute = Join-Path $RepoRoot ($normalized -replace '/', [System.IO.Path]::DirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $absolute -PathType Leaf)) {
+        Fail "$Label is missing: $normalized"
+    }
+    $size = (Get-Item -LiteralPath $absolute).Length
+    if ($size -le 0) {
+        Fail "$Label is empty: $normalized"
+    }
+    & $git.Source -C $RepoRoot ls-files --error-unmatch -- $normalized *> $null
+    if (-not $?) {
+        Fail "$Label must already be tracked in the clean starting commit before licensed staging: $normalized"
+    }
+    return $size
+}
+
 $HandoffPacketSha256 = Normalize-Sha256 $HandoffPacketSha256 'HandoffPacketSha256'
 $NativeHandoffVerificationSha256 = Normalize-Sha256 $NativeHandoffVerificationSha256 'NativeHandoffVerificationSha256'
 $OperatorChainSha256 = Normalize-Sha256 $OperatorChainSha256 'OperatorChainSha256'
@@ -68,15 +85,15 @@ if (-not $initialStatusSucceeded) {
 }
 if ($initialDirty.Count -gt 0) {
     $initialDirty | ForEach-Object { Write-Warning "INITIAL_TREE_DIRTY $_" }
-    Fail "Staging handoff requires a clean Git tree. Commit the real Hero source package first, then rerun."
+    Fail "Staging handoff requires a clean Git tree. Commit the real Hero and Rival production source packages plus Unity metadata first, then rerun."
 }
 
 $HeroSource = ($HeroSource.Trim().Trim('"') -replace '\\', '/')
 if (-not $HeroSource.StartsWith('Assets/', [System.StringComparison]::Ordinal)) {
-    Fail "HeroSource must be a Unity Assets/ path, for example Assets/Afareet/ArtSource/Vehicles/HeroCar/AfareetKing.fbx"
+    Fail "HeroSource must be a Unity Assets/ path, for example Assets/Afareet/ArtSource/Vehicles/HeroCar/Production/AfareetKing.fbx"
 }
-if ($HeroSource -match '(?i)/(Generated|Preview|Blockout|Rivals)/') {
-    Fail "HeroSource cannot be under Generated, Preview, Blockout or Rivals: $HeroSource"
+if ($HeroSource -match '(?i)/(Generated|Preview|Refinement|RefinementCandidates|Blockout|Rivals|Review|ReviewPackaging)/') {
+    Fail "HeroSource cannot be under Generated, Preview, Refinement, Blockout, Rivals or Review paths: $HeroSource"
 }
 $extension = [System.IO.Path]::GetExtension($HeroSource).ToLowerInvariant()
 if ($extension -notin @('.fbx', '.obj', '.blend', '.glb', '.gltf')) {
@@ -84,16 +101,27 @@ if ($extension -notin @('.fbx', '.obj', '.blend', '.glb', '.gltf')) {
 }
 
 $heroRepoRelative = ('unity_game/' + $HeroSource).Replace('//', '/')
-$heroAbsolute = Join-Path $RepoRoot ($heroRepoRelative -replace '/', [System.IO.Path]::DirectorySeparatorChar)
-if (-not (Test-Path -LiteralPath $heroAbsolute -PathType Leaf)) {
-    Fail "Tracked Hero source file is missing: $heroRepoRelative"
-}
+$heroBytes = Assert-TrackedNonEmptyFile $heroRepoRelative 'Hero production source'
+$heroMetaRelative = $heroRepoRelative + '.meta'
+$heroMetaBytes = Assert-TrackedNonEmptyFile $heroMetaRelative 'Hero production source Unity metadata'
+Write-Host "AFAREET_STAGING_HERO_SOURCE_OK path=$heroRepoRelative bytes=$heroBytes meta=$heroMetaRelative metaBytes=$heroMetaBytes tracked=true"
 
-& $git.Source -C $RepoRoot ls-files --error-unmatch -- $heroRepoRelative *> $null
-$heroTrackedByGit = $?
-if (-not $heroTrackedByGit) {
-    Fail "Hero source must already be tracked in the clean starting commit before licensed staging: $heroRepoRelative"
+$RivalProductionSources = @(
+    'unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj',
+    'unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj',
+    'unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj'
+)
+if ((@($RivalProductionSources | Select-Object -Unique)).Count -ne 3) {
+    Fail "UART-004 staging requires exactly three distinct production Rival exchange paths."
 }
+for ($variant = 0; $variant -lt $RivalProductionSources.Count; $variant++) {
+    $rivalRepoRelative = $RivalProductionSources[$variant]
+    $rivalBytes = Assert-TrackedNonEmptyFile $rivalRepoRelative "Rival $($variant + 1) production source"
+    $rivalMetaRelative = $rivalRepoRelative + '.meta'
+    $rivalMetaBytes = Assert-TrackedNonEmptyFile $rivalMetaRelative "Rival $($variant + 1) production source Unity metadata"
+    Write-Host "AFAREET_STAGING_RIVAL_SOURCE_OK variant=$($variant + 1) path=$rivalRepoRelative bytes=$rivalBytes meta=$rivalMetaRelative metaBytes=$rivalMetaBytes tracked=true"
+}
+Write-Host "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK hero=1 rivals=3 sourcesAndMetaTracked=true mutationStarted=false verified=false"
 
 $ReportDir = Join-Path $RepoRoot "artifacts\production-staging"
 New-Item -ItemType Directory -Force -Path $ReportDir | Out-Null

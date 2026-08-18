@@ -21,16 +21,12 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 import validate_hero_asset_intake
+import validate_uart004_rival_production_handoff
 
 TASK_IDS = ("UART-003", "UART-004", "UART-005", "UART-006", "UART-007", "URAC-011")
 READY_STATES = {"SOURCE_READY_FOR_LICENSED_RUNTIME_PROOF", "UNITY_INSPECTION_REQUIRED"}
 
-RIVAL_ROOT = "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals"
-RIVAL_VARIANTS = (
-    ("Rival_01_WedgeCoupe.obj", "Rival_01_WedgeCoupe.mtl", "T_Rival_01_BC.png"),
-    ("Rival_02_FastbackMuscle.obj", "Rival_02_FastbackMuscle.mtl", "T_Rival_02_BC.png"),
-    ("Rival_03_CompactPrototype.obj", "Rival_03_CompactPrototype.mtl", "T_Rival_03_BC.png"),
-)
+RIVAL_POLICY = "unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs"
 
 MANIFESTS = {
     "UART-005": "docs/assets/02_tracks_environments/cairo_street_kit/ASSET_MANIFEST.json",
@@ -186,26 +182,74 @@ def _audit_hero(repo_root: Path, hero_source: Optional[str]) -> Dict[str, Any]:
 
 def _audit_rivals(repo_root: Path) -> Dict[str, Any]:
     checks: List[Dict[str, Any]] = []
-    obj_hashes = set()
-    for obj_name, mtl_name, texture_name in RIVAL_VARIANTS:
-        for filename in (obj_name, mtl_name, texture_name):
-            _tracked_file(checks, repo_root, "UART-004", f"{RIVAL_ROOT}/{filename}")
-        obj_path = repo_root / RIVAL_ROOT / obj_name
-        if obj_path.is_file():
-            text = obj_path.read_text(encoding="utf-8", errors="replace")
-            for suffix in ("_LOD0", "_LOD1", "_LOD2"):
-                _check(checks, f"UART-004:{obj_name}:{suffix}", suffix in text, "LOD group present" if suffix in text else "LOD group missing")
-            _check(checks, f"UART-004:{obj_name}:UV", "\nvt " in "\n" + text, "UV stream present")
-            _check(checks, f"UART-004:{obj_name}:NORMAL", "\nvn " in "\n" + text, "normal stream present")
-            code, digest, _ = _run_git(repo_root, ["hash-object", "--", f"{RIVAL_ROOT}/{obj_name}"])
-            if code == 0 and digest:
-                obj_hashes.add(digest)
-    _check(checks, "UART-004:DISTINCT_SOURCES", len(obj_hashes) == 3, f"distinct tracked OBJ hashes={len(obj_hashes)}/3")
+    if not _tracked_file(checks, repo_root, "UART-004", RIVAL_POLICY):
+        return _task("UART-004", "BLOCKED", checks, "Rival production policy is missing")
+
+    policy_path = repo_root / RIVAL_POLICY
+    try:
+        policy = validate_uart004_rival_production_handoff.parse_policy(policy_path)
+    except (validate_uart004_rival_production_handoff.HandoffError, OSError, ValueError) as exc:
+        _check(checks, "UART-004:PRODUCTION_POLICY", False, str(exc))
+        return _task("UART-004", "BLOCKED", checks, "Rival production policy could not be parsed")
+
+    production_root = "unity_game/" + str(policy["productionSourceRoot"]).lstrip("/")
+    source_paths: List[Path] = []
+    source_relatives: List[str] = []
+    for variant, file_name in enumerate(policy["sourceFileNames"], start=1):
+        relative = production_root + file_name
+        source_relatives.append(relative)
+        source_paths.append(repo_root / relative)
+        _tracked_file(checks, repo_root, "UART-004", relative)
+        _tracked_file(checks, repo_root, "UART-004", relative + ".meta")
+        _check(
+            checks,
+            f"UART-004:PRODUCTION_PATH:{variant}",
+            "/Rivals/Production/" in relative and file_name.endswith("_Production.obj"),
+            relative,
+        )
+
+    if any(item["status"] != "PASS" for item in checks):
+        return _task(
+            "UART-004",
+            "BLOCKED",
+            checks,
+            "real isolated Rival production OBJ exchanges and Unity metadata are still required; review candidates do not qualify",
+        )
+
+    try:
+        handoff = validate_uart004_rival_production_handoff.validate_handoff(source_paths, policy_path)
+    except (validate_uart004_rival_production_handoff.HandoffError, OSError, UnicodeError, ValueError) as exc:
+        _check(checks, "UART-004:TECHNICAL_HANDOFF", False, str(exc))
+        return _task("UART-004", "BLOCKED", checks, "Rival production technical handoff preflight failed")
+
+    _check(
+        checks,
+        "UART-004:TECHNICAL_HANDOFF",
+        handoff.get("technicalPreflightPassed") is True and handoff.get("distinctSourceHashes") == 3,
+        str(handoff.get("verdict") or "unexpected Rival handoff verdict"),
+    )
+
+    for variant, item in enumerate(handoff.get("variants") or [], start=1):
+        source_relative = source_relatives[variant - 1]
+        source_directory = str(Path(source_relative).parent).replace("\\", "/")
+        for library in item.get("materialLibraries") or []:
+            mtl_name = str(library.get("fileName") or "").strip()
+            if not mtl_name:
+                _check(checks, f"UART-004:MTL_NAME:{variant}", False, "missing material-library filename")
+                continue
+            mtl_relative = f"{source_directory}/{mtl_name}"
+            _tracked_file(checks, repo_root, "UART-004", mtl_relative)
+            _tracked_file(checks, repo_root, "UART-004", mtl_relative + ".meta")
+            for texture_name in library.get("textures") or []:
+                texture_relative = f"{source_directory}/{str(texture_name).replace('\\', '/')}"
+                _tracked_file(checks, repo_root, "UART-004", texture_relative)
+                _tracked_file(checks, repo_root, "UART-004", texture_relative + ".meta")
+
     return _task(
         "UART-004",
         "SOURCE_READY_FOR_LICENSED_RUNTIME_PROOF",
         checks,
-        "three authored Rival source chains are present; licensed prefab/runtime/owner proof remains pending",
+        "three isolated production Rival source chains are tracked and technically source-ready; licensed prefab/runtime/device/owner proof remains pending",
     )
 
 

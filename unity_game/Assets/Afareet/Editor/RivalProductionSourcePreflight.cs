@@ -9,28 +9,22 @@ namespace Afareet.Editor
 {
     /// <summary>
     /// Read-only UART-004 source preflight for operator staging. It validates the three
-    /// tracked authored rival model imports before any P1 visual-stack stager mutates assets.
+    /// isolated production rival model imports before any production stager mutates assets.
+    /// Historical authored-review sources live outside the production source root and are
+    /// intentionally rejected by RivalProductionPolicy.
     /// This is not owner acceptance, device proof or production promotion.
     /// </summary>
     public static class RivalProductionSourcePreflight
     {
-        private static readonly string[] SourcePaths =
-        {
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
-            "Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj"
-        };
-
         internal static void ValidateCurrentSourcesOrThrow()
         {
             RivalProductionPolicy.ValidateContract();
-            if (SourcePaths.Length != RivalProductionPolicy.VariantCount)
-                throw new InvalidOperationException("UART-004 source preflight must define exactly three tracked rival sources.");
 
             var uniqueGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            for (var variant = 0; variant < SourcePaths.Length; variant++)
+            for (var variant = 0; variant < RivalProductionPolicy.VariantCount; variant++)
             {
-                var guid = ValidateSourceOrThrow(variant, SourcePaths[variant]);
+                var sourcePath = RivalProductionPolicy.StagingSourcePath(variant);
+                var guid = ValidateSourceOrThrow(variant, sourcePath);
                 if (!uniqueGuids.Add(guid))
                     throw new InvalidOperationException(
                         $"UART-004 source preflight rejected duplicate source GUID: variant={variant + 1} guid={guid}");
@@ -38,21 +32,22 @@ namespace Afareet.Editor
 
             Debug.Log(
                 "AFAREET_UART004_SOURCE_PREFLIGHT_ALL_OK variants=3 importedSources=3 distinctSources=3 " +
+                $"sourceRoot={RivalProductionPolicy.ProductionSourceRoot} " +
                 "lodBands=3 resolver=imported-mesh-subassets+exact-source-signature uv0=true normals=true " +
-                "textureMapped=true productionPromotion=false");
+                "textureMapped=true reviewSourcesRejected=true productionPromotion=false");
         }
 
         private static string ValidateSourceOrThrow(int variant, string sourcePath)
         {
             if (!RivalProductionPolicy.IsSupportedAuthoredModelSource(sourcePath))
                 throw new InvalidOperationException(
-                    $"UART-004 source preflight rejected unsupported model path: variant={variant + 1} source={sourcePath}");
+                    $"UART-004 source preflight rejected non-production model path: variant={variant + 1} source={sourcePath}");
 
             var importer = AssetImporter.GetAtPath(sourcePath);
             var sourceModel = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
             if (importer == null || sourceModel == null)
                 throw new InvalidOperationException(
-                    $"UART-004 source preflight missing imported model: variant={variant + 1} source={sourcePath}");
+                    $"UART-004 production source is not delivered/imported: variant={variant + 1} source={sourcePath}");
 
             var guid = AssetDatabase.AssetPathToGUID(sourcePath);
             if (string.IsNullOrWhiteSpace(guid))
@@ -110,7 +105,7 @@ namespace Afareet.Editor
                 $"lod0Triangles={triangles[0]} lod1Triangles={triangles[1]} lod2Triangles={triangles[2]} " +
                 $"sourceSignatures={signature.Triangles[0]}/{signature.Triangles[1]}/{signature.Triangles[2]} " +
                 "resolver=imported-mesh-subassets+exact-source-signature uv0=true normals=true " +
-                "textureMapped=true productionPromotion=false");
+                "textureMapped=true reviewSourcesRejected=true productionPromotion=false");
             return guid;
         }
 

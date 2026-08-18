@@ -223,13 +223,12 @@ def build_packet(
     if [item["taskId"] for item in tasks] != EXPECTED_TASKS:
         raise P1LicensedHandoffPacketError("visual source audit did not return the exact ordered six-task P1 scope")
 
-    hero_task = tasks[0]
-    hero_blocked = normalized_hero is None and hero_task["sourceReady"] is False
+    visual_blocked_task_ids = list(visual.get("blockedTaskIds") or [])
     staging_ready = staging.get("readyForLicensedStaging") is True
     identity_ready = identity["exactSourceIdentitySatisfied"] is True
 
-    if hero_blocked:
-        state = "BLOCKED_EXTERNAL_HERO_SOURCE"
+    if visual_blocked_task_ids:
+        state = "BLOCKED_EXTERNAL_VISUAL_SOURCES"
     elif not identity_ready:
         state = "BLOCKED_GIT_IDENTITY"
     elif staging_ready:
@@ -248,10 +247,12 @@ def build_packet(
     if any(stage_id not in stage_lookup for stage_id in selected_stage_ids):
         raise P1LicensedHandoffPacketError("operator chain is missing one or more licensed-handoff stages")
 
-    if state == "BLOCKED_EXTERNAL_HERO_SOURCE":
+    if state == "BLOCKED_EXTERNAL_VISUAL_SOURCES":
+        blocked_tasks = ", ".join(visual_blocked_task_ids)
         next_action = (
-            "Commit a real externally-authored Afareet King production source under the canonical HeroCar source root, "
-            "then rerun this packet with --hero-source and --expected-git-sha set to that exact clean source commit."
+            f"Deliver and commit every missing externally-authored production visual source for {blocked_tasks} under its canonical production source root, "
+            "including required Unity metadata and source dependencies. Then rerun this packet from that exact clean source commit with "
+            "--hero-source set for UART-003 and --expected-git-sha set to the same 40-character commit SHA."
         )
     elif state == "BLOCKED_GIT_IDENTITY":
         next_action = (
@@ -282,7 +283,7 @@ def build_packet(
             "state": visual.get("state"),
             "sourceReadyCount": visual.get("sourceReadyCount"),
             "blockedCount": visual.get("blockedCount"),
-            "blockedTaskIds": list(visual.get("blockedTaskIds") or []),
+            "blockedTaskIds": visual_blocked_task_ids,
             "tasks": tasks,
         },
         "licensedStagingSummary": {

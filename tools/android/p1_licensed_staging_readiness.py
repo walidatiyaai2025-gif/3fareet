@@ -23,28 +23,28 @@ import p1_visual_source_readiness
 import validate_hero_asset_intake
 
 SUPPORTED_HERO_EXTENSIONS = {".fbx", ".obj", ".blend", ".glb", ".gltf"}
-FORBIDDEN_HERO_TOKENS = ("generated", "preview", "blockout")
+FORBIDDEN_HERO_TOKENS = ("generated", "preview", "refinement", "blockout", "review")
 
 RIVAL_REQUIRED_FILES = (
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.mtl",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/T_Rival_01_BC.png",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.mtl",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/T_Rival_02_BC.png",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.mtl",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/T_Rival_03_BC.png",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj.meta",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj.meta",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj",
+    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj.meta",
 )
 
 HANDOFF_REQUIRED_FILES = (
     "unity_game/Assets/Afareet/Editor/P1ProductionCandidateStagingHandoff.cs",
     "unity_game/Assets/Afareet/Editor/HeroCarProductionPrefabStager.cs",
+    "unity_game/Assets/Afareet/Editor/RivalProductionSourcePreflight.cs",
     "unity_game/Assets/Afareet/Editor/RivalProductionPrefabStager.cs",
+    "unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs",
     "unity_game/Assets/Afareet/Editor/P1ProductionWorldAssetStager.cs",
     "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkAssetStager.cs",
     "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingAssetStager.cs",
     "tools/android/p1_visual_source_readiness.py",
+    "tools/android/validate_uart004_rival_production_handoff.py",
     "tools/android/stage_production_candidate_windows.ps1",
     "tools/android/run_local_candidate_windows.ps1",
     ".github/workflows/unity-licensed-windows-candidate.yml",
@@ -141,7 +141,7 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
             checks,
             f"RIVAL:{path}",
             exists and tracked,
-            "tracked" if exists and tracked else "missing or untracked UART-004 authored source companion",
+            "tracked" if exists and tracked else "missing or untracked UART-004 isolated production source/Unity metadata",
         )
 
     normalized_hero = _normalize_hero_path(hero_source or "")
@@ -193,6 +193,16 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
             "tracked by Git" if tracked else "Hero must be committed before licensed staging starts",
         )
 
+        hero_meta_relative = normalized_hero + ".meta"
+        hero_meta_exists = (repo_root / hero_meta_relative).is_file()
+        hero_meta_tracked = hero_meta_exists and _tracked(repo_root, hero_meta_relative)
+        _check(
+            checks,
+            "UART-003_HERO_META_TRACKED_BY_HEAD",
+            hero_meta_tracked,
+            "tracked Unity metadata" if hero_meta_tracked else "Hero .meta must be committed before licensed staging starts",
+        )
+
         not_rival = "/Rivals/" not in normalized_hero.replace("\\", "/")
         _check(
             checks,
@@ -201,7 +211,7 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
             "separate Hero source" if not_rival else "Rival source cannot be reused as the Hero production source",
         )
 
-        intake_prereqs = under_assets and extension_ok and no_forbidden and exists and tracked and not_rival
+        intake_prereqs = under_assets and extension_ok and no_forbidden and exists and tracked and hero_meta_tracked and not_rival
         if intake_prereqs and extension == ".obj":
             try:
                 intake = validate_hero_asset_intake.validate_intake(repo_root, hero_file)
@@ -249,10 +259,9 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
         "blockedCheckIds": [item["id"] for item in blocked],
         "checks": checks,
         "nextAction": (
-            "Run tools/android/stage_production_candidate_windows.ps1 with this tracked Hero source on licensed Unity 6000.5.8f1; review and commit staging output before candidate tests/build."
+            "Run tools/android/stage_production_candidate_windows.ps1 with the tracked Hero + three isolated Rival production sources on licensed Unity 6000.5.8f1; review and commit staging output before candidate tests/build."
             if state == "READY_FOR_LICENSED_STAGING"
-            else "Resolve every BLOCKED check; do not run candidate build or claim UART/UPER verification from this audit."
-        ),
+            else "Resolve every BLOCKED external-source/handoff check; do not run candidate build or claim UART/UPER verification from this audit.")
     }
 
 

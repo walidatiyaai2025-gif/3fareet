@@ -125,6 +125,29 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
         self.assertIn("No procedural/generated classification in final metadata.", block)
         self.assertIn("generated/procedural candidates or triangle-only budget passes cannot satisfy", block)
 
+    def test_rival_request_matches_isolated_production_staging_contract_without_inventing_vertex_policy(self):
+        block = request_block(LEDGER.read_text(encoding="utf-8"), "EXT-ASSET-002")
+        for required in (
+            "STATUS: OPEN",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj",
+            "Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj",
+            "RivalImportedLodResolver",
+            "LOD0 1800–16000 triangles",
+            "LOD1 800–8000",
+            "LOD2 350–4000",
+            "Do not invent or claim a vertex acceptance range that is not in RivalProductionPolicy",
+            "Review/Generated/Preview/Refinement/Blockout sources are not production-authority paths",
+            "copying/renaming/rebinding the review geometry does not satisfy this request",
+        ):
+            self.assertIn(required, block)
+        for review_source_as_final in (
+            "Required final Unity exchange: Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_01_WedgeCoupe.obj",
+            "Required final Unity exchange: Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_02_FastbackMuscle.obj",
+            "Required final Unity exchange: Assets/Afareet/ArtSource/Vehicles/Rivals/Rival_03_CompactPrototype.obj",
+        ):
+            self.assertNotIn(review_source_as_final, block)
+
     def test_ledger_keeps_code_responsibilities_out_of_asset_requests(self):
         text = LEDGER.read_text(encoding="utf-8")
         for engineering_responsibility in (

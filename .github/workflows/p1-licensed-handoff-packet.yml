@@ -81,9 +81,10 @@ jobs:
           identity = p['gitIdentity']
           expected = os.environ['EXPECTED_HEAD_SHA'].lower()
           assert p['schemaVersion'] == 2
-          assert p['state'] == 'BLOCKED_EXTERNAL_HERO_SOURCE', p['state']
-          assert p['visualSourceSummary']['sourceReadyCount'] == 5
-          assert p['visualSourceSummary']['blockedTaskIds'] == ['UART-003']
+          assert p['state'] == 'BLOCKED_EXTERNAL_VISUAL_SOURCES', p['state']
+          assert p['visualSourceSummary']['sourceReadyCount'] == 4
+          assert p['visualSourceSummary']['blockedCount'] == 2
+          assert p['visualSourceSummary']['blockedTaskIds'] == ['UART-003', 'UART-004']
           assert identity['expectedGitSha'] == expected
           assert identity['observedGitSha'] != expected
           assert identity['gitIdentityMatched'] is False
@@ -99,6 +100,6 @@ jobs:
           print(
               'AFAREET_P1_LICENSED_HANDOFF_PR_IDENTITY_OK '
               f"observed={identity['observedGitSha']} expected={expected} "
-              'syntheticMerge=true releaseHandoffEligible=false verified=false'
+              'syntheticMerge=true visualBlocked=UART-003,UART-004 releaseHandoffEligible=false verified=false'
           )
           PY

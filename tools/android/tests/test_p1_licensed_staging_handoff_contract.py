@@ -28,6 +28,7 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             'NormalizeSha256(nativeHandoffVerificationSha256, "native handoff verification")',
             'NormalizeSha256(operatorChainSha256, "operator chain")',
             "ValidateHeroSourceBeforeMutation(heroSourcePath)",
+            "RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow()",
             "P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow()",
             "P1ProductionLandmarkAssetStager.StageTrackedSourcesOrThrow()",
             "P1ProductionTrackDressingAssetStager.StageTrackedSourcesOrThrow()",
@@ -56,6 +57,11 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "AFAREET_P1_STAGING_HANDOFF_OK",
         ):
             self.assertIn(required, text)
+
+        self.assertLess(
+            text.index("RivalProductionSourcePreflight.ValidateCurrentSourcesOrThrow()"),
+            text.index("P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow()"),
+        )
 
         for forbidden in (
             "AfareetBuild.BuildAndroid",
@@ -88,7 +94,7 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
         self.assertNotIn("GameObject.CreatePrimitive", rivals)
         self.assertNotIn("new Mesh(", rivals)
 
-    def test_windows_handoff_requires_authorization_clean_tracked_hero_and_never_commits_or_builds(self):
+    def test_windows_handoff_requires_authorization_clean_tracked_vehicle_sources_and_never_commits_or_builds(self):
         text = (TOOLS / "stage_production_candidate_windows.ps1").read_text(encoding="utf-8")
 
         for required in (
@@ -96,8 +102,17 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
             "[string]$NativeHandoffVerificationSha256",
             "[string]$OperatorChainSha256",
             "Staging handoff requires a clean Git tree.",
-            "ls-files --error-unmatch",
-            "Hero source must already be tracked in the clean starting commit",
+            "function Assert-TrackedNonEmptyFile",
+            "ls-files --error-unmatch -- $normalized",
+            "must already be tracked in the clean starting commit before licensed staging",
+            "$heroBytes = Assert-TrackedNonEmptyFile $heroRepoRelative 'Hero production source'",
+            "$heroMetaBytes = Assert-TrackedNonEmptyFile $heroMetaRelative 'Hero production source Unity metadata'",
+            "Rival_01_WedgeCoupe_Production.obj",
+            "Rival_02_FastbackMuscle_Production.obj",
+            "Rival_03_CompactPrototype_Production.obj",
+            "$rivalBytes = Assert-TrackedNonEmptyFile",
+            "$rivalMetaBytes = Assert-TrackedNonEmptyFile",
+            "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK",
             "validate_hero_asset_intake_windows.ps1",
             "AFAREET_P1_NATIVE_HERO_PREFLIGHT_START",
             "AFAREET_P1_NATIVE_HERO_PREFLIGHT_OK",
@@ -142,13 +157,15 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
-        preflight = text.index("AFAREET_P1_NATIVE_HERO_PREFLIGHT_START")
+        external_preflight = text.index("AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK")
+        native_preflight = text.index("AFAREET_P1_NATIVE_HERO_PREFLIGHT_START")
         unity_lookup = text.index("$defaultUnity = Join-Path")
         unity_start = text.index("Start-Process -FilePath $UnityPath")
         report_binding = text.index("AFAREET_P1_STAGING_REPORT_BINDING_OK")
         status_capture = text.index("status --porcelain --untracked-files=all", unity_start)
-        self.assertLess(preflight, unity_lookup)
-        self.assertLess(preflight, unity_start)
+        self.assertLess(external_preflight, native_preflight)
+        self.assertLess(native_preflight, unity_lookup)
+        self.assertLess(native_preflight, unity_start)
         self.assertLess(unity_start, report_binding)
         self.assertLess(report_binding, status_capture)
 
@@ -197,7 +214,11 @@ class P1LicensedStagingHandoffContractTests(unittest.TestCase):
                 "[ref]$tokens, [ref]$errors) | Out-Null; "
                 "if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }"
             )
-            result = subprocess.run([pwsh, "-NoProfile", "-Command", command], capture_output=True, text=True)
+            result = subprocess.run(
+                [pwsh, "-NoProfile", "-Command", command],
+                capture_output=True,
+                text=True,
+            )
             self.assertEqual(0, result.returncode, msg=f"{script.name}\n{result.stdout}{result.stderr}")
 
 

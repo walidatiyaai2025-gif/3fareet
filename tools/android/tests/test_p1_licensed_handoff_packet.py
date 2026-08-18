@@ -69,19 +69,22 @@ def ready_staging(git_sha: str):
 
 
 class P1LicensedHandoffPacketTests(unittest.TestCase):
-    def test_current_repo_reports_five_of_six_source_ready_and_external_hero_blocker(self):
+    def test_current_repo_reports_four_of_six_source_ready_and_external_visual_blockers(self):
         packet = MODULE.build_packet(ROOT, expected_git_sha=current_head(), environment={})
-        self.assertEqual("BLOCKED_EXTERNAL_HERO_SOURCE", packet["state"])
-        self.assertEqual(5, packet["visualSourceSummary"]["sourceReadyCount"])
-        self.assertEqual(1, packet["visualSourceSummary"]["blockedCount"])
-        self.assertEqual(["UART-003"], packet["visualSourceSummary"]["blockedTaskIds"])
+        self.assertEqual("BLOCKED_EXTERNAL_VISUAL_SOURCES", packet["state"])
+        self.assertEqual(4, packet["visualSourceSummary"]["sourceReadyCount"])
+        self.assertEqual(2, packet["visualSourceSummary"]["blockedCount"])
+        self.assertEqual(["UART-003", "UART-004"], packet["visualSourceSummary"]["blockedTaskIds"])
         tasks = packet["visualSourceSummary"]["tasks"]
         self.assertEqual(EXPECTED_TASKS, [item["taskId"] for item in tasks])
         self.assertFalse(tasks[0]["sourceReady"])
-        self.assertTrue(all(item["sourceReady"] for item in tasks[1:]))
+        self.assertFalse(tasks[1]["sourceReady"])
+        self.assertTrue(all(item["sourceReady"] for item in tasks[2:]))
         self.assertTrue(packet["gitIdentity"]["exactSourceIdentitySatisfied"])
         self.assertFalse(packet["releaseHandoffEligible"])
-        self.assertIn("Afareet King", packet["nextAction"])
+        self.assertIn("UART-003", packet["nextAction"])
+        self.assertIn("UART-004", packet["nextAction"])
+        self.assertIn("externally-authored production visual source", packet["nextAction"])
 
     def test_packet_binds_exact_operator_chain_and_next_licensed_stage_order(self):
         packet = MODULE.build_packet(ROOT, expected_git_sha=current_head(), environment={})
@@ -242,8 +245,13 @@ class P1LicensedHandoffPacketTests(unittest.TestCase):
             "$gitTopSucceeded = $?",
             "$gitShaSucceeded = $?",
             "$initialStatusSucceeded = $?",
-            "$heroTrackedByGit = $?",
             "$postStageStatusSucceeded = $?",
+            "function Assert-TrackedNonEmptyFile",
+            "ls-files --error-unmatch -- $normalized",
+            "if (-not $?)",
+            "$heroBytes = Assert-TrackedNonEmptyFile",
+            "$rivalBytes = Assert-TrackedNonEmptyFile",
+            "AFAREET_STAGING_EXTERNAL_SOURCE_PREFLIGHT_OK",
         ):
             self.assertIn(marker, text)
 
