@@ -1,6 +1,7 @@
 import importlib.util
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,7 +12,16 @@ MODULE_PATH = REPO_ROOT / "tools/android/validate_uart003_hero_production_handof
 SPEC = importlib.util.spec_from_file_location("validate_uart003_hero_production_handoff", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
-SPEC.loader.exec_module(MODULE)
+previous_module = sys.modules.get(SPEC.name)
+sys.modules[SPEC.name] = MODULE
+try:
+    SPEC.loader.exec_module(MODULE)
+except BaseException:
+    if previous_module is None:
+        sys.modules.pop(SPEC.name, None)
+    else:
+        sys.modules[SPEC.name] = previous_module
+    raise
 
 HERO_ROOT = Path("unity_game/Assets/Afareet/ArtSource/Vehicles/Hero")
 POLICY = Path("unity_game/Assets/Afareet/Scripts/Vehicle/HeroCarLodPolicy.cs")
@@ -100,6 +110,9 @@ def make_repo(*, obj=True, lod1_name="AFAREET_KING_LOD1") -> Path:
 
 
 class HeroProductionHandoffTests(unittest.TestCase):
+    def test_dynamic_module_is_registered_for_dataclass_introspection(self):
+        self.assertIs(MODULE, sys.modules.get(SPEC.name))
+
     def test_valid_obj_passes_dual_budget_and_nested_dependency_preflight(self):
         root = make_repo()
         try:
