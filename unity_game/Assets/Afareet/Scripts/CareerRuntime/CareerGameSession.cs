@@ -28,6 +28,7 @@ namespace Afareet.CareerRuntime
         public CareerProgress Progress => Profile?.Career;
         public CareerNodeDefinition ActiveDefinition => activeDefinition;
         public CareerEventSettlement LastSettlement { get; private set; }
+        public RaceRewardSettlement LastCoinRewardSettlement { get; private set; }
         public CareerNavigationSnapshot Navigation { get; private set; }
         public RaceChallengeConfiguration ActiveChallengeConfiguration => race?.ChallengeConfiguration ?? RaceChallengeConfiguration.Standard;
         public string ActiveTrackId => trackRuntime?.ActiveTrackId;
@@ -104,6 +105,7 @@ namespace Afareet.CareerRuntime
             RecoveredInvalidSave = load.RecoveredFromInvalidPayload;
             SaveRecoveryError = load.Error;
             LastSettlement = null;
+            LastCoinRewardSettlement = null;
 
             activeDefinition = FindFirstPlayableIncomplete();
             CampaignComplete = activeDefinition == null && AreAllNodesCompleted();
@@ -132,7 +134,10 @@ namespace Afareet.CareerRuntime
 
             var restarted = race.RestartRace();
             if (restarted)
+            {
                 LastSettlement = null;
+                LastCoinRewardSettlement = null;
+            }
             return restarted;
         }
 
@@ -189,6 +194,7 @@ namespace Afareet.CareerRuntime
 
             activeDefinition = next;
             LastSettlement = null;
+            LastCoinRewardSettlement = null;
             BindAdapter(activeDefinition);
             RefreshNavigation(activeDefinition.Node.Id);
             ActiveEventChanged?.Invoke(activeDefinition);
@@ -223,11 +229,22 @@ namespace Afareet.CareerRuntime
 
             var settlement = settlementService.Settle(activeDefinition, outcome, Progress);
             LastSettlement = settlement;
+            LastCoinRewardSettlement = null;
 
             if (!ReferenceEquals(settlement.Progress, Progress) || settlement.GrantedAnyReward)
             {
                 var selectedNodeId = Navigation?.SelectedNodeId;
-                Profile = Profile.Apply(settlement);
+                var settledCoinsGranted = settlement.CoinsGranted;
+                if (settlement.CoinsGranted > 0 && outcome.Finished)
+                {
+                    LastCoinRewardSettlement = race.SettlePlayerFinishReward(settlement.CoinsGranted);
+                    settledCoinsGranted = LastCoinRewardSettlement.SettledRewardUnits;
+                }
+
+                Profile = CareerPlayerProfileRewardApplication.ApplyWithSettledCoins(
+                    Profile,
+                    settlement,
+                    settledCoinsGranted);
                 RefreshNavigation(selectedNodeId);
                 profileStore.Save(Profile);
                 ProgressChanged?.Invoke(Progress);
