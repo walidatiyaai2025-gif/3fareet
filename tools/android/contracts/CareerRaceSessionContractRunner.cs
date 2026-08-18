@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Afareet.CareerRuntime;
 using Afareet.Progression;
 using Afareet.Race;
@@ -20,6 +21,7 @@ internal static class CareerRaceSessionContractRunner
         {
             Run();
             RunChallengeBalanceContract();
+            RunEliminationRuntimeContract();
             Console.WriteLine("AFAREET_CAREER_RACE_SESSION_CONTRACT_OK");
             return 0;
         }
@@ -98,49 +100,56 @@ internal static class CareerRaceSessionContractRunner
         var nodes = ChapterOneCareerContent.CreateFoundation().Nodes;
         Require(nodes.Count == 5, "Chapter 1 challenge balance contract requires the retained five-node order.");
 
-        RequireChallenge(
-            CareerChallengeBalancePolicy.Resolve(nodes[0]),
-            activeRivals: 3,
-            pace: .88f,
-            aggression: .90f,
-            elimination: false,
-            label: "Circuit");
-        RequireChallenge(
-            CareerChallengeBalancePolicy.Resolve(nodes[1]),
-            activeRivals: 0,
-            pace: 1f,
-            aggression: 1f,
-            elimination: false,
-            label: "Time Trial");
-        RequireChallenge(
-            CareerChallengeBalancePolicy.Resolve(nodes[2]),
-            activeRivals: 3,
-            pace: .98f,
-            aggression: 1.04f,
-            elimination: true,
-            label: "Elimination");
-        RequireChallenge(
-            CareerChallengeBalancePolicy.Resolve(nodes[3]),
-            activeRivals: 0,
-            pace: 1f,
-            aggression: 1f,
-            elimination: false,
-            label: "Drift");
-        RequireChallenge(
-            CareerChallengeBalancePolicy.Resolve(nodes[4]),
-            activeRivals: 1,
-            pace: 1.08f,
-            aggression: 1.14f,
-            elimination: false,
-            label: "Boss");
+        RequireChallenge(CareerChallengeBalancePolicy.Resolve(nodes[0]), 3, .88f, .90f, false, "Circuit");
+        RequireChallenge(CareerChallengeBalancePolicy.Resolve(nodes[1]), 0, 1f, 1f, false, "Time Trial");
+        RequireChallenge(CareerChallengeBalancePolicy.Resolve(nodes[2]), 3, .98f, 1.04f, true, "Elimination");
+        RequireChallenge(CareerChallengeBalancePolicy.Resolve(nodes[3]), 0, 1f, 1f, false, "Drift");
+        RequireChallenge(CareerChallengeBalancePolicy.Resolve(nodes[4]), 1, 1.08f, 1.14f, false, "Boss");
+        RequireChallenge(RaceChallengeConfiguration.Standard, 3, 1f, 1f, false, "Standard P1");
+    }
 
-        RequireChallenge(
-            RaceChallengeConfiguration.Standard,
-            activeRivals: 3,
-            pace: 1f,
-            aggression: 1f,
-            elimination: false,
-            label: "Standard P1");
+    private static void RunEliminationRuntimeContract()
+    {
+        var runtime = new EliminationRaceRuntime(checkpointCount: 4, eliminationCount: 3);
+        Require(runtime.Gates.Count == 3, "Four-checkpoint elimination must expose three gates.");
+        Require(runtime.Gates[0] == 1 && runtime.Gates[1] == 2 && runtime.Gates[2] == 3,
+            "Chapter 1 elimination gates must remain checkpoints 1, 2 and 3.");
+
+        Require(!runtime.TryResolveGate(0, new[] { "PLAYER", "R1", "R2", "R3" }, out _),
+            "Start/finish checkpoint must not eliminate a racer.");
+
+        Require(runtime.TryResolveGate(1, new[] { "PLAYER", "R1", "R2", "R3" }, out var first),
+            "First elimination gate must resolve exactly once.");
+        Require(first.EliminatedRacerId == "R3" && first.FieldSizeBeforeElimination == 4 && first.RemainingRacerCount == 3,
+            "First gate must eliminate the current last-place active racer.");
+        Require(runtime.IsEliminated("R3"), "Eliminated racer must be retained in deterministic state.");
+        Require(!runtime.TryResolveGate(1, new[] { "R1", "PLAYER", "R2" }, out _),
+            "Duplicate callbacks for an already-processed gate must be ignored.");
+
+        Require(runtime.TryResolveGate(2, new[] { "R1", "PLAYER", "R2" }, out var second),
+            "Second gate must resolve after the active ranking changes.");
+        Require(second.EliminatedRacerId == "R2", "Second gate must eliminate the new last-place racer.");
+        Require(runtime.TryResolveGate(3, new[] { "PLAYER", "R1" }, out var third),
+            "Final gate must collapse the field to one survivor.");
+        Require(third.EliminatedRacerId == "R1" && third.RemainingRacerCount == 1,
+            "Final gate must leave exactly one survivor.");
+        Require(runtime.EliminatedRacerCount == 3 && runtime.ProcessedGateCount == 3,
+            "All configured eliminations must be accounted for once.");
+
+        runtime.Reset();
+        Require(runtime.EliminatedRacerCount == 0 && runtime.ProcessedGateCount == 0,
+            "Restart/reset must clear elimination state completely.");
+        Require(runtime.TryResolveGate(1, new[] { "R1", "R2", "PLAYER" }, out var playerLoss),
+            "Player can be selected by the same deterministic last-place rule.");
+        Require(playerLoss.EliminatedRacerId == "PLAYER" && playerLoss.FieldSizeBeforeElimination == 3,
+            "Player-last gate must produce an explicit player elimination decision.");
+
+        RequireThrows<ArgumentException>(
+            () => runtime.TryResolveGate(2, new[] { "R1", "R1" }, out _),
+            "Duplicate ranking ids must fail closed.");
+        RequireThrows<ArgumentOutOfRangeException>(
+            () => runtime.TryResolveGate(4, new[] { "R1", "R2" }, out _),
+            "Out-of-range checkpoint ids must fail closed.");
     }
 
     private static void RequireChallenge(
@@ -155,6 +164,21 @@ internal static class CareerRaceSessionContractRunner
         Require(Math.Abs(configuration.AiDifficulty.PaceMultiplier - pace) < .0001f, $"{label} AI pace drifted.");
         Require(Math.Abs(configuration.AiDifficulty.AggressionMultiplier - aggression) < .0001f, $"{label} AI aggression drifted.");
         Require(configuration.EliminationEnabled == elimination, $"{label} elimination flag drifted.");
+    }
+
+    private static void RequireThrows<TException>(Action action, string message)
+        where TException : Exception
+    {
+        var threw = false;
+        try
+        {
+            action();
+        }
+        catch (TException)
+        {
+            threw = true;
+        }
+        Require(threw, message);
     }
 
     private static void Require(bool condition, string message)
