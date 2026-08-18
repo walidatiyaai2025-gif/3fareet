@@ -13,14 +13,11 @@ namespace Afareet.Vehicle
         public const float ReverseThrottle = -0.62f;
         public const float BrakeToReverseThresholdKph = 3f;
 
-        public const float TiltDeadZone = 0.08f;
-        public const float TiltSteerGain = 1.6f;
+        public const float SteeringWheelDeadZoneDegrees = 2.5f;
+        public const float SteeringWheelFullLockDegrees = 28f;
         public const float TiltSteerSmoothingPerSecond = 10f;
 
-        public const float TiltThrottleDeadZone = 0.06f;
         public const float TiltCruiseThrottle = 0.58f;
-        public const float TiltForwardBoostGain = 2.0f;
-        public const float TiltBackwardCoastGain = 1.6f;
         public const float TiltThrottleSmoothingPerSecond = 6f;
 
         public static float ResolveTouchSteer(float direction)
@@ -29,48 +26,59 @@ namespace Afareet.Vehicle
         }
 
         /// <summary>
-        /// Converts Unity's device-space accelerometer Y delta into the race steering
-        /// convention after landscape orientation is known. The sign is intentionally
-        /// inverted from the previous runtime mapping after physical-device owner feedback:
-        /// a rightward phone tilt must produce right steering and vice versa.
+        /// Unity's gyroscope is right-handed while Unity transforms are left-handed.
+        /// Convert the device attitude before doing relative-rotation math.
         /// </summary>
-        public static float ResolveLandscapeSteeringTilt(float deviceYDelta, bool landscapeRight)
+        public static Quaternion GyroToUnity(Quaternion attitude)
         {
-            return landscapeRight ? -deviceYDelta : deviceYDelta;
-        }
-
-        public static float ResolveTiltSteer(float steeringTilt)
-        {
-            var normalized = ResolveSignedDeadZone(steeringTilt, TiltDeadZone);
-            return Mathf.Clamp(
-                normalized * TiltSteerGain,
-                -TouchSteerMagnitude,
-                TouchSteerMagnitude);
+            return new Quaternion(attitude.x, attitude.y, -attitude.z, -attitude.w);
         }
 
         /// <summary>
-        /// Resolves calibrated landscape phone pitch into a hands-free accelerator demand.
-        /// Neutral posture cruises at a moderate throttle; forward pitch boosts toward full
-        /// acceleration, while backward pitch progressively coasts toward zero. Motion input
-        /// never creates negative throttle, braking, reverse, drift, or Spirit/Nitro demand.
+        /// Extracts only the twist around the device screen normal (Z axis) from the
+        /// calibrated relative attitude. Pitch and yaw components are intentionally
+        /// discarded so moving/tilting the phone forward or backward cannot steer.
+        ///
+        /// Positive result means a driver's right steering-wheel turn; negative means left.
         /// </summary>
-        public static float ResolveTiltCruiseThrottle(float forwardTilt)
+        public static float ResolveSteeringWheelDeltaDegrees(
+            Quaternion baselineAttitude,
+            Quaternion currentAttitude)
         {
-            if (Mathf.Abs(forwardTilt) <= TiltThrottleDeadZone)
-                return TiltCruiseThrottle;
+            var relative = Quaternion.Inverse(baselineAttitude) * currentAttitude;
 
-            if (forwardTilt > TiltThrottleDeadZone)
-            {
-                var normalizedForward = Mathf.Clamp01(
-                    (forwardTilt - TiltThrottleDeadZone) / (1f - TiltThrottleDeadZone));
-                var boost = Mathf.Clamp01(normalizedForward * TiltForwardBoostGain);
-                return Mathf.Lerp(TiltCruiseThrottle, 1f, boost);
-            }
+            // Swing-twist decomposition around Vector3.forward. For a Z-axis twist only
+            // relative.z and relative.w participate; X/Y rotations cannot leak into steer.
+            var twistMagnitude = Mathf.Sqrt(
+                relative.z * relative.z +
+                relative.w * relative.w);
 
-            var normalizedBackward = Mathf.Clamp01(
-                (-forwardTilt - TiltThrottleDeadZone) / (1f - TiltThrottleDeadZone));
-            var coast = Mathf.Clamp01(normalizedBackward * TiltBackwardCoastGain);
-            return Mathf.Lerp(TiltCruiseThrottle, 0f, coast);
+            if (twistMagnitude <= 0.000001f)
+                return 0f;
+
+            var twistZ = relative.z / twistMagnitude;
+            var twistW = relative.w / twistMagnitude;
+            var signedDeviceAngle =
+                2f * Mathf.Atan2(twistZ, twistW) * Mathf.Rad2Deg;
+
+            // Clockwise rotation as viewed by the driver is a right turn.
+            return -Mathf.DeltaAngle(0f, signedDeviceAngle);
+        }
+
+        public static float ResolveSteeringWheelInput(float steeringWheelDegrees)
+        {
+            var magnitude = Mathf.Abs(steeringWheelDegrees);
+            if (magnitude <= SteeringWheelDeadZoneDegrees)
+                return 0f;
+
+            var normalized = Mathf.InverseLerp(
+                SteeringWheelDeadZoneDegrees,
+                SteeringWheelFullLockDegrees,
+                magnitude);
+
+            return Mathf.Sign(steeringWheelDegrees) *
+                   normalized *
+                   TouchSteerMagnitude;
         }
 
         public static float SmoothTiltSteer(float current, float target, float deltaTime)
@@ -96,15 +104,6 @@ namespace Afareet.Vehicle
             brake = false;
         }
 
-        private static float ResolveSignedDeadZone(float value, float deadZone)
-        {
-            var magnitude = Mathf.Abs(value);
-            if (magnitude <= deadZone)
-                return 0f;
-
-            var normalized = Mathf.Clamp01((magnitude - deadZone) / (1f - deadZone));
-            return Mathf.Sign(value) * normalized;
-        }
 
         private static float SmoothToward(float current, float target, float deltaTime, float responsePerSecond)
         {
