@@ -21,12 +21,20 @@ namespace Afareet.Race
     {
         public static RacingLinePlan Plan(IReadOnlyList<Transform> waypoints, int targetIndex, float speedKph, int lookAhead = 3)
         {
+            ValidatePath(waypoints);
+            return PlanPrevalidated(waypoints, targetIndex, speedKph, lookAhead);
+        }
+
+        internal static RacingLinePlan PlanPrevalidated(
+            IReadOnlyList<Transform> waypoints,
+            int targetIndex,
+            float speedKph,
+            int lookAhead = 3)
+        {
             if (waypoints == null) throw new ArgumentNullException(nameof(waypoints));
             if (waypoints.Count < 3) throw new ArgumentException("At least three waypoints are required.", nameof(waypoints));
             if (targetIndex < 0 || targetIndex >= waypoints.Count) throw new ArgumentOutOfRangeException(nameof(targetIndex));
             if (lookAhead < 1) throw new ArgumentOutOfRangeException(nameof(lookAhead));
-            for (var i = 0; i < waypoints.Count; i++)
-                if (waypoints[i] == null) throw new ArgumentException($"Waypoint {i} is null.", nameof(waypoints));
 
             var severity = 0f;
             var inspected = Mathf.Min(lookAhead, waypoints.Count);
@@ -45,6 +53,14 @@ namespace Afareet.Race
             var aimIndex = Wrap(targetIndex + aimOffset, waypoints.Count);
             var nitro = severity < .18f && speedPlan.Brake01 < .05f;
             return new RacingLinePlan(aimIndex, speedPlan, nitro);
+        }
+
+        private static void ValidatePath(IReadOnlyList<Transform> waypoints)
+        {
+            if (waypoints == null) throw new ArgumentNullException(nameof(waypoints));
+            if (waypoints.Count < 3) throw new ArgumentException("At least three waypoints are required.", nameof(waypoints));
+            for (var i = 0; i < waypoints.Count; i++)
+                if (waypoints[i] == null) throw new ArgumentException($"Waypoint {i} is null.", nameof(waypoints));
         }
 
         private static int Wrap(int index, int count)

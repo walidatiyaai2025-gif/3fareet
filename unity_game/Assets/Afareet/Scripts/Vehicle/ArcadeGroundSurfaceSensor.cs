@@ -63,11 +63,16 @@ namespace Afareet.Vehicle
                 found = true;
             }
 
+            var previousGroundCollider = GroundCollider;
             IsGrounded = found;
             GroundCollider = found ? best.collider : null;
             GroundDistance = found ? bestDistance : float.PositiveInfinity;
-            if (found)
-                CurrentSurface = Classify(best.collider);
+
+            // Surface metadata is static for the authored race geometry. The grounding ray
+            // still runs every physics tick, but component/name classification only needs to
+            // run when contact moves to a different collider (or after leaving/re-entering it).
+            if (found && previousGroundCollider != GroundCollider)
+                CurrentSurface = Classify(GroundCollider);
         }
 
         public static ArcadeSurfaceKind Classify(Collider collider)

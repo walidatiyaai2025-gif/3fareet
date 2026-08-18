@@ -9,6 +9,8 @@ namespace Afareet.UI
 {
     public sealed class ProductionRaceControlsOverlay : MonoBehaviour
     {
+        private const float PowerUpInventoryRefreshIntervalSeconds = .1f;
+
         private static readonly PowerUpKind[] PowerUpOrder =
         {
             PowerUpKind.AsphaltShard,
@@ -33,6 +35,7 @@ namespace Afareet.UI
         private readonly Text[] powerLabels = new Text[5];
         private Text feedbackText;
         private Rect lastSafeArea;
+        private float nextPowerUpInventoryRefreshTime;
 
         public static ProductionRaceControlsOverlay EnsureInstalled(Transform owner)
         {
@@ -54,6 +57,7 @@ namespace Afareet.UI
         {
             race = director != null ? director : throw new ArgumentNullException(nameof(director));
             input = inputController != null ? inputController : throw new ArgumentNullException(nameof(inputController));
+            nextPowerUpInventoryRefreshTime = 0f;
         }
 
         private void Update()
@@ -202,10 +206,33 @@ namespace Afareet.UI
             SetActive(nitroRect, driving);
             SetActive(throttleRect, driving);
 
+            for (var index = 0; index < powerRects.Length; index++)
+                powerRects[index].gameObject.SetActive(driving);
+
+            if (!driving)
+            {
+                // Hidden controls do not need inventory snapshots. Reset the cadence so the
+                // first visible racing frame refreshes immediately after countdown/resume.
+                nextPowerUpInventoryRefreshTime = 0f;
+                return;
+            }
+
+            // Cooldowns are rendered to one decimal place. Sampling inventory at 10 Hz keeps
+            // the labels visually exact while removing List + five snapshot + wrapper
+            // allocations from the render-rate Update path.
+            var now = Time.unscaledTime;
+            if (now + .0001f < nextPowerUpInventoryRefreshTime)
+                return;
+
+            nextPowerUpInventoryRefreshTime = now + PowerUpInventoryRefreshIntervalSeconds;
+            RefreshPowerUpInventory();
+        }
+
+        private void RefreshPowerUpInventory()
+        {
             var inventory = race.GetPlayerPowerUpInventory();
             for (var index = 0; index < powerRects.Length; index++)
             {
-                powerRects[index].gameObject.SetActive(driving);
                 var snapshot = FindInventory(inventory, PowerUpOrder[index]);
                 if (snapshot == null)
                 {

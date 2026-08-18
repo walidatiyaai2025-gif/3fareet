@@ -27,6 +27,21 @@ namespace Afareet.Tests.Race
         }
 
         [Test]
+        public void IsPowerUpUsable_TracksChargesAndCooldownWithoutInventorySnapshot()
+        {
+            var runtime = Runtime(Rules(nitroCharges: 2, nitroCooldown: 5d));
+
+            Assert.That(runtime.IsPowerUpUsable("player", PowerUpKind.NitroSpirit, 0d), Is.True);
+
+            runtime.TryUse("player", PowerUpKind.NitroSpirit, null, 0d);
+            Assert.That(runtime.IsPowerUpUsable("player", PowerUpKind.NitroSpirit, 1d), Is.False);
+            Assert.That(runtime.IsPowerUpUsable("player", PowerUpKind.NitroSpirit, 5d), Is.True);
+
+            runtime.TryUse("player", PowerUpKind.NitroSpirit, null, 5d);
+            Assert.That(runtime.IsPowerUpUsable("player", PowerUpKind.NitroSpirit, 10d), Is.False);
+        }
+
+        [Test]
         public void HostileUseBlockedByEyeShield_IsStillConsumedAsRealAttempt()
         {
             var runtime = Runtime(Rules(eyeShieldCharges: 1, trafficCharges: 2));
@@ -133,6 +148,29 @@ namespace Afareet.Tests.Race
                 .Single(value => value.Kind == PowerUpKind.NitroSpirit);
             Assert.That(restored.Charges, Is.EqualTo(2));
             Assert.That(restored.CooldownRemainingSeconds, Is.Zero);
+        }
+
+        [Test]
+        public void TickAll_WithoutExpirations_ReusesImmutableZeroSnapshot()
+        {
+            var runtime = Runtime(Rules(nitroCharges: 1, effectDuration: 10d));
+            runtime.TryUse("player", PowerUpKind.NitroSpirit, null, 0d);
+
+            var firstSteadyTick = runtime.TickAll(1d);
+            var secondSteadyTick = runtime.TickAll(2d);
+
+            Assert.That(secondSteadyTick, Is.SameAs(firstSteadyTick));
+            Assert.That(firstSteadyTick.All(value => value.ExpiredEffectCount == 0), Is.True);
+
+            var expirationTick = runtime.TickAll(11d);
+            Assert.That(expirationTick, Is.Not.SameAs(firstSteadyTick));
+            Assert.That(
+                expirationTick.Single(value => value.RacerId == "player").ExpiredEffectCount,
+                Is.EqualTo(1));
+
+            var steadyAgain = runtime.TickAll(12d);
+            Assert.That(steadyAgain, Is.SameAs(firstSteadyTick));
+            Assert.That(steadyAgain.All(value => value.ExpiredEffectCount == 0), Is.True);
         }
 
         [Test]

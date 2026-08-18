@@ -15,10 +15,16 @@ class LiveAiHostilePowerUpPressureContractTests(unittest.TestCase):
             "AiHostilePowerUpPressurePolicy.HasIncomingPressure",
             "CanRacerUsePowerUp(targetAhead, PowerUpKind.AsphaltShard",
             "CanRacerUsePowerUp(chaserBehind, PowerUpKind.TrafficCurse",
-            "powerUpRuntime.GetInventorySnapshot(runtime.RacerId, raceTimeSeconds)",
+            "powerUpRuntime.IsPowerUpUsable(runtime.RacerId, kind, raceTimeSeconds)",
             "incomingHostilePressure: incomingHostilePressure",
         ):
             self.assertIn(required, source)
+
+        start = source.index("private bool CanRacerUsePowerUp(")
+        end = source.index("private void FixedUpdate()", start)
+        pressure_query = source[start:end]
+        self.assertNotIn("GetInventorySnapshot", pressure_query)
+        self.assertNotIn("GetAiAvailability", pressure_query)
 
     def test_pressure_policy_uses_real_inventory_usability_and_existing_ai_ranges(self):
         source = POLICY.read_text(encoding="utf-8")

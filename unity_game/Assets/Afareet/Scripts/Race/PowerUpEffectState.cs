@@ -110,6 +110,9 @@ namespace Afareet.Race
 
     public sealed class PowerUpEffectState
     {
+        private static readonly PowerUpKind[] AllPowerUpKinds =
+            (PowerUpKind[])Enum.GetValues(typeof(PowerUpKind));
+
         private readonly Dictionary<PowerUpKind, ActivePowerUpEffect> activeEffects =
             new Dictionary<PowerUpKind, ActivePowerUpEffect>();
         private readonly IPowerUpPresentationSink presentationSink;
@@ -257,28 +260,29 @@ namespace Afareet.Race
                 return 0;
             }
 
-            var expiredKinds = new List<PowerUpKind>();
-            foreach (var pair in activeEffects)
+            // The power-up kind set is fixed and tiny. Scan that cached enum order instead of
+            // allocating a temporary expired-kind List on every physics tick while any effect
+            // is active. Removing by key outside Dictionary enumeration is safe and preserves
+            // the same deterministic ascending-kind presentation event ordering.
+            var removed = 0;
+            for (var index = 0; index < AllPowerUpKinds.Length; index++)
             {
-                if (!pair.Value.IsActiveAt(raceTimeSeconds))
-                {
-                    expiredKinds.Add(pair.Key);
-                }
-            }
+                var kind = AllPowerUpKinds[index];
+                if (!activeEffects.TryGetValue(kind, out var effect))
+                    continue;
+                if (effect.IsActiveAt(raceTimeSeconds))
+                    continue;
 
-            expiredKinds.Sort();
-            foreach (var kind in expiredKinds)
-            {
-                var expiredEffect = activeEffects[kind];
                 activeEffects.Remove(kind);
                 EmitPresentation(
                     PowerUpPresentationEventKind.Expired,
                     kind,
                     raceTimeSeconds,
-                    expiredEffect.Spec.Magnitude);
+                    effect.Spec.Magnitude);
+                removed++;
             }
 
-            return expiredKinds.Count;
+            return removed;
         }
 
         private void EmitPresentation(

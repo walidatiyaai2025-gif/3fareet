@@ -245,6 +245,9 @@ namespace Afareet.Race
 
     public sealed class PowerUpRaceRuntime
     {
+        private static readonly PowerUpKind[] AllPowerUpKinds =
+            (PowerUpKind[])Enum.GetValues(typeof(PowerUpKind));
+
         private sealed class InventorySlot
         {
             public int InitialCharges { get; }
@@ -287,6 +290,7 @@ namespace Afareet.Race
         private readonly PowerUpRuntimeRuleset ruleset;
         private readonly SortedDictionary<string, RacerState> racers =
             new SortedDictionary<string, RacerState>(StringComparer.Ordinal);
+        private readonly IReadOnlyList<PowerUpRuntimeTickResult> zeroTickResults;
 
         public PowerUpRaceRuntime(
             PowerUpRuntimeRuleset ruleset,
@@ -320,6 +324,13 @@ namespace Afareet.Race
             {
                 throw new ArgumentException("At least one racer registration is required.", nameof(registrations));
             }
+
+            var zeroResults = new List<PowerUpRuntimeTickResult>(racers.Count);
+            foreach (var pair in racers)
+            {
+                zeroResults.Add(new PowerUpRuntimeTickResult(pair.Key, 0));
+            }
+            zeroTickResults = zeroResults.AsReadOnly();
         }
 
         public IReadOnlyList<PowerUpInventorySnapshot> GetInventorySnapshot(
@@ -328,10 +339,11 @@ namespace Afareet.Race
         {
             ValidateRaceTime(raceTimeSeconds);
             var racer = GetRacerOrThrow(racerId);
-            var snapshot = new List<PowerUpInventorySnapshot>();
+            var snapshot = new List<PowerUpInventorySnapshot>(AllPowerUpKinds.Length);
 
-            foreach (PowerUpKind kind in Enum.GetValues(typeof(PowerUpKind)))
+            for (var index = 0; index < AllPowerUpKinds.Length; index++)
             {
+                var kind = AllPowerUpKinds[index];
                 var slot = racer.Inventory[kind];
                 snapshot.Add(new PowerUpInventorySnapshot(
                     kind,
@@ -346,17 +358,36 @@ namespace Afareet.Race
             string racerId,
             double raceTimeSeconds)
         {
-            var inventory = GetInventorySnapshot(racerId, raceTimeSeconds);
-            var availability = new List<AiPowerUpAvailability>(inventory.Count);
-            foreach (var item in inventory)
+            ValidateRaceTime(raceTimeSeconds);
+            var racer = GetRacerOrThrow(racerId);
+            var availability = new List<AiPowerUpAvailability>(AllPowerUpKinds.Length);
+
+            for (var index = 0; index < AllPowerUpKinds.Length; index++)
             {
+                var kind = AllPowerUpKinds[index];
+                var slot = racer.Inventory[kind];
                 availability.Add(new AiPowerUpAvailability(
-                    item.Kind,
-                    item.Charges,
-                    item.CooldownRemainingSeconds));
+                    kind,
+                    slot.Charges,
+                    Math.Max(0d, slot.ReadyAtSeconds - raceTimeSeconds)));
             }
 
             return availability.AsReadOnly();
+        }
+
+        public bool IsPowerUpUsable(
+            string racerId,
+            PowerUpKind kind,
+            double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds);
+            if (!Enum.IsDefined(typeof(PowerUpKind), kind))
+            {
+                throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+
+            var racer = GetRacerOrThrow(racerId);
+            return IsSlotUsable(racer.Inventory[kind], raceTimeSeconds);
         }
 
         public PowerUpRuntimeUseResult TryUse(
@@ -479,8 +510,15 @@ namespace Afareet.Race
                 throw new ArgumentNullException(nameof(snapshot));
             }
 
-            var availability = GetAiAvailability(sourceRacerId, raceTimeSeconds);
-            var decision = AiPowerUpUsagePolicy.Decide(snapshot, availability);
+            ValidateRaceTime(raceTimeSeconds);
+            var source = GetRacerOrThrow(sourceRacerId);
+            var decision = AiPowerUpUsagePolicy.Decide(
+                snapshot,
+                IsSlotUsable(source.Inventory[PowerUpKind.AsphaltShard], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.NitroSpirit], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.TrafficCurse], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.EnchantedPound], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.EyeShield], raceTimeSeconds));
             if (!decision.ShouldUse)
             {
                 return new AiPowerUpExecutionResult(decision, null);
@@ -500,15 +538,39 @@ namespace Afareet.Race
         public IReadOnlyList<PowerUpRuntimeTickResult> TickAll(double raceTimeSeconds)
         {
             ValidateRaceTime(raceTimeSeconds);
-            var results = new List<PowerUpRuntimeTickResult>(racers.Count);
+
+            List<PowerUpRuntimeTickResult> changedResults = null;
+            var racerIndex = 0;
             foreach (var pair in racers)
             {
-                results.Add(new PowerUpRuntimeTickResult(
-                    pair.Key,
-                    pair.Value.Effects.Tick(raceTimeSeconds)));
+                var expiredEffectCount = pair.Value.Effects.Tick(raceTimeSeconds);
+                if (changedResults == null && expiredEffectCount == 0)
+                {
+                    racerIndex++;
+                    continue;
+                }
+
+                if (changedResults == null)
+                {
+                    changedResults = new List<PowerUpRuntimeTickResult>(racers.Count);
+                    for (var priorIndex = 0; priorIndex < racerIndex; priorIndex++)
+                    {
+                        changedResults.Add(zeroTickResults[priorIndex]);
+                    }
+                }
+
+                changedResults.Add(expiredEffectCount == 0
+                    ? zeroTickResults[racerIndex]
+                    : new PowerUpRuntimeTickResult(pair.Key, expiredEffectCount));
+                racerIndex++;
             }
 
-            return results.AsReadOnly();
+            // Effect expirations are sparse. Reusing the immutable all-zero snapshot removes
+            // the steady-state List/result/wrapper allocations from RaceDirector.FixedUpdate
+            // while preserving standalone immutable snapshots on frames that report changes.
+            return changedResults == null
+                ? zeroTickResults
+                : changedResults.AsReadOnly();
         }
 
         public ActivePowerUpEffect GetActiveEffect(
@@ -598,7 +660,7 @@ namespace Afareet.Race
                 return (null, PowerUpRuntimeUseStatus.MissingTarget);
             }
 
-            if (StringComparer.Ordinal.Equals(targetRacerId, source.RacerId))
+            if (StringComparer.Ordinal.Equals(source.RacerId, targetRacerId))
             {
                 return (null, PowerUpRuntimeUseStatus.InvalidTarget);
             }
@@ -609,6 +671,11 @@ namespace Afareet.Race
             }
 
             return (target, null);
+        }
+
+        private static bool IsSlotUsable(InventorySlot slot, double raceTimeSeconds)
+        {
+            return slot.Charges > 0 && slot.ReadyAtSeconds <= raceTimeSeconds;
         }
 
         private static PowerUpRuntimeUseResult GateResult(

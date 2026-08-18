@@ -39,6 +39,7 @@ namespace Afareet.Race
         private bool playerWasEliminated;
         private int playerEliminationPosition;
         private double nextPowerUpDecisionRaceTime;
+        private IReadOnlyList<RankedRaceEntry> aiDecisionRankedSnapshot;
         private RaceRewardSettlementSnapshot playerFinishRewardSnapshot;
         private RaceChallengeConfiguration challengeConfiguration = RaceChallengeConfiguration.Standard;
 
@@ -254,7 +255,9 @@ namespace Afareet.Race
             if (source == null || source.Eliminated || source.Lap.IsFinished)
                 return null;
 
-            var ranked = BuildRankedRace();
+            // FixedUpdate publishes one read-only ranking snapshot for the whole AI decision
+            // cadence. Calls outside that batch still capture fresh live race progress.
+            var ranked = aiDecisionRankedSnapshot ?? BuildRankedRace();
             var rankedIndex = -1;
             for (var i = 0; i < ranked.Count; i++)
             {
@@ -330,9 +333,7 @@ namespace Afareet.Race
             if (runtime == null || runtime.Eliminated || runtime.Lap.IsFinished || powerUpRuntime == null || powerUpRuntimeDirty)
                 return false;
 
-            return AiHostilePowerUpPressurePolicy.IsUsable(
-                powerUpRuntime.GetInventorySnapshot(runtime.RacerId, raceTimeSeconds),
-                kind);
+            return powerUpRuntime.IsPowerUpUsable(runtime.RacerId, kind, raceTimeSeconds);
         }
 
         private void FixedUpdate()
@@ -355,19 +356,32 @@ namespace Afareet.Race
             if (raceTimeSeconds + .0001d >= nextPowerUpDecisionRaceTime)
             {
                 nextPowerUpDecisionRaceTime = raceTimeSeconds + AiPowerUpDecisionCadenceSeconds;
-                for (var i = 1; i < racers.Count; i++)
+                aiDecisionRankedSnapshot = null;
+                try
                 {
-                    if (racers[i].Eliminated) continue;
-                    var ai = racers[i].Car.GetComponent<AiRacer>();
-                    if (ai == null) continue;
-
-                    var execution = ai.EvaluateBoundPowerUpDecision();
-                    if (execution?.UseResult != null &&
-                        execution.UseResult.Status == PowerUpRuntimeUseStatus.Used &&
-                        execution.UseResult.Kind != PowerUpKind.AsphaltShard)
+                    for (var i = 1; i < racers.Count; i++)
                     {
-                        driveProjectionDirty = true;
+                        if (racers[i].Eliminated) continue;
+                        var ai = racers[i].Car.GetComponent<AiRacer>();
+                        if (ai == null) continue;
+
+                        // Delay the snapshot until the first live AI participant. That keeps
+                        // no-rival/no-AI cadences allocation-free while still building once.
+                        aiDecisionRankedSnapshot ??= BuildRankedRace();
+                        var execution = ai.EvaluateBoundPowerUpDecision();
+                        if (execution?.UseResult != null &&
+                            execution.UseResult.Status == PowerUpRuntimeUseStatus.Used &&
+                            execution.UseResult.Kind != PowerUpKind.AsphaltShard)
+                        {
+                            driveProjectionDirty = true;
+                        }
                     }
+                }
+                finally
+                {
+                    // Never leak a cadence snapshot to player/UI/external callers. Those must
+                    // continue to observe freshly captured race progress.
+                    aiDecisionRankedSnapshot = null;
                 }
             }
 

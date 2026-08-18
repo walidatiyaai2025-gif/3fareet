@@ -52,6 +52,31 @@ class MobileDriveContractTests(unittest.TestCase):
         ):
             self.assertIn(required, controls)
 
+    def test_powerup_inventory_labels_are_sampled_not_render_rate(self):
+        controls = CONTROLS_PATH.read_text(encoding="utf-8")
+        presentation_start = controls.index("private void RefreshPresentation()")
+        presentation_end = controls.index("private void RefreshPowerUpInventory()", presentation_start)
+        presentation = controls[presentation_start:presentation_end]
+        inventory_start = presentation_end
+        inventory_end = controls.index("private void BuildUi()", inventory_start)
+        inventory_refresh = controls[inventory_start:inventory_end]
+
+        for required in (
+            "private const float PowerUpInventoryRefreshIntervalSeconds = .1f;",
+            "private float nextPowerUpInventoryRefreshTime;",
+            "if (!driving)",
+            "nextPowerUpInventoryRefreshTime = 0f;",
+            "var now = Time.unscaledTime;",
+            "if (now + .0001f < nextPowerUpInventoryRefreshTime)",
+            "nextPowerUpInventoryRefreshTime = now + PowerUpInventoryRefreshIntervalSeconds;",
+            "RefreshPowerUpInventory();",
+        ):
+            self.assertIn(required, controls)
+
+        self.assertNotIn("race.GetPlayerPowerUpInventory()", presentation)
+        self.assertIn("var inventory = race.GetPlayerPowerUpInventory();", inventory_refresh)
+        self.assertEqual(controls.count("race.GetPlayerPowerUpInventory()"), 1)
+
     def test_mobile_steering_uses_reduced_policy_not_full_lock_literals(self):
         controls = CONTROLS_PATH.read_text(encoding="utf-8")
         policy = POLICY_PATH.read_text(encoding="utf-8")

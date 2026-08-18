@@ -13,12 +13,58 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
         for required in (
             "public sealed class PowerUpRaceRuntime", "SortedDictionary<string, RacerState>", "PowerUpRuntimeRuleset",
-            "GetInventorySnapshot", "GetAiAvailability", "TryUse(", "ExecuteAiDecision(", "TickAll(", "ResetRace()",
+            "GetInventorySnapshot", "GetAiAvailability", "IsPowerUpUsable", "TryUse(", "ExecuteAiDecision(", "TickAll(", "ResetRace()",
             "slot.Charges--", "slot.ReadyAtSeconds = raceTimeSeconds + rule.CooldownSeconds",
         ):
             self.assertIn(required, source)
         self.assertNotIn("using UnityEngine;", source)
         self.assertNotIn("MonoBehaviour", source)
+
+    def test_single_slot_usability_query_is_allocation_free(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
+        start = source.index("public bool IsPowerUpUsable(")
+        end = source.index("public PowerUpRuntimeUseResult TryUse(", start)
+        method = source[start:end]
+        helper_start = source.index("private static bool IsSlotUsable(")
+        helper_end = source.index("private static PowerUpRuntimeUseResult GateResult(", helper_start)
+        helper = source[helper_start:helper_end]
+
+        self.assertIn("var racer = GetRacerOrThrow(racerId);", method)
+        self.assertIn("return IsSlotUsable(racer.Inventory[kind], raceTimeSeconds);", method)
+        self.assertIn("return slot.Charges > 0 && slot.ReadyAtSeconds <= raceTimeSeconds;", helper)
+        for forbidden in (
+            "GetInventorySnapshot(",
+            "GetAiAvailability(",
+            "new List<",
+            "new PowerUpInventorySnapshot",
+            "new AiPowerUpAvailability",
+            ".AsReadOnly()",
+        ):
+            self.assertNotIn(forbidden, method)
+            self.assertNotIn(forbidden, helper)
+
+    def test_live_ai_execution_reads_slots_without_availability_snapshot_allocations(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
+        start = source.index("public AiPowerUpExecutionResult ExecuteAiDecision(")
+        end = source.index("public IReadOnlyList<PowerUpRuntimeTickResult> TickAll", start)
+        method = source[start:end]
+
+        self.assertIn("ValidateRaceTime(raceTimeSeconds);", method)
+        self.assertIn("var source = GetRacerOrThrow(sourceRacerId);", method)
+        self.assertIn("var decision = AiPowerUpUsagePolicy.Decide(", method)
+        for kind in (
+            "PowerUpKind.AsphaltShard",
+            "PowerUpKind.NitroSpirit",
+            "PowerUpKind.TrafficCurse",
+            "PowerUpKind.EnchantedPound",
+            "PowerUpKind.EyeShield",
+        ):
+            self.assertIn(f"IsSlotUsable(source.Inventory[{kind}], raceTimeSeconds)", method)
+
+        self.assertNotIn("GetAiAvailability(", method)
+        self.assertNotIn("GetInventorySnapshot(", method)
+        self.assertNotIn("new List<", method)
+        self.assertNotIn("new AiPowerUpAvailability", method)
 
     def test_runtime_commits_only_real_effect_transitions(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
@@ -33,6 +79,23 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         self.assertIn("rule.TargetMode == PowerUpRuntimeTargetMode.WorldDeployable", source)
         self.assertIn("consumeInventory: false", source)
 
+    def test_effect_tick_does_not_allocate_temporary_expiry_collections(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpEffectState.cs")
+        start = source.index("private int RemoveExpired(double raceTimeSeconds)")
+        end = source.index("private void EmitPresentation(", start)
+        remove_expired = source[start:end]
+
+        self.assertIn(
+            "private static readonly PowerUpKind[] AllPowerUpKinds =",
+            source,
+        )
+        self.assertIn("for (var index = 0; index < AllPowerUpKinds.Length; index++)", remove_expired)
+        self.assertIn("activeEffects.TryGetValue(kind, out var effect)", remove_expired)
+        self.assertIn("activeEffects.Remove(kind);", remove_expired)
+        self.assertNotIn("new List<PowerUpKind>", remove_expired)
+        self.assertNotIn("expiredKinds.Sort", remove_expired)
+        self.assertNotIn("foreach (var pair in activeEffects)", remove_expired)
+
     def test_target_modes_lock_retained_gameplay_semantics(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
         for required in (
@@ -44,10 +107,10 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         ):
             self.assertIn(required, source)
 
-    def test_ai_execution_uses_authoritative_availability_and_try_use(self):
+    def test_ai_execution_uses_authoritative_slots_and_try_use(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
-        self.assertIn("var availability = GetAiAvailability(sourceRacerId, raceTimeSeconds);", source)
-        self.assertIn("var decision = AiPowerUpUsagePolicy.Decide(snapshot, availability);", source)
+        self.assertIn("var source = GetRacerOrThrow(sourceRacerId);", source)
+        self.assertIn("var decision = AiPowerUpUsagePolicy.Decide(", source)
         self.assertIn("var useResult = TryUse(sourceRacerId, kind, targetRacerId, raceTimeSeconds);", source)
         self.assertIn("kind == PowerUpKind.TrafficCurse", source)
         self.assertIn("rule.TargetMode == PowerUpRuntimeTargetMode.WorldDeployable", source)
@@ -64,6 +127,7 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
             self.assertIn(required, runner)
         for required in (
             "TryUse_ConsumesChargeAndEnforcesCooldownFromOneAuthoritativeSlot",
+            "IsPowerUpUsable_TracksChargesAndCooldownWithoutInventorySnapshot",
             "HostileUseBlockedByEyeShield_IsStillConsumedAsRealAttempt",
             "IgnoredEffectPolicy_DoesNotConsumeChargeOrStartCooldown",
             "AiAvailabilityAndExecution_UseTheSameInventoryAndTryUsePath",

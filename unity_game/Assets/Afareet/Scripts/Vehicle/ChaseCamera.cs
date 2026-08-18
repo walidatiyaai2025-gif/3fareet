@@ -18,6 +18,7 @@ namespace Afareet.Vehicle
         private readonly RaycastHit[] occlusionHits = new RaycastHit[OcclusionHitCapacity];
         private ChaseCameraConfig config;
         private Camera racingCamera;
+        private ArcadeCarController targetCar;
         private float minimumBodyClearanceDistance;
 
         private void Awake() => racingCamera = GetComponent<Camera>();
@@ -44,11 +45,15 @@ namespace Afareet.Vehicle
                     1f - Mathf.Exp(-config.rotationDamping * Time.deltaTime));
             }
 
-            var car = Target.GetComponent<ArcadeCarController>();
-            if (car != null)
+            // Normal runtime composition binds the vehicle before Configure(). Keep a lazy
+            // fallback for unusual initialization order, but avoid a GetComponent lookup on
+            // every rendered frame once the target controller has been resolved.
+            if (targetCar == null)
+                targetCar = Target.GetComponent<ArcadeCarController>();
+            if (targetCar != null)
                 racingCamera.fieldOfView = Mathf.Lerp(
                     racingCamera.fieldOfView,
-                    car.NitroActive ? config.nitroFieldOfView : config.normalFieldOfView,
+                    targetCar.NitroActive ? config.nitroFieldOfView : config.normalFieldOfView,
                     Time.deltaTime * config.fieldOfViewDamping);
         }
 
@@ -60,6 +65,7 @@ namespace Afareet.Vehicle
                 throw new System.ArgumentException(error, nameof(cameraConfig));
 
             Target = target;
+            targetCar = target.GetComponent<ArcadeCarController>();
             config = cameraConfig;
             racingCamera.fieldOfView = config.normalFieldOfView;
             minimumBodyClearanceDistance = CalculateMinimumBodyClearance(Target, config, out var clearanceSource);

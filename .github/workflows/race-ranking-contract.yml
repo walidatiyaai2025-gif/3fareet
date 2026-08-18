@@ -1,0 +1,53 @@
+name: Race Ranking Contract
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceRanking.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRankingTests.cs'
+      - 'tools/android/contracts/RaceRankingContractStubs.cs'
+      - 'tools/android/contracts/RaceRankingContractRunner.cs'
+      - 'tools/android/contracts/RaceRankingContractRunner.csproj'
+      - 'tools/android/tests/test_race_ranking_allocation_contract.py'
+      - '.github/workflows/race-ranking-contract.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceRanking.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/RaceRankingTests.cs'
+      - 'tools/android/contracts/RaceRankingContractStubs.cs'
+      - 'tools/android/contracts/RaceRankingContractRunner.cs'
+      - 'tools/android/contracts/RaceRankingContractRunner.csproj'
+      - 'tools/android/tests/test_race_ranking_allocation_contract.py'
+      - '.github/workflows/race-ranking-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ranking-contract:
+    name: Ranking compile + behavior contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Compile and run authoritative ranking contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project tools/android/contracts/RaceRankingContractRunner.csproj --configuration Release
+
+      - name: Run ranking allocation source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest tools.android.tests.test_race_ranking_allocation_contract -v
