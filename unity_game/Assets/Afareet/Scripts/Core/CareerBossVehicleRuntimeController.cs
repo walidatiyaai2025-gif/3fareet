@@ -11,8 +11,6 @@ namespace Afareet.Core
 {
     public sealed class CareerBossVehicleRuntimeController : ICareerBossVehicleRuntime
     {
-        private const float MinimumStatMultiplier = .90f;
-        private const float MaximumStatMultiplier = 1.10f;
         private const string MissingProductionAssetRequest = "EXT-ASSET-002";
 
         private readonly GarageCatalog catalog;
@@ -35,9 +33,6 @@ namespace Afareet.Core
             if (registeredRivals.Count == 0 || registeredRivals[0] == null)
                 throw new ArgumentException("Boss runtime requires at least one registered rival.", nameof(registeredRivals));
 
-            // Boss challenge configuration activates exactly one rival. Reuse the first registered
-            // physics/AI root and project the stable boss identity onto it; this preserves the
-            // generic rival ordering used by Circuit/Elimination and avoids mutating Race internals.
             activeBossRival = registeredRivals[0];
             for (var index = 0; index < activeBossRival.transform.childCount; index++)
             {
@@ -56,8 +51,7 @@ namespace Afareet.Core
             var definition = catalog.GetRequired(bossVehicleId);
             if (string.IsNullOrWhiteSpace(definition.PreviewResourcePath))
                 throw new InvalidOperationException($"Boss vehicle '{bossVehicleId}' has no production visual resource binding.");
-            var normalized = catalog.NormalizeStats(bossVehicleId);
-            var profile = ProjectPerformance(normalized);
+            var profile = GarageVehiclePerformanceProjection.Project(catalog.NormalizeStats(bossVehicleId));
             var productionPrefab = Resources.Load<GameObject>(definition.PreviewResourcePath);
 
             if (StringComparer.Ordinal.Equals(ActiveBossVehicleId, bossVehicleId))
@@ -112,23 +106,6 @@ namespace Afareet.Core
             }
             SetProceduralVisualsActive(true);
             ActiveBossVehicleId = null;
-        }
-
-        private static VehiclePerformanceProfile ProjectPerformance(GarageNormalizedStats stats)
-        {
-            return new VehiclePerformanceProfile(
-                Scale(stats.Acceleration),
-                Scale(stats.TopSpeed),
-                Scale(stats.Handling),
-                Scale(stats.Handling),
-                Scale(stats.Drift));
-        }
-
-        private static double Scale(float normalized)
-        {
-            if (float.IsNaN(normalized) || float.IsInfinity(normalized) || normalized < 0f || normalized > 1f)
-                throw new ArgumentOutOfRangeException(nameof(normalized));
-            return Mathf.Lerp(MinimumStatMultiplier, MaximumStatMultiplier, normalized);
         }
 
         private void SetProceduralVisualsActive(bool active)
