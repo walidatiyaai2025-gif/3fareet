@@ -122,7 +122,11 @@ namespace Afareet.CareerRuntime
                 bossVehicleRuntime.ClearBossVehicle();
             }
 
-            round.ResultsReady += OnResultsReady;
+            // Subscribe to RaceDirector's post-processing result signal, not the raw round
+            // event. RaceDirector emits this only after capturing the finish reward snapshot
+            // and applying result cleanup, so TrackId-driven RaceDirector reconfiguration can
+            // never reorder Career settlement ahead of authoritative race settlement state.
+            race.ResultsReady += OnResultsReady;
             configured = true;
         }
 
@@ -345,8 +349,8 @@ namespace Afareet.CareerRuntime
 
         private void Unbind()
         {
-            if (round != null)
-                round.ResultsReady -= OnResultsReady;
+            if (race != null)
+                race.ResultsReady -= OnResultsReady;
             adapter?.Dispose();
             adapter = null;
             configured = false;
