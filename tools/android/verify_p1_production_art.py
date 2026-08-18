@@ -148,15 +148,15 @@ def _require_task_artifact_policy(
     for relative in authored_source_paths:
         parts = {part.lower() for part in Path(relative).parts}
         missing = sorted(required_segments_lower.difference(parts))
-        _require(
-            not missing,
-            f"{task_id} authored 3D source is outside required role segment: {missing[0]} path={relative}",
-        )
+        if missing:
+            raise ProductionArtGateError(
+                f"{task_id} authored 3D source is outside required role segment: {missing[0]} path={relative}"
+            )
         blocked = sorted(parts.intersection(forbidden_segments_lower))
-        _require(
-            not blocked,
-            f"{task_id} authored 3D source uses forbidden role segment: {blocked[0]} path={relative}",
-        )
+        if blocked:
+            raise ProductionArtGateError(
+                f"{task_id} authored 3D source uses forbidden role segment: {blocked[0]} path={relative}"
+            )
 
     exact_sources_raw = policy.get("exactAuthored3DSourcePaths")
     if exact_sources_raw is not None:
@@ -181,10 +181,10 @@ def _require_task_artifact_policy(
         )
         actual_runtime = set(runtime_asset_paths)
         missing_runtime = sorted(required_runtime.difference(actual_runtime))
-        _require(
-            not missing_runtime,
-            f"{task_id} required production runtime asset is missing from evidence: {missing_runtime[0]}",
-        )
+        if missing_runtime:
+            raise ProductionArtGateError(
+                f"{task_id} required production runtime asset is missing from evidence: {missing_runtime[0]}"
+            )
 
 
 def _git(repo_root: Path, *args: str, text: bool = True) -> subprocess.CompletedProcess[Any]:
