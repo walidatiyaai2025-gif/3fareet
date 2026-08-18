@@ -9,6 +9,7 @@ It does not run Unity, stage assets, build an APK, or promote any P1 verificatio
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import subprocess
 import sys
@@ -28,14 +29,16 @@ FORBIDDEN_HERO_TOKENS = (
     "reviewpackaging",
 )
 
-RIVAL_REQUIRED_FILES = (
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_01_WedgeCoupe_Production.obj.meta",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_02_FastbackMuscle_Production.obj.meta",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj",
-    "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production/Rival_03_CompactPrototype_Production.obj.meta",
+RIVAL_PRODUCTION_ROOT = "unity_game/Assets/Afareet/ArtSource/Vehicles/Rivals/Production"
+RIVAL_OBJ_FILES = (
+    f"{RIVAL_PRODUCTION_ROOT}/Rival_01_WedgeCoupe_Production.obj",
+    f"{RIVAL_PRODUCTION_ROOT}/Rival_02_FastbackMuscle_Production.obj",
+    f"{RIVAL_PRODUCTION_ROOT}/Rival_03_CompactPrototype_Production.obj",
 )
+RIVAL_REQUIRED_FILES = tuple(path for obj in RIVAL_OBJ_FILES for path in (obj, obj + ".meta"))
+RIVAL_POLICY_FILE = "unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs"
+RIVAL_HANDOFF_VALIDATOR_FILE = "tools/android/validate_uart004_rival_production_handoff.py"
+RIVAL_NATIVE_PREFLIGHT_FILE = "tools/android/rival_production_handoff_preflight_windows.ps1"
 
 HANDOFF_REQUIRED_FILES = (
     "unity_game/Assets/Afareet/Editor/P1ProductionCandidateStagingHandoff.cs",
@@ -44,7 +47,9 @@ HANDOFF_REQUIRED_FILES = (
     "unity_game/Assets/Afareet/Editor/P1ProductionWorldAssetStager.cs",
     "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkAssetStager.cs",
     "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingAssetStager.cs",
-    "unity_game/Assets/Afareet/Scripts/Vehicle/RivalProductionPolicy.cs",
+    RIVAL_POLICY_FILE,
+    RIVAL_HANDOFF_VALIDATOR_FILE,
+    RIVAL_NATIVE_PREFLIGHT_FILE,
     "tools/android/stage_production_candidate_windows.ps1",
     "tools/android/run_local_candidate_windows.ps1",
     ".github/workflows/unity-licensed-windows-candidate.yml",
@@ -85,6 +90,10 @@ def _nonempty_file(repo_root: Path, relative_path: str) -> bool:
     return path.is_file() and path.stat().st_size > 0
 
 
+def _tracked_nonempty(repo_root: Path, relative_path: str) -> bool:
+    return _nonempty_file(repo_root, relative_path) and _tracked(repo_root, relative_path)
+
+
 def _normalize_hero_path(hero_source: str) -> str:
     value = (hero_source or "").strip().replace("\\", "/")
     if value.startswith("Assets/"):
@@ -92,6 +101,96 @@ def _normalize_hero_path(hero_source: str) -> str:
     while value.startswith("./"):
         value = value[2:]
     return value
+
+
+def _load_rival_handoff_validator():
+    module_path = Path(__file__).resolve().with_name("validate_uart004_rival_production_handoff.py")
+    spec = importlib.util.spec_from_file_location("afareet_uart004_rival_handoff_validator", module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load UART-004 handoff validator: {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _repo_relative(repo_root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError as exc:
+        raise ValueError(f"Rival dependency resolved outside the exact Git worktree: {path}") from exc
+
+
+def _audit_rival_handoff(repo_root: Path, checks: List[Dict[str, Any]]) -> None:
+    base_ready = all(_tracked_nonempty(repo_root, path) for path in RIVAL_REQUIRED_FILES)
+    policy_ready = _tracked_nonempty(repo_root, RIVAL_POLICY_FILE)
+    validator_ready = _tracked_nonempty(repo_root, RIVAL_HANDOFF_VALIDATOR_FILE)
+    if not (base_ready and policy_ready and validator_ready):
+        _check(
+            checks,
+            "UART-004_RIVAL_HANDOFF_STRUCTURE",
+            False,
+            "exact three tracked Rival OBJ/.meta files plus tracked policy and technical validator are required before dependency validation",
+        )
+        return
+
+    validator = _load_rival_handoff_validator()
+    try:
+        report = validator.validate_handoff(
+            [repo_root / path for path in RIVAL_OBJ_FILES],
+            repo_root / RIVAL_POLICY_FILE,
+        )
+    except (validator.HandoffError, OSError, UnicodeError, ValueError) as exc:
+        _check(checks, "UART-004_RIVAL_HANDOFF_STRUCTURE", False, str(exc))
+        return
+
+    _check(
+        checks,
+        "UART-004_RIVAL_HANDOFF_STRUCTURE",
+        bool(report.get("technicalPreflightPassed")) and report.get("distinctSourceHashes") == 3,
+        "three distinct policy-compliant OBJ/MTL/texture handoffs" if report.get("technicalPreflightPassed") else "technical handoff validator did not pass",
+    )
+
+    dependency_files: set[str] = set()
+    package_root = repo_root / RIVAL_PRODUCTION_ROOT
+    for variant in report.get("variants", []):
+        for library in variant.get("materialLibraries", []):
+            library_name = str(library.get("fileName") or "").replace("\\", "/")
+            if not library_name:
+                continue
+            mtl_path = (package_root / library_name).resolve()
+            mtl_relative = _repo_relative(repo_root, mtl_path)
+            dependency_files.add(mtl_relative)
+            dependency_files.add(mtl_relative + ".meta")
+            for texture_reference in library.get("textures", []):
+                normalized_reference = str(texture_reference).replace("\\", "/")
+                texture_path = (mtl_path.parent / normalized_reference).resolve()
+                texture_relative = _repo_relative(repo_root, texture_path)
+                dependency_files.add(texture_relative)
+                dependency_files.add(texture_relative + ".meta")
+
+    if not dependency_files:
+        _check(
+            checks,
+            "UART-004_RIVAL_DEPENDENCY_SET",
+            False,
+            "technical handoff passed without exposing any MTL/texture dependency files",
+        )
+        return
+
+    _check(
+        checks,
+        "UART-004_RIVAL_DEPENDENCY_SET",
+        True,
+        f"dependencyFiles={len(dependency_files)} packageLocal=true",
+    )
+    for relative_path in sorted(dependency_files):
+        ok = _tracked_nonempty(repo_root, relative_path)
+        _check(
+            checks,
+            f"RIVAL_DEP:{relative_path}",
+            ok,
+            "tracked-nonempty" if ok else "missing, empty or untracked Rival MTL/texture dependency or Unity metadata",
+        )
 
 
 def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: bool = True) -> Dict[str, Any]:
@@ -152,6 +251,8 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
             exists and tracked,
             "tracked-nonempty" if exists and tracked else "missing, empty or untracked UART-004 isolated production source/Unity metadata",
         )
+
+    _audit_rival_handoff(repo_root, checks)
 
     normalized_hero = _normalize_hero_path(hero_source or "")
     hero_supplied = bool(normalized_hero)
@@ -249,9 +350,9 @@ def audit(repo_root: Path, hero_source: Optional[str] = None, require_clean: boo
         "blockedCheckIds": [item["id"] for item in blocked],
         "checks": checks,
         "nextAction": (
-            "Run tools/android/stage_production_candidate_windows.ps1 with the tracked Hero + three isolated Rival production sources on licensed Unity 6000.5.8f1; review and commit staging output before candidate tests/build."
+            "Run tools/android/stage_production_candidate_windows.ps1 with the tracked Hero + three isolated Rival production sources and their tracked package-local MTL/texture/.meta dependencies on licensed Unity 6000.5.8f1; review and commit staging output before candidate tests/build."
             if state == "READY_FOR_LICENSED_STAGING"
-            else "Resolve every BLOCKED external-source/handoff check; do not run candidate build or claim UART/UPER verification from this audit."
+            else "Resolve every BLOCKED external-source/handoff/dependency check; do not run candidate build or claim UART/UPER verification from this audit."
         ),
     }
 
