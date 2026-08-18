@@ -164,6 +164,99 @@ namespace Afareet.Race
         public const double RewardOptimizationMinProgress = 0.65d;
         public const double RewardOptimizationMinLeadGapSeconds = 2.00d;
 
+        private readonly struct InventoryIndex
+        {
+            public InventoryIndex(
+                AiPowerUpAvailability asphaltShard,
+                AiPowerUpAvailability nitroSpirit,
+                AiPowerUpAvailability trafficCurse,
+                AiPowerUpAvailability enchantedPound,
+                AiPowerUpAvailability eyeShield)
+            {
+                AsphaltShard = asphaltShard;
+                NitroSpirit = nitroSpirit;
+                TrafficCurse = trafficCurse;
+                EnchantedPound = enchantedPound;
+                EyeShield = eyeShield;
+            }
+
+            public AiPowerUpAvailability AsphaltShard { get; }
+            public AiPowerUpAvailability NitroSpirit { get; }
+            public AiPowerUpAvailability TrafficCurse { get; }
+            public AiPowerUpAvailability EnchantedPound { get; }
+            public AiPowerUpAvailability EyeShield { get; }
+
+            public AiPowerUpAvailability Get(PowerUpKind kind)
+            {
+                switch (kind)
+                {
+                    case PowerUpKind.AsphaltShard: return AsphaltShard;
+                    case PowerUpKind.NitroSpirit: return NitroSpirit;
+                    case PowerUpKind.TrafficCurse: return TrafficCurse;
+                    case PowerUpKind.EnchantedPound: return EnchantedPound;
+                    case PowerUpKind.EyeShield: return EyeShield;
+                    default: throw new ArgumentOutOfRangeException(nameof(kind));
+                }
+            }
+        }
+
+        private struct InventoryIndexBuilder
+        {
+            private AiPowerUpAvailability asphaltShard;
+            private AiPowerUpAvailability nitroSpirit;
+            private AiPowerUpAvailability trafficCurse;
+            private AiPowerUpAvailability enchantedPound;
+            private AiPowerUpAvailability eyeShield;
+
+            public void Add(AiPowerUpAvailability item)
+            {
+                if (item == null)
+                    throw new ArgumentException("AI power-up inventory cannot contain null entries.", "inventory");
+
+                switch (item.Kind)
+                {
+                    case PowerUpKind.AsphaltShard:
+                        EnsureMissing(asphaltShard, item.Kind);
+                        asphaltShard = item;
+                        break;
+                    case PowerUpKind.NitroSpirit:
+                        EnsureMissing(nitroSpirit, item.Kind);
+                        nitroSpirit = item;
+                        break;
+                    case PowerUpKind.TrafficCurse:
+                        EnsureMissing(trafficCurse, item.Kind);
+                        trafficCurse = item;
+                        break;
+                    case PowerUpKind.EnchantedPound:
+                        EnsureMissing(enchantedPound, item.Kind);
+                        enchantedPound = item;
+                        break;
+                    case PowerUpKind.EyeShield:
+                        EnsureMissing(eyeShield, item.Kind);
+                        eyeShield = item;
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(item));
+                }
+            }
+
+            public InventoryIndex Build()
+            {
+                return new InventoryIndex(
+                    asphaltShard,
+                    nitroSpirit,
+                    trafficCurse,
+                    enchantedPound,
+                    eyeShield);
+            }
+
+            private static void EnsureMissing(AiPowerUpAvailability existing, PowerUpKind kind)
+            {
+                if (existing != null)
+                    throw new ArgumentException($"Duplicate AI power-up inventory entry for {kind}.", "inventory");
+            }
+        }
+
         public static AiPowerUpDecision Decide(
             AiPowerUpRaceSnapshot snapshot,
             IEnumerable<AiPowerUpAvailability> inventory)
@@ -219,33 +312,28 @@ namespace Afareet.Race
             return AiPowerUpDecision.None();
         }
 
-        private static Dictionary<PowerUpKind, AiPowerUpAvailability> BuildInventoryIndex(
-            IEnumerable<AiPowerUpAvailability> inventory)
+        private static InventoryIndex BuildInventoryIndex(IEnumerable<AiPowerUpAvailability> inventory)
         {
-            var byKind = new Dictionary<PowerUpKind, AiPowerUpAvailability>();
-            foreach (var item in inventory)
+            var builder = new InventoryIndexBuilder();
+
+            if (inventory is IReadOnlyList<AiPowerUpAvailability> indexed)
             {
-                if (item == null)
-                {
-                    throw new ArgumentException("AI power-up inventory cannot contain null entries.", nameof(inventory));
-                }
-
-                if (byKind.ContainsKey(item.Kind))
-                {
-                    throw new ArgumentException($"Duplicate AI power-up inventory entry for {item.Kind}.", nameof(inventory));
-                }
-
-                byKind.Add(item.Kind, item);
+                for (var index = 0; index < indexed.Count; index++)
+                    builder.Add(indexed[index]);
+            }
+            else
+            {
+                foreach (var item in inventory)
+                    builder.Add(item);
             }
 
-            return byKind;
+            return builder.Build();
         }
 
-        private static bool IsUsable(
-            IReadOnlyDictionary<PowerUpKind, AiPowerUpAvailability> inventory,
-            PowerUpKind kind)
+        private static bool IsUsable(InventoryIndex inventory, PowerUpKind kind)
         {
-            return inventory.TryGetValue(kind, out var item) && item.IsUsable;
+            var item = inventory.Get(kind);
+            return item != null && item.IsUsable;
         }
 
         private static bool ShouldUseNitro(AiPowerUpRaceSnapshot snapshot)
