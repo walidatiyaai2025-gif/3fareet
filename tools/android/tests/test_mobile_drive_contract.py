@@ -52,6 +52,31 @@ class MobileDriveContractTests(unittest.TestCase):
         ):
             self.assertIn(required, controls)
 
+    def test_motion_mode_hides_continuous_touch_controls_but_preserves_fallback(self):
+        controls = CONTROLS_PATH.read_text(encoding="utf-8")
+
+        for required in (
+            "var motionDriving = driving && input.MotionDrivingActive;",
+            "SetActive(leftRect, driving && !motionDriving);",
+            "SetActive(rightRect, driving && !motionDriving);",
+            "SetActive(throttleRect, driving && !motionDriving);",
+            "SetActive(brakeRect, driving);",
+            "SetActive(recoverRect, driving);",
+            "SetActive(driftRect, driving);",
+            "SetActive(nitroRect, driving);",
+            '"TILT DRIVE • AUTO CRUISE"',
+            '"TOUCH DRIVE"',
+        ):
+            self.assertIn(required, controls)
+
+        # Fallback controls must still be constructed and wired for devices without
+        # a usable accelerometer.
+        self.assertIn('leftRect = CreateControl("◀"', controls)
+        self.assertIn('rightRect = CreateControl("▶"', controls)
+        self.assertIn('throttleRect = CreateControl("GO"', controls)
+        self.assertIn("MobileDriveInputPolicy.ResolveTouchSteer(-1f)", controls)
+        self.assertIn("MobileDriveInputPolicy.ResolveTouchSteer(1f)", controls)
+
     def test_powerup_inventory_labels_are_sampled_not_render_rate(self):
         controls = CONTROLS_PATH.read_text(encoding="utf-8")
         presentation_start = controls.index("private void RefreshPresentation()")
@@ -87,21 +112,28 @@ class MobileDriveContractTests(unittest.TestCase):
         self.assertIn("-TouchSteerMagnitude", policy)
         self.assertIn("TouchSteerMagnitude);", policy)
 
-    def test_motion_drive_is_calibrated_smoothed_and_forward_tilt_is_throttle_only(self):
+    def test_motion_drive_is_sensor_guarded_calibrated_smoothed_and_hands_free(self):
         input_controller = INPUT_PATH.read_text(encoding="utf-8")
         policy = POLICY_PATH.read_text(encoding="utf-8")
 
         for required in (
+            "public bool MotionDrivingAvailable =>",
+            "Application.isMobilePlatform && SystemInfo.supportsAccelerometer;",
+            "public bool MotionDrivingActive =>",
+            "MotionDrivingAvailable && hasMotionBaseline;",
             "private ScreenOrientation motionBaselineOrientation;",
             "private float smoothedTiltSteer;",
             "private float smoothedTiltThrottle;",
             "CalibrateMotionInput();",
             "RecalibrateIfLandscapeOrientationChanged();",
+            "private void OnApplicationFocus(bool hasFocus)",
             "MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt)",
-            "MobileDriveInputPolicy.ResolveTiltThrottle(forwardTilt)",
+            "MobileDriveInputPolicy.ResolveTiltCruiseThrottle(forwardTilt)",
             "MobileDriveInputPolicy.SmoothTiltSteer(",
             "MobileDriveInputPolicy.SmoothTiltThrottle(",
             "resolvedThrottle = Mathf.Max(resolvedThrottle, smoothedTiltThrottle);",
+            "if (!MotionDrivingAvailable)",
+            "hasMotionBaseline = false;",
         ):
             self.assertIn(required, input_controller)
 
@@ -109,9 +141,11 @@ class MobileDriveContractTests(unittest.TestCase):
             "TiltDeadZone = 0.08f",
             "TiltSteerSmoothingPerSecond = 10f",
             "TiltThrottleDeadZone = 0.06f",
-            "TiltThrottleGain = 1.8f",
+            "TiltCruiseThrottle = 0.58f",
+            "TiltForwardBoostGain = 2.0f",
+            "TiltBackwardCoastGain = 1.6f",
             "TiltThrottleSmoothingPerSecond = 6f",
-            "public static float ResolveTiltThrottle(float forwardTilt)",
+            "public static float ResolveTiltCruiseThrottle(float forwardTilt)",
             "public static float SmoothTiltSteer(float current, float target, float deltaTime)",
             "public static float SmoothTiltThrottle(float current, float target, float deltaTime)",
         ):
@@ -120,6 +154,7 @@ class MobileDriveContractTests(unittest.TestCase):
         self.assertNotIn("resolvedNitro |= forwardTilt", input_controller)
         self.assertNotIn("resolvedBrake |= forwardTilt", input_controller)
         self.assertNotIn("resolvedThrottle = forwardTilt", input_controller)
+        self.assertNotIn("ResolveTiltThrottle(", input_controller)
 
     def test_runtime_composition_uses_production_input_not_prototype_hud(self):
         bootstrap = BOOTSTRAP_PATH.read_text(encoding="utf-8")

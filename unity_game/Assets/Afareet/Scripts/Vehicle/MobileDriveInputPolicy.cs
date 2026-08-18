@@ -18,7 +18,9 @@ namespace Afareet.Vehicle
         public const float TiltSteerSmoothingPerSecond = 10f;
 
         public const float TiltThrottleDeadZone = 0.06f;
-        public const float TiltThrottleGain = 1.8f;
+        public const float TiltCruiseThrottle = 0.58f;
+        public const float TiltForwardBoostGain = 2.0f;
+        public const float TiltBackwardCoastGain = 1.6f;
         public const float TiltThrottleSmoothingPerSecond = 6f;
 
         public static float ResolveTouchSteer(float direction)
@@ -36,18 +38,28 @@ namespace Afareet.Vehicle
         }
 
         /// <summary>
-        /// Converts forward device pitch into accelerator demand only. Backward pitch
-        /// deliberately returns zero: brake/reverse and Spirit/Nitro remain explicit
-        /// player actions instead of being inferred from the accelerometer.
+        /// Resolves landscape phone pitch into a hands-free accelerator demand.
+        /// Neutral posture cruises at a moderate throttle; forward pitch boosts toward
+        /// full acceleration, while backward pitch progressively coasts toward zero.
+        /// Motion input never creates negative throttle, braking, reverse, or Spirit/Nitro.
         /// </summary>
-        public static float ResolveTiltThrottle(float forwardTilt)
+        public static float ResolveTiltCruiseThrottle(float forwardTilt)
         {
-            if (forwardTilt <= TiltThrottleDeadZone)
-                return 0f;
+            if (Mathf.Abs(forwardTilt) <= TiltThrottleDeadZone)
+                return TiltCruiseThrottle;
 
-            var normalized = Mathf.Clamp01(
-                (forwardTilt - TiltThrottleDeadZone) / (1f - TiltThrottleDeadZone));
-            return Mathf.Clamp01(normalized * TiltThrottleGain);
+            if (forwardTilt > TiltThrottleDeadZone)
+            {
+                var normalizedForward = Mathf.Clamp01(
+                    (forwardTilt - TiltThrottleDeadZone) / (1f - TiltThrottleDeadZone));
+                var boost = Mathf.Clamp01(normalizedForward * TiltForwardBoostGain);
+                return Mathf.Lerp(TiltCruiseThrottle, 1f, boost);
+            }
+
+            var normalizedBackward = Mathf.Clamp01(
+                (-forwardTilt - TiltThrottleDeadZone) / (1f - TiltThrottleDeadZone));
+            var coast = Mathf.Clamp01(normalizedBackward * TiltBackwardCoastGain);
+            return Mathf.Lerp(TiltCruiseThrottle, 0f, coast);
         }
 
         public static float SmoothTiltSteer(float current, float target, float deltaTime)

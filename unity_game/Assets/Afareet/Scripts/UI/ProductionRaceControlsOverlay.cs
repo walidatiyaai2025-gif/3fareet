@@ -34,6 +34,7 @@ namespace Afareet.UI
         private readonly RectTransform[] powerRects = new RectTransform[5];
         private readonly Text[] powerLabels = new Text[5];
         private Text feedbackText;
+        private Text driveModeText;
         private Rect lastSafeArea;
         private float nextPowerUpInventoryRefreshTime;
 
@@ -196,15 +197,26 @@ namespace Afareet.UI
         {
             var ready = race.Phase == RaceRoundPhase.Ready;
             var driving = race.Phase == RaceRoundPhase.Racing && !race.IsPaused;
+            var motionDriving = driving && input.MotionDrivingActive;
             startRect.gameObject.SetActive(ready);
 
-            SetActive(leftRect, driving);
-            SetActive(rightRect, driving);
+            // Motion mode is intentionally low-touch: steering and GO disappear because
+            // calibrated tilt + auto-cruise own those continuous actions. They remain built
+            // and immediately return as a fallback on devices without an accelerometer.
+            SetActive(leftRect, driving && !motionDriving);
+            SetActive(rightRect, driving && !motionDriving);
+            SetActive(throttleRect, driving && !motionDriving);
+
             SetActive(brakeRect, driving);
             SetActive(recoverRect, driving);
             SetActive(driftRect, driving);
             SetActive(nitroRect, driving);
-            SetActive(throttleRect, driving);
+
+            if (driveModeText != null)
+            {
+                driveModeText.gameObject.SetActive(driving);
+                driveModeText.text = motionDriving ? "TILT DRIVE • AUTO CRUISE" : "TOUCH DRIVE";
+            }
 
             for (var index = 0; index < powerRects.Length; index++)
                 powerRects[index].gameObject.SetActive(driving);
@@ -270,15 +282,15 @@ namespace Afareet.UI
             // Ready action stays outside the driving sightline and clears the top HUD.
             startRect = CreateControl("START RACE", new Vector2(1f, 1f), new Vector2(-24f, -92f), new Vector2(190f, 52f), out _);
 
-            // Bottom-left driving cluster: steering is closest to the thumb, recovery and
-            // brake sit immediately to its right without crossing the center sightline.
+            // These steering/GO controls remain as a fallback for devices without a usable
+            // accelerometer. Motion-driving devices hide them once the race starts.
             leftRect = CreateControl("◀", new Vector2(0f, 0f), new Vector2(24f, 20f), new Vector2(70f, 54f), out _);
             rightRect = CreateControl("▶", new Vector2(0f, 0f), new Vector2(102f, 20f), new Vector2(70f, 54f), out _);
             brakeRect = CreateControl("BRAKE / REV", new Vector2(0f, 0f), new Vector2(180f, 20f), new Vector2(104f, 54f), out _);
             recoverRect = CreateControl("RECOVER", new Vector2(0f, 0f), new Vector2(292f, 20f), new Vector2(92f, 54f), out _);
 
-            // Bottom-right action cluster. Keep each action isolated so steering never
-            // competes with drift/nitro/throttle in the middle of the screen.
+            // Bottom-right action cluster. Keep exceptional actions explicit: tilt never
+            // activates drift, Spirit/Nitro, braking, reverse, recovery, or power-ups.
             driftRect = CreateControl("DRIFT", new Vector2(1f, 0f), new Vector2(-286f, 20f), new Vector2(82f, 54f), out _);
             nitroRect = CreateControl("SPIRIT", new Vector2(1f, 0f), new Vector2(-196f, 20f), new Vector2(82f, 54f), out _);
             throttleRect = CreateControl("GO", new Vector2(1f, 0f), new Vector2(-106f, 20f), new Vector2(82f, 54f), out _);
@@ -299,6 +311,10 @@ namespace Afareet.UI
 
             feedbackText = CreateText(safeRoot, "Power Feedback", new Vector2(0f, 136f), new Vector2(340f, 28f), 15, FontStyle.Bold);
             feedbackText.color = new Color(.94f, .82f, 1f);
+
+            driveModeText = CreateText(safeRoot, "Drive Mode", new Vector2(0f, 106f), new Vector2(300f, 24f), 12, FontStyle.Bold);
+            driveModeText.color = new Color(.78f, .86f, 1f);
+            driveModeText.gameObject.SetActive(false);
 
             Debug.Log("AFAREET_UI_COMPACT_RACE_CONTROLS_ACTIVE bottomClusters=left-right powerStripY=82 centerSightlineClear=true");
         }

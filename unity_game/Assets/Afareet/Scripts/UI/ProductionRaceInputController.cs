@@ -15,6 +15,12 @@ namespace Afareet.UI
         private float smoothedTiltSteer;
         private float smoothedTiltThrottle;
 
+        public bool MotionDrivingAvailable =>
+            Application.isMobilePlatform && SystemInfo.supportsAccelerometer;
+
+        public bool MotionDrivingActive =>
+            MotionDrivingAvailable && hasMotionBaseline;
+
         public void Configure(ArcadeCarController playerCar, RaceDirector director)
         {
             player = playerCar != null ? playerCar : throw new ArgumentNullException(nameof(playerCar));
@@ -65,7 +71,7 @@ namespace Afareet.UI
             var resolvedNitro = nitro;
             var resolvedBrake = false;
 
-            if (Application.isMobilePlatform && hasMotionBaseline)
+            if (MotionDrivingActive)
             {
                 RecalibrateIfLandscapeOrientationChanged();
 
@@ -75,7 +81,7 @@ namespace Afareet.UI
                 var forwardTilt = landscapeRight ? acceleration.x : -acceleration.x;
 
                 var tiltSteerTarget = MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt);
-                var tiltThrottleTarget = MobileDriveInputPolicy.ResolveTiltThrottle(forwardTilt);
+                var tiltThrottleTarget = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(forwardTilt);
                 smoothedTiltSteer = MobileDriveInputPolicy.SmoothTiltSteer(
                     smoothedTiltSteer,
                     tiltSteerTarget,
@@ -86,14 +92,14 @@ namespace Afareet.UI
                     Time.unscaledDeltaTime);
 
                 // Explicit touch steering wins immediately. Motion steering is the hands-free
-                // fallback, while forward pitch can progressively add accelerator demand.
+                // default, while calibrated forward/back pitch boosts or coasts auto-cruise.
                 if (Mathf.Abs(resolvedSteer) < .01f)
                     resolvedSteer = smoothedTiltSteer;
                 resolvedThrottle = Mathf.Max(resolvedThrottle, smoothedTiltThrottle);
             }
 
-            // Brake/reverse remains an explicit control and overrides any forward-pitch
-            // accelerator demand. Tilt never activates Spirit/Nitro or reverse/braking.
+            // Brake/reverse remains an explicit control and overrides any motion accelerator
+            // demand. Tilt never activates Spirit/Nitro, reverse, or braking.
             if (brakeReverse)
                 MobileDriveInputPolicy.ResolveBrakeReverse(player.SpeedKph, out resolvedThrottle, out resolvedBrake);
 
@@ -116,13 +122,32 @@ namespace Afareet.UI
 #endif
         }
 
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus || !MotionDrivingAvailable || race == null)
+                return;
+            if (race.Phase != RaceRoundPhase.Racing || race.IsPaused)
+                return;
+
+            // Phone orientation/grip can shift while the app is backgrounded. Re-center on
+            // resume so a stale accelerometer baseline cannot produce a sudden steering snap.
+            CalibrateMotionInput();
+        }
+
         private void CalibrateMotionInput()
         {
+            smoothedTiltSteer = 0f;
+            smoothedTiltThrottle = 0f;
+
+            if (!MotionDrivingAvailable)
+            {
+                hasMotionBaseline = false;
+                return;
+            }
+
             motionBaseline = Input.acceleration;
             motionBaselineOrientation = Screen.orientation;
             hasMotionBaseline = true;
-            smoothedTiltSteer = 0f;
-            smoothedTiltThrottle = 0f;
         }
 
         private void RecalibrateIfLandscapeOrientationChanged()
