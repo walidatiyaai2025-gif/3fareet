@@ -32,19 +32,29 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
 
     def test_runtime_commits_only_real_effect_transitions(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
+        apply_start = source.index("private PowerUpRuntimeUseResult ApplyResolvedEffect(")
+        apply_end = source.index("private TargetResolution ResolveTarget(", apply_start)
+        apply_method = source[apply_start:apply_end]
 
-        ignored_index = source.index("if (applyResult == PowerUpApplyResult.IgnoredWhileActive)")
-        consume_index = source.index("slot.Charges--")
+        ignored_index = apply_method.index("if (applyResult == PowerUpApplyResult.IgnoredWhileActive)")
+        consume_index = apply_method.index("slot.Charges--")
         self.assertLess(ignored_index, consume_index)
-        self.assertIn("PowerUpRuntimeUseStatus.IgnoredByEffectPolicy", source)
-        self.assertIn("PowerUpRuntimeUseStatus.BlockedByEyeShield", source)
-        self.assertIn("applyResult == PowerUpApplyResult.BlockedByEyeShield", source)
+        self.assertIn("PowerUpRuntimeUseStatus.IgnoredByEffectPolicy", apply_method)
+        self.assertIn("PowerUpRuntimeUseStatus.BlockedByEyeShield", apply_method)
+        self.assertIn("applyResult == PowerUpApplyResult.BlockedByEyeShield", apply_method)
+        self.assertIn("if (consumeInventory)", apply_method)
+
+        # World-deployable Asphalt Shard intentionally consumes its inventory at deployment;
+        # the later trap hit reuses ApplyResolvedEffect with consumeInventory:false.
+        self.assertIn("rule.TargetMode == PowerUpRuntimeTargetMode.WorldDeployable", source)
+        self.assertIn("consumeInventory: false", source)
 
     def test_target_modes_lock_retained_gameplay_semantics(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
 
         for required in (
             "case PowerUpKind.AsphaltShard:",
+            "return PowerUpRuntimeTargetMode.WorldDeployable;",
             "case PowerUpKind.TrafficCurse:",
             "return PowerUpRuntimeTargetMode.Opponent;",
             "case PowerUpKind.NitroSpirit:",
@@ -64,7 +74,9 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         self.assertIn("var decision = AiPowerUpUsagePolicy.Decide(snapshot, availability);", source)
         self.assertIn("var useResult = TryUse(sourceRacerId, kind, targetRacerId, raceTimeSeconds);", source)
         self.assertIn("kind == PowerUpKind.TrafficCurse", source)
-        self.assertIn("kind == PowerUpKind.AsphaltShard", source)
+        self.assertIn("rule.TargetMode == PowerUpRuntimeTargetMode.WorldDeployable", source)
+        self.assertIn("TryApplyDeployedEffect", source)
+        self.assertIn("kind != PowerUpKind.AsphaltShard", source)
 
     def test_behavior_runner_and_unity_regressions_cover_required_paths(self):
         runner = self._read("tools/android/contracts/PowerUpRuntimeContractRunner.cs")
@@ -106,8 +118,15 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
             "PowerUpEffectState.cs",
             "AiPowerUpUsagePolicy.cs",
             "PowerUpRaceRuntime.cs",
+            "AsphaltShardTrapRuntime.cs",
         ):
             self.assertIn(source, project)
+        for source in (
+            "PowerUpPresentationHooks.cs",
+            "PowerUpEffectState.cs",
+            "AiPowerUpUsagePolicy.cs",
+            "PowerUpRaceRuntime.cs",
+        ):
             self.assertIn(source, runner_project)
 
         self.assertIn("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>", project)
