@@ -32,8 +32,10 @@ namespace Afareet.Race
         private Transform boundaryRoot;
         private bool racersReleased;
         private bool powerUpRuntimeDirty = true;
+        private bool challengeRosterDirty = true;
         private double nextPowerUpDecisionRaceTime;
         private RaceRewardSettlementSnapshot playerFinishRewardSnapshot;
+        private RaceChallengeConfiguration challengeConfiguration = RaceChallengeConfiguration.Standard;
 
         public RaceRoundPhase Phase => round?.Phase ?? RaceRoundPhase.Ready;
         public float RaceTime => PlayerRuntime?.Lap.ElapsedTime ?? 0f;
@@ -43,6 +45,9 @@ namespace Afareet.Race
         public bool HasPowerUpRuntime => powerUpRuntime != null && !powerUpRuntimeDirty;
         public bool HasPlayerFinishRewardSnapshot => playerFinishRewardSnapshot != null;
         public RaceRewardSettlementSnapshot PlayerFinishRewardSnapshot => playerFinishRewardSnapshot;
+        public RaceChallengeConfiguration ChallengeConfiguration => challengeConfiguration;
+        public int RequestedActiveRivalCount => challengeConfiguration.ActiveRivalCount;
+        public int ActiveRivalCount => Math.Max(0, racers.Count - 1);
         public string CountdownText
         {
             get
@@ -73,12 +78,11 @@ namespace Afareet.Race
             asphaltShardTraps.ResetRace();
             powerUpRuntime = null;
             powerUpRuntimeDirty = true;
+            challengeRosterDirty = true;
             nextPowerUpDecisionRaceTime = 0d;
             playerFinishRewardSnapshot = null;
 
-            PrepareRacer(player, "PLAYER", 0);
-            for (var i = 0; i < registeredRivals.Count; i++)
-                PrepareRacer(registeredRivals[i], $"RIVAL-{i + 1:00}", i + 1);
+            RebuildChallengeRoster();
 
             round = player.GetComponent<RaceRoundController>();
             if (round == null) round = player.gameObject.AddComponent<RaceRoundController>();
@@ -100,10 +104,12 @@ namespace Afareet.Race
             if (registeredRivals.Contains(rival)) return;
 
             registeredRivals.Add(rival);
-            if (track != null)
+            challengeRosterDirty = true;
+            if (track != null && Phase == RaceRoundPhase.Ready)
             {
-                PrepareRacer(rival, $"RIVAL-{registeredRivals.Count:00}", registeredRivals.Count);
-                FreezeRacer(rival);
+                RebuildChallengeRoster();
+                FreezeRacers();
+                ResetRacersToGrid();
             }
             else
             {
@@ -111,10 +117,32 @@ namespace Afareet.Race
             }
         }
 
+        public void ApplyChallengeConfiguration(RaceChallengeConfiguration configuration)
+        {
+            if (Phase == RaceRoundPhase.Countdown || Phase == RaceRoundPhase.Racing)
+                throw new InvalidOperationException("Race challenge configuration cannot change during countdown or active racing.");
+
+            challengeConfiguration = configuration;
+            challengeRosterDirty = true;
+            if (track != null && player != null && Phase == RaceRoundPhase.Ready)
+            {
+                RebuildChallengeRoster();
+                FreezeRacers();
+                ResetRacersToGrid();
+            }
+        }
+
         public void StartRace()
         {
             if (round == null) throw new InvalidOperationException("RaceDirector must be configured before starting.");
             if (Phase != RaceRoundPhase.Ready) return;
+
+            if (challengeRosterDirty)
+            {
+                RebuildChallengeRoster();
+                FreezeRacers();
+                ResetRacersToGrid();
+            }
 
             playerFinishRewardSnapshot = null;
             EnsurePowerUpRuntime();
@@ -140,8 +168,15 @@ namespace Afareet.Race
 
             SetPausedInternal(false);
             round.RestartRound();
-            for (var i = 1; i < racers.Count; i++)
-                racers[i].Lap.Configure(track.Waypoints.Count);
+            if (challengeRosterDirty)
+            {
+                RebuildChallengeRoster();
+            }
+            else
+            {
+                for (var i = 1; i < racers.Count; i++)
+                    racers[i].Lap.Configure(track.Waypoints.Count);
+            }
 
             racersReleased = false;
             FreezeRacers();
@@ -325,6 +360,45 @@ namespace Afareet.Race
                 ApplyPowerUpDriveModifiers(raceTimeSeconds);
         }
 
+        private void RebuildChallengeRoster()
+        {
+            if (player == null || track == null)
+                return;
+
+            ResetPowerUpDriveModifiers();
+            racers.Clear();
+            powerUpRuntime = null;
+            powerUpRuntimeDirty = true;
+            asphaltShardTraps.ResetRace();
+            nextPowerUpDecisionRaceTime = 0d;
+
+            PrepareRacer(player, "PLAYER", 0);
+            var requested = Math.Min(challengeConfiguration.ActiveRivalCount, registeredRivals.Count);
+            var activeCount = 0;
+            for (var i = 0; i < registeredRivals.Count; i++)
+            {
+                var rival = registeredRivals[i];
+                if (rival == null)
+                    continue;
+
+                if (activeCount < requested)
+                {
+                    if (!rival.gameObject.activeSelf)
+                        rival.gameObject.SetActive(true);
+                    activeCount++;
+                    PrepareRacer(rival, $"RIVAL-{i + 1:00}", activeCount);
+                }
+                else
+                {
+                    FreezeRacer(rival);
+                    if (rival.gameObject.activeSelf)
+                        rival.gameObject.SetActive(false);
+                }
+            }
+
+            challengeRosterDirty = false;
+        }
+
         private void PrepareRacer(ArcadeCarController car, string racerId, int stableOrder)
         {
             if (car == null) return;
@@ -348,6 +422,10 @@ namespace Afareet.Race
                 if (reset == null) reset = car.gameObject.AddComponent<RivalResetController>();
                 reset.Configure(track.Waypoints, checkpoints);
                 reset.SetActive(false);
+
+                var ai = car.GetComponent<AiRacer>();
+                if (ai != null)
+                    ai.ApplyDifficultyTuning(challengeConfiguration.AiDifficulty);
             }
 
             racers.Add(new RacerRuntime
