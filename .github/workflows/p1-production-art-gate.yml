@@ -7,12 +7,23 @@ on:
       - 'tools/android/fingerprint_p1_production_art_manifest.py'
       - 'tools/android/verify_p1_production_art.py'
       - 'tools/android/verify_release_with_production_art.py'
+      - 'tools/android/verify_release_publication.py'
+      - 'tools/android/p1_gate_readiness.py'
+      - 'tools/android/p1_gate_spec.json'
+      - 'tools/android/prepare_candidate_device.py'
+      - 'tools/android/verify_device_review_bundle.py'
       - 'tools/android/p1_production_art_spec.json'
       - 'tools/android/tests/test_analyze_device_smoke.py'
       - 'tools/android/tests/test_fingerprint_p1_production_art_manifest.py'
       - 'tools/android/tests/test_verify_p1_production_art.py'
+      - 'tools/android/tests/test_p1_production_art_source_policy_contract.py'
+      - 'tools/android/tests/test_prepare_candidate_device.py'
+      - 'tools/android/tests/test_verify_device_review_bundle.py'
+      - 'tools/android/tests/test_p1_gate_readiness.py'
+      - 'tools/android/tests/test_verify_release_publication.py'
       - 'tools/android/tests/test_verify_release_with_production_art.py'
       - 'tools/android/tests/test_verify_release_with_smoke_contract.py'
+      - 'tools/android/tests/test_p1_production_art_workflow_coverage_contract.py'
       - 'docs/qa/P1_PRODUCTION_ART_GATE.md'
       - 'docs/qa/P1_PRODUCTION_ART_FINGERPRINTING.md'
       - '.github/workflows/p1-production-art-gate.yml'
@@ -24,12 +35,23 @@ on:
       - 'tools/android/fingerprint_p1_production_art_manifest.py'
       - 'tools/android/verify_p1_production_art.py'
       - 'tools/android/verify_release_with_production_art.py'
+      - 'tools/android/verify_release_publication.py'
+      - 'tools/android/p1_gate_readiness.py'
+      - 'tools/android/p1_gate_spec.json'
+      - 'tools/android/prepare_candidate_device.py'
+      - 'tools/android/verify_device_review_bundle.py'
       - 'tools/android/p1_production_art_spec.json'
       - 'tools/android/tests/test_analyze_device_smoke.py'
       - 'tools/android/tests/test_fingerprint_p1_production_art_manifest.py'
       - 'tools/android/tests/test_verify_p1_production_art.py'
+      - 'tools/android/tests/test_p1_production_art_source_policy_contract.py'
+      - 'tools/android/tests/test_prepare_candidate_device.py'
+      - 'tools/android/tests/test_verify_device_review_bundle.py'
+      - 'tools/android/tests/test_p1_gate_readiness.py'
+      - 'tools/android/tests/test_verify_release_publication.py'
       - 'tools/android/tests/test_verify_release_with_production_art.py'
       - 'tools/android/tests/test_verify_release_with_smoke_contract.py'
+      - 'tools/android/tests/test_p1_production_art_workflow_coverage_contract.py'
       - 'docs/qa/P1_PRODUCTION_ART_GATE.md'
       - 'docs/qa/P1_PRODUCTION_ART_FINGERPRINTING.md'
       - '.github/workflows/p1-production-art-gate.yml'
@@ -56,23 +78,44 @@ jobs:
             tools/android/fingerprint_p1_production_art_manifest.py \
             tools/android/verify_p1_production_art.py \
             tools/android/verify_release_with_production_art.py \
+            tools/android/verify_release_publication.py \
+            tools/android/p1_gate_readiness.py \
+            tools/android/prepare_candidate_device.py \
+            tools/android/verify_device_review_bundle.py \
             tools/android/tests/test_analyze_device_smoke.py \
             tools/android/tests/test_fingerprint_p1_production_art_manifest.py \
             tools/android/tests/test_verify_p1_production_art.py \
+            tools/android/tests/test_p1_production_art_source_policy_contract.py \
+            tools/android/tests/test_prepare_candidate_device.py \
+            tools/android/tests/test_verify_device_review_bundle.py \
+            tools/android/tests/test_p1_gate_readiness.py \
+            tools/android/tests/test_verify_release_publication.py \
             tools/android/tests/test_verify_release_with_production_art.py \
-            tools/android/tests/test_verify_release_with_smoke_contract.py
+            tools/android/tests/test_verify_release_with_smoke_contract.py \
+            tools/android/tests/test_p1_production_art_workflow_coverage_contract.py
           python3 tools/android/analyze_device_smoke.py --help >/dev/null
           python3 tools/android/fingerprint_p1_production_art_manifest.py --help >/dev/null
           python3 tools/android/verify_p1_production_art.py --help >/dev/null
           python3 tools/android/verify_release_with_production_art.py --help >/dev/null
+          python3 tools/android/verify_release_publication.py --help >/dev/null
+          python3 tools/android/p1_gate_readiness.py --help >/dev/null
+          python3 tools/android/prepare_candidate_device.py --help >/dev/null
+          python3 tools/android/verify_device_review_bundle.py --help >/dev/null
           python3 -m json.tool tools/android/p1_production_art_spec.json >/dev/null
+          python3 -m json.tool tools/android/p1_gate_spec.json >/dev/null
 
-      - name: Production art and smoke unit tests
+      - name: Production art, device-binding, publication and smoke unit tests
         shell: bash
         run: |
           set -euo pipefail
           python3 -m unittest discover -s tools/android/tests -p 'test_analyze_device_smoke.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_fingerprint_p1_production_art_manifest.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_verify_p1_production_art.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_production_art_source_policy_contract.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_prepare_candidate_device.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_verify_device_review_bundle.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_gate_readiness.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_verify_release_publication.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_verify_release_with_production_art.py' -v
           python3 -m unittest discover -s tools/android/tests -p 'test_verify_release_with_smoke_contract.py' -v
+          python3 -m unittest discover -s tools/android/tests -p 'test_p1_production_art_workflow_coverage_contract.py' -v
