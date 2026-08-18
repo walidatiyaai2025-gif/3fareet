@@ -12,6 +12,15 @@ def normalized(text: str) -> str:
     return " ".join(text.split())
 
 
+def request_block(text: str, request_id: str) -> str:
+    start = text.index(f"REQUEST ID: {request_id}")
+    next_request = text.find("\nREQUEST ID: EXT-ASSET-", start + 1)
+    programming_only = text.find("PROGRAMMING-ONLY WORK — DO NOT ADD AS EXTERNAL ASSET REQUESTS", start + 1)
+    ends = [value for value in (next_request, programming_only) if value >= 0]
+    end = min(ends) if ends else len(text)
+    return text[start:end]
+
+
 class ExternalAssetRequestPolicyTests(unittest.TestCase):
     def test_root_ledger_exists_and_declares_mandatory_policy(self):
         self.assertTrue(LEDGER.is_file(), "EXTERNAL_ASSET_REQUESTS.txt must stay at repository root")
@@ -99,6 +108,22 @@ class ExternalAssetRequestPolicyTests(unittest.TestCase):
             "UART-005 / UART-006 / UART-007 / URAC-011",
         ):
             self.assertIn(blocker, text)
+
+    def test_hero_request_requires_both_vertex_and_triangle_lod_ranges(self):
+        block = request_block(LEDGER.read_text(encoding="utf-8"), "EXT-ASSET-001")
+        for required in (
+            "LOD0 1500–5000 vertices AND 3500–7500 triangles",
+            "LOD1 800–2800 vertices AND 1600–4000 triangles",
+            "LOD2 500–1800 vertices AND 900–2500 triangles",
+            "Both dimensions must pass for every LOD",
+            "triangle-only budget report is insufficient",
+            "within both vertex and triangle policy ranges",
+            "no triangle-only or companion-only diagnostic may substitute for this gate",
+            "STATUS: OPEN",
+        ):
+            self.assertIn(required, block)
+        self.assertIn("No procedural/generated classification in final metadata.", block)
+        self.assertIn("generated/procedural candidates or triangle-only budget passes cannot satisfy", block)
 
     def test_ledger_keeps_code_responsibilities_out_of_asset_requests(self):
         text = LEDGER.read_text(encoding="utf-8")
