@@ -34,10 +34,11 @@ namespace Afareet.Core
             ActiveTrackId = CairoCareerTrackCatalog.Resolve(initialTrackId).Id;
         }
 
-        public bool ApplyTrack(string trackId)
+        public bool ApplyTrack(string trackId, bool forceRebuild = false)
         {
             var spec = CairoCareerTrackCatalog.Resolve(trackId);
-            if (StringComparer.Ordinal.Equals(ActiveTrackId, spec.Id))
+            var sameTrack = StringComparer.Ordinal.Equals(ActiveTrackId, spec.Id);
+            if (sameTrack && !forceRebuild)
                 return false;
             if (race.Phase == RaceRoundPhase.Countdown || race.Phase == RaceRoundPhase.Racing)
                 throw new InvalidOperationException("Career TrackId cannot change during countdown or active racing.");
@@ -63,7 +64,9 @@ namespace Afareet.Core
                 DestroyRuntimeRoot(previousRoot);
             }
 
-            Debug.Log($"AFAREET_CAREER_TRACK_APPLIED id={ActiveTrackId} waypoints={build.Track.Waypoints.Count} signature={spec.DeterministicSignature}");
+            Debug.Log(
+                $"AFAREET_CAREER_TRACK_APPLIED id={ActiveTrackId} forced={forceRebuild} " +
+                $"waypoints={build.Track.Waypoints.Count} signature={spec.DeterministicSignature}");
             return true;
         }
 
