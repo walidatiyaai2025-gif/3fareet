@@ -13,12 +13,31 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
         for required in (
             "public sealed class PowerUpRaceRuntime", "SortedDictionary<string, RacerState>", "PowerUpRuntimeRuleset",
-            "GetInventorySnapshot", "GetAiAvailability", "TryUse(", "ExecuteAiDecision(", "TickAll(", "ResetRace()",
+            "GetInventorySnapshot", "GetAiAvailability", "IsPowerUpUsable", "TryUse(", "ExecuteAiDecision(", "TickAll(", "ResetRace()",
             "slot.Charges--", "slot.ReadyAtSeconds = raceTimeSeconds + rule.CooldownSeconds",
         ):
             self.assertIn(required, source)
         self.assertNotIn("using UnityEngine;", source)
         self.assertNotIn("MonoBehaviour", source)
+
+    def test_single_slot_usability_query_is_allocation_free(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
+        start = source.index("public bool IsPowerUpUsable(")
+        end = source.index("public PowerUpRuntimeUseResult TryUse(", start)
+        method = source[start:end]
+
+        self.assertIn("var racer = GetRacerOrThrow(racerId);", method)
+        self.assertIn("var slot = racer.Inventory[kind];", method)
+        self.assertIn("return slot.Charges > 0 && slot.ReadyAtSeconds <= raceTimeSeconds;", method)
+        for forbidden in (
+            "GetInventorySnapshot(",
+            "GetAiAvailability(",
+            "new List<",
+            "new PowerUpInventorySnapshot",
+            "new AiPowerUpAvailability",
+            ".AsReadOnly()",
+        ):
+            self.assertNotIn(forbidden, method)
 
     def test_runtime_commits_only_real_effect_transitions(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
@@ -81,6 +100,7 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
             self.assertIn(required, runner)
         for required in (
             "TryUse_ConsumesChargeAndEnforcesCooldownFromOneAuthoritativeSlot",
+            "IsPowerUpUsable_TracksChargesAndCooldownWithoutInventorySnapshot",
             "HostileUseBlockedByEyeShield_IsStillConsumedAsRealAttempt",
             "IgnoredEffectPolicy_DoesNotConsumeChargeOrStartCooldown",
             "AiAvailabilityAndExecution_UseTheSameInventoryAndTryUsePath",
