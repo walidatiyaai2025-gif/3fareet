@@ -202,14 +202,23 @@ def _parse_texture_reference(line: str) -> str:
     return parts[-1] if len(parts) >= 2 else ""
 
 
-def _resolve_local_dependency(root: Path, reference: str, *, label: str) -> Path:
+def _resolve_local_dependency(package_root: Path, base_dir: Path, reference: str, *, label: str) -> Path:
+    """Resolve a package-local dependency using the format's actual reference base.
+
+    OBJ mtllib references are relative to the OBJ/package directory. Texture-map references
+    are relative to the MTL directory. In both cases the final resolved file must remain inside
+    the submitted package root.
+    """
     _require(bool(reference and reference.strip()), f"{label} reference is empty")
     normalized = reference.strip().replace("\\", "/")
     _require(not normalized.startswith("/"), f"{label} must be package-relative: {reference}")
     _require(re.match(r"^[A-Za-z]:/", normalized) is None, f"{label} must not use a drive-qualified path: {reference}")
 
-    package_root = root.resolve()
-    resolved = (package_root / normalized).resolve()
+    package_root = package_root.resolve()
+    base_dir = base_dir.resolve()
+    _require(base_dir == package_root or package_root in base_dir.parents,
+             f"{label} base directory escapes the handoff package root: {base_dir}")
+    resolved = (base_dir / normalized).resolve()
     _require(resolved == package_root or package_root in resolved.parents,
              f"{label} escapes the handoff package root: {reference}")
     return resolved
@@ -222,7 +231,7 @@ def validate_mtl_and_textures(obj_path: Path, obj_result: dict[str, Any]) -> lis
     package_root = obj_path.parent.resolve()
 
     for library in obj_result["mtllibs"]:
-        mtl_path = _resolve_local_dependency(package_root, library, label=f"{obj_path.name} mtllib")
+        mtl_path = _resolve_local_dependency(package_root, obj_path.parent, library, label=f"{obj_path.name} mtllib")
         _require(mtl_path.is_file(), f"{obj_path.name} references missing MTL: {library}")
         current_material = ""
         textures: set[str] = set()
@@ -239,13 +248,13 @@ def validate_mtl_and_textures(obj_path: Path, obj_result: dict[str, Any]) -> lis
                 continue
             texture_ref = _parse_texture_reference(line)
             _require(texture_ref, f"{mtl_path.name} has an empty texture reference for {current_material}")
-            texture_path = _resolve_local_dependency(package_root, texture_ref, label=f"{mtl_path.name} texture")
+            texture_path = _resolve_local_dependency(package_root, mtl_path.parent, texture_ref, label=f"{mtl_path.name} texture")
             _require(texture_path.is_file(), f"{mtl_path.name} material {current_material} references missing texture: {texture_ref}")
             textures.add(texture_ref)
             if current_material in material_maps:
                 material_maps[current_material].add(texture_ref)
         library_reports.append({
-            "fileName": mtl_path.name,
+            "fileName": str(mtl_path.relative_to(package_root)).replace("\\", "/"),
             "sha256": sha256_file(mtl_path),
             "textures": sorted(textures),
         })
