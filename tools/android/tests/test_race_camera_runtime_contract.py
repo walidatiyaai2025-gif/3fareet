@@ -52,6 +52,22 @@ class RaceCameraRuntimeContractTests(unittest.TestCase):
             else:
                 self.assertNotIn(forbidden, text)
 
+    def test_chase_camera_caches_target_vehicle_instead_of_lookup_each_normal_frame(self):
+        text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/ChaseCamera.cs")
+        late_start = text.index("private void LateUpdate()")
+        late_end = text.index("public void Configure(", late_start)
+        late_update = text[late_start:late_end]
+        configure_start = late_end
+        configure_end = text.index("private Vector3 ResolveOcclusion", configure_start)
+        configure = text[configure_start:configure_end]
+
+        self.assertIn("private ArcadeCarController targetCar;", text)
+        self.assertIn("targetCar = target.GetComponent<ArcadeCarController>();", configure)
+        self.assertIn("if (targetCar == null)", late_update)
+        self.assertIn("targetCar = Target.GetComponent<ArcadeCarController>();", late_update)
+        self.assertIn("targetCar.NitroActive", late_update)
+        self.assertNotIn("var car = Target.GetComponent<ArcadeCarController>();", late_update)
+
     def test_chase_camera_enforces_visual_body_clearance_before_occlusion_compression(self):
         text = self._read("unity_game/Assets/Afareet/Scripts/Vehicle/ChaseCamera.cs")
         for required in (
