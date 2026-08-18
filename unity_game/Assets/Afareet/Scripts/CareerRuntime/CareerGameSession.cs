@@ -27,6 +27,7 @@ namespace Afareet.CareerRuntime
         public CareerNodeDefinition ActiveDefinition => activeDefinition;
         public CareerEventSettlement LastSettlement { get; private set; }
         public CareerNavigationSnapshot Navigation { get; private set; }
+        public RaceChallengeConfiguration ActiveChallengeConfiguration => race?.ChallengeConfiguration ?? RaceChallengeConfiguration.Standard;
         public bool HasActiveEvent => activeDefinition != null;
         public bool CampaignComplete { get; private set; }
         public bool RecoveredInvalidSave { get; private set; }
@@ -67,7 +68,10 @@ namespace Afareet.CareerRuntime
             CampaignComplete = activeDefinition == null && AreAllNodesCompleted();
             Navigation = navigationService.Build(navigationMap, Progress, activeDefinition?.Node.Id);
             if (activeDefinition != null)
+            {
+                ApplyChallengeConfiguration(activeDefinition);
                 BindAdapter(activeDefinition);
+            }
 
             round.ResultsReady += OnResultsReady;
             configured = true;
@@ -112,8 +116,11 @@ namespace Afareet.CareerRuntime
 
             adapter?.Dispose();
             adapter = null;
+            var previousChallenge = race.ChallengeConfiguration;
+            ApplyChallengeConfiguration(next);
             if (!race.RestartRace())
             {
+                race.ApplyChallengeConfiguration(previousChallenge);
                 BindAdapter(activeDefinition);
                 return false;
             }
@@ -166,6 +173,12 @@ namespace Afareet.CareerRuntime
                 return;
             CampaignComplete = true;
             CampaignCompleted?.Invoke();
+        }
+
+        private void ApplyChallengeConfiguration(CareerNodeDefinition definition)
+        {
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            race.ApplyChallengeConfiguration(CareerChallengeBalancePolicy.Resolve(definition.Node));
         }
 
         private void BindAdapter(CareerNodeDefinition definition)
