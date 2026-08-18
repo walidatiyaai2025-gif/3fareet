@@ -1,6 +1,7 @@
 import importlib.util
 import shutil
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -12,12 +13,21 @@ HELPER_PATH = Path(__file__).with_name("test_uart003_hero_production_handoff.py"
 SPEC = importlib.util.spec_from_file_location("hero_handoff_fixture", HELPER_PATH)
 HELPER = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
-SPEC.loader.exec_module(HELPER)
+previous_module = sys.modules.get(SPEC.name)
+sys.modules[SPEC.name] = HELPER
+try:
+    SPEC.loader.exec_module(HELPER)
+except BaseException:
+    if previous_module is None:
+        sys.modules.pop(SPEC.name, None)
+    else:
+        sys.modules[SPEC.name] = previous_module
+    raise
 
 
 class WindowsHeroHandoffPreflightTests(unittest.TestCase):
     @staticmethod
-    def run(command):
+    def run_command(command):
         return subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
 
     def test_staging_runs_native_hero_gate_before_rival_and_unity(self):
@@ -56,7 +66,7 @@ class WindowsHeroHandoffPreflightTests(unittest.TestCase):
         root = HELPER.make_repo()
         try:
             source = (HELPER.HERO_ROOT / "AfareetKing_Production.obj").as_posix()
-            result = self.run([pwsh, "-NoProfile", "-File", str(NATIVE), "-RepoRoot", str(root), "-Source", source])
+            result = self.run_command([pwsh, "-NoProfile", "-File", str(NATIVE), "-RepoRoot", str(root), "-Source", source])
             self.assertEqual(result.returncode, 0, result.stdout)
             self.assertIn("AFAREET_UART003_HERO_NATIVE_PREFLIGHT_OK", result.stdout)
             self.assertIn("verdict=READY_FOR_LICENSED_UNITY_IMPORT", result.stdout)
@@ -73,7 +83,7 @@ class WindowsHeroHandoffPreflightTests(unittest.TestCase):
         try:
             (root / HELPER.HERO_ROOT / "textures/hero.png.meta").unlink()
             source = (HELPER.HERO_ROOT / "AfareetKing_Production.obj").as_posix()
-            result = self.run([pwsh, "-NoProfile", "-File", str(NATIVE), "-RepoRoot", str(root), "-Source", source])
+            result = self.run_command([pwsh, "-NoProfile", "-File", str(NATIVE), "-RepoRoot", str(root), "-Source", source])
             self.assertNotEqual(result.returncode, 0, result.stdout)
             self.assertIn("AFAREET_UART003_HERO_NATIVE_PREFLIGHT_ERROR", result.stdout)
             self.assertIn("Hero texture dependency Unity metadata is missing", result.stdout)
@@ -87,7 +97,7 @@ class WindowsHeroHandoffPreflightTests(unittest.TestCase):
         root = HELPER.make_repo(obj=False)
         try:
             source = (HELPER.HERO_ROOT / "AfareetKing_Production.fbx").as_posix()
-            result = self.run([pwsh, "-NoProfile", "-File", str(NATIVE), "-RepoRoot", str(root), "-Source", source])
+            result = self.run_command([pwsh, "-NoProfile", "-File", str(NATIVE), "-RepoRoot", str(root), "-Source", source])
             self.assertEqual(result.returncode, 0, result.stdout)
             self.assertIn("verdict=UNITY_INSPECTION_REQUIRED", result.stdout)
             self.assertIn("unityInspectionRequired=true", result.stdout)
@@ -105,7 +115,7 @@ class WindowsHeroHandoffPreflightTests(unittest.TestCase):
                 f"[System.Management.Automation.Language.Parser]::ParseFile('{script.as_posix()}',[ref]$tokens,[ref]$errors)|Out-Null;"
                 "if($errors.Count -gt 0){$errors|ForEach-Object{Write-Host $_.Message};exit 1}"
             )
-            result = self.run([pwsh, "-NoProfile", "-Command", command])
+            result = self.run_command([pwsh, "-NoProfile", "-Command", command])
             self.assertEqual(result.returncode, 0, f"{script}: {result.stdout}")
 
 
