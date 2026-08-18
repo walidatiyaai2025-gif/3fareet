@@ -10,6 +10,8 @@ namespace Afareet.Race
         private readonly RaycastHit[] avoidanceHits = new RaycastHit[6];
         private IReadOnlyList<Transform> waypoints;
         private ArcadeCarController car;
+        private RacerCheckpointTracker checkpoints;
+        private RivalResetController resetController;
         private RaceDirector powerUpDirector;
         private string powerUpRacerId;
         private int waypointIndex;
@@ -64,7 +66,21 @@ namespace Afareet.Race
             return powerUpDirector.ExecuteBoundAiPowerUp(powerUpRacerId);
         }
 
-        private void Awake() => car = GetComponent<ArcadeCarController>();
+        private void Awake()
+        {
+            car = GetComponent<ArcadeCarController>();
+        }
+
+        private void OnEnable()
+        {
+            BindRaceProgressRuntime();
+            SynchronizeWithCheckpointProgress();
+        }
+
+        private void OnDisable()
+        {
+            UnbindResetController();
+        }
 
         private void FixedUpdate()
         {
@@ -105,6 +121,47 @@ namespace Afareet.Race
             var checkpointLocal = transform.InverseTransformPoint(waypoints[waypointIndex].position);
             if (checkpointLocal.magnitude < 9f)
                 waypointIndex = (waypointIndex + 1) % waypoints.Count;
+        }
+
+        private void BindRaceProgressRuntime()
+        {
+            if (checkpoints == null)
+                checkpoints = GetComponent<RacerCheckpointTracker>();
+
+            var currentResetController = GetComponent<RivalResetController>();
+            if (currentResetController == resetController)
+                return;
+
+            UnbindResetController();
+            resetController = currentResetController;
+            if (resetController != null)
+                resetController.RivalReset += OnRivalReset;
+        }
+
+        private void SynchronizeWithCheckpointProgress()
+        {
+            if (checkpoints == null || !checkpoints.IsConfigured)
+                return;
+
+            SynchronizeNavigation(checkpoints.ExpectedCheckpointIndex);
+        }
+
+        private void OnRivalReset(int resetWaypointIndex)
+        {
+            if (checkpoints != null && checkpoints.IsConfigured)
+            {
+                SynchronizeWithCheckpointProgress();
+                return;
+            }
+
+            SynchronizeNavigation(resetWaypointIndex + 1);
+        }
+
+        private void UnbindResetController()
+        {
+            if (resetController != null)
+                resetController.RivalReset -= OnRivalReset;
+            resetController = null;
         }
 
         private float ComputeAvoidance(float effectiveAggression, out bool carAhead, out float nearestCarDistance)
