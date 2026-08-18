@@ -1,4 +1,5 @@
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 
@@ -9,6 +10,7 @@ MODULE_PATH = REPO_ROOT / "tools/android/p1_programming_closure_audit.py"
 spec = importlib.util.spec_from_file_location("p1_programming_closure_audit", MODULE_PATH)
 module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
+sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
 
@@ -46,8 +48,7 @@ class ProgrammingClosureAuditTests(unittest.TestCase):
         )
 
     def test_audit_fails_if_todo_programming_queue_returns(self):
-        mutated = self.register_text.replace("| U3D-001 | P0 |", "| U3D-001 | P0 |", 1)
-        mutated = mutated.replace(
+        mutated = self.register_text.replace(
             "| U3D-001 | P0 | إنشاء Unity project مستقل داخل المستودع | Principal Mobile Game Architect | IN REVIEW |",
             "| U3D-001 | P0 | إنشاء Unity project مستقل داخل المستودع | Principal Mobile Game Architect | TODO |",
             1,
