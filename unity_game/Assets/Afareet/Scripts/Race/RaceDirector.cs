@@ -32,6 +32,7 @@ namespace Afareet.Race
         private bool racersReleased;
         private bool powerUpRuntimeDirty = true;
         private double nextPowerUpDecisionRaceTime;
+        private IReadOnlyList<RankedRaceEntry> aiDecisionRankedSnapshot;
         private RaceRewardSettlementSnapshot playerFinishRewardSnapshot;
 
         public RaceRoundPhase Phase => round?.Phase ?? RaceRoundPhase.Ready;
@@ -72,6 +73,7 @@ namespace Afareet.Race
             powerUpRuntime = null;
             powerUpRuntimeDirty = true;
             nextPowerUpDecisionRaceTime = 0d;
+            aiDecisionRankedSnapshot = null;
             playerFinishRewardSnapshot = null;
 
             PrepareRacer(player, "PLAYER", 0);
@@ -118,6 +120,7 @@ namespace Afareet.Race
             EnsurePowerUpRuntime();
             ResetPowerUpDriveModifiers();
             nextPowerUpDecisionRaceTime = 0d;
+            aiDecisionRankedSnapshot = null;
             racersReleased = false;
             SetPausedInternal(false);
             FreezeRacers();
@@ -165,7 +168,9 @@ namespace Afareet.Race
             if (source == null || source.Lap.IsFinished)
                 return null;
 
-            var ranked = BuildRankedRace();
+            // The managed AI cadence publishes one immutable ranking snapshot for all rivals.
+            // Direct/external calls outside that batch still observe freshly captured progress.
+            var ranked = aiDecisionRankedSnapshot ?? BuildRankedRace();
             var rankedIndex = -1;
             for (var i = 0; i < ranked.Count; i++)
             {
@@ -234,14 +239,26 @@ namespace Afareet.Race
             if (raceTimeSeconds + .0001d >= nextPowerUpDecisionRaceTime)
             {
                 nextPowerUpDecisionRaceTime = raceTimeSeconds + AiPowerUpDecisionCadenceSeconds;
-                for (var i = 1; i < racers.Count; i++)
+                aiDecisionRankedSnapshot = null;
+                try
                 {
-                    var ai = racers[i].Car.GetComponent<AiRacer>();
-                    if (ai == null) continue;
+                    for (var i = 1; i < racers.Count; i++)
+                    {
+                        var ai = racers[i].Car.GetComponent<AiRacer>();
+                        if (ai == null || !ai.isActiveAndEnabled) continue;
 
-                    var execution = ai.EvaluateBoundPowerUpDecision();
-                    if (execution?.UseResult != null && execution.UseResult.Status == PowerUpRuntimeUseStatus.Used)
-                        driveProjectionDirty = true;
+                        // Delay the allocation until the first eligible AI. Cadences without
+                        // an active Rival therefore do not build a ranking at all.
+                        aiDecisionRankedSnapshot ??= BuildRankedRace();
+                        var execution = ai.EvaluateBoundPowerUpDecision();
+                        if (execution?.UseResult != null && execution.UseResult.Status == PowerUpRuntimeUseStatus.Used)
+                            driveProjectionDirty = true;
+                    }
+                }
+                finally
+                {
+                    // A batch snapshot must never leak to player/UI/external callers.
+                    aiDecisionRankedSnapshot = null;
                 }
             }
 
@@ -301,6 +318,7 @@ namespace Afareet.Race
                 registrations);
             powerUpRuntimeDirty = false;
             nextPowerUpDecisionRaceTime = 0d;
+            aiDecisionRankedSnapshot = null;
             ResetPowerUpDriveModifiers();
 
             for (var i = 1; i < racers.Count; i++)
@@ -378,6 +396,7 @@ namespace Afareet.Race
         {
             racersReleased = false;
             nextPowerUpDecisionRaceTime = 0d;
+            aiDecisionRankedSnapshot = null;
             playerFinishRewardSnapshot = null;
             if (powerUpRuntime != null)
                 powerUpRuntime.ResetRace();
@@ -533,6 +552,7 @@ namespace Afareet.Race
 
         private void OnDestroy()
         {
+            aiDecisionRankedSnapshot = null;
             ResetPowerUpDriveModifiers();
             UnsubscribeRound();
             if (IsPaused) Time.timeScale = 1f;
