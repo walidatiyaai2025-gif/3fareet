@@ -1,0 +1,8 @@
+# UART-007 authored-source candidate material
+newmtl SectorBeacon_Metal
+Ka 0.030000 0.055000 0.070000
+Kd 0.100000 0.390000 0.460000
+Ks 0.280000 0.530000 0.590000
+Ns 68.000000
+illum 2
+map_Kd T_Track_SectorBeacon_BC.png

@@ -19,6 +19,9 @@ namespace Afareet.Vehicle
         private bool brakeInput;
         private bool nitroWasActive;
         private float nitroCooldownRemaining;
+        private float stuckDriveSeconds;
+        private float recoveryInputLockRemaining;
+        private ArcadeDriveModifier externalDriveModifier = ArcadeDriveModifier.Neutral();
 
         public bool AcceptsPlayerInput { get; set; }
         public float SpeedKph => body == null ? 0f : Vector3.Dot(body.linearVelocity, transform.forward) * 3.6f;
@@ -48,6 +51,8 @@ namespace Afareet.Vehicle
         public float CurrentSteerInput => steerInput;
         public float CurrentThrottleInput => throttleInput;
         public bool CurrentBrakeInput => brakeInput;
+        public float RecoveryInputLockRemaining => recoveryInputLockRemaining;
+        public ArcadeDriveModifier ExternalDriveModifier => externalDriveModifier;
 
         private void Awake()
         {
@@ -74,7 +79,35 @@ namespace Afareet.Vehicle
             if (AcceptsPlayerInput) ReadDesktopInput();
 #endif
             var grounded = surfaceSensor.IsGrounded;
+            if (AcceptsPlayerInput)
+            {
+                recoveryInputLockRemaining = Mathf.Max(0f, recoveryInputLockRemaining - Time.fixedDeltaTime);
+                if (recoveryInputLockRemaining > 0f)
+                    ClearDriveInputs();
+
+                stuckDriveSeconds = VehicleRecoveryPolicy.AdvanceStuckTimer(
+                    stuckDriveSeconds,
+                    grounded,
+                    SpeedKph,
+                    throttleInput,
+                    brakeInput,
+                    Time.fixedDeltaTime);
+                if (VehicleRecoveryPolicy.ShouldAutoRecover(stuckDriveSeconds))
+                {
+                    RecoverToTrack("auto-stuck");
+                    return;
+                }
+            }
+            else
+            {
+                // Never carry a partially accumulated stuck timer across countdown, pause,
+                // results or restart boundaries. A later recovery must be earned by a fresh
+                // continuous player drive-intent window.
+                stuckDriveSeconds = 0f;
+            }
+
             var surfaceResponse = config.SurfaceResponseFor(surfaceSensor.CurrentSurface);
+            var driveModifier = externalDriveModifier;
             nitroCooldownRemaining = VehicleSpiritPolicy.AdvanceCooldown(nitroCooldownRemaining, Time.fixedDeltaTime);
 
             var localVelocity = transform.InverseTransformDirection(body.linearVelocity);
@@ -116,8 +149,12 @@ namespace Afareet.Vehicle
                 lateralSlip,
                 config.tractionSlipThresholdMetersPerSecond,
                 config.tractionStrength);
-            var accelerating = (tractionDrive >= 0f ? config.acceleration : config.reverseAcceleration) * surfaceResponse.AccelerationMultiplier;
-            var surfaceMaxSpeed = config.maxSpeedMetersPerSecond * surfaceResponse.MaxSpeedMultiplier;
+            var accelerating = (tractionDrive >= 0f ? config.acceleration : config.reverseAcceleration) *
+                               surfaceResponse.AccelerationMultiplier *
+                               (float)driveModifier.AccelerationMultiplier;
+            var surfaceMaxSpeed = config.maxSpeedMetersPerSecond *
+                                  surfaceResponse.MaxSpeedMultiplier *
+                                  (float)driveModifier.MaxSpeedMultiplier;
             if (grounded &&
                 (Mathf.Abs(forwardSpeed) < surfaceMaxSpeed || Mathf.Sign(tractionDrive) != Mathf.Sign(forwardSpeed)))
             {
@@ -164,9 +201,13 @@ namespace Afareet.Vehicle
 
             if (grounded)
             {
-                var speedFactor = Mathf.Lerp(.42f, 1f, Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 12f));
+                var speedFactor = VehicleHandlingPolicy.SteeringSpeedFactor(forwardSpeed);
                 var direction = forwardSpeed < -0.5f ? -1f : 1f;
-                body.MoveRotation(body.rotation * Quaternion.Euler(0f, steerInput * config.steerStrengthDegrees * speedFactor * direction * Time.fixedDeltaTime, 0f));
+                body.MoveRotation(body.rotation * Quaternion.Euler(
+                    0f,
+                    steerInput * config.steerStrengthDegrees * speedFactor * direction *
+                    (float)driveModifier.SteeringAuthorityMultiplier * Time.fixedDeltaTime,
+                    0f));
 
                 var driftBlend = VehicleHandlingPolicy.DriftBlend(
                     driftInput,
@@ -175,16 +216,18 @@ namespace Afareet.Vehicle
                     config.driftGripMinimumSteer,
                     config.driftGripFullSlipMetersPerSecond);
                 var effectiveGrip = VehicleHandlingPolicy.EffectiveGrip(
-                    config.grip,
-                    config.driftGrip,
-                    driftBlend,
-                    surfaceResponse.GripMultiplier);
+                                        config.grip,
+                                        config.driftGrip,
+                                        driftBlend,
+                                        surfaceResponse.GripMultiplier) *
+                                    (float)driveModifier.GripMultiplier;
                 localVelocity.x = Mathf.Lerp(localVelocity.x, 0f, effectiveGrip * Time.fixedDeltaTime);
             }
 
             var maxForwardSpeed = config.maxSpeedMetersPerSecond *
                                   (grounded ? surfaceResponse.MaxSpeedMultiplier : 1f) *
-                                  (nitroActive ? 1.22f : 1f);
+                                  (nitroActive ? 1.22f : 1f) *
+                                  (float)driveModifier.MaxSpeedMultiplier;
             localVelocity.z = Mathf.Clamp(localVelocity.z, -config.maxSpeedMetersPerSecond * 0.3f, maxForwardSpeed);
             body.linearVelocity = transform.TransformDirection(localVelocity);
 
@@ -202,6 +245,12 @@ namespace Afareet.Vehicle
 
         public void SetPlayerInput(float throttle, float steer, bool drift, bool nitro, bool brake)
         {
+            if (recoveryInputLockRemaining > 0f)
+            {
+                ClearDriveInputs();
+                return;
+            }
+
             throttleInput = Mathf.Clamp(throttle, -1f, 1f);
             steerInput = Mathf.Clamp(steer, -1f, 1f);
             driftInput = drift;
@@ -216,10 +265,22 @@ namespace Afareet.Vehicle
                 throw new System.ArgumentException(error, nameof(vehicleConfig));
 
             config = vehicleConfig;
+            ResetExternalDriveModifier();
             body.mass = config.massKilograms;
             body.linearDamping = config.linearDamping;
             body.angularDamping = config.angularDamping;
             body.centerOfMass = config.centerOfMass;
+        }
+
+        public void SetExternalDriveModifier(ArcadeDriveModifier modifier)
+        {
+            ArcadeDriveModifier.ValidateInitialized(modifier, nameof(modifier));
+            externalDriveModifier = modifier;
+        }
+
+        public void ResetExternalDriveModifier()
+        {
+            externalDriveModifier = ArcadeDriveModifier.Neutral();
         }
 
         public void SetAiInput(float throttle, float steer, bool drift, bool nitro, bool brake = false)
@@ -231,25 +292,80 @@ namespace Afareet.Vehicle
             brakeInput = brake;
         }
 
+        public void ResetRaceTransientState()
+        {
+            ClearDriveInputs();
+            NitroEnergy = 1f;
+            nitroCooldownRemaining = 0f;
+            nitroWasActive = false;
+            DriftEnergy = 0f;
+            DriftChargeActive = false;
+            stuckDriveSeconds = 0f;
+            recoveryInputLockRemaining = 0f;
+
+            foreach (var trail in trails)
+                trail.emitting = false;
+        }
+
         public void ResetToSpawn()
         {
-            var checkpoint = GetComponent<LastCheckpointTracker>();
-            if (checkpoint != null && checkpoint.HasCheckpoint)
-                transform.SetPositionAndRotation(checkpoint.Position + Vector3.up, checkpoint.Rotation);
-            else
-                transform.SetPositionAndRotation(spawnPosition + Vector3.up, spawnRotation);
+            RecoverToTrack("manual");
+        }
 
+        private void RecoverToTrack(string reason)
+        {
+            // ResetToSpawn can be invoked before Awake initializes the cached
+            // Rigidbody reference (for example from EditMode or another component).
+            if (body == null)
+            {
+                body = GetComponent<Rigidbody>();
+                if (body == null)
+                    throw new MissingComponentException("ArcadeCarController requires a Rigidbody for recovery.");
+
+                spawnPosition = transform.position;
+                spawnRotation = transform.rotation;
+            }
+
+            var checkpoint = GetComponent<LastCheckpointTracker>();
+            var source = "spawn";
+            var targetPosition = spawnPosition + Vector3.up * VehicleRecoveryPolicy.RecoveryUpOffsetMeters;
+            var targetRotation = spawnRotation;
+
+            if (checkpoint != null && checkpoint.HasCheckpoint)
+            {
+                targetPosition = checkpoint.RecoveryPosition;
+                targetRotation = checkpoint.Rotation;
+                source = "checkpoint";
+            }
+
+            // Teleport the physics body directly; using Transform.SetPositionAndRotation on
+            // an interpolated dynamic Rigidbody can leave the physics pose/contact state one
+            // simulation step behind the visual Transform.
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
+            body.position = targetPosition;
+            body.rotation = targetRotation;
+            ClearDriveInputs();
+            stuckDriveSeconds = 0f;
+            recoveryInputLockRemaining = VehicleRecoveryPolicy.PostRecoveryInputLockSeconds;
+            DriftEnergy = 0f;
+            if (config != null && nitroWasActive)
+                nitroCooldownRemaining = Mathf.Max(nitroCooldownRemaining, config.nitroCooldownSeconds);
+            nitroWasActive = false;
+            DriftChargeActive = false;
+
+            Debug.Log(
+                $"AFAREET_UVEH012_RECOVERY reason={reason} source={source} " +
+                $"inputLock={VehicleRecoveryPolicy.PostRecoveryInputLockSeconds:0.00}s");
+        }
+
+        private void ClearDriveInputs()
+        {
             throttleInput = 0f;
             steerInput = 0f;
             driftInput = false;
             nitroInput = false;
             brakeInput = false;
-            if (config != null && nitroWasActive)
-                nitroCooldownRemaining = Mathf.Max(nitroCooldownRemaining, config.nitroCooldownSeconds);
-            nitroWasActive = false;
-            DriftChargeActive = false;
         }
     }
 }

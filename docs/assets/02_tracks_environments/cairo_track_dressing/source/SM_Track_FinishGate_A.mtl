@@ -1,0 +1,8 @@
+# UART-007 authored-source candidate material
+newmtl FinishGate_Metal
+Ka 0.070000 0.055000 0.045000
+Kd 0.330000 0.245000 0.175000
+Ks 0.480000 0.390000 0.280000
+Ns 80.000000
+illum 2
+map_Kd T_Track_FinishGate_BC.png

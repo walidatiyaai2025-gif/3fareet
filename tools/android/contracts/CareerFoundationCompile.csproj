@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerDefinition.cs" Link="CareerDefinition.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/ChapterOneCareerContent.cs" Link="ChapterOneCareerContent.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerProgression.cs" Link="CareerProgression.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerSaveCodec.cs" Link="CareerSaveCodec.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerContent.cs" Link="CareerContent.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Progression/CareerObjectiveEvaluation.cs" Link="CareerObjectiveEvaluation.cs" />
+  </ItemGroup>
+</Project>

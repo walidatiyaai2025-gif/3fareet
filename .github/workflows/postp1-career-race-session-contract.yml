@@ -1,0 +1,45 @@
+name: Post-P1 Career Race Session Contract
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/**'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceRoundController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/Afareet.Race.asmdef'
+      - 'unity_game/Assets/Afareet/Scripts/Progression/**'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/CareerRuntime/**'
+      - 'tools/android/contracts/CareerRaceSessionCompile.csproj'
+      - 'tools/android/contracts/CareerRaceSessionContractRunner.cs'
+      - 'tools/android/contracts/CareerRaceSessionContractRunner.csproj'
+      - 'tools/android/tests/test_postp1_career_race_session_contract.py'
+      - '.github/workflows/postp1-career-race-session-contract.yml'
+  push:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/CareerRuntime/**'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceRoundController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/Afareet.Race.asmdef'
+      - 'unity_game/Assets/Afareet/Scripts/Progression/**'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/CareerRuntime/**'
+      - 'tools/android/contracts/CareerRaceSessionCompile.csproj'
+      - 'tools/android/contracts/CareerRaceSessionContractRunner.cs'
+      - 'tools/android/contracts/CareerRaceSessionContractRunner.csproj'
+      - 'tools/android/tests/test_postp1_career_race_session_contract.py'
+      - '.github/workflows/postp1-career-race-session-contract.yml'
+  workflow_dispatch:
+
+jobs:
+  career-race-session-contract:
+    name: Career race session compile + behavior contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile pure Career race-session coordinator
+        run: dotnet build tools/android/contracts/CareerRaceSessionCompile.csproj --configuration Release --nologo
+
+      - name: Run Career race-session behavior contract
+        run: dotnet run --project tools/android/contracts/CareerRaceSessionContractRunner.csproj --configuration Release
+
+      - name: Run Career race-session source contracts
+        run: python3 tools/android/tests/test_postp1_career_race_session_contract.py

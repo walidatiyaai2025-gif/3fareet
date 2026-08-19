@@ -46,22 +46,31 @@ namespace Afareet.Race
 
     public static class RaceRanking
     {
+        private static readonly Comparison<RankedRaceEntry> RankedEntryComparison = CompareEntries;
+
         public static IReadOnlyList<RankedRaceEntry> Rank(IReadOnlyList<RaceProgressSnapshot> racers)
         {
             if (racers == null) throw new ArgumentNullException(nameof(racers));
 
-            var ordered = new List<RaceProgressSnapshot>(racers.Count);
-            var ids = new HashSet<string>(StringComparer.Ordinal);
+            // Race fields are intentionally tiny (player + three rivals). Validate identity
+            // against the entries already copied into the result so the hot ranking path only
+            // allocates one list instead of HashSet + ordered list + ranked result list.
+            var result = new List<RankedRaceEntry>(racers.Count);
             for (var i = 0; i < racers.Count; i++)
             {
                 var racer = racers[i];
-                if (!ids.Add(racer.RacerId)) throw new ArgumentException("Duplicate racer id.", nameof(racers));
-                ordered.Add(racer);
+                for (var prior = 0; prior < result.Count; prior++)
+                {
+                    if (StringComparer.Ordinal.Equals(result[prior].Progress.RacerId, racer.RacerId))
+                        throw new ArgumentException("Duplicate racer id.", nameof(racers));
+                }
+
+                result.Add(new RankedRaceEntry(0, racer));
             }
 
-            ordered.Sort(Compare);
-            var result = new List<RankedRaceEntry>(ordered.Count);
-            for (var i = 0; i < ordered.Count; i++) result.Add(new RankedRaceEntry(i + 1, ordered[i]));
+            result.Sort(RankedEntryComparison);
+            for (var i = 0; i < result.Count; i++)
+                result[i] = new RankedRaceEntry(i + 1, result[i].Progress);
             return result;
         }
 
@@ -94,6 +103,11 @@ namespace Afareet.Race
             if (lap == null) throw new ArgumentNullException(nameof(lap));
 
             return new RaceProgressSnapshot(racerId, lap.IsFinished, lap.CompletedLaps, checkpoints.AcceptedCount, segmentProgress, lap.FinishTime, stableOrder);
+        }
+
+        private static int CompareEntries(RankedRaceEntry left, RankedRaceEntry right)
+        {
+            return Compare(left.Progress, right.Progress);
         }
     }
 }

@@ -1,0 +1,45 @@
+name: Post-P1 Power-Up Presentation Contract
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpEffectState.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpPresentationHooks.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpPresentationHooks.cs.meta'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/PowerUpPresentationHookTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/PowerUpPresentationHookTests.cs.meta'
+      - 'tools/android/contracts/PowerUpPresentationCompile.csproj'
+      - 'tools/android/tests/test_postp1_powerup_presentation_contract.py'
+      - '.github/workflows/postp1-powerup-presentation-contract.yml'
+  push:
+    branches:
+      - main
+      - agent/p1-remediation-convergence
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpEffectState.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpPresentationHooks.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpPresentationHooks.cs.meta'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/PowerUpPresentationHookTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/PowerUpPresentationHookTests.cs.meta'
+      - 'tools/android/contracts/PowerUpPresentationCompile.csproj'
+      - 'tools/android/tests/test_postp1_powerup_presentation_contract.py'
+      - '.github/workflows/postp1-powerup-presentation-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  presentation-contract:
+    name: Power-up presentation compile + contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Compile pure C# presentation contract
+        run: dotnet build tools/android/contracts/PowerUpPresentationCompile.csproj --configuration Release --nologo
+
+      - name: Run presentation source contract tests
+        run: python3 tools/android/tests/test_postp1_powerup_presentation_contract.py

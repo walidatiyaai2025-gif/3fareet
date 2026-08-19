@@ -27,9 +27,8 @@ namespace Afareet.Editor
         {
             ConfigureAndroidToolchain();
             PrepareProject();
-            PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
-            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
-            EditorUserBuildSettings.buildAppBundle = false;
+            P1ProductionWorldBuildGate.ValidateAndroidCandidateOrThrow();
+            ConfigureAndroidPlayer();
             Build(
                 BuildTarget.Android,
                 "Builds/Android/afareet-unity3d-debug.apk",
@@ -37,27 +36,87 @@ namespace Afareet.Editor
             );
         }
 
+        /// <summary>
+        /// Produces a unified ARM64 development APK from the current code/content snapshot
+        /// without claiming production visual or device-evidence readiness. Production
+        /// Android remains fail-closed through BuildAndroid().
+        /// </summary>
+        public static void BuildAndroidExperimental()
+        {
+            ConfigureAndroidToolchain();
+            PrepareProject();
+            ConfigureAndroidPlayer();
+
+            using (AfareetBuildContext.BeginExperimentalAndroidBuild())
+            {
+                Build(
+                    BuildTarget.Android,
+                    "Builds/Android/afareet-unity3d-experimental.apk",
+                    BuildOptions.Development,
+                    new[] { "AFAREET_EXPERIMENTAL_APK" }
+                );
+            }
+
+            Debug.Log("AFAREET_EXPERIMENTAL_APK_READY productionEvidence=false");
+        }
+
+        private static void ConfigureAndroidPlayer()
+        {
+            PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
+            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel36;
+            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            EditorUserBuildSettings.buildAppBundle = false;
+        }
+
         internal static void ConfigureAndroidToolchain()
         {
+            var editorDirectory = Path.GetDirectoryName(EditorApplication.applicationPath);
+            if (string.IsNullOrWhiteSpace(editorDirectory))
+                throw new InvalidOperationException("Unable to resolve the Unity Editor directory.");
+
+            var androidPlayer = Path.Combine(
+                editorDirectory,
+                "Data", "PlaybackEngines", "AndroidPlayer"
+            );
+
             var configuredSdk = Environment.GetEnvironmentVariable("AFAREET_ANDROID_SDK_ROOT");
             var androidSdk = string.IsNullOrWhiteSpace(configuredSdk)
-                ? Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Android",
-                    "Sdk"
-                )
-                : configuredSdk;
+                ? Path.Combine(androidPlayer, "SDK")
+                : Path.GetFullPath(configuredSdk);
 
-            if (!Directory.Exists(Path.Combine(androidSdk, "cmake", "3.22.1")))
-                return;
+            var ndk = Path.Combine(androidPlayer, "NDK");
+            var jdk = Path.Combine(androidPlayer, "OpenJDK");
+            var cmake = Path.Combine(androidSdk, "cmake", "3.22.1");
+            var api36 = Path.Combine(androidSdk, "platforms", "android-36");
+
+            if (!Directory.Exists(androidSdk))
+                throw new DirectoryNotFoundException($"Android SDK is missing: {androidSdk}");
+            if (!Directory.Exists(ndk))
+                throw new DirectoryNotFoundException($"Unity-managed Android NDK is missing: {ndk}");
+            if (!Directory.Exists(jdk))
+                throw new DirectoryNotFoundException($"Unity-managed OpenJDK is missing: {jdk}");
+            if (!Directory.Exists(cmake))
+                throw new DirectoryNotFoundException($"Android CMake 3.22.1 is missing: {cmake}");
+            if (!Directory.Exists(api36))
+                throw new DirectoryNotFoundException(
+                    $"Android API 36 platform is missing from the selected SDK: {api36}"
+                );
 
             AndroidExternalToolsSettings.sdkRootPath = androidSdk;
-            Debug.Log($"AFAREET_ANDROID_SDK path={androidSdk}");
+            AndroidExternalToolsSettings.ndkRootPath = ndk;
+            AndroidExternalToolsSettings.jdkRootPath = jdk;
+
+            Debug.Log(
+                $"AFAREET_ANDROID_TOOLCHAIN sdk={androidSdk} ndk={ndk} jdk={jdk} " +
+                "targetApi=36 source=unity-hub-managed"
+            );
         }
 
         internal static void PrepareProject()
         {
             AfareetAssetSetup.EnsureConfigAssets();
+            P1ProductionWorldAssetStager.StageTrackedSourcesOrThrow();
+
             PlayerSettings.companyName = "Afareet Studio";
             PlayerSettings.productName = "Afareet Asphalt Unity3D";
             PlayerSettings.SetApplicationIdentifier(
@@ -128,7 +187,12 @@ namespace Afareet.Editor
             }
         }
 
-        internal static void Build(BuildTarget target, string outputPath, BuildOptions options)
+        internal static void Build(
+            BuildTarget target,
+            string outputPath,
+            BuildOptions options,
+            string[] extraScriptingDefines = null
+        )
         {
             var directory = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
@@ -138,7 +202,8 @@ namespace Afareet.Editor
                 scenes = new[] { ScenePath },
                 locationPathName = outputPath,
                 target = target,
-                options = options
+                options = options,
+                extraScriptingDefines = extraScriptingDefines ?? Array.Empty<string>()
             });
 
             if (report.summary.result != BuildResult.Succeeded)

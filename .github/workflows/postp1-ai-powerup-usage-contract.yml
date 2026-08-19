@@ -1,0 +1,45 @@
+name: Post-P1 AI Power-Up Usage Contract
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpEffectState.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs.meta'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/AiPowerUpUsagePolicyTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/AiPowerUpUsagePolicyTests.cs.meta'
+      - 'tools/android/contracts/AiPowerUpUsageCompile.csproj'
+      - 'tools/android/tests/test_postp1_ai_powerup_usage_contract.py'
+      - '.github/workflows/postp1-ai-powerup-usage-contract.yml'
+  push:
+    branches:
+      - main
+      - agent/p1-remediation-convergence
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpEffectState.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs.meta'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/AiPowerUpUsagePolicyTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/AiPowerUpUsagePolicyTests.cs.meta'
+      - 'tools/android/contracts/AiPowerUpUsageCompile.csproj'
+      - 'tools/android/tests/test_postp1_ai_powerup_usage_contract.py'
+      - '.github/workflows/postp1-ai-powerup-usage-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ai-powerup-contract:
+    name: AI power-up usage compile + contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Compile pure C# AI power-up usage contract
+        run: dotnet build tools/android/contracts/AiPowerUpUsageCompile.csproj --configuration Release --nologo
+
+      - name: Run AI power-up usage source contract tests
+        run: python3 tools/android/tests/test_postp1_ai_powerup_usage_contract.py

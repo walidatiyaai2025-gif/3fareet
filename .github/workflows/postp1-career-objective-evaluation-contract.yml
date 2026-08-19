@@ -1,0 +1,39 @@
+name: Post-P1 Career Objective Evaluation Contract
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Progression/**'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Progression/**'
+      - 'tools/android/contracts/CareerFoundationCompile.csproj'
+      - 'tools/android/contracts/CareerObjectiveEvaluationContractRunner.cs'
+      - 'tools/android/contracts/CareerObjectiveEvaluationContractRunner.csproj'
+      - 'tools/android/tests/test_postp1_career_objective_evaluation_contract.py'
+      - '.github/workflows/postp1-career-objective-evaluation-contract.yml'
+  push:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Progression/**'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Progression/**'
+      - 'tools/android/contracts/CareerFoundationCompile.csproj'
+      - 'tools/android/contracts/CareerObjectiveEvaluationContractRunner.cs'
+      - 'tools/android/contracts/CareerObjectiveEvaluationContractRunner.csproj'
+      - 'tools/android/tests/test_postp1_career_objective_evaluation_contract.py'
+      - '.github/workflows/postp1-career-objective-evaluation-contract.yml'
+  workflow_dispatch:
+
+jobs:
+  career-objective-evaluation-contract:
+    name: Career objective evaluation compile + behavior contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile pure C# Career domain
+        run: dotnet build tools/android/contracts/CareerFoundationCompile.csproj --configuration Release --nologo
+
+      - name: Run Career objective evaluation behavior contract
+        run: dotnet run --project tools/android/contracts/CareerObjectiveEvaluationContractRunner.csproj --configuration Release
+
+      - name: Run Career objective evaluation source contracts
+        run: python3 tools/android/tests/test_postp1_career_objective_evaluation_contract.py

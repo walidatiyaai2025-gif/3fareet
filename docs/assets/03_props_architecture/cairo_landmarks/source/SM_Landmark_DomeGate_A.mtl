@@ -1,0 +1,8 @@
+# UART-006 authored-source candidate material
+newmtl DomeGate_Stone
+Ka 0.180000 0.145000 0.110000
+Kd 0.690000 0.525000 0.355000
+Ks 0.110000 0.090000 0.075000
+Ns 24.000000
+illum 2
+map_Kd T_Landmark_DomeGate_BC.png

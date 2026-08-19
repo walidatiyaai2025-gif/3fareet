@@ -1,38 +1,60 @@
 # Licensed Windows GitHub Runner — Exact-SHA Unity Candidate
 
-**Purpose:** make the existing licensed Windows fallback traceable in GitHub Actions without storing Unity credentials in the repository or weakening any P1 verification gate.
+**Purpose:** make the licensed Windows fallback traceable in GitHub Actions without storing Unity credentials in the repository or weakening any P1 verification gate.
 
 ## What this solves
 
-Hosted `Unity Production CI` still requires GitHub secrets for Unity licensing. The local Windows fallback can already run Unity `6000.5.8f1`, tests, Android build and candidate verification, but local execution alone is not automatically attached to a GitHub workflow run.
+Hosted `Unity Production CI` and `Unity Experimental APK` require GitHub secrets for Unity licensing. The Windows fallback can use Unity `6000.5.8f1` on a self-hosted Windows x64 runner whose Unity installation is already licensed locally.
 
-`.github/workflows/unity-licensed-windows-candidate.yml` bridges that gap by running the existing production candidate script on a **self-hosted Windows x64 runner whose Unity installation is already licensed locally**.
+`.github/workflows/unity-licensed-windows-candidate.yml` exposes two explicit modes:
+
+- `production` — the existing full tests + production Android candidate/evidence chain;
+- `experimental` — the isolated unified ARM64 development APK path, producing `afareet-unity3d-experimental.apk` without claiming release/device verification.
 
 The workflow does not request, echo, upload or commit Unity credentials.
 
+## Why the candidate ref is selectable
+
+P1 remediation is intentionally converged in `agent/p1-remediation-convergence` **before merging** into the canonical integration branch `agent/unblock-final-5`.
+
+A licensed workflow hard-wired only to `agent/unblock-final-5` creates a circular gate: the convergence PR cannot be merged until licensed Unity proof exists, but the licensed workflow cannot prove the convergence SHA until it is merged.
+
+The workflow therefore accepts a `candidate_ref` input, but it is a GitHub Actions `choice` with a strict two-ref allowlist:
+
+- `agent/p1-remediation-convergence` — pre-merge remediation proof;
+- `agent/unblock-final-5` — canonical integration proof after the preceding gates legitimately allow integration.
+
+No arbitrary PR branch, tag or user-supplied ref is accepted.
+
 ## Security boundary
 
-The self-hosted job deliberately does **not** accept an arbitrary Git ref. It always checks out:
+The self-hosted job validates `candidate_ref` against the same explicit allowlist **before `actions/checkout` runs**. That ordering matters: an arbitrary repository ref must not be checked out onto the licensed self-hosted machine and then validated afterward.
 
-`agent/unblock-final-5`
+After the allowlist guard, checkout uses only the validated step output. The operator must also explicitly supply the current full `expected_sha`; there is intentionally **no default SHA** because either allowed branch can move while another agent is working.
 
-The operator must explicitly supply the current full `expected_sha`. There is intentionally **no default SHA** in the workflow because the production branch is shared by multiple implementation agents and can move while another gate is running.
+The job fails before Unity starts unless:
 
-The job fails before Unity starts unless the checked-out branch head exactly matches the supplied 40-character SHA. This prevents an accidental branch move from producing evidence for a different revision and prevents the workflow from being used to execute an arbitrary PR branch on the self-hosted machine.
+- the selected ref is one of the two approved production refs;
+- checked-out `HEAD` exactly matches the supplied 40-character `expected_sha`;
+- the working tree is clean;
+- `candidate_mode` is exactly `production` or `experimental`;
+- the selected mode's runner script exists.
 
-`actions/checkout` also uses `persist-credentials: false` for the self-hosted job.
+`actions/checkout` uses `persist-credentials: false` on the self-hosted job.
+
+This permits licensed proof on convergence before integration without weakening the exact-SHA or arbitrary-code boundary.
 
 ## One-time runner requirement
 
 Use a Windows x64 machine with:
 
 - GitHub self-hosted runner registered for this repository;
-- default labels `self-hosted`, `Windows`, `X64`;
+- labels `self-hosted`, `Windows`, `X64`;
 - Git + Git LFS available;
 - Unity `6000.5.8f1` installed and already licensed for the interactive/service account that runs the GitHub runner;
 - Android support installed for that Unity editor.
 
-Default Unity path used by the workflow:
+Default Unity path:
 
 `C:\Program Files\Unity\Hub\Editor\6000.5.8f1\Editor\Unity.exe`
 
@@ -40,18 +62,54 @@ The path can be changed at dispatch time without changing the workflow.
 
 ## Exact candidate dispatch
 
-Before every dispatch, read the current head of `agent/unblock-final-5` from GitHub and review any commits that landed since the last verified SHA. Do not reuse an old SHA from documentation, a previous workflow run, or a previous chat message.
+Before every dispatch, read the current head of the intended allowed production ref from GitHub and review any commits that landed since the last inspected SHA. Do not reuse an old SHA from documentation, a previous workflow run or a previous chat message.
 
-Then open **Actions → Unity Licensed Windows Candidate → Run workflow** and enter:
+For the current convergence flow, use:
 
-- `expected_sha`: the current reviewed 40-character head SHA of `agent/unblock-final-5`;
+- `candidate_ref`: `agent/p1-remediation-convergence`;
+- `expected_sha`: the exact reviewed 40-character convergence head;
+- `candidate_mode`: `production` or `experimental`;
 - `unity_path`: the licensed Unity `6000.5.8f1` executable on that runner.
 
-If the production branch moves between inspection and checkout, the dispatch fails closed. Review the new commits and start a new dispatch with the new exact SHA; never edit evidence to make an older run appear current.
+For a later canonical integration proof, use:
 
-## Execution chain
+- `candidate_ref`: `agent/unblock-final-5`;
+- `expected_sha`: the exact reviewed canonical integration head;
+- `candidate_mode`: the intended evidence class.
 
-The workflow delegates all production logic to the existing:
+If the selected branch moves between inspection and checkout, the dispatch fails closed. Review the new commits and start a new dispatch with the new SHA; never edit evidence to make an older run appear current.
+
+## Experimental APK mode
+
+Choose `candidate_mode=experimental` when the goal is the first current unified APK and hosted GameCI cannot run because Unity Actions credentials are absent.
+
+The workflow calls:
+
+`tools/android/build_experimental_windows.ps1`
+
+That path:
+
+1. requires a clean exact-SHA checkout and Unity `6000.5.8f1` with Android support;
+2. executes `Afareet.Editor.AfareetBuild.BuildAndroidExperimental`;
+3. builds `com.fiftysolutions.afareetunity3d` as API 26 / ARM64;
+4. preserves the explicit procedural Hero fallback only for the experimental build;
+5. validates package id, minSdk, ABI and `libunity.so`;
+6. computes SHA-256 and writes `artifacts/android-experimental/artifact-metadata.json`;
+7. forces `artifactClass=experimental`, `releaseEvidenceEligible=false` and `physicalDeviceVerified=false`.
+
+The workflow re-checks those metadata invariants before uploading the artifact. Experimental mode never emits the production candidate manifest and never promotes release/device state.
+
+## Production-art staging boundary
+
+If the real Hero/Rival Unity import outputs have not yet been committed, first use the separate licensed staging handoff documented in `P1_LICENSED_STAGING_HANDOFF.md` before a `production` run.
+
+That phase may create tracked prefab/import metadata and must stop for review/commit. The production candidate workflow starts only after the approved staging outputs are committed to the selected ref and the selected exact SHA is clean.
+
+The experimental mode does not convert blockout/procedural art into production evidence.
+
+## Production execution chain
+
+With `candidate_mode=production`, the workflow delegates to:
 
 `tools/android/run_local_candidate_windows.ps1`
 
@@ -82,16 +140,19 @@ It therefore cannot promote a candidate to VERIFIED.
 
 The workflow uploads, when present:
 
-- `artifacts/local-candidate-manifest.json`;
-- `artifacts/unity-local-tests/`;
-- `artifacts/android-local/` including the APK and SHA-256 evidence;
-- `artifacts/logs/` including fail-closed dirty-tree diagnostics.
+- `artifacts/local-candidate-manifest.json` for production mode;
+- `artifacts/unity-local-tests/` for production mode;
+- `artifacts/android-local/` for production mode;
+- `artifacts/android-experimental/` for experimental mode, including APK, SHA-256 and metadata;
+- `artifacts/logs/` including Unity and fail-closed diagnostics.
 
-Artifact name is bound to the exact pinned Git SHA.
+The artifact name includes the selected mode and exact pinned Git SHA.
 
 ## Remaining gates
 
-A successful licensed Windows workflow means only that the exact candidate is **ready for physical-device evidence**. It does not complete:
+A successful `experimental` run means a current unified test APK exists; it does **not** make it release evidence or physical-device verified.
+
+A successful `production` licensed Windows workflow means only that the exact candidate is **ready for physical-device evidence**. It does not complete:
 
 - `UVEH-012` driving feel;
 - `URAC-012` lap/results/restart device verification;
@@ -99,4 +160,4 @@ A successful licensed Windows workflow means only that the exact candidate is **
 - `UPER-009` visual gate;
 - `UPER-010` verified APK publication.
 
-Those five tasks still require candidate-bound device/manual evidence before promotion.
+Those tasks still require candidate-bound device/manual evidence before promotion.

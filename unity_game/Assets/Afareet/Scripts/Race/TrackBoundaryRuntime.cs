@@ -18,8 +18,11 @@ namespace Afareet.Race
         public void Configure(TrackRuntime runtimeTrack, float halfWidth)
         {
             if (runtimeTrack == null) throw new ArgumentNullException(nameof(runtimeTrack));
-            if (runtimeTrack.Waypoints.Count < 2) throw new ArgumentException("Track requires at least two waypoints.", nameof(runtimeTrack));
             if (halfWidth <= 0f) throw new ArgumentOutOfRangeException(nameof(halfWidth));
+
+            // Runtime track geometry is immutable after composition. Validate the full path
+            // once here so every FixedUpdate sample avoids repeating a waypoint null scan.
+            TrackBoundaryPolicy.ValidatePath(runtimeTrack.Waypoints);
             track = runtimeTrack;
             roadHalfWidth = halfWidth;
             hasSample = false;
@@ -30,7 +33,7 @@ namespace Afareet.Race
         {
             if (track == null) throw new InvalidOperationException("TrackBoundaryMonitor must be configured before use.");
             var wasOffRoad = IsOffRoad;
-            LastSample = TrackBoundaryPolicy.Sample(track.Waypoints, transform.position, roadHalfWidth);
+            LastSample = TrackBoundaryPolicy.SamplePrevalidated(track.Waypoints, transform.position, roadHalfWidth);
             hasSample = true;
             var isOffRoad = IsOffRoad;
             if (wasOffRoad != isOffRoad) OffRoadStateChanged?.Invoke(isOffRoad);

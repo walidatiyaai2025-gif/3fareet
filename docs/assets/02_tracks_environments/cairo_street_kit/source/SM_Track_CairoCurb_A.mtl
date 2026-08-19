@@ -1,0 +1,7 @@
+# 3Fareet Cairo curb surfaced authored-source candidate
+newmtl Curb_Surface
+Ka 0.100 0.090 0.080
+Kd 0.720 0.650 0.520
+Ks 0.160 0.150 0.140
+Ns 24.0
+map_Kd T_Track_CairoCurb_Surface_BC.png

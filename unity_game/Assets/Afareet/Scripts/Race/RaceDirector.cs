@@ -6,9 +6,11 @@ using UnityEngine;
 
 namespace Afareet.Race
 {
+    [DefaultExecutionOrder(-200)]
     public sealed class RaceDirector : MonoBehaviour
     {
         private const float P1RoadHalfWidth = 7f;
+        private const double AiPowerUpDecisionCadenceSeconds = .5d;
 
         private sealed class RacerRuntime
         {
@@ -24,15 +26,23 @@ namespace Afareet.Race
         private ArcadeCarController player;
         private TrackRuntime track;
         private RaceRoundController round;
+        private PowerUpRaceRuntime powerUpRuntime;
         private Transform checkpointRoot;
         private Transform boundaryRoot;
         private bool racersReleased;
+        private bool powerUpRuntimeDirty = true;
+        private double nextPowerUpDecisionRaceTime;
+        private IReadOnlyList<RankedRaceEntry> aiDecisionRankedSnapshot;
+        private RaceRewardSettlementSnapshot playerFinishRewardSnapshot;
 
         public RaceRoundPhase Phase => round?.Phase ?? RaceRoundPhase.Ready;
         public float RaceTime => PlayerRuntime?.Lap.ElapsedTime ?? 0f;
         public float FinishTime => round?.FinishTime ?? -1f;
         public bool IsStarted => Phase != RaceRoundPhase.Ready;
         public bool IsPaused { get; private set; }
+        public bool HasPowerUpRuntime => powerUpRuntime != null && !powerUpRuntimeDirty;
+        public bool HasPlayerFinishRewardSnapshot => playerFinishRewardSnapshot != null;
+        public RaceRewardSettlementSnapshot PlayerFinishRewardSnapshot => playerFinishRewardSnapshot;
         public string CountdownText
         {
             get
@@ -60,6 +70,11 @@ namespace Afareet.Race
             player = playerCar;
             track = runtimeTrack;
             racers.Clear();
+            powerUpRuntime = null;
+            powerUpRuntimeDirty = true;
+            nextPowerUpDecisionRaceTime = 0d;
+            aiDecisionRankedSnapshot = null;
+            playerFinishRewardSnapshot = null;
 
             PrepareRacer(player, "PLAYER", 0);
             for (var i = 0; i < registeredRivals.Count; i++)
@@ -101,6 +116,11 @@ namespace Afareet.Race
             if (round == null) throw new InvalidOperationException("RaceDirector must be configured before starting.");
             if (Phase != RaceRoundPhase.Ready) return;
 
+            playerFinishRewardSnapshot = null;
+            EnsurePowerUpRuntime();
+            ResetPowerUpDriveModifiers();
+            nextPowerUpDecisionRaceTime = 0d;
+            aiDecisionRankedSnapshot = null;
             racersReleased = false;
             SetPausedInternal(false);
             FreezeRacers();
@@ -131,11 +151,128 @@ namespace Afareet.Race
             return true;
         }
 
+        public RaceRewardSettlement SettlePlayerFinishReward(int baseRewardUnits)
+        {
+            if (playerFinishRewardSnapshot == null)
+                throw new InvalidOperationException("Player finish reward snapshot is unavailable before race results.");
+
+            return playerFinishRewardSnapshot.Settle(baseRewardUnits);
+        }
+
+        internal AiPowerUpExecutionResult ExecuteBoundAiPowerUp(string racerId)
+        {
+            if (Phase != RaceRoundPhase.Racing || IsPaused || powerUpRuntime == null || powerUpRuntimeDirty)
+                return null;
+
+            var source = FindRuntime(racerId);
+            if (source == null || source.Lap.IsFinished)
+                return null;
+
+            // The managed AI cadence publishes one immutable ranking snapshot for all rivals.
+            // Direct/external calls outside that batch still observe freshly captured progress.
+            var ranked = aiDecisionRankedSnapshot ?? BuildRankedRace();
+            var rankedIndex = -1;
+            for (var i = 0; i < ranked.Count; i++)
+            {
+                if (StringComparer.Ordinal.Equals(ranked[i].Progress.RacerId, source.RacerId))
+                {
+                    rankedIndex = i;
+                    break;
+                }
+            }
+
+            if (rankedIndex < 0)
+                return null;
+
+            var targetAhead = rankedIndex > 0
+                ? FindRuntime(ranked[rankedIndex - 1].Progress.RacerId)
+                : null;
+            var chaserBehind = rankedIndex + 1 < ranked.Count
+                ? FindRuntime(ranked[rankedIndex + 1].Progress.RacerId)
+                : null;
+
+            var elapsedRaceSeconds = Math.Max(0d, source.Lap.ElapsedTime);
+            var snapshot = AiPowerUpLiveSnapshotBuilder.Build(
+                position: rankedIndex + 1,
+                fieldSize: ranked.Count,
+                acceptedCheckpoints: source.Checkpoints.AcceptedCount,
+                checkpointCount: track.Waypoints.Count,
+                segmentProgress: SegmentProgress(source),
+                ownSpeedKph: Math.Abs(source.Car.SpeedKph),
+                hasTargetAhead: targetAhead != null,
+                targetDistanceMeters: targetAhead == null
+                    ? 0d
+                    : Vector3.Distance(source.Car.transform.position, targetAhead.Car.transform.position),
+                targetSpeedKph: targetAhead == null ? 0d : Math.Abs(targetAhead.Car.SpeedKph),
+                hasChaserBehind: chaserBehind != null,
+                chaserDistanceMeters: chaserBehind == null
+                    ? 0d
+                    : Vector3.Distance(source.Car.transform.position, chaserBehind.Car.transform.position),
+                incomingHostilePressure: false,
+                elapsedRaceSeconds: elapsedRaceSeconds);
+
+            return powerUpRuntime.ExecuteAiDecision(
+                source.RacerId,
+                snapshot,
+                targetAhead?.RacerId,
+                chaserBehind?.RacerId,
+                elapsedRaceSeconds);
+        }
+
+        private void FixedUpdate()
+        {
+            if (Phase != RaceRoundPhase.Racing || IsPaused || powerUpRuntime == null || powerUpRuntimeDirty)
+                return;
+
+            var raceTimeSeconds = Math.Max(0d, RaceTime);
+            var tickResults = powerUpRuntime.TickAll(raceTimeSeconds);
+            var driveProjectionDirty = false;
+            for (var i = 0; i < tickResults.Count; i++)
+            {
+                if (tickResults[i].ExpiredEffectCount > 0)
+                {
+                    driveProjectionDirty = true;
+                    break;
+                }
+            }
+
+            if (raceTimeSeconds + .0001d >= nextPowerUpDecisionRaceTime)
+            {
+                nextPowerUpDecisionRaceTime = raceTimeSeconds + AiPowerUpDecisionCadenceSeconds;
+                aiDecisionRankedSnapshot = null;
+                try
+                {
+                    for (var i = 1; i < racers.Count; i++)
+                    {
+                        var ai = racers[i].Car.GetComponent<AiRacer>();
+                        if (ai == null || !ai.isActiveAndEnabled) continue;
+
+                        // Delay the allocation until the first eligible AI. Cadences without
+                        // an active Rival therefore do not build a ranking at all.
+                        aiDecisionRankedSnapshot ??= BuildRankedRace();
+                        var execution = ai.EvaluateBoundPowerUpDecision();
+                        if (execution?.UseResult != null && execution.UseResult.Status == PowerUpRuntimeUseStatus.Used)
+                            driveProjectionDirty = true;
+                    }
+                }
+                finally
+                {
+                    // A batch snapshot must never leak to player/UI/external callers.
+                    aiDecisionRankedSnapshot = null;
+                }
+            }
+
+            if (driveProjectionDirty)
+                ApplyPowerUpDriveModifiers(raceTimeSeconds);
+        }
+
         private void PrepareRacer(ArcadeCarController car, string racerId, int stableOrder)
         {
             if (car == null) return;
             for (var i = 0; i < racers.Count; i++)
                 if (racers[i].Car == car) return;
+
+            car.ResetExternalDriveModifier();
 
             var checkpoints = car.GetComponent<RacerCheckpointTracker>();
             if (checkpoints == null) checkpoints = car.gameObject.AddComponent<RacerCheckpointTracker>();
@@ -162,6 +299,65 @@ namespace Afareet.Race
                 StableOrder = stableOrder,
                 RacerId = racerId
             });
+            powerUpRuntimeDirty = true;
+            if (powerUpRuntime != null)
+                ResetPowerUpDriveModifiers();
+        }
+
+        private void EnsurePowerUpRuntime()
+        {
+            if (powerUpRuntime != null && !powerUpRuntimeDirty)
+                return;
+
+            var registrations = new List<PowerUpRacerRegistration>(racers.Count);
+            for (var i = 0; i < racers.Count; i++)
+                registrations.Add(new PowerUpRacerRegistration(racers[i].RacerId));
+
+            powerUpRuntime = new PowerUpRaceRuntime(
+                PowerUpRuntimeDefaults.CreatePrototypeRuleset(),
+                registrations);
+            powerUpRuntimeDirty = false;
+            nextPowerUpDecisionRaceTime = 0d;
+            aiDecisionRankedSnapshot = null;
+            ResetPowerUpDriveModifiers();
+
+            for (var i = 1; i < racers.Count; i++)
+            {
+                var ai = racers[i].Car.GetComponent<AiRacer>();
+                if (ai != null)
+                    ai.BindPowerUpRuntime(this, racers[i].RacerId);
+            }
+        }
+
+        private void ApplyPowerUpDriveModifiers(double raceTimeSeconds)
+        {
+            for (var i = 0; i < racers.Count; i++)
+            {
+                var runtime = racers[i];
+                var projection = powerUpRuntime.GetVehicleEffectProjection(runtime.RacerId, raceTimeSeconds);
+                runtime.Car.SetExternalDriveModifier(new ArcadeDriveModifier(
+                    projection.AccelerationMultiplier,
+                    projection.MaxSpeedMultiplier,
+                    projection.SteeringAuthorityMultiplier,
+                    projection.GripMultiplier));
+            }
+        }
+
+        private RaceRewardSettlementSnapshot CapturePlayerFinishRewardSnapshot(float finishTime)
+        {
+            var raceTimeSeconds = Math.Max(0d, finishTime);
+            if (powerUpRuntime == null || powerUpRuntimeDirty || PlayerRuntime == null)
+                return new RaceRewardSettlementSnapshot(raceTimeSeconds, 1d);
+
+            return powerUpRuntime.CaptureRewardSettlementSnapshot(
+                PlayerRuntime.RacerId,
+                raceTimeSeconds);
+        }
+
+        private void ResetPowerUpDriveModifiers()
+        {
+            for (var i = 0; i < racers.Count; i++)
+                racers[i].Car.ResetExternalDriveModifier();
         }
 
         private void BuildCheckpointVolumes()
@@ -189,7 +385,9 @@ namespace Afareet.Race
 
         private void OnRoundResultsReady(float finishTime)
         {
+            playerFinishRewardSnapshot = CapturePlayerFinishRewardSnapshot(finishTime);
             SetPausedInternal(false);
+            ResetPowerUpDriveModifiers();
             FreezeRacers();
             ResultsReady?.Invoke(finishTime);
         }
@@ -197,6 +395,12 @@ namespace Afareet.Race
         private void OnRoundReset()
         {
             racersReleased = false;
+            nextPowerUpDecisionRaceTime = 0d;
+            aiDecisionRankedSnapshot = null;
+            playerFinishRewardSnapshot = null;
+            if (powerUpRuntime != null)
+                powerUpRuntime.ResetRace();
+            ResetPowerUpDriveModifiers();
             SetRivalRecoveryActive(false);
         }
 
@@ -233,6 +437,7 @@ namespace Afareet.Race
         private void FreezeRacer(ArcadeCarController car)
         {
             if (car == null) return;
+            car.ResetExternalDriveModifier();
             car.AcceptsPlayerInput = false;
             car.SetAiInput(0f, 0f, false, false, false);
             var body = car.GetComponent<Rigidbody>();
@@ -270,10 +475,8 @@ namespace Afareet.Race
             }
         }
 
-        private int CalculatePosition(ArcadeCarController target)
+        private IReadOnlyList<RankedRaceEntry> BuildRankedRace()
         {
-            if (target == null || track == null || racers.Count == 0) return 1;
-
             var snapshots = new List<RaceProgressSnapshot>(racers.Count);
             for (var i = 0; i < racers.Count; i++)
             {
@@ -286,7 +489,14 @@ namespace Afareet.Race
                     runtime.StableOrder));
             }
 
-            var ranked = RaceRanking.Rank(snapshots);
+            return RaceRanking.Rank(snapshots);
+        }
+
+        private int CalculatePosition(ArcadeCarController target)
+        {
+            if (target == null || track == null || racers.Count == 0) return 1;
+
+            var ranked = BuildRankedRace();
             var targetRuntime = FindRuntime(target);
             if (targetRuntime == null) return 1;
             for (var i = 0; i < ranked.Count; i++)
@@ -316,6 +526,14 @@ namespace Afareet.Race
             return null;
         }
 
+        private RacerRuntime FindRuntime(string racerId)
+        {
+            if (string.IsNullOrWhiteSpace(racerId)) return null;
+            for (var i = 0; i < racers.Count; i++)
+                if (StringComparer.Ordinal.Equals(racers[i].RacerId, racerId)) return racers[i];
+            return null;
+        }
+
         private void SetPausedInternal(bool paused)
         {
             if (IsPaused == paused && Mathf.Approximately(Time.timeScale, paused ? 0f : 1f)) return;
@@ -334,6 +552,8 @@ namespace Afareet.Race
 
         private void OnDestroy()
         {
+            aiDecisionRankedSnapshot = null;
+            ResetPowerUpDriveModifiers();
             UnsubscribeRound();
             if (IsPaused) Time.timeScale = 1f;
         }
