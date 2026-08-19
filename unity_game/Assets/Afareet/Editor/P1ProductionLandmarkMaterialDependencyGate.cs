@@ -31,6 +31,11 @@ namespace Afareet.Editor
         public void OnPreprocessBuild(BuildReport report)
         {
             if (report == null || report.summary.platform != BuildTarget.Android) return;
+            if (AfareetBuildContext.IsDedicatedExperimentalAndroidBuild(report))
+            {
+                Debug.LogWarning("AFAREET_UART006_MATERIAL_EXPERIMENTAL_GATE_BYPASS productionEvidence=false");
+                return;
+            }
             ValidateAndroidCandidateOrThrow();
         }
 

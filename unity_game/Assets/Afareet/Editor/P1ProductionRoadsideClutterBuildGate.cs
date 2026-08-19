@@ -27,6 +27,11 @@ namespace Afareet.Editor
         {
             if (report == null || report.summary.platform != BuildTarget.Android)
                 return;
+            if (AfareetBuildContext.IsDedicatedExperimentalAndroidBuild(report))
+            {
+                Debug.LogWarning("AFAREET_UART005_ROADSIDE_CLUTTER_EXPERIMENTAL_GATE_BYPASS productionEvidence=false");
+                return;
+            }
 
             try
             {

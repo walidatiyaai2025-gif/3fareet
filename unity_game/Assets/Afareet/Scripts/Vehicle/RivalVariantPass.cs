@@ -4,12 +4,13 @@ using UnityEngine;
 namespace Afareet.Vehicle
 {
     /// <summary>
-    /// UART-004 runtime installer. Player builds accept only authored production rival prefabs.
-    /// Historical primitive/material treatment remains Editor-only for gameplay work.
+    /// UART-004 runtime installer. Production player builds accept only authored rival prefabs.
+    /// The explicit experimental APK may retain the procedural gameplay rivals without
+    /// promoting those visuals to production evidence.
     /// </summary>
     public sealed class RivalVariantPass : MonoBehaviour
     {
-#if UNITY_EDITOR
+#if UNITY_EDITOR || AFAREET_EXPERIMENTAL_APK
         private static readonly Color[] Primary =
         {
             new(1f, .12f, .52f), new(1f, .52f, .04f), new(.08f, .9f, .42f)
@@ -72,11 +73,19 @@ namespace Afareet.Vehicle
             }
 
             if (prefab == null) reason = "missing-production-prefab";
-#if UNITY_EDITOR
+#if UNITY_EDITOR || AFAREET_EXPERIMENTAL_APK
             foreach (var renderer in primitiveRenderers)
                 if (renderer != null) renderer.enabled = true;
             ApplyEditorBlockoutVariant(rival, index);
-            Debug.LogWarning($"AFAREET_UART004_EDITOR_BLOCKOUT_RIVAL_ACTIVE variant={index + 1} reason={reason} production=false");
+#if AFAREET_EXPERIMENTAL_APK
+            Debug.LogWarning(
+                $"AFAREET_UART004_EXPERIMENTAL_BLOCKOUT_RIVAL_ACTIVE variant={index + 1} " +
+                $"reason={reason} production=false");
+#else
+            Debug.LogWarning(
+                $"AFAREET_UART004_EDITOR_BLOCKOUT_RIVAL_ACTIVE variant={index + 1} " +
+                $"reason={reason} production=false");
+#endif
 #else
             Debug.LogError(
                 $"AFAREET_UART004_PRODUCTION_RIVAL_REQUIRED variant={index + 1} reason={reason} " +
@@ -84,7 +93,7 @@ namespace Afareet.Vehicle
 #endif
         }
 
-#if UNITY_EDITOR
+#if UNITY_EDITOR || AFAREET_EXPERIMENTAL_APK
         private static void ApplyEditorBlockoutVariant(Transform rival, int index)
         {
             if (rival.Find("Rival Variant Stripe") != null) return;
