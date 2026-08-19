@@ -26,11 +26,7 @@ namespace Afareet.Race
 
         public void Configure(IReadOnlyList<Transform> path, int rivalIndex)
         {
-            if (path == null) throw new System.ArgumentNullException(nameof(path));
-            if (path.Count < 3) throw new System.ArgumentException("At least three waypoints are required.", nameof(path));
-            for (var index = 0; index < path.Count; index++)
-                if (path[index] == null) throw new System.ArgumentException($"Waypoint {index} is null.", nameof(path));
-
+            RacingLineLookahead.ValidatePath(path);
             waypoints = path;
             var random = new System.Random(17011 + rivalIndex * 7919);
             aggression = Mathf.Lerp(.68f, .96f, (float)random.NextDouble());
@@ -81,7 +77,7 @@ namespace Afareet.Race
         {
             if (waypoints == null || waypoints.Count < 3) return;
 
-            var racingPlan = RacingLineLookahead.Plan(waypoints, waypointIndex, Mathf.Abs(car.SpeedKph));
+            var racingPlan = RacingLineLookahead.PlanPrevalidated(waypoints, waypointIndex, Mathf.Abs(car.SpeedKph));
             var target = waypoints[racingPlan.AimWaypointIndex];
             var targetPosition = target.position + target.right * laneBias;
             var local = transform.InverseTransformPoint(targetPosition);
