@@ -7,6 +7,8 @@ namespace Afareet.UI
 {
     public sealed class ProductionRaceHud : MonoBehaviour
     {
+        private const float TelemetryRefreshIntervalSeconds = .1f;
+
         private ArcadeCarController player;
         private RaceDirector race;
         private RectTransform safeRoot;
@@ -16,6 +18,7 @@ namespace Afareet.UI
         private Text spiritText;
         private Image spiritFill;
         private Rect lastSafeArea;
+        private float nextTelemetryRefreshTime;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
@@ -31,11 +34,26 @@ namespace Afareet.UI
             if (safeRoot == null) BuildHud();
             ApplySafeArea();
 
+            // The visible values are rounded/formatted, while race.Position builds ranking
+            // snapshots. Refresh those strings at 10 Hz instead of doing allocation-heavy
+            // formatting and ranking work every rendered frame.
+            var now = Time.unscaledTime;
+            if (now + .0001f >= nextTelemetryRefreshTime)
+            {
+                RefreshTelemetry();
+                nextTelemetryRefreshTime = now + TelemetryRefreshIntervalSeconds;
+            }
+
+            // Preserve frame-responsive Spirit animation without allocating formatted text.
+            spiritFill.fillAmount = Mathf.Clamp01(player.NitroEnergy);
+        }
+
+        private void RefreshTelemetry()
+        {
             positionText.text = $"POS  {race.Position}/4";
             timeText.text = $"{race.RaceTime:0.0} s";
             speedText.text = $"{Mathf.Abs(player.SpeedKph):000}\nKM/H";
             spiritText.text = $"SPIRIT  {Mathf.RoundToInt(player.NitroEnergy * 100f)}%";
-            spiritFill.fillAmount = Mathf.Clamp01(player.NitroEnergy);
         }
 
         private bool ResolveRuntime()
