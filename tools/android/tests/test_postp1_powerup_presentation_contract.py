@@ -42,10 +42,19 @@ class PostP1PowerUpPresentationContractTests(unittest.TestCase):
             "PowerUpPresentationEventKind.Blocked",
             "PowerUpPresentationEventKind.Expired",
             "PowerUpPresentationEventKind.RaceReset",
-            "expiredKinds.Sort();",
+            "private static readonly PowerUpKind[] AllPowerUpKinds",
             "nextPresentationSequenceId++;",
         ):
             self.assertIn(required, state)
+
+        expiry_start = state.index("private int RemoveExpired(double raceTimeSeconds)")
+        expiry_end = state.index("private void EmitPresentation", expiry_start)
+        expiry = state[expiry_start:expiry_end]
+        self.assertIn("for (var index = 0; index < AllPowerUpKinds.Length; index++)", expiry)
+        self.assertIn("activeEffects.TryGetValue(kind, out var effect)", expiry)
+        self.assertIn("PowerUpPresentationEventKind.Expired", expiry)
+        self.assertNotIn("new List<PowerUpKind>", expiry)
+        self.assertNotIn(".Sort(", expiry)
 
         ignore_case = "case PowerUpRefreshPolicy.IgnoreWhileActive:\n                    return PowerUpApplyResult.IgnoredWhileActive;"
         weak_replace = "return PowerUpApplyResult.IgnoredWhileActive;"
