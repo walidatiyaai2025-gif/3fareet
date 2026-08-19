@@ -15,49 +15,90 @@ namespace Afareet.Tests
         }
 
         [Test]
-        public void TiltSteering_HasDeadZoneAndSameSafeCap()
+        public void GyroConversion_UsesUnityHandednessMapping()
         {
-            Assert.That(MobileDriveInputPolicy.ResolveTiltSteer(0.04f), Is.EqualTo(0f));
-            Assert.That(MobileDriveInputPolicy.ResolveTiltSteer(10f), Is.EqualTo(MobileDriveInputPolicy.TouchSteerMagnitude));
-            Assert.That(MobileDriveInputPolicy.ResolveTiltSteer(-10f), Is.EqualTo(-MobileDriveInputPolicy.TouchSteerMagnitude));
+            var converted = MobileDriveInputPolicy.GyroToUnity(
+                new Quaternion(.1f, .2f, .3f, .4f));
+
+            Assert.That(converted.x, Is.EqualTo(.1f).Within(.0001f));
+            Assert.That(converted.y, Is.EqualTo(.2f).Within(.0001f));
+            Assert.That(converted.z, Is.EqualTo(-.3f).Within(.0001f));
+            Assert.That(converted.w, Is.EqualTo(-.4f).Within(.0001f));
         }
 
-        [TestCase(-0.06f)]
-        [TestCase(-0.03f)]
-        [TestCase(0f)]
-        [TestCase(0.03f)]
-        [TestCase(0.06f)]
-        public void TiltCruise_NeutralBandUsesHandsFreeCruise(float tilt)
+        [Test]
+        public void SteeringWheel_PureForwardBackwardPitchCannotSteer()
+        {
+            var baseline = Quaternion.identity;
+            var forwardPitch = Quaternion.AngleAxis(22f, Vector3.right);
+            var backwardPitch = Quaternion.AngleAxis(-22f, Vector3.right);
+
+            Assert.That(
+                MobileDriveInputPolicy.ResolveSteeringWheelDeltaDegrees(
+                    baseline,
+                    forwardPitch),
+                Is.EqualTo(0f).Within(.0001f));
+
+            Assert.That(
+                MobileDriveInputPolicy.ResolveSteeringWheelDeltaDegrees(
+                    baseline,
+                    backwardPitch),
+                Is.EqualTo(0f).Within(.0001f));
+        }
+
+        [Test]
+        public void SteeringWheel_PureYawCannotSteer()
+        {
+            var baseline = Quaternion.identity;
+            var yaw = Quaternion.AngleAxis(25f, Vector3.up);
+
+            Assert.That(
+                MobileDriveInputPolicy.ResolveSteeringWheelDeltaDegrees(
+                    baseline,
+                    yaw),
+                Is.EqualTo(0f).Within(.0001f));
+        }
+
+        [Test]
+        public void SteeringWheel_ClockwiseIsRightAndCounterClockwiseIsLeft()
+        {
+            var baseline = Quaternion.identity;
+            var clockwise = Quaternion.AngleAxis(-15f, Vector3.forward);
+            var counterClockwise = Quaternion.AngleAxis(15f, Vector3.forward);
+
+            var rightDegrees =
+                MobileDriveInputPolicy.ResolveSteeringWheelDeltaDegrees(
+                    baseline,
+                    clockwise);
+            var leftDegrees =
+                MobileDriveInputPolicy.ResolveSteeringWheelDeltaDegrees(
+                    baseline,
+                    counterClockwise);
+
+            Assert.That(rightDegrees, Is.EqualTo(15f).Within(.001f));
+            Assert.That(leftDegrees, Is.EqualTo(-15f).Within(.001f));
+            Assert.That(
+                MobileDriveInputPolicy.ResolveSteeringWheelInput(rightDegrees),
+                Is.GreaterThan(0f));
+            Assert.That(
+                MobileDriveInputPolicy.ResolveSteeringWheelInput(leftDegrees),
+                Is.LessThan(0f));
+        }
+
+        [Test]
+        public void SteeringWheelInput_HasDeadZoneAndSameSafeCapAsTouch()
         {
             Assert.That(
-                MobileDriveInputPolicy.ResolveTiltCruiseThrottle(tilt),
-                Is.EqualTo(MobileDriveInputPolicy.TiltCruiseThrottle).Within(.0001f));
-        }
+                MobileDriveInputPolicy.ResolveSteeringWheelInput(1f),
+                Is.EqualTo(0f).Within(.0001f));
 
-        [Test]
-        public void TiltCruise_ForwardPitchBoostsProgressivelyAndClamps()
-        {
-            var neutral = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(0f);
-            var moderate = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(.30f);
-            var strong = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(.55f);
-            var extreme = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(2f);
+            Assert.That(
+                MobileDriveInputPolicy.ResolveSteeringWheelInput(90f),
+                Is.EqualTo(MobileDriveInputPolicy.TouchSteerMagnitude).Within(.0001f));
 
-            Assert.That(moderate, Is.GreaterThan(neutral).And.LessThanOrEqualTo(1f));
-            Assert.That(strong, Is.GreaterThan(moderate).And.LessThanOrEqualTo(1f));
-            Assert.That(extreme, Is.EqualTo(1f).Within(.0001f));
-        }
-
-        [Test]
-        public void TiltCruise_BackwardPitchCoastsWithoutReverseDemand()
-        {
-            var neutral = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(0f);
-            var moderate = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(-.30f);
-            var strong = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(-.55f);
-            var extreme = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(-2f);
-
-            Assert.That(moderate, Is.LessThan(neutral).And.GreaterThanOrEqualTo(0f));
-            Assert.That(strong, Is.LessThan(moderate).And.GreaterThanOrEqualTo(0f));
-            Assert.That(extreme, Is.EqualTo(0f).Within(.0001f));
+            Assert.That(
+                MobileDriveInputPolicy.ResolveSteeringWheelInput(-90f),
+                Is.EqualTo(-MobileDriveInputPolicy.TouchSteerMagnitude).Within(.0001f));
         }
 
         [Test]

@@ -22,51 +22,65 @@ class MobileDriveContractTests(unittest.TestCase):
         self.assertIn("MobileDriveInputPolicy.ResolveTouchSteer(-1f)", hud)
         self.assertIn("MobileDriveInputPolicy.ResolveTouchSteer(1f)", hud)
         self.assertIn("TouchSteerMagnitude = 0.60f", policy)
-        self.assertIn("-TouchSteerMagnitude", policy)
-        self.assertIn("TouchSteerMagnitude);", policy)
+        self.assertIn("SteeringWheelDeadZoneDegrees = 2.5f", policy)
+        self.assertIn("SteeringWheelFullLockDegrees = 28f", policy)
+        self.assertIn("Mathf.InverseLerp(", policy)
+        self.assertIn("Mathf.Sign(steeringWheelDegrees)", policy)
+        self.assertIn("normalized *", policy)
+        self.assertIn("TouchSteerMagnitude;", policy)
 
     def test_motion_drive_is_sensor_guarded_calibrated_smoothed_and_hands_free(self):
         hud = HUD_PATH.read_text(encoding="utf-8")
         policy = POLICY_PATH.read_text(encoding="utf-8")
 
         for required in (
-            "Application.isMobilePlatform && SystemInfo.supportsAccelerometer;",
+            "Application.isMobilePlatform && SystemInfo.supportsGyroscope;",
             "MotionDrivingAvailable && hasMotionBaseline;",
+            "private Quaternion motionBaselineAttitude;",
             "private ScreenOrientation motionBaselineOrientation;",
             "private float smoothedTiltSteer;",
             "private float smoothedTiltThrottle;",
+            "Input.gyro.enabled = true;",
+            "Input.gyro.updateInterval = 1f / 60f;",
             "CalibrateMotionInput();",
             "RecalibrateIfLandscapeOrientationChanged();",
             "private void OnApplicationFocus(bool hasFocus)",
-            "MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt)",
-            "MobileDriveInputPolicy.ResolveTiltCruiseThrottle(forwardTilt)",
+            "MobileDriveInputPolicy.GyroToUnity(Input.gyro.attitude)",
+            "MobileDriveInputPolicy.ResolveSteeringWheelDeltaDegrees(",
+            "MobileDriveInputPolicy.ResolveSteeringWheelInput(",
+            "var tiltThrottleTarget = MobileDriveInputPolicy.TiltCruiseThrottle;",
             "MobileDriveInputPolicy.SmoothTiltSteer(",
             "MobileDriveInputPolicy.SmoothTiltThrottle(",
             "InvalidateMotionCalibration();",
-            '"TILT DRIVE • AUTO CRUISE"',
+            '"HYBRID DRIVE • TILT + TOUCH"',
             '"TOUCH DRIVE"',
         ):
             self.assertIn(required, hud)
 
         for required in (
-            "TiltDeadZone = 0.08f",
+            "SteeringWheelDeadZoneDegrees = 2.5f",
+            "SteeringWheelFullLockDegrees = 28f",
             "TiltSteerSmoothingPerSecond = 10f",
-            "TiltThrottleDeadZone = 0.06f",
             "TiltCruiseThrottle = 0.58f",
-            "TiltForwardBoostGain = 2.0f",
-            "TiltBackwardCoastGain = 1.6f",
             "TiltThrottleSmoothingPerSecond = 6f",
-            "public static float ResolveTiltCruiseThrottle(float forwardTilt)",
+            "public static Quaternion GyroToUnity(Quaternion attitude)",
+            "public static float ResolveSteeringWheelDeltaDegrees(",
+            "public static float ResolveSteeringWheelInput(float steeringWheelDegrees)",
             "public static float SmoothTiltSteer(float current, float target, float deltaTime)",
             "public static float SmoothTiltThrottle(float current, float target, float deltaTime)",
         ):
             self.assertIn(required, policy)
 
-        self.assertNotIn("nitroInput = forwardTilt", hud)
-        self.assertNotIn("brakeInput = forwardTilt", hud)
-        self.assertNotIn("throttleInput = forwardTilt", hud)
+        for forbidden in (
+            "var acceleration = Input.acceleration - motionBaseline;",
+            "ResolveLandscapeSteeringTilt(",
+            "ResolveTiltCruiseThrottle(forwardTilt)",
+            "var forwardTilt =",
+            "var steeringTilt =",
+        ):
+            self.assertNotIn(forbidden, hud)
 
-    def test_motion_mode_hides_and_disables_continuous_touch_controls_only(self):
+    def test_motion_mode_keeps_touch_controls_visible_and_active_for_hybrid_drive(self):
         hud = HUD_PATH.read_text(encoding="utf-8")
         draw_start = hud.index("private void DrawTouchControls()")
         pointer_start = hud.index("private void ApplyPointer(Vector2 point)")
@@ -75,23 +89,54 @@ class MobileDriveContractTests(unittest.TestCase):
         pointer_body = hud[pointer_start:recover_start]
 
         self.assertIn("var motionDriving = MotionDrivingActive;", draw_body)
-        self.assertGreaterEqual(draw_body.count("if (!motionDriving)"), 2)
-        for exceptional in (
+        self.assertNotIn("if (!motionDriving)", draw_body)
+        for control in (
+            'GUI.Box(LeftRect(), "<"',
+            'GUI.Box(RightRect(), ">"',
+            'GUI.Box(ThrottleRect(), "GO"',
             'GUI.Box(BrakeReverseRect(), "BRAKE / REV"',
             'GUI.Box(RecoverRect(), "RECOVER"',
             'GUI.Box(DriftRect(), "DRIFT"',
             'GUI.Box(NitroRect(), "SPIRIT"',
+            '"HYBRID DRIVE • TILT + TOUCH"',
         ):
-            self.assertIn(exceptional, draw_body)
+            self.assertIn(control, draw_body)
 
-        self.assertIn("if (!MotionDrivingActive)", pointer_body)
-        continuous_start = pointer_body.index("if (!MotionDrivingActive)")
-        continuous_end = pointer_body.index("if (BrakeReverseRect().Contains(point))")
-        continuous_block = pointer_body[continuous_start:continuous_end]
-        for continuous in ("LeftRect().Contains(point)", "RightRect().Contains(point)", "ThrottleRect().Contains(point)"):
-            self.assertIn(continuous, continuous_block)
-        for exceptional in ("BrakeReverseRect().Contains(point)", "DriftRect().Contains(point)", "NitroRect().Contains(point)"):
-            self.assertIn(exceptional, pointer_body[continuous_end:])
+        self.assertNotIn("if (!MotionDrivingActive)", pointer_body)
+        for continuous in (
+            "LeftRect().Contains(point)",
+            "RightRect().Contains(point)",
+            "ThrottleRect().Contains(point)",
+        ):
+            self.assertIn(continuous, pointer_body)
+        for exceptional in (
+            "BrakeReverseRect().Contains(point)",
+            "DriftRect().Contains(point)",
+            "NitroRect().Contains(point)",
+        ):
+            self.assertIn(exceptional, pointer_body)
+
+    def test_motion_steering_uses_gyro_twist_and_forbids_linear_acceleration(self):
+        hud = HUD_PATH.read_text(encoding="utf-8")
+        policy = POLICY_PATH.read_text(encoding="utf-8")
+        self.assertIn("SystemInfo.supportsGyroscope", hud)
+        self.assertIn("Input.gyro.attitude", hud)
+        self.assertIn("ResolveSteeringWheelDeltaDegrees", hud)
+        self.assertIn("ResolveSteeringWheelInput", hud)
+        self.assertIn(
+            "relative.z * relative.z",
+            policy,
+        )
+        self.assertIn(
+            "relative.w * relative.w",
+            policy,
+        )
+        self.assertNotIn(
+            "var acceleration = Input.acceleration - motionBaseline;",
+            hud,
+        )
+        self.assertNotIn("ResolveLandscapeSteeringTilt(", hud)
+        self.assertNotIn("ResolveTiltCruiseThrottle(forwardTilt)", hud)
 
     def test_recovery_clears_latched_vehicle_inputs(self):
         controller = CONTROLLER_PATH.read_text(encoding="utf-8")

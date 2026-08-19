@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Afareet.World
 {
@@ -15,8 +16,8 @@ namespace Afareet.World
         private const float RescanSeconds = 1.0f;
         private const float RetrySeconds = 5.0f;
 
-        private readonly HashSet<int> configured = new();
-        private readonly Dictionary<int, float> retryAfter = new();
+        private readonly HashSet<GameObject> configured = new();
+        private readonly Dictionary<GameObject, float> retryAfter = new();
         private readonly Dictionary<string, GameObject> cache = new(StringComparer.Ordinal);
         private readonly HashSet<string> loggedFailures = new(StringComparer.Ordinal);
         private float nextScanAt;
@@ -44,18 +45,18 @@ namespace Afareet.World
                 var baseName = ResolveBaseName(target.name);
                 if (string.IsNullOrEmpty(baseName)) continue;
 
-                var id = target.gameObject.GetInstanceID();
-                if (configured.Contains(id)) continue;
-                if (retryAfter.TryGetValue(id, out var retryAt) && Time.unscaledTime < retryAt) continue;
+                var targetObject = target.gameObject;
+                if (configured.Contains(targetObject)) continue;
+                if (retryAfter.TryGetValue(targetObject, out var retryAt) && Time.unscaledTime < retryAt) continue;
 
                 if (TryConfigure(target, baseName))
                 {
-                    configured.Add(id);
-                    retryAfter.Remove(id);
+                    configured.Add(targetObject);
+                    retryAfter.Remove(targetObject);
                 }
                 else
                 {
-                    retryAfter[id] = Time.unscaledTime + RetrySeconds;
+                    retryAfter[targetObject] = Time.unscaledTime + RetrySeconds;
                 }
             }
         }
@@ -181,17 +182,38 @@ namespace Afareet.World
                 var mesh = filter == null ? null : filter.sharedMesh;
                 if (mesh == null || mesh.vertexCount <= 0)
                     throw new InvalidOperationException($"road/curb LOD has no mesh: {baseName} LOD{lod}");
-                if (mesh.uv == null || mesh.uv.Length != mesh.vertexCount)
+                // Production runtime meshes are allowed to remain non-readable.
+                // Query vertex-buffer metadata rather than CPU-side UV/normal arrays.
+                if (!mesh.HasVertexAttribute(VertexAttribute.TexCoord0))
                     throw new InvalidOperationException($"road/curb LOD missing complete UV0: {baseName} LOD{lod}");
-                if (mesh.normals == null || mesh.normals.Length != mesh.vertexCount)
+                if (!mesh.HasVertexAttribute(VertexAttribute.Normal))
                     throw new InvalidOperationException($"road/curb LOD missing complete normals: {baseName} LOD{lod}");
 
-                var textured = false;
-                foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
-                    if (material != null && material.mainTexture != null) { textured = true; break; }
-                if (!textured)
-                    throw new InvalidOperationException($"road/curb LOD missing texture-mapped material: {baseName} LOD{lod}");
+                // Editor PlayMode may use RuntimeLit preview materials without texture
+                // properties. Player runtime keeps imported authored source materials.
+                if (!Application.isEditor)
+                {
+                    var textured = false;
+                    foreach (var material in renderer.sharedMaterials ?? Array.Empty<Material>())
+                    {
+                        if (HasBoundTexture(material))
+                        {
+                            textured = true;
+                            break;
+                        }
+                    }
+                    if (!textured)
+                        throw new InvalidOperationException($"road/curb LOD missing texture-mapped material: {baseName} LOD{lod}");
+                }
             }
+        }
+
+        private static bool HasBoundTexture(Material material)
+        {
+            if (material == null) return false;
+            if (material.HasProperty("_MainTex") && material.GetTexture("_MainTex") != null) return true;
+            if (material.HasProperty("_BaseMap") && material.GetTexture("_BaseMap") != null) return true;
+            return false;
         }
 
         private static HashSet<Mesh> CollectMeshes(Renderer[] renderers)

@@ -63,26 +63,53 @@ namespace Afareet.Editor
         private static void ConfigureAndroidPlayer()
         {
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
+            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel36;
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             EditorUserBuildSettings.buildAppBundle = false;
         }
 
         internal static void ConfigureAndroidToolchain()
         {
+            var editorDirectory = Path.GetDirectoryName(EditorApplication.applicationPath);
+            if (string.IsNullOrWhiteSpace(editorDirectory))
+                throw new InvalidOperationException("Unable to resolve the Unity Editor directory.");
+
+            var androidPlayer = Path.Combine(
+                editorDirectory,
+                "Data", "PlaybackEngines", "AndroidPlayer"
+            );
+
             var configuredSdk = Environment.GetEnvironmentVariable("AFAREET_ANDROID_SDK_ROOT");
             var androidSdk = string.IsNullOrWhiteSpace(configuredSdk)
-                ? Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Android",
-                    "Sdk"
-                )
-                : configuredSdk;
+                ? Path.Combine(androidPlayer, "SDK")
+                : Path.GetFullPath(configuredSdk);
 
-            if (!Directory.Exists(Path.Combine(androidSdk, "cmake", "3.22.1")))
-                return;
+            var ndk = Path.Combine(androidPlayer, "NDK");
+            var jdk = Path.Combine(androidPlayer, "OpenJDK");
+            var cmake = Path.Combine(androidSdk, "cmake", "3.22.1");
+            var api36 = Path.Combine(androidSdk, "platforms", "android-36");
+
+            if (!Directory.Exists(androidSdk))
+                throw new DirectoryNotFoundException($"Android SDK is missing: {androidSdk}");
+            if (!Directory.Exists(ndk))
+                throw new DirectoryNotFoundException($"Unity-managed Android NDK is missing: {ndk}");
+            if (!Directory.Exists(jdk))
+                throw new DirectoryNotFoundException($"Unity-managed OpenJDK is missing: {jdk}");
+            if (!Directory.Exists(cmake))
+                throw new DirectoryNotFoundException($"Android CMake 3.22.1 is missing: {cmake}");
+            if (!Directory.Exists(api36))
+                throw new DirectoryNotFoundException(
+                    $"Android API 36 platform is missing from the selected SDK: {api36}"
+                );
 
             AndroidExternalToolsSettings.sdkRootPath = androidSdk;
-            Debug.Log($"AFAREET_ANDROID_SDK path={androidSdk}");
+            AndroidExternalToolsSettings.ndkRootPath = ndk;
+            AndroidExternalToolsSettings.jdkRootPath = jdk;
+
+            Debug.Log(
+                $"AFAREET_ANDROID_TOOLCHAIN sdk={androidSdk} ndk={ndk} jdk={jdk} " +
+                "targetApi=36 source=unity-hub-managed"
+            );
         }
 
         internal static void PrepareProject()

@@ -65,6 +65,14 @@ namespace Afareet.Editor
         public void OnPreprocessBuild(BuildReport report)
         {
             if (report == null || report.summary.platform != BuildTarget.Android) return;
+            if (AfareetBuildContext.IsExperimentalAndroidBuild)
+            {
+                Debug.LogWarning(
+                    "AFAREET_P1_PRODUCTION_LANDMARK_GATE_SKIPPED " +
+                    "experimental=true productionEvidence=false");
+                return;
+            }
+
             ValidateAndroidCandidateOrThrow();
         }
 

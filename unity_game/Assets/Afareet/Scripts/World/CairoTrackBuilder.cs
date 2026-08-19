@@ -161,7 +161,7 @@ namespace Afareet.World
 
             var road = Cube(root, $"DEV Road Blockout {segmentIndex:00}", center, new Vector3(RoadWidth, .28f, length), asphalt, rotation);
             var collider = road.GetComponent<Collider>();
-            if (collider != null) Object.Destroy(collider);
+            if (collider != null) UnityEngine.Object.Destroy(collider);
         }
 
         private static void CreateRoadCollision(Transform root, Vector3 center, Quaternion rotation, float length)
@@ -273,7 +273,7 @@ namespace Afareet.World
         {
             var building = Cube(root, "DEV Cairo Building Blockout", position + Vector3.up * height * .5f, new Vector3(width, height, width), Material(new Color(.055f, .038f, .075f), .18f, .38f), rotation);
             var collider = building.GetComponent<Collider>();
-            if (collider != null) Object.Destroy(collider);
+            if (collider != null) UnityEngine.Object.Destroy(collider);
 
             for (var floor = 2; floor < height - 1; floor += 3)
                 Cube(building.transform, "DEV Warm Window", new Vector3(0f, floor - height * .5f, -width * .505f), new Vector3(width * .55f, .5f, .05f), windowMaterial, Quaternion.identity, true);

@@ -21,7 +21,14 @@ namespace Afareet.Editor
 
         public void OnPreprocessBuild(BuildReport report)
         {
-            if (report.summary.platform != BuildTarget.Android) return;
+            if (report == null || report.summary.platform != BuildTarget.Android) return;
+            if (AfareetBuildContext.IsExperimentalAndroidBuild)
+            {
+                Debug.LogWarning(
+                    "AFAREET_UART004_PRODUCTION_RIVALS_GATE_SKIPPED " +
+                    "experimental=true productionEvidence=false");
+                return;
+            }
 
             RivalProductionPolicy.ValidateContract();
             var usedSourceGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

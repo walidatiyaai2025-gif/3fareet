@@ -13,7 +13,7 @@ namespace Afareet.World
     {
         private const float InitialScanDelaySeconds = .75f;
         private const float RescanSeconds = 1.0f;
-        private readonly HashSet<int> decoratedBuildingIds = new();
+        private readonly HashSet<GameObject> decoratedBuildings = new();
         private float nextScanAt;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -48,12 +48,12 @@ namespace Afareet.World
                     !candidate.name.StartsWith("AUTHORED CAIRO BUILDING", StringComparison.Ordinal))
                     continue;
 
-                var instanceId = candidate.gameObject.GetInstanceID();
-                if (decoratedBuildingIds.Contains(instanceId))
+                var candidateObject = candidate.gameObject;
+                if (decoratedBuildings.Contains(candidateObject))
                     continue;
 
                 if (CairoAuthoredRoadsideClutter.TryDecorateBuilding(candidate))
-                    decoratedBuildingIds.Add(instanceId);
+                    decoratedBuildings.Add(candidateObject);
             }
         }
     }

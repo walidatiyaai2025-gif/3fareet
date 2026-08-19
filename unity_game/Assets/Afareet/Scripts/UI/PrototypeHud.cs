@@ -26,7 +26,7 @@ namespace Afareet.UI
         private float safeRight;
         private float safeTop;
         private float safeBottom;
-        private Vector3 motionBaseline;
+        private Quaternion motionBaselineAttitude;
         private ScreenOrientation motionBaselineOrientation;
         private bool hasMotionBaseline;
         private float smoothedTiltSteer;
@@ -39,7 +39,7 @@ namespace Afareet.UI
         private bool brakeReverseInput;
 
         private bool MotionDrivingAvailable =>
-            Application.isMobilePlatform && SystemInfo.supportsAccelerometer;
+            Application.isMobilePlatform && SystemInfo.supportsGyroscope;
 
         private bool MotionDrivingActive =>
             MotionDrivingAvailable && hasMotionBaseline;
@@ -57,6 +57,12 @@ namespace Afareet.UI
             gold = Solid(new Color(1f, .55f, .05f, .96f));
             panel = Solid(new Color(.018f, .012f, .045f, .82f));
             darkOverlay = Solid(new Color(0f, 0f, .02f, .72f));
+
+            if (Application.isMobilePlatform && SystemInfo.supportsGyroscope)
+            {
+                Input.gyro.enabled = true;
+                Input.gyro.updateInterval = 1f / 60f;
+            }
         }
 
         private void Update()
@@ -141,13 +147,23 @@ namespace Afareet.UI
 
             RecalibrateIfLandscapeOrientationChanged();
 
-            var acceleration = Input.acceleration - motionBaseline;
-            var landscapeRight = Screen.orientation == ScreenOrientation.LandscapeRight;
-            var steeringTilt = landscapeRight ? acceleration.y : -acceleration.y;
-            var forwardTilt = landscapeRight ? acceleration.x : -acceleration.x;
+            // Steering must represent a steering-wheel rotation, not device translation.
+            // Input.acceleration reports linear acceleration and caused forward/back phone
+            // movement to leak into left/right steering on the physical ALI-NX1 device.
+            // Use the relative gyroscope attitude and isolate only twist around the screen
+            // normal (device Z). Pitch/yaw/translation therefore cannot become steering.
+            var currentAttitude = MobileDriveInputPolicy.GyroToUnity(Input.gyro.attitude);
+            var steeringWheelDegrees = MobileDriveInputPolicy.ResolveSteeringWheelDeltaDegrees(
+                motionBaselineAttitude,
+                currentAttitude);
 
-            var tiltSteerTarget = MobileDriveInputPolicy.ResolveTiltSteer(steeringTilt);
-            var tiltThrottleTarget = MobileDriveInputPolicy.ResolveTiltCruiseThrottle(forwardTilt);
+            var tiltSteerTarget = MobileDriveInputPolicy.ResolveSteeringWheelInput(
+                steeringWheelDegrees);
+
+            // Motion controls steer only. Forward/back phone movement is intentionally not
+            // a throttle axis; neutral hands-free cruise remains available and GO is the
+            // explicit full-throttle override in hybrid mode.
+            var tiltThrottleTarget = MobileDriveInputPolicy.TiltCruiseThrottle;
             smoothedTiltSteer = MobileDriveInputPolicy.SmoothTiltSteer(
                 smoothedTiltSteer,
                 tiltSteerTarget,
@@ -182,7 +198,10 @@ namespace Afareet.UI
                 return;
             }
 
-            motionBaseline = Input.acceleration;
+            if (!Input.gyro.enabled)
+                Input.gyro.enabled = true;
+
+            motionBaselineAttitude = MobileDriveInputPolicy.GyroToUnity(Input.gyro.attitude);
             motionBaselineOrientation = Screen.orientation;
             hasMotionBaseline = true;
         }
@@ -273,34 +292,32 @@ namespace Afareet.UI
         private void DrawTouchControls()
         {
             var motionDriving = MotionDrivingActive;
-            if (!motionDriving)
-            {
-                GUI.Box(LeftRect(), "<", steerInput < 0f ? activeButton : button);
-                GUI.Box(RightRect(), ">", steerInput > 0f ? activeButton : button);
-            }
 
+            // Hybrid mode: motion steering/auto-cruise remains available, but the driver
+            // always keeps explicit LEFT/RIGHT/GO controls. This avoids a hidden mode switch
+            // and lets touch input override the sensor in the same frame.
+            GUI.Box(LeftRect(), "<", steerInput < 0f ? activeButton : button);
+            GUI.Box(RightRect(), ">", steerInput > 0f ? activeButton : button);
             GUI.Box(BrakeReverseRect(), "BRAKE / REV", brakeReverseInput ? activeButton : button);
             GUI.Box(RecoverRect(), "RECOVER", button);
             GUI.Box(DriftRect(), "DRIFT", driftInput ? activeButton : button);
             GUI.Box(NitroRect(), "SPIRIT", nitroInput ? activeButton : button);
-
-            if (!motionDriving)
-                GUI.Box(ThrottleRect(), "GO", throttleInput > 0f ? activeButton : button);
+            GUI.Box(ThrottleRect(), "GO", throttleInput > 0f ? activeButton : button);
 
             GUI.Label(
-                new Rect(canvasWidth * .5f - 150f, canvasHeight - safeBottom - 42f, 300f, 24f),
-                motionDriving ? "TILT DRIVE • AUTO CRUISE" : "TOUCH DRIVE",
+                new Rect(canvasWidth * .5f - 170f, canvasHeight - safeBottom - 42f, 340f, 24f),
+                motionDriving ? "HYBRID DRIVE • TILT + TOUCH" : "TOUCH DRIVE",
                 micro);
         }
 
         private void ApplyPointer(Vector2 point)
         {
-            if (!MotionDrivingActive)
-            {
-                if (LeftRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(-1f);
-                if (RightRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(1f);
-                if (ThrottleRect().Contains(point)) throttleInput = 1f;
-            }
+            // ApplyMotionControls runs before pointer processing each frame. Therefore these
+            // explicit touch controls are a deterministic immediate override while tilt keeps
+            // working whenever the driver releases the buttons.
+            if (LeftRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(-1f);
+            if (RightRect().Contains(point)) steerInput = MobileDriveInputPolicy.ResolveTouchSteer(1f);
+            if (ThrottleRect().Contains(point)) throttleInput = 1f;
 
             if (BrakeReverseRect().Contains(point)) brakeReverseInput = true;
             if (DriftRect().Contains(point)) driftInput = true;
