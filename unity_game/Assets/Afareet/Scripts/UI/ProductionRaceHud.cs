@@ -34,8 +34,8 @@ namespace Afareet.UI
             if (safeRoot == null) BuildHud();
             ApplySafeArea();
 
-            // The visible values are rounded/formatted, while race.Position builds ranking
-            // snapshots. Refresh those strings at 10 Hz instead of doing allocation-heavy
+            // The visible values are rounded/formatted, while position evaluation builds
+            // ranking snapshots. Refresh those strings at 10 Hz instead of doing allocation-heavy
             // formatting and ranking work every rendered frame.
             var now = Time.unscaledTime;
             if (now + .0001f >= nextTelemetryRefreshTime)
