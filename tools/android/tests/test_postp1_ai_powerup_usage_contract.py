@@ -16,32 +16,56 @@ class PostP1AiPowerUpUsageContractTests(unittest.TestCase):
         self.assertNotIn("System.Random", source)
         self.assertNotIn("Random.", source)
         self.assertIn("public static AiPowerUpDecision Decide", source)
+        self.assertIn("internal static AiPowerUpDecision Decide", source)
+        self.assertIn("private static AiPowerUpDecision DecideCore", source)
         self.assertIn("BuildInventoryIndex", source)
         self.assertIn("Duplicate AI power-up inventory entry", source)
+        self.assertIn("AI power-up inventory cannot contain null entries", source)
         self.assertIn("return AiPowerUpDecision.None();", source)
 
     def test_decision_priority_contract_is_explicit(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs")
+        core_start = source.index("private static AiPowerUpDecision DecideCore(")
+        core_end = source.index("private static InventoryIndex BuildInventoryIndex", core_start)
+        core = source[core_start:core_end]
 
-        shield = source.index("PowerUpKind.EyeShield")
-        asphalt = source.index("PowerUpKind.AsphaltShard", shield)
-        nitro = source.index("PowerUpKind.NitroSpirit", asphalt)
-        traffic = source.index("PowerUpKind.TrafficCurse", nitro)
-        reward = source.index("PowerUpKind.EnchantedPound", traffic)
+        shield = core.index("PowerUpKind.EyeShield")
+        asphalt = core.index("PowerUpKind.AsphaltShard", shield)
+        nitro = core.index("PowerUpKind.NitroSpirit", asphalt)
+        traffic = core.index("PowerUpKind.TrafficCurse", nitro)
+        reward = core.index("PowerUpKind.EnchantedPound", traffic)
         self.assertLess(shield, asphalt)
         self.assertLess(asphalt, nitro)
         self.assertLess(nitro, traffic)
         self.assertLess(traffic, reward)
 
         for required in (
-            "snapshot.IncomingHostilePressure && IsUsable(byKind, PowerUpKind.EyeShield)",
+            "snapshot.IncomingHostilePressure && eyeShieldUsable",
             "snapshot.GapFromChaserSeconds <= DefensiveChaserGapSeconds",
+            "asphaltShardUsable",
+            "nitroSpiritUsable &&",
             "ShouldUseNitro(snapshot)",
             "snapshot.GapToTargetSeconds <= TrafficCurseMaxTargetGapSeconds",
+            "trafficCurseUsable",
             "snapshot.NormalizedProgress >= RewardOptimizationMinProgress",
             "HasStableLead(snapshot)",
+            "enchantedPoundUsable",
         ):
-            self.assertIn(required, source)
+            self.assertIn(required, core)
+
+    def test_public_inventory_path_keeps_fail_closed_validation_and_shares_core(self):
+        source = self._read("unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs")
+        public_start = source.index("public static AiPowerUpDecision Decide(")
+        internal_start = source.index("internal static AiPowerUpDecision Decide(", public_start)
+        public_method = source[public_start:internal_start]
+
+        self.assertIn("if (snapshot == null)", public_method)
+        self.assertIn("if (inventory == null)", public_method)
+        self.assertIn("var byKind = BuildInventoryIndex(inventory);", public_method)
+        self.assertIn("return DecideCore(", public_method)
+        self.assertIn("private readonly struct InventoryIndex", source)
+        self.assertIn("private struct InventoryIndexBuilder", source)
+        self.assertNotIn("new Dictionary<PowerUpKind, AiPowerUpAvailability>", source)
 
     def test_inventory_and_snapshot_fail_closed(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs")
