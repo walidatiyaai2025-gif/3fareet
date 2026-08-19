@@ -38,30 +38,17 @@ namespace Afareet.Race
             PowerUpRuntimeTargetMode targetMode)
         {
             if (!Enum.IsDefined(typeof(PowerUpKind), kind))
-            {
                 throw new ArgumentOutOfRangeException(nameof(kind));
-            }
 
             EffectSpec = effectSpec ?? throw new ArgumentNullException(nameof(effectSpec));
             if (effectSpec.Kind != kind)
-            {
                 throw new ArgumentException("Runtime rule kind must match the effect spec kind.", nameof(effectSpec));
-            }
-
             if (initialCharges < 0)
-            {
                 throw new ArgumentOutOfRangeException(nameof(initialCharges));
-            }
-
             if (!IsFinite(cooldownSeconds) || cooldownSeconds < 0d)
-            {
                 throw new ArgumentOutOfRangeException(nameof(cooldownSeconds));
-            }
-
             if (!Enum.IsDefined(typeof(PowerUpRuntimeTargetMode), targetMode))
-            {
                 throw new ArgumentOutOfRangeException(nameof(targetMode));
-            }
 
             Kind = kind;
             InitialCharges = initialCharges;
@@ -69,74 +56,57 @@ namespace Afareet.Race
             TargetMode = targetMode;
         }
 
-        private static bool IsFinite(double value)
-        {
-            return !double.IsNaN(value) && !double.IsInfinity(value);
-        }
+        private static bool IsFinite(double value) =>
+            !double.IsNaN(value) && !double.IsInfinity(value);
     }
 
     public sealed class PowerUpRuntimeRuleset
     {
+        private static readonly PowerUpKind[] AllPowerUpKinds =
+            (PowerUpKind[])Enum.GetValues(typeof(PowerUpKind));
+
         private readonly Dictionary<PowerUpKind, PowerUpRuntimeRule> rules =
             new Dictionary<PowerUpKind, PowerUpRuntimeRule>();
 
         public PowerUpRuntimeRuleset(IEnumerable<PowerUpRuntimeRule> runtimeRules)
         {
             if (runtimeRules == null)
-            {
                 throw new ArgumentNullException(nameof(runtimeRules));
-            }
 
             foreach (var rule in runtimeRules)
             {
                 if (rule == null)
-                {
                     throw new ArgumentException("Power-up runtime rules cannot contain null entries.", nameof(runtimeRules));
-                }
-
                 if (rules.ContainsKey(rule.Kind))
-                {
                     throw new ArgumentException($"Duplicate runtime rule for {rule.Kind}.", nameof(runtimeRules));
-                }
 
                 var expectedTargetMode = ExpectedTargetMode(rule.Kind);
                 if (rule.TargetMode != expectedTargetMode)
-                {
-                    throw new ArgumentException(
-                        $"{rule.Kind} requires target mode {expectedTargetMode}.",
-                        nameof(runtimeRules));
-                }
+                    throw new ArgumentException($"{rule.Kind} requires target mode {expectedTargetMode}.", nameof(runtimeRules));
 
                 rules.Add(rule.Kind, rule);
             }
 
-            foreach (PowerUpKind kind in Enum.GetValues(typeof(PowerUpKind)))
+            for (var index = 0; index < AllPowerUpKinds.Length; index++)
             {
+                var kind = AllPowerUpKinds[index];
                 if (!rules.ContainsKey(kind))
-                {
                     throw new ArgumentException($"Missing runtime rule for {kind}.", nameof(runtimeRules));
-                }
             }
         }
 
         public PowerUpRuntimeRule Get(PowerUpKind kind)
         {
             if (!Enum.IsDefined(typeof(PowerUpKind), kind))
-            {
                 throw new ArgumentOutOfRangeException(nameof(kind));
-            }
-
             return rules[kind];
         }
 
         public IReadOnlyList<PowerUpRuntimeRule> Snapshot()
         {
-            var snapshot = new List<PowerUpRuntimeRule>();
-            foreach (PowerUpKind kind in Enum.GetValues(typeof(PowerUpKind)))
-            {
-                snapshot.Add(rules[kind]);
-            }
-
+            var snapshot = new List<PowerUpRuntimeRule>(AllPowerUpKinds.Length);
+            for (var index = 0; index < AllPowerUpKinds.Length; index++)
+                snapshot.Add(rules[AllPowerUpKinds[index]]);
             return snapshot.AsReadOnly();
         }
 
@@ -243,6 +213,9 @@ namespace Afareet.Race
 
     public sealed class PowerUpRaceRuntime
     {
+        private static readonly PowerUpKind[] AllPowerUpKinds =
+            (PowerUpKind[])Enum.GetValues(typeof(PowerUpKind));
+
         private sealed class InventorySlot
         {
             public int InitialCharges { get; }
@@ -269,22 +242,19 @@ namespace Afareet.Race
             public Dictionary<PowerUpKind, InventorySlot> Inventory { get; } =
                 new Dictionary<PowerUpKind, InventorySlot>();
 
-            public RacerState(
-                PowerUpRacerRegistration registration,
-                IReadOnlyList<PowerUpRuntimeRule> rules)
+            public RacerState(PowerUpRacerRegistration registration, IReadOnlyList<PowerUpRuntimeRule> rules)
             {
                 RacerId = registration.RacerId;
                 Effects = new PowerUpEffectState(registration.PresentationSink);
                 foreach (var rule in rules)
-                {
                     Inventory.Add(rule.Kind, new InventorySlot(rule.InitialCharges));
-                }
             }
         }
 
         private readonly PowerUpRuntimeRuleset ruleset;
         private readonly SortedDictionary<string, RacerState> racers =
             new SortedDictionary<string, RacerState>(StringComparer.Ordinal);
+        private readonly IReadOnlyList<PowerUpRuntimeTickResult> zeroTickResults;
 
         public PowerUpRaceRuntime(
             PowerUpRuntimeRuleset ruleset,
@@ -292,32 +262,26 @@ namespace Afareet.Race
         {
             this.ruleset = ruleset ?? throw new ArgumentNullException(nameof(ruleset));
             if (registrations == null)
-            {
                 throw new ArgumentNullException(nameof(registrations));
-            }
 
             var rules = ruleset.Snapshot();
             foreach (var registration in registrations)
             {
                 if (registration == null)
-                {
                     throw new ArgumentException("Racer registrations cannot contain null entries.", nameof(registrations));
-                }
-
                 if (racers.ContainsKey(registration.RacerId))
-                {
-                    throw new ArgumentException(
-                        $"Duplicate racer registration for {registration.RacerId}.",
-                        nameof(registrations));
-                }
+                    throw new ArgumentException($"Duplicate racer registration for {registration.RacerId}.", nameof(registrations));
 
                 racers.Add(registration.RacerId, new RacerState(registration, rules));
             }
 
             if (racers.Count == 0)
-            {
                 throw new ArgumentException("At least one racer registration is required.", nameof(registrations));
-            }
+
+            var zeroResults = new List<PowerUpRuntimeTickResult>(racers.Count);
+            foreach (var pair in racers)
+                zeroResults.Add(new PowerUpRuntimeTickResult(pair.Key, 0));
+            zeroTickResults = zeroResults.AsReadOnly();
         }
 
         public IReadOnlyList<PowerUpInventorySnapshot> GetInventorySnapshot(
@@ -326,10 +290,11 @@ namespace Afareet.Race
         {
             ValidateRaceTime(raceTimeSeconds);
             var racer = GetRacerOrThrow(racerId);
-            var snapshot = new List<PowerUpInventorySnapshot>();
+            var snapshot = new List<PowerUpInventorySnapshot>(AllPowerUpKinds.Length);
 
-            foreach (PowerUpKind kind in Enum.GetValues(typeof(PowerUpKind)))
+            for (var index = 0; index < AllPowerUpKinds.Length; index++)
             {
+                var kind = AllPowerUpKinds[index];
                 var slot = racer.Inventory[kind];
                 snapshot.Add(new PowerUpInventorySnapshot(
                     kind,
@@ -344,17 +309,34 @@ namespace Afareet.Race
             string racerId,
             double raceTimeSeconds)
         {
-            var inventory = GetInventorySnapshot(racerId, raceTimeSeconds);
-            var availability = new List<AiPowerUpAvailability>(inventory.Count);
-            foreach (var item in inventory)
+            ValidateRaceTime(raceTimeSeconds);
+            var racer = GetRacerOrThrow(racerId);
+            var availability = new List<AiPowerUpAvailability>(AllPowerUpKinds.Length);
+
+            for (var index = 0; index < AllPowerUpKinds.Length; index++)
             {
+                var kind = AllPowerUpKinds[index];
+                var slot = racer.Inventory[kind];
                 availability.Add(new AiPowerUpAvailability(
-                    item.Kind,
-                    item.Charges,
-                    item.CooldownRemainingSeconds));
+                    kind,
+                    slot.Charges,
+                    Math.Max(0d, slot.ReadyAtSeconds - raceTimeSeconds)));
             }
 
             return availability.AsReadOnly();
+        }
+
+        public bool IsPowerUpUsable(
+            string racerId,
+            PowerUpKind kind,
+            double raceTimeSeconds)
+        {
+            ValidateRaceTime(raceTimeSeconds);
+            if (!Enum.IsDefined(typeof(PowerUpKind), kind))
+                throw new ArgumentOutOfRangeException(nameof(kind));
+
+            var racer = GetRacerOrThrow(racerId);
+            return IsSlotUsable(racer.Inventory[kind], raceTimeSeconds);
         }
 
         public PowerUpRuntimeUseResult TryUse(
@@ -365,21 +347,15 @@ namespace Afareet.Race
         {
             ValidateRaceTime(raceTimeSeconds);
             if (!Enum.IsDefined(typeof(PowerUpKind), kind))
-            {
                 throw new ArgumentOutOfRangeException(nameof(kind));
-            }
 
             if (!TryGetRacer(sourceRacerId, out var source))
-            {
                 return GateResult(PowerUpRuntimeUseStatus.UnknownSource, kind, sourceRacerId, targetRacerId);
-            }
 
             var rule = ruleset.Get(kind);
             var slot = source.Inventory[kind];
             if (slot.Charges <= 0)
-            {
                 return GateResult(PowerUpRuntimeUseStatus.NoCharges, kind, source.RacerId, targetRacerId, slot);
-            }
 
             var cooldownRemaining = Math.Max(0d, slot.ReadyAtSeconds - raceTimeSeconds);
             if (cooldownRemaining > 0d)
@@ -443,27 +419,26 @@ namespace Afareet.Race
             double raceTimeSeconds)
         {
             if (snapshot == null)
-            {
                 throw new ArgumentNullException(nameof(snapshot));
-            }
 
-            var availability = GetAiAvailability(sourceRacerId, raceTimeSeconds);
-            var decision = AiPowerUpUsagePolicy.Decide(snapshot, availability);
+            ValidateRaceTime(raceTimeSeconds);
+            var source = GetRacerOrThrow(sourceRacerId);
+            var decision = AiPowerUpUsagePolicy.Decide(
+                snapshot,
+                IsSlotUsable(source.Inventory[PowerUpKind.AsphaltShard], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.NitroSpirit], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.TrafficCurse], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.EnchantedPound], raceTimeSeconds),
+                IsSlotUsable(source.Inventory[PowerUpKind.EyeShield], raceTimeSeconds));
             if (!decision.ShouldUse)
-            {
                 return new AiPowerUpExecutionResult(decision, null);
-            }
 
             var kind = decision.Kind.Value;
             string targetRacerId = null;
             if (kind == PowerUpKind.TrafficCurse)
-            {
                 targetRacerId = targetAheadRacerId;
-            }
             else if (kind == PowerUpKind.AsphaltShard)
-            {
                 targetRacerId = chaserBehindRacerId;
-            }
 
             var useResult = TryUse(sourceRacerId, kind, targetRacerId, raceTimeSeconds);
             return new AiPowerUpExecutionResult(decision, useResult);
@@ -472,15 +447,34 @@ namespace Afareet.Race
         public IReadOnlyList<PowerUpRuntimeTickResult> TickAll(double raceTimeSeconds)
         {
             ValidateRaceTime(raceTimeSeconds);
-            var results = new List<PowerUpRuntimeTickResult>(racers.Count);
+
+            List<PowerUpRuntimeTickResult> changedResults = null;
+            var racerIndex = 0;
             foreach (var pair in racers)
             {
-                results.Add(new PowerUpRuntimeTickResult(
-                    pair.Key,
-                    pair.Value.Effects.Tick(raceTimeSeconds)));
+                var expiredEffectCount = pair.Value.Effects.Tick(raceTimeSeconds);
+                if (changedResults == null && expiredEffectCount == 0)
+                {
+                    racerIndex++;
+                    continue;
+                }
+
+                if (changedResults == null)
+                {
+                    changedResults = new List<PowerUpRuntimeTickResult>(racers.Count);
+                    for (var priorIndex = 0; priorIndex < racerIndex; priorIndex++)
+                        changedResults.Add(zeroTickResults[priorIndex]);
+                }
+
+                changedResults.Add(expiredEffectCount == 0
+                    ? zeroTickResults[racerIndex]
+                    : new PowerUpRuntimeTickResult(pair.Key, expiredEffectCount));
+                racerIndex++;
             }
 
-            return results.AsReadOnly();
+            return changedResults == null
+                ? zeroTickResults
+                : changedResults.AsReadOnly();
         }
 
         public ActivePowerUpEffect GetActiveEffect(
@@ -498,9 +492,7 @@ namespace Afareet.Race
             {
                 pair.Value.Effects.ResetRace();
                 foreach (var slot in pair.Value.Inventory.Values)
-                {
                     slot.Reset();
-                }
             }
         }
 
@@ -512,30 +504,22 @@ namespace Afareet.Race
             if (rule.TargetMode == PowerUpRuntimeTargetMode.Self)
             {
                 if (targetRacerId != null && !StringComparer.Ordinal.Equals(targetRacerId, source.RacerId))
-                {
                     return (null, PowerUpRuntimeUseStatus.InvalidTarget);
-                }
-
                 return (source, null);
             }
 
             if (string.IsNullOrWhiteSpace(targetRacerId))
-            {
                 return (null, PowerUpRuntimeUseStatus.MissingTarget);
-            }
-
             if (StringComparer.Ordinal.Equals(targetRacerId, source.RacerId))
-            {
                 return (null, PowerUpRuntimeUseStatus.InvalidTarget);
-            }
-
             if (!TryGetRacer(targetRacerId, out var target))
-            {
                 return (null, PowerUpRuntimeUseStatus.UnknownTarget);
-            }
 
             return (target, null);
         }
+
+        private static bool IsSlotUsable(InventorySlot slot, double raceTimeSeconds) =>
+            slot.Charges > 0 && slot.ReadyAtSeconds <= raceTimeSeconds;
 
         private static PowerUpRuntimeUseResult GateResult(
             PowerUpRuntimeUseStatus status,
@@ -569,19 +553,14 @@ namespace Afareet.Race
         {
             var validated = ValidateRacerId(racerId, nameof(racerId));
             if (!racers.TryGetValue(validated, out var racer))
-            {
                 throw new KeyNotFoundException($"Unknown power-up racer: {validated}.");
-            }
-
             return racer;
         }
 
         internal static string ValidateRacerId(string racerId, string paramName)
         {
             if (string.IsNullOrWhiteSpace(racerId) || racerId.Length > 64)
-            {
                 throw new ArgumentException("Racer ID must contain 1-64 transport-safe characters.", paramName);
-            }
 
             for (var i = 0; i < racerId.Length; i++)
             {
@@ -592,9 +571,7 @@ namespace Afareet.Race
                     (value >= '0' && value <= '9') ||
                     value == '-' || value == '_' || value == '.';
                 if (!safe)
-                {
                     throw new ArgumentException("Racer ID contains unsupported characters.", paramName);
-                }
             }
 
             return racerId;
@@ -603,9 +580,7 @@ namespace Afareet.Race
         private static void ValidateRaceTime(double raceTimeSeconds)
         {
             if (double.IsNaN(raceTimeSeconds) || double.IsInfinity(raceTimeSeconds) || raceTimeSeconds < 0d)
-            {
                 throw new ArgumentOutOfRangeException(nameof(raceTimeSeconds));
-            }
         }
     }
 }
