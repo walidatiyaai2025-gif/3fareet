@@ -18,6 +18,7 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
             "PowerUpRuntimeRuleset",
             "GetInventorySnapshot",
             "GetAiAvailability",
+            "IsPowerUpUsable",
             "TryUse(",
             "ExecuteAiDecision(",
             "TickAll(",
@@ -57,14 +58,28 @@ class PostP1PowerUpRuntimeContractTests(unittest.TestCase):
         ):
             self.assertIn(required, source)
 
-    def test_ai_execution_uses_authoritative_availability_and_try_use(self):
+    def test_ai_execution_uses_authoritative_slots_and_try_use_without_snapshot_allocation(self):
         source = self._read("unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs")
+        start = source.index("public AiPowerUpExecutionResult ExecuteAiDecision(")
+        end = source.index("public IReadOnlyList<PowerUpRuntimeTickResult> TickAll", start)
+        method = source[start:end]
 
-        self.assertIn("var availability = GetAiAvailability(sourceRacerId, raceTimeSeconds);", source)
-        self.assertIn("var decision = AiPowerUpUsagePolicy.Decide(snapshot, availability);", source)
-        self.assertIn("var useResult = TryUse(sourceRacerId, kind, targetRacerId, raceTimeSeconds);", source)
-        self.assertIn("kind == PowerUpKind.TrafficCurse", source)
-        self.assertIn("kind == PowerUpKind.AsphaltShard", source)
+        for required in (
+            "var source = GetRacerOrThrow(sourceRacerId);",
+            "var decision = AiPowerUpUsagePolicy.Decide(",
+            "IsSlotUsable(source.Inventory[PowerUpKind.AsphaltShard], raceTimeSeconds)",
+            "IsSlotUsable(source.Inventory[PowerUpKind.NitroSpirit], raceTimeSeconds)",
+            "IsSlotUsable(source.Inventory[PowerUpKind.TrafficCurse], raceTimeSeconds)",
+            "IsSlotUsable(source.Inventory[PowerUpKind.EnchantedPound], raceTimeSeconds)",
+            "IsSlotUsable(source.Inventory[PowerUpKind.EyeShield], raceTimeSeconds)",
+            "var useResult = TryUse(sourceRacerId, kind, targetRacerId, raceTimeSeconds);",
+            "kind == PowerUpKind.TrafficCurse",
+            "kind == PowerUpKind.AsphaltShard",
+        ):
+            self.assertIn(required, method)
+
+        self.assertNotIn("GetAiAvailability(", method)
+        self.assertNotIn("GetInventorySnapshot(", method)
 
     def test_behavior_runner_and_unity_regressions_cover_required_paths(self):
         runner = self._read("tools/android/contracts/PowerUpRuntimeContractRunner.cs")
