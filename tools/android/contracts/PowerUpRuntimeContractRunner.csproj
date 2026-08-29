@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <BaseIntermediateOutputPath>obj/PowerUpRuntimeContractRunner/</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin/PowerUpRuntimeContractRunner/</BaseOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="PowerUpRuntimeContractRunner.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpPresentationHooks.cs" Link="PowerUpPresentationHooks.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpEffectState.cs" Link="PowerUpEffectState.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/AiPowerUpUsagePolicy.cs" Link="AiPowerUpUsagePolicy.cs" />
+    <Compile Include="../../../unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntime.cs" Link="PowerUpRaceRuntime.cs" />
+  </ItemGroup>
+</Project>

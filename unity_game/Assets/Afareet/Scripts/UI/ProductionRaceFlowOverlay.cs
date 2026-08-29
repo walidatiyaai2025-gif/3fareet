@@ -217,15 +217,22 @@ namespace Afareet.UI
         private void RefreshPresentation()
         {
             var mode = RaceUiPresentationPolicy.Resolve(race.Phase, race.IsPaused);
+            var showingResults = mode == RaceOverlayMode.Results;
             pauseButtonRect.gameObject.SetActive(RaceUiPresentationPolicy.CanPause(race.Phase, race.IsPaused));
             pausePanel.SetActive(mode == RaceOverlayMode.Pause);
-            resultsPanel.SetActive(mode == RaceOverlayMode.Results);
+            resultsPanel.SetActive(showingResults);
 
             pauseButtonLabel.text = RuntimeLocalization.Text("pause");
             pauseTitle.text = RuntimeLocalization.Text("pause");
             resumeLabel.text = RuntimeLocalization.Text("resume");
             resultsTitle.text = RuntimeLocalization.Text("results");
             restartLabel.text = RuntimeLocalization.Text("restart");
+
+            // Position evaluation builds an ordered race snapshot. Results are immutable once
+            // displayed, so never pay ranking/string-formatting cost while the panel is hidden.
+            if (!showingResults)
+                return;
+
             positionLabel.text = $"{RuntimeLocalization.Text("position")}  {race.Position}/4";
             timeLabel.text = $"{RuntimeLocalization.Text("time")}  {Mathf.Max(0f, race.FinishTime):0.00} s";
         }

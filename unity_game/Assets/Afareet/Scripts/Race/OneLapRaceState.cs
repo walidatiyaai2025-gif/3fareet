@@ -1,4 +1,5 @@
 using System;
+using Afareet.Vehicle;
 using UnityEngine;
 
 namespace Afareet.Race
@@ -69,6 +70,7 @@ namespace Afareet.Race
     public sealed class OneLapRaceTracker : MonoBehaviour
     {
         private RacerCheckpointTracker checkpointTracker;
+        private ArcadeCarController car;
         private OneLapRaceState state;
 
         public bool IsConfigured => state != null;
@@ -93,6 +95,7 @@ namespace Afareet.Race
             checkpointTracker = GetComponent<RacerCheckpointTracker>();
             checkpointTracker.Configure(checkpointCount, firstExpectedCheckpointIndex: 1);
             checkpointTracker.CheckpointAccepted += OnCheckpointAccepted;
+            car = GetComponent<ArcadeCarController>();
             state = new OneLapRaceState(checkpointCount);
         }
 
@@ -100,6 +103,12 @@ namespace Afareet.Race
         {
             EnsureConfigured();
             checkpointTracker.ResetProgress(firstExpectedCheckpointIndex: 1);
+
+            // Every lap start is a fresh race attempt. Vehicle tuning/configuration persists,
+            // but consumable, control, drift and recovery-lock state must never leak from the
+            // previous Results -> Restart cycle into the new green flag.
+            car?.ResetRaceTransientState();
+
             state.StartRace();
             RaceStarted?.Invoke();
         }

@@ -5,12 +5,30 @@ on:
     paths:
       - '.github/workflows/unity-licensed-windows-candidate.yml'
       - 'docs/qa/LICENSED_WINDOWS_GITHUB_RUNNER.md'
+      - 'tools/android/build_experimental_windows.ps1'
+      - 'tools/android/tests/test_licensed_windows_workflow_convergence_ref_contract.py'
   workflow_dispatch:
     inputs:
+      candidate_ref:
+        description: 'Allowed production candidate ref to validate before integration'
+        required: true
+        type: choice
+        default: 'agent/p1-remediation-convergence'
+        options:
+          - 'agent/p1-remediation-convergence'
+          - 'agent/unblock-final-5'
       expected_sha:
-        description: 'Exact 40-character SHA expected at agent/unblock-final-5'
+        description: 'Exact 40-character SHA expected at the selected candidate_ref'
         required: true
         type: string
+      candidate_mode:
+        description: 'Production evidence chain or isolated experimental APK build'
+        required: true
+        type: choice
+        default: 'production'
+        options:
+          - 'production'
+          - 'experimental'
       unity_path:
         description: 'Licensed Unity 6000.5.8f1 executable on the self-hosted Windows runner'
         required: true
@@ -38,30 +56,65 @@ jobs:
         run: |
           set -euo pipefail
           workflow='.github/workflows/unity-licensed-windows-candidate.yml'
-          grep -Fq "ref: agent/unblock-final-5" "$workflow"
+          grep -Fq 'candidate_ref:' "$workflow"
+          grep -Fq 'candidate_mode:' "$workflow"
+          grep -Fq "type: choice" "$workflow"
+          grep -Fq -- "- 'agent/p1-remediation-convergence'" "$workflow"
+          grep -Fq -- "- 'agent/unblock-final-5'" "$workflow"
+          grep -Fq -- "- 'production'" "$workflow"
+          grep -Fq -- "- 'experimental'" "$workflow"
+          grep -Fq 'steps.scope.outputs.candidate_ref' "$workflow"
           grep -Fq "runs-on: [self-hosted, Windows, X64]" "$workflow"
           grep -Fq "expected_sha" "$workflow"
           grep -Fq "run_local_candidate_windows.ps1" "$workflow"
+          grep -Fq "build_experimental_windows.ps1" "$workflow"
           grep -Fq "persist-credentials: false" "$workflow"
           grep -Fq "actions/upload-artifact@v6" "$workflow"
+          grep -Fq 'Validate requested candidate ref before checkout' "$workflow"
+          grep -Fq 'releaseEvidenceEligible must remain JSON boolean false for experimental APKs.' "$workflow"
+          if grep -Eq '^[[:space:]]+ref:[[:space:]]+agent/unblock-final-5[[:space:]]*$' "$workflow"; then
+            echo '::error::Licensed proof must not be hard-wired to integration; convergence must be provable before merge.'
+            exit 1
+          fi
           if grep -Eq "default: '[0-9a-fA-F]{40}'" "$workflow"; then
             echo '::error::expected_sha must never have a hard-coded default; concurrent Unity work would make it stale.'
             exit 1
           fi
-          echo 'Licensed Windows workflow static contract is present.'
+          echo 'Licensed Windows production/experimental workflow contract is present.'
 
   licensed-candidate:
-    name: Licensed Unity 6000.5.8f1 exact-SHA candidate
+    name: Licensed Unity 6000.5.8f1 exact-SHA candidate (${{ inputs.candidate_mode }})
     if: ${{ github.event_name == 'workflow_dispatch' }}
     needs: static-contract
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 150
 
     steps:
-      - name: Checkout canonical Unity production branch
+      - name: Validate requested candidate ref before checkout
+        id: scope
+        shell: pwsh
+        env:
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $candidateRef = ([string]$env:CANDIDATE_REF).Trim()
+          $allowedRefs = @(
+            'agent/p1-remediation-convergence',
+            'agent/unblock-final-5'
+          )
+          if ($candidateRef -notin $allowedRefs) {
+            throw "candidate_ref is not in the production allowlist: '$candidateRef'"
+          }
+
+          "candidate_ref=$candidateRef" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "AFAREET_SELF_HOSTED_REF_ALLOWLIST_OK candidateRef=$candidateRef"
+
+      - name: Checkout selected production candidate ref
         uses: actions/checkout@v5
         with:
-          ref: agent/unblock-final-5
+          ref: ${{ steps.scope.outputs.candidate_ref }}
           fetch-depth: 0
           lfs: true
           clean: true
@@ -71,14 +124,24 @@ jobs:
         id: pin
         shell: pwsh
         env:
+          CANDIDATE_REF: ${{ steps.scope.outputs.candidate_ref }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
 
+          $candidateRef = ([string]$env:CANDIDATE_REF).Trim()
           $expected = ([string]$env:EXPECTED_SHA).Trim().ToLowerInvariant()
           if ($expected -notmatch '^[0-9a-f]{40}$') {
             throw "expected_sha must be a full 40-character lowercase/uppercase Git SHA; found '$expected'"
+          }
+
+          $allowedRefs = @(
+            'agent/p1-remediation-convergence',
+            'agent/unblock-final-5'
+          )
+          if ($candidateRef -notin $allowedRefs) {
+            throw "candidate_ref escaped the production allowlist after checkout: '$candidateRef'"
           }
 
           $actual = (& git rev-parse HEAD).Trim().ToLowerInvariant()
@@ -86,7 +149,7 @@ jobs:
             throw 'Unable to resolve checkout HEAD to a full Git SHA.'
           }
           if ($actual -ne $expected) {
-            throw "Canonical branch moved or wrong SHA was requested. expected=$expected actual=$actual"
+            throw "Candidate ref moved or wrong SHA was requested. ref=$candidateRef expected=$expected actual=$actual"
           }
 
           $dirty = @(& git status --porcelain)
@@ -99,12 +162,13 @@ jobs:
           }
 
           "sha=$actual" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Host "AFAREET_SELF_HOSTED_SHA_PIN_OK gitSha=$actual branch=agent/unblock-final-5"
+          Write-Host "AFAREET_SELF_HOSTED_SHA_PIN_OK gitSha=$actual candidateRef=$candidateRef"
 
       - name: Validate licensed Unity executable and candidate entry point
         shell: pwsh
         env:
           UNITY_EXE: ${{ inputs.unity_path }}
+          CANDIDATE_MODE: ${{ inputs.candidate_mode }}
         run: |
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
@@ -112,23 +176,47 @@ jobs:
           if (-not (Test-Path -LiteralPath $env:UNITY_EXE -PathType Leaf)) {
             throw "Unity executable not found at configured path: $env:UNITY_EXE"
           }
-          $runner = Join-Path $env:GITHUB_WORKSPACE 'tools\android\run_local_candidate_windows.ps1'
-          if (-not (Test-Path -LiteralPath $runner -PathType Leaf)) {
-            throw "Canonical production branch is missing candidate runner: $runner"
-          }
-          Write-Host 'AFAREET_SELF_HOSTED_UNITY_PREFLIGHT_OK unityVersion=6000.5.8f1'
 
-      - name: Run licensed Unity tests, Android build and candidate verifier
+          $mode = ([string]$env:CANDIDATE_MODE).Trim().ToLowerInvariant()
+          if ($mode -notin @('production', 'experimental')) {
+            throw "Unsupported candidate_mode: '$mode'"
+          }
+
+          $runnerName = if ($mode -eq 'experimental') {
+            'build_experimental_windows.ps1'
+          } else {
+            'run_local_candidate_windows.ps1'
+          }
+          $runner = Join-Path $env:GITHUB_WORKSPACE ("tools\android\" + $runnerName)
+          if (-not (Test-Path -LiteralPath $runner -PathType Leaf)) {
+            throw "Selected candidate ref is missing $mode runner: $runner"
+          }
+          Write-Host "AFAREET_SELF_HOSTED_UNITY_PREFLIGHT_OK unityVersion=6000.5.8f1 mode=$mode runner=$runnerName"
+
+      - name: Run licensed Unity candidate
         shell: pwsh
         env:
           UNITY_EXE: ${{ inputs.unity_path }}
+          CANDIDATE_MODE: ${{ inputs.candidate_mode }}
         run: |
           $ErrorActionPreference = 'Stop'
-          & .\tools\android\run_local_candidate_windows.ps1 `
-            -UnityPath $env:UNITY_EXE `
-            -RepoRoot $env:GITHUB_WORKSPACE
+          Set-StrictMode -Version Latest
 
-      - name: Validate candidate manifest remains device-gated
+          $mode = ([string]$env:CANDIDATE_MODE).Trim().ToLowerInvariant()
+          if ($mode -eq 'experimental') {
+            & .\tools\android\build_experimental_windows.ps1 `
+              -UnityPath $env:UNITY_EXE `
+              -RepoRoot $env:GITHUB_WORKSPACE
+          } elseif ($mode -eq 'production') {
+            & .\tools\android\run_local_candidate_windows.ps1 `
+              -UnityPath $env:UNITY_EXE `
+              -RepoRoot $env:GITHUB_WORKSPACE
+          } else {
+            throw "Unsupported candidate_mode reached execution: '$mode'"
+          }
+
+      - name: Validate production candidate manifest remains device-gated
+        if: ${{ inputs.candidate_mode == 'production' }}
         shell: pwsh
         env:
           EXPECTED_SHA: ${{ steps.pin.outputs.sha }}
@@ -158,15 +246,50 @@ jobs:
           }
           Write-Host "AFAREET_SELF_HOSTED_CANDIDATE_READY gitSha=$($manifest.gitSha) apkSha256=$($manifest.apk.sha256) verified=false"
 
+      - name: Validate experimental APK remains non-release evidence
+        if: ${{ inputs.candidate_mode == 'experimental' }}
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ steps.pin.outputs.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE 'artifacts\android-experimental'
+          $metadataPath = Join-Path $artifactDir 'artifact-metadata.json'
+          $apkPath = Join-Path $artifactDir 'afareet-unity3d-experimental.apk'
+          if (-not (Test-Path -LiteralPath $metadataPath -PathType Leaf)) {
+            throw "Experimental metadata missing: $metadataPath"
+          }
+          if (-not (Test-Path -LiteralPath $apkPath -PathType Leaf) -or (Get-Item $apkPath).Length -le 0) {
+            throw "Experimental APK missing or empty: $apkPath"
+          }
+
+          $metadata = Get-Content -LiteralPath $metadataPath -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ([string]$metadata.gitSha -ne [string]$env:EXPECTED_SHA) {
+            throw "Experimental metadata SHA mismatch. expected=$env:EXPECTED_SHA actual=$($metadata.gitSha)"
+          }
+          if ([string]$metadata.artifactClass -ne 'experimental') {
+            throw "Unexpected experimental artifactClass: $($metadata.artifactClass)"
+          }
+          if ($metadata.releaseEvidenceEligible -isnot [bool] -or $metadata.releaseEvidenceEligible) {
+            throw 'releaseEvidenceEligible must remain JSON boolean false for experimental APKs.'
+          }
+          if ($metadata.physicalDeviceVerified -isnot [bool] -or $metadata.physicalDeviceVerified) {
+            throw 'physicalDeviceVerified must remain JSON boolean false until device evidence exists.'
+          }
+          Write-Host "AFAREET_SELF_HOSTED_EXPERIMENTAL_READY gitSha=$($metadata.gitSha) apkSha256=$($metadata.sha256) releaseEvidenceEligible=false"
+
       - name: Upload exact-SHA licensed candidate evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: afareet-licensed-windows-${{ steps.pin.outputs.sha || 'failed-before-sha-pin' }}
+          name: afareet-licensed-windows-${{ inputs.candidate_mode }}-${{ steps.pin.outputs.sha || 'failed-before-sha-pin' }}
           path: |
             artifacts/local-candidate-manifest.json
             artifacts/unity-local-tests/
             artifacts/android-local/
+            artifacts/android-experimental/
             artifacts/logs/
           if-no-files-found: warn
           retention-days: 14

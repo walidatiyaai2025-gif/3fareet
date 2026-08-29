@@ -1,0 +1,6 @@
+{
+  "name": "Afareet.CareerRuntime",
+  "rootNamespace": "Afareet.CareerRuntime",
+  "references": ["Afareet.Race", "Afareet.Progression"],
+  "autoReferenced": true
+}

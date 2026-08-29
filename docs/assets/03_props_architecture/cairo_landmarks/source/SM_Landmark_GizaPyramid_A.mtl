@@ -1,0 +1,8 @@
+# UART-006 surfaced source candidate
+newmtl Giza_Stone
+Ka 0.120 0.095 0.055
+Kd 0.660 0.520 0.270
+Ks 0.080 0.070 0.050
+Ns 18.0
+illum 2
+map_Kd T_Landmark_GizaPyramid_BC.png

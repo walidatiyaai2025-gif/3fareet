@@ -1,0 +1,65 @@
+{
+  "scope": "p1-remediation-convergence",
+  "reviewState": "BLOCKED",
+  "publicationEligible": false,
+  "verified": false,
+  "layerCoverage": "8/8",
+  "fixedRegister": {
+    "inReview": 54,
+    "ready": 0,
+    "todo": 0,
+    "blocked": 11,
+    "total": 65
+  },
+  "layers": [
+    {
+      "taskId": "UART-005",
+      "role": "Cairo street/world authored source, clutter and mobile LOD remediation",
+      "requiredPath": "docs/assets/02_tracks_environments/cairo_street_kit/ASSET_MANIFEST.json"
+    },
+    {
+      "taskId": "UART-007",
+      "role": "authored Cairo track dressing",
+      "requiredPath": "docs/assets/02_tracks_environments/cairo_track_dressing/ASSET_MANIFEST.json"
+    },
+    {
+      "taskId": "URAC-011",
+      "role": "authored Cairo vertical-slice race layout",
+      "requiredPath": "unity_game/Assets/Afareet/Resources/Art/Tracks/CairoVerticalSlice/cairo_vertical_slice_v1.json"
+    },
+    {
+      "taskId": "UART-006",
+      "role": "authored Cairo landmark remediation",
+      "requiredPath": "docs/assets/03_props_architecture/cairo_landmarks/ASSET_MANIFEST.json"
+    },
+    {
+      "taskId": "UART-004",
+      "role": "authored rival source candidates and production hard gate",
+      "requiredPath": "docs/assets/01_vehicles/rival_cars_production/SOURCE_CANDIDATES.json"
+    },
+    {
+      "taskId": "UART-003",
+      "role": "Hero external-source staging, binding and provenance hard gate",
+      "requiredPath": "unity_game/Assets/Afareet/Editor/HeroCarProductionPrefabStager.cs"
+    },
+    {
+      "taskId": "UVEH-012",
+      "role": "mobile handling and recovery remediation",
+      "requiredPath": "unity_game/Assets/Afareet/Scripts/Vehicle/VehicleRecoveryPolicy.cs"
+    },
+    {
+      "taskId": "UPER-006",
+      "role": "Android smoke/performance fail-closed preflight",
+      "requiredPath": "tools/android/analyze_device_smoke.py"
+    }
+  ],
+  "acceptancePending": [
+    "supply and bind the real authored Afareet King production Hero model",
+    "licensed Unity import/compile/EditMode/PlayMode validation on one exact converged SHA",
+    "Android ARM64 build from that exact SHA",
+    "fresh physical-device evidence on the exact Git/APK fingerprint",
+    "UVEH-012, URAC-012 and UPER-006 device/performance acceptance",
+    "UPER-009 owner/Art Director Visual Gate acceptance",
+    "UPER-010 manual publication approval"
+  ]
+}

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Afareet.Vehicle;
 using Afareet.World;
 using UnityEngine;
 
@@ -19,6 +20,7 @@ namespace Afareet.Race
         public void Configure(int checkpointCount, int firstExpectedCheckpointIndex = 0)
         {
             validator = new OrderedCheckpointValidator(checkpointCount, firstExpectedCheckpointIndex);
+            GetComponent<LastCheckpointTracker>()?.ResetValidatedRaceProgress(firstExpectedCheckpointIndex);
         }
 
         public CheckpointValidationResult TryPassCheckpoint(int checkpointIndex)
@@ -41,6 +43,7 @@ namespace Afareet.Race
                 throw new InvalidOperationException("Checkpoint tracker must be configured before use.");
 
             validator.Reset(firstExpectedCheckpointIndex);
+            GetComponent<LastCheckpointTracker>()?.ResetValidatedRaceProgress(firstExpectedCheckpointIndex);
         }
     }
 
@@ -65,7 +68,12 @@ namespace Afareet.Race
             var tracker = other.GetComponentInParent<RacerCheckpointTracker>();
             if (tracker == null || !tracker.IsConfigured) return;
 
-            tracker.TryPassCheckpoint(checkpointIndex);
+            var result = tracker.TryPassCheckpoint(checkpointIndex);
+            if (result != CheckpointValidationResult.Accepted) return;
+
+            var recovery = other.GetComponentInParent<LastCheckpointTracker>();
+            if (recovery != null)
+                recovery.AcceptValidatedRaceCheckpoint(checkpointIndex, transform);
         }
     }
 

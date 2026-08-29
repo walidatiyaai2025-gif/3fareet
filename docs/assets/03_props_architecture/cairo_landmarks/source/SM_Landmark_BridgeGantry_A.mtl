@@ -1,0 +1,8 @@
+# UART-006 authored-source candidate material
+newmtl BridgeGantry_Metal
+Ka 0.070000 0.080000 0.090000
+Kd 0.315000 0.365000 0.410000
+Ks 0.420000 0.460000 0.500000
+Ns 72.000000
+illum 2
+map_Kd T_Landmark_BridgeGantry_BC.png

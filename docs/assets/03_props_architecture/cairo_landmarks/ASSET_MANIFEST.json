@@ -1,0 +1,92 @@
+{
+  "taskId": "UART-006",
+  "owner": "Environment Art / Technical Art",
+  "sourceOrLicense": "Original project-authored source candidates; no third-party model dependency",
+  "reviewState": "BLOCKED",
+  "sourceQuality": "authored-source-candidate",
+  "runtimeIntegrationImplemented": true,
+  "runtimeIntegrated": false,
+  "runtimeIntegrationVerified": false,
+  "proceduralFallbackAllowedInCandidate": false,
+  "blockerIssue": 128,
+  "unitMeters": 1.0,
+  "axes": "+Y up, +Z forward, +X right",
+  "sourceRoot": "docs/assets/03_props_architecture/cairo_landmarks/source",
+  "targetRuntimePath": "unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated",
+  "stagingAdapter": "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkAssetStager.cs",
+  "runtimeAdapter": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredLandmarkKit.cs",
+  "runtimePass": "unity_game/Assets/Afareet/Scripts/World/CairoLandmarkRuntimePass.cs",
+  "trackPyramidReplacementPass": "unity_game/Assets/Afareet/Scripts/World/CairoTrackPyramidAuthoredReplacementPass.cs",
+  "androidGate": "unity_game/Assets/Afareet/Editor/P1ProductionLandmarkBuildGate.cs",
+  "sourceSurfaceProgress": "4/4",
+  "sourceSurfaceEvidence": {
+    "authoringCommit": "72ce19e54bfd6c563b99699e1eb07e73b7dafd60",
+    "workflowRun": 31893122805,
+    "topologyPreserved": true,
+    "trackedObjMtlTextureChains": 4
+  },
+  "modules": [
+    {
+      "model": "SM_Landmark_GizaPyramid_A.obj",
+      "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_GizaPyramid_A",
+      "role": "Giza-inspired stepped pyramid silhouette",
+      "status": "authored-source-candidate",
+      "currentVertices": 42,
+      "currentTriangles": 80,
+      "productionMinVertices": 40,
+      "productionMinTriangles": 50,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    },
+    {
+      "model": "SM_Landmark_Minaret_A.obj",
+      "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_Minaret_A",
+      "role": "multi-stage minaret silhouette with balcony, crown and spire",
+      "status": "authored-source-candidate",
+      "currentVertices": 146,
+      "currentTriangles": 288,
+      "productionMinVertices": 100,
+      "productionMinTriangles": 50,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    },
+    {
+      "model": "SM_Landmark_DomeGate_A.obj",
+      "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_DomeGate_A",
+      "role": "arched dome gateway with spire",
+      "status": "authored-source-candidate",
+      "currentVertices": 474,
+      "currentTriangles": 738,
+      "productionMinVertices": 450,
+      "productionMinTriangles": 600,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    },
+    {
+      "model": "SM_Landmark_BridgeGantry_A.obj",
+      "resourcePath": "Art/Architecture/CairoLandmarks/Generated/SM_Landmark_BridgeGantry_A",
+      "role": "Cairo fantasy bridge/gantry landmark",
+      "status": "authored-source-candidate",
+      "currentVertices": 248,
+      "currentTriangles": 328,
+      "productionMinVertices": 200,
+      "productionMinTriangles": 250,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    }
+  ],
+  "runtimeReplacementStatus": {
+    "authoredMinarets": "implemented-unverified",
+    "authoredDomeGate": "implemented-unverified",
+    "authoredPyramids": "implemented-unverified",
+    "authoredBridgeGantry": "implemented-unverified",
+    "trackBuilderPyramids": "replacement-implemented-unverified",
+    "primitiveLandmarkFallbackInPlayer": false,
+    "primitiveTrackPyramidFallbackInPlayer": false,
+    "sectorBeaconsStillNeedAuthoredReplacement": true
+  },
+  "acceptancePending": [
+    "licensed Unity compile/import proof",
+    "runtime render proof for all four authored landmark modules",
+    "final material/texture refinement where visually required",
+    "authored sector-beacon replacement under UART-007 or landmark dressing scope",
+    "exact Android in-race screenshots/video",
+    "owner/Art Director Visual Gate acceptance"
+  ]
+}

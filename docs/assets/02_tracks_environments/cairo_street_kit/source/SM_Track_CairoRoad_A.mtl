@@ -1,0 +1,7 @@
+# 3Fareet Cairo road surfaced authored-source candidate
+newmtl Road_Surface
+Ka 0.080 0.080 0.090
+Kd 0.520 0.520 0.560
+Ks 0.120 0.120 0.140
+Ns 18.0
+map_Kd T_Track_CairoRoad_Surface_BC.png

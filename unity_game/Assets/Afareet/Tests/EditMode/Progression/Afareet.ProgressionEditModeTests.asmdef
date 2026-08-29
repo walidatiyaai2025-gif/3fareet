@@ -1,0 +1,8 @@
+{
+  "name": "Afareet.ProgressionEditModeTests",
+  "rootNamespace": "Afareet.Tests.Progression",
+  "references": ["Afareet.Progression"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

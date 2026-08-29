@@ -1,0 +1,54 @@
+name: Post-P1 Power-Up Vehicle Effect Projection Contract
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpVehicleEffectProjection.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpVehicleEffectProjection.cs.meta'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntimeProjectionExtensions.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntimeProjectionExtensions.cs.meta'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/PowerUpVehicleEffectProjectionTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/PowerUpVehicleEffectProjectionTests.cs.meta'
+      - 'tools/android/contracts/PowerUpRuntimeCompile.csproj'
+      - 'tools/android/contracts/PowerUpVehicleEffectProjectionContractRunner.csproj'
+      - 'tools/android/contracts/PowerUpVehicleEffectProjectionContractRunner.cs'
+      - 'tools/android/tests/test_postp1_powerup_vehicle_effect_projection_contract.py'
+      - '.github/workflows/postp1-powerup-vehicle-effect-projection-contract.yml'
+  push:
+    branches:
+      - main
+      - agent/p1-remediation-convergence
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpVehicleEffectProjection.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpVehicleEffectProjection.cs.meta'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntimeProjectionExtensions.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntimeProjectionExtensions.cs.meta'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/PowerUpVehicleEffectProjectionTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Race/PowerUpVehicleEffectProjectionTests.cs.meta'
+      - 'tools/android/contracts/PowerUpRuntimeCompile.csproj'
+      - 'tools/android/contracts/PowerUpVehicleEffectProjectionContractRunner.csproj'
+      - 'tools/android/contracts/PowerUpVehicleEffectProjectionContractRunner.cs'
+      - 'tools/android/tests/test_postp1_powerup_vehicle_effect_projection_contract.py'
+      - '.github/workflows/postp1-powerup-vehicle-effect-projection-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  projection-contract:
+    name: Vehicle effect projection compile + behavior contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Compile pure C# power-up runtime with projection
+        run: dotnet build tools/android/contracts/PowerUpRuntimeCompile.csproj --configuration Release --nologo
+
+      - name: Run vehicle effect projection behavior contract
+        run: dotnet run --project tools/android/contracts/PowerUpVehicleEffectProjectionContractRunner.csproj --configuration Release --nologo
+
+      - name: Run vehicle effect projection source contracts
+        run: python3 tools/android/tests/test_postp1_powerup_vehicle_effect_projection_contract.py

@@ -1,0 +1,61 @@
+{
+  "taskId": "UART-005",
+  "scope": "roadside-clutter-expansion",
+  "reviewState": "BLOCKED",
+  "sourceQuality": "authored-source-candidate",
+  "sourceRoot": "docs/assets/02_tracks_environments/cairo_street_kit/source",
+  "sourceDeliveryProgress": "3/3",
+  "runtimeIntegrationImplemented": true,
+  "runtimeIntegrated": false,
+  "runtimeIntegrationVerified": false,
+  "authoringEvidence": {
+    "workflowRun": 31895384784,
+    "surfaceChecksPassed": true,
+    "distinctSourceCandidates": 3
+  },
+  "modules": [
+    {
+      "model": "SM_Prop_CairoPlanter_A.obj",
+      "material": "SM_Prop_CairoPlanter_A.mtl",
+      "texture": "T_Prop_CairoPlanter_A_BC.png",
+      "materialName": "Planter_Surface",
+      "role": "sidewalk planter / vegetation silhouette",
+      "currentVertices": 174,
+      "currentTriangles": 300,
+      "productionMinVertices": 140,
+      "productionMinTriangles": 220,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    },
+    {
+      "model": "SM_Prop_CairoCrateStack_A.obj",
+      "material": "SM_Prop_CairoCrateStack_A.mtl",
+      "texture": "T_Prop_CairoCrateStack_A_BC.png",
+      "materialName": "Crate_Surface",
+      "role": "market / storefront crate stack",
+      "currentVertices": 216,
+      "currentTriangles": 324,
+      "productionMinVertices": 180,
+      "productionMinTriangles": 260,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    },
+    {
+      "model": "SM_Prop_CairoCafeTable_A.obj",
+      "material": "SM_Prop_CairoCafeTable_A.mtl",
+      "texture": "T_Prop_CairoCafeTable_A_BC.png",
+      "materialName": "Cafe_Surface",
+      "role": "street cafe table with two stools",
+      "currentVertices": 306,
+      "currentTriangles": 552,
+      "productionMinVertices": 180,
+      "productionMinTriangles": 260,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    }
+  ],
+  "acceptancePending": [
+    "licensed Unity compile/import/render verification of all three clutter Resources",
+    "exact runtime proof that authored buildings are decorated once with deterministic source-backed clutter",
+    "physical-device performance review of clutter LOD transitions and scene density",
+    "exact Android in-race visual evidence",
+    "owner/Art Director Visual Gate acceptance"
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "taskId": "UART-007",
+  "owner": "Environment Art / Technical Art",
+  "sourceOrLicense": "Original project-authored source candidates; no third-party model dependency",
+  "reviewState": "BLOCKED",
+  "sourceQuality": "authored-source-candidate",
+  "runtimeIntegrationImplemented": true,
+  "runtimeIntegrated": false,
+  "runtimeIntegrationVerified": false,
+  "proceduralFallbackAllowedInCandidate": false,
+  "blockerIssue": 128,
+  "sourceRoot": "docs/assets/02_tracks_environments/cairo_track_dressing/source",
+  "targetRuntimePath": "unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated",
+  "stagingAdapter": "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingAssetStager.cs",
+  "runtimeAdapter": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressing.cs",
+  "runtimePass": "unity_game/Assets/Afareet/Scripts/World/CairoAuthoredTrackDressingRuntimePass.cs",
+  "androidGate": "unity_game/Assets/Afareet/Editor/P1ProductionTrackDressingBuildGate.cs",
+  "sourceSurfaceProgress": "4/4",
+  "sourceSurfaceEvidence": {
+    "authoringCommit": "5fc102fd2c2348c618229eefb4e4b1ec0c8d8e88",
+    "workflowRun": 31893618123,
+    "trackedObjMtlTextureChains": 4,
+    "faceIndexIntegrityVerified": true,
+    "surfaceContractTestsPassed": true,
+    "gitDiffCheckPassed": true
+  },
+  "finishGateTopologyRepair": "malformed-arch-rebuilt-pylon-trim-preserved",
+  "finishGateTopologyRepairEvidence": {
+    "reason": "original source had 235 vertices but face references reached 251 after a truncated Arch section",
+    "method": "preserved pylon/trim v1-v160; rebuilt malformed Arch/Crest/Spirit/Gold tail",
+    "resultVertices": 286,
+    "resultTriangles": 396,
+    "faceIndexIntegrityVerified": true
+  },
+  "modules": [
+    {
+      "model": "SM_Track_FinishGate_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoTrackDressing/Generated/SM_Track_FinishGate_A",
+      "role": "authored start/finish landmark",
+      "status": "authored-source-candidate",
+      "productionMinVertices": 100,
+      "productionMinTriangles": 150,
+      "currentVertices": 286,
+      "currentTriangles": 396,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    },
+    {
+      "model": "SM_Track_SpiritRune_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoTrackDressing/Generated/SM_Track_SpiritRune_A",
+      "role": "authored asphalt spirit rune",
+      "status": "authored-source-candidate",
+      "currentVertices": 34,
+      "currentTriangles": 64,
+      "productionMinVertices": 30,
+      "productionMinTriangles": 50,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    },
+    {
+      "model": "SM_Track_DesertGround_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoTrackDressing/Generated/SM_Track_DesertGround_A",
+      "role": "authored desert ground surface and dune silhouettes",
+      "status": "authored-source-candidate",
+      "currentVertices": 163,
+      "currentTriangles": 256,
+      "productionMinVertices": 140,
+      "productionMinTriangles": 220,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    },
+    {
+      "model": "SM_Track_SectorBeacon_A.obj",
+      "resourcePath": "Art/TracksEnvironments/CairoTrackDressing/Generated/SM_Track_SectorBeacon_A",
+      "role": "authored neon sector beacon / track landmark dressing",
+      "status": "authored-source-candidate",
+      "currentVertices": 92,
+      "currentTriangles": 156,
+      "productionMinVertices": 80,
+      "productionMinTriangles": 130,
+      "surfaceAuthoring": "tracked-uv-normal-mtl-texture-candidate"
+    }
+  ],
+  "runtimeReplacementStatus": {
+    "authoredGround": "implemented-unverified",
+    "authoredFinishGate": "implemented-unverified",
+    "authoredRoadRunes": "implemented-unverified",
+    "authoredSectorBeacons": "implemented-unverified",
+    "primitiveGroundFallbackInPlayer": false,
+    "primitiveFinishFallbackInPlayer": false,
+    "primitiveRuneFallbackInPlayer": false,
+    "primitiveSectorBeaconFallbackInPlayer": false,
+    "trackLevelProceduralPyramidsInPlayer": false
+  },
+  "acceptancePending": [
+    "licensed Unity compile/import/render proof for all four dressing Resources",
+    "final visual material/texture refinement after licensed Unity render review",
+    "additional track signage/decals/roadside dressing",
+    "exact Android in-race screenshot/video proof",
+    "owner/Art Director Visual Gate acceptance"
+  ]
+}

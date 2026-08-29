@@ -113,6 +113,76 @@ namespace Afareet.Tests.PlayMode
             Assert.That(director.RaceTime, Is.GreaterThan(timeAfterGo));
         }
 
+        [UnityTest]
+        public IEnumerator RestartRace_AfterResultsResetsEveryRacerAndRunsFreshCountdown()
+        {
+            director.StartRace();
+            yield return new WaitForSeconds(3.15f);
+
+            Assert.That(director.Phase, Is.EqualTo(RaceRoundPhase.Racing));
+
+            var playerCheckpoints = player.GetComponent<RacerCheckpointTracker>();
+            var rivalCheckpoints = rival.GetComponent<RacerCheckpointTracker>();
+            var playerLap = player.GetComponent<OneLapRaceTracker>();
+            var rivalLap = rival.GetComponent<OneLapRaceTracker>();
+            Assert.That(playerCheckpoints, Is.Not.Null);
+            Assert.That(rivalCheckpoints, Is.Not.Null);
+            Assert.That(playerLap, Is.Not.Null);
+            Assert.That(rivalLap, Is.Not.Null);
+
+            Assert.That(rivalCheckpoints.TryPassCheckpoint(1), Is.EqualTo(CheckpointValidationResult.Accepted));
+            Assert.That(rivalCheckpoints.TryPassCheckpoint(2), Is.EqualTo(CheckpointValidationResult.Accepted));
+            Assert.That(rivalCheckpoints.AcceptedCount, Is.EqualTo(2));
+
+            Assert.That(playerCheckpoints.TryPassCheckpoint(1), Is.EqualTo(CheckpointValidationResult.Accepted));
+            Assert.That(playerCheckpoints.TryPassCheckpoint(2), Is.EqualTo(CheckpointValidationResult.Accepted));
+            Assert.That(playerCheckpoints.TryPassCheckpoint(3), Is.EqualTo(CheckpointValidationResult.Accepted));
+            Assert.That(playerCheckpoints.TryPassCheckpoint(0), Is.EqualTo(CheckpointValidationResult.Accepted));
+
+            yield return null;
+
+            Assert.That(director.Phase, Is.EqualTo(RaceRoundPhase.Results));
+            Assert.That(playerLap.IsFinished, Is.True);
+            Assert.That(rivalCheckpoints.AcceptedCount, Is.EqualTo(2));
+            Assert.That(playerBody.isKinematic, Is.True);
+            Assert.That(rivalBody.isKinematic, Is.True);
+
+            Assert.That(director.RestartRace(), Is.True);
+
+            Assert.That(director.Phase, Is.EqualTo(RaceRoundPhase.Countdown));
+            Assert.That(director.CountdownText, Is.EqualTo("3"));
+            Assert.That(playerCheckpoints.ExpectedCheckpointIndex, Is.EqualTo(1));
+            Assert.That(rivalCheckpoints.ExpectedCheckpointIndex, Is.EqualTo(1));
+            Assert.That(playerCheckpoints.AcceptedCount, Is.Zero);
+            Assert.That(rivalCheckpoints.AcceptedCount, Is.Zero);
+            Assert.That(playerLap.Phase, Is.EqualTo(OneLapRacePhase.Ready));
+            Assert.That(rivalLap.Phase, Is.EqualTo(OneLapRacePhase.Ready));
+            Assert.That(playerLap.FinishTime, Is.EqualTo(-1f));
+            Assert.That(rivalLap.FinishTime, Is.EqualTo(-1f));
+            Assert.That(playerObject.transform.position, Is.EqualTo(track.GridPosition(0)));
+            Assert.That(rivalObject.transform.position, Is.EqualTo(track.GridPosition(1)));
+            Assert.That(playerBody.linearVelocity, Is.EqualTo(Vector3.zero));
+            Assert.That(rivalBody.linearVelocity, Is.EqualTo(Vector3.zero));
+            Assert.That(playerBody.isKinematic, Is.True);
+            Assert.That(rivalBody.isKinematic, Is.True);
+            Assert.That(player.AcceptsPlayerInput, Is.False);
+            Assert.That(rivalAi.enabled, Is.False);
+
+            yield return new WaitForSeconds(3.15f);
+
+            Assert.That(director.Phase, Is.EqualTo(RaceRoundPhase.Racing));
+            Assert.That(playerLap.Phase, Is.EqualTo(OneLapRacePhase.Racing));
+            Assert.That(rivalLap.Phase, Is.EqualTo(OneLapRacePhase.Racing));
+            Assert.That(playerCheckpoints.ExpectedCheckpointIndex, Is.EqualTo(1));
+            Assert.That(rivalCheckpoints.ExpectedCheckpointIndex, Is.EqualTo(1));
+            Assert.That(playerCheckpoints.AcceptedCount, Is.Zero);
+            Assert.That(rivalCheckpoints.AcceptedCount, Is.Zero);
+            Assert.That(playerBody.isKinematic, Is.False);
+            Assert.That(rivalBody.isKinematic, Is.False);
+            Assert.That(player.AcceptsPlayerInput, Is.True);
+            Assert.That(rivalAi.enabled, Is.True);
+        }
+
         private TrackRuntime BuildTrack()
         {
             var runtime = new TrackRuntime();

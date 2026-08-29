@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Authoritative P1 manual-publication preflight with production-art enforcement.
+"""Authoritative P1 manual-publication preflight with production-art and smoke-metrics enforcement.
 
 This wrapper binds the existing exact-candidate/device/review/approval publication
-preflight to the new fail-closed production-art gate. It never publishes, tags,
-uploads, renames, or marks an APK VERIFIED.
+preflight to the fail-closed production-art gate and UPER-006 Android-observable
+smoke metrics. It never publishes, tags, uploads, renames, or marks an APK VERIFIED.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+import analyze_device_smoke
 import prepare_candidate_device
 import verify_p1_production_art
 import verify_release_publication
@@ -43,9 +44,11 @@ def verify_release_with_art(
     production_art_manifest_path: Path,
     production_art_spec_path: Path,
     repo_root: Path,
+    performance_tier: str,
 ) -> dict[str, Any]:
     candidate_manifest_path = candidate_manifest_path.expanduser().resolve()
     apk_override = apk_path.expanduser().resolve() if apk_path is not None else None
+    session_dir = session_dir.expanduser().resolve()
 
     candidate_manifest = prepare_candidate_device.read_json(candidate_manifest_path)
     candidate = prepare_candidate_device.resolve_candidate(
@@ -66,6 +69,14 @@ def verify_release_with_art(
     _require(art.get("verdict") == verify_p1_production_art.PASS_VERDICT, "production-art gate did not pass")
     _require(art.get("verified") is False, "production-art gate must not self-assert VERIFIED")
 
+    smoke = analyze_device_smoke.analyze(session_dir, performance_tier)
+    _require(smoke.get("verified") is False, "UPER-006 smoke analyzer must not self-assert VERIFIED")
+    _require(
+        smoke.get("verdict") == "PASSABLE_FOR_MANUAL_REVIEW",
+        "UPER-006 Android-observable smoke metrics are blocked: " + "; ".join(smoke.get("blockers", [])),
+    )
+    _require(str(smoke.get("apkSha256") or "").lower() == apk_sha, "UPER-006 smoke APK SHA does not match candidate")
+
     release = verify_release_publication.verify_publication(
         candidate_manifest_path=candidate_manifest_path,
         apk_path=apk_override,
@@ -82,19 +93,21 @@ def verify_release_with_art(
     _require(str(release_candidate.get("apkSha256") or "").lower() == apk_sha, "release result APK SHA does not match production-art candidate")
 
     return {
-        "schemaVersion": 1,
-        "verdict": "ELIGIBLE_FOR_MANUAL_PUBLICATION_WITH_PRODUCTION_ART",
+        "schemaVersion": 2,
+        "verdict": "ELIGIBLE_FOR_MANUAL_PUBLICATION_WITH_PRODUCTION_ART_AND_SMOKE_METRICS",
         "eligibleForManualPublication": True,
         "verified": False,
         "candidate": {"gitSha": git_sha, "apkSha256": apk_sha},
+        "performanceTier": performance_tier.upper(),
         "productionArt": art,
+        "uper006SmokeMetrics": smoke,
         "releasePreflight": release,
     }
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Require exact-candidate production-art acceptance plus the existing P1 release publication preflight."
+        description="Require exact-candidate production-art acceptance, UPER-006 smoke metrics and P1 release publication preflight."
     )
     parser.add_argument("--candidate-manifest", required=True)
     parser.add_argument("--apk", help="Optional exact APK override if the candidate bundle moved workstations.")
@@ -105,6 +118,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--production-art-manifest", required=True)
     parser.add_argument("--production-art-spec", default=str(verify_p1_production_art.DEFAULT_SPEC))
     parser.add_argument("--repo-root", default=".")
+    parser.add_argument(
+        "--performance-tier",
+        required=True,
+        choices=("low", "mid", "high"),
+        help="UPER-001 capability tier whose Android-observable smoke budgets must be enforced.",
+    )
     parser.add_argument("--output", help="Optional combined preflight JSON; existing files are never overwritten.")
     return parser
 
@@ -122,6 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             production_art_manifest_path=Path(args.production_art_manifest),
             production_art_spec_path=Path(args.production_art_spec),
             repo_root=Path(args.repo_root),
+            performance_tier=args.performance_tier,
         )
         output = None
         if args.output:
@@ -133,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "AFAREET_RELEASE_WITH_PRODUCTION_ART_OK "
             f"gitSha={result['candidate']['gitSha']} apkSha256={result['candidate']['apkSha256']} "
-            f"verdict={result['verdict']} verified=false"
+            f"performanceTier={result['performanceTier']} verdict={result['verdict']} verified=false"
             + (f" output={output}" if output else "")
         )
         return 0

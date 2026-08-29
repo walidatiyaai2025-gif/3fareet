@@ -63,11 +63,17 @@ namespace Afareet.Vehicle
                 found = true;
             }
 
+            var previousGroundCollider = GroundCollider;
             IsGrounded = found;
             GroundCollider = found ? best.collider : null;
             GroundDistance = found ? bestDistance : float.PositiveInfinity;
-            if (found)
-                CurrentSurface = Classify(best.collider);
+
+            // Authored race-surface metadata is static. The non-alloc grounding probe still
+            // executes each physics tick, but marker/name classification only needs to rerun
+            // when the contacted collider changes. Leaving ground sets GroundCollider to null,
+            // so landing back on the same collider correctly triggers classification again.
+            if (found && previousGroundCollider != GroundCollider)
+                CurrentSurface = Classify(GroundCollider);
         }
 
         public static ArcadeSurfaceKind Classify(Collider collider)

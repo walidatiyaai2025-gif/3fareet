@@ -1,0 +1,7 @@
+newmtl Facade_B_Surface
+Ka 0.070000 0.045000 0.055000
+Kd 0.420000 0.260000 0.300000
+Ks 0.120000 0.100000 0.110000
+Ns 22.000000
+illum 2
+map_Kd T_Env_CairoFacade_B_BC.png

@@ -1,0 +1,8 @@
+{
+  "name": "Afareet.CareerRuntimeEditModeTests",
+  "rootNamespace": "Afareet.Tests.CareerRuntime",
+  "references": ["Afareet.CareerRuntime", "Afareet.Progression", "Afareet.Race"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

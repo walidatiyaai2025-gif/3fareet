@@ -8,6 +8,7 @@ namespace Afareet.Vehicle
         public Transform Target { get; private set; }
         private ChaseCameraConfig config;
         private Camera racingCamera;
+        private ArcadeCarController targetCar;
 
         private void Awake() => racingCamera = GetComponent<Camera>();
 
@@ -20,9 +21,15 @@ namespace Afareet.Vehicle
             var rotation = Quaternion.LookRotation(lookAt - transform.position, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, rotation, 1f - Mathf.Exp(-config.rotationDamping * Time.deltaTime));
 
-            var car = Target.GetComponent<ArcadeCarController>();
-            if (car != null)
-                racingCamera.fieldOfView = Mathf.Lerp(racingCamera.fieldOfView, car.NitroActive ? config.nitroFieldOfView : config.normalFieldOfView, Time.deltaTime * config.fieldOfViewDamping);
+            // Normal composition resolves the controller once in Configure. Keep a lazy
+            // fallback for unusual initialization order without paying GetComponent every frame.
+            if (targetCar == null)
+                targetCar = Target.GetComponent<ArcadeCarController>();
+            if (targetCar != null)
+                racingCamera.fieldOfView = Mathf.Lerp(
+                    racingCamera.fieldOfView,
+                    targetCar.NitroActive ? config.nitroFieldOfView : config.normalFieldOfView,
+                    Time.deltaTime * config.fieldOfViewDamping);
         }
 
         public void Configure(Transform target, ChaseCameraConfig cameraConfig)
@@ -32,6 +39,7 @@ namespace Afareet.Vehicle
             if (!cameraConfig.IsValid(out var error))
                 throw new System.ArgumentException(error, nameof(cameraConfig));
             Target = target;
+            targetCar = target.GetComponent<ArcadeCarController>();
             config = cameraConfig;
             racingCamera.fieldOfView = config.normalFieldOfView;
         }

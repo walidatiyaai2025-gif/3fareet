@@ -73,6 +73,26 @@ namespace Afareet.Tests.Race
         }
 
         [Test]
+        public void RankDoesNotMutateCallerInputOrder()
+        {
+            var input = new List<RaceProgressSnapshot>
+            {
+                Progress("behind", checkpoints: 1, segment: .2f, stable: 0),
+                Progress("ahead", checkpoints: 3, segment: .8f, stable: 1),
+                Progress("middle", checkpoints: 2, segment: .5f, stable: 2)
+            };
+
+            var rankings = RaceRanking.Rank(input);
+
+            Assert.That(rankings[0].Progress.RacerId, Is.EqualTo("ahead"));
+            Assert.That(rankings[1].Progress.RacerId, Is.EqualTo("middle"));
+            Assert.That(rankings[2].Progress.RacerId, Is.EqualTo("behind"));
+            Assert.That(input[0].RacerId, Is.EqualTo("behind"));
+            Assert.That(input[1].RacerId, Is.EqualTo("ahead"));
+            Assert.That(input[2].RacerId, Is.EqualTo("middle"));
+        }
+
+        [Test]
         public void DuplicateRacerIdsAreRejected()
         {
             Assert.Throws<ArgumentException>(() => RaceRanking.Rank(new List<RaceProgressSnapshot>

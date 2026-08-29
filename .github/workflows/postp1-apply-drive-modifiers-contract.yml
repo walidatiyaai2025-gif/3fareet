@@ -1,0 +1,58 @@
+name: Post-P1 Apply Drive Modifiers Contract
+
+on:
+  pull_request:
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeDriveModifier.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeDriveModifier.cs.meta'
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeCarController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntimeProjectionExtensions.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpVehicleEffectProjection.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Vehicle/ArcadeDriveModifierTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Vehicle/ArcadeDriveModifierTests.cs.meta'
+      - 'tools/android/contracts/ArcadeDriveModifierCompile.csproj'
+      - 'tools/android/contracts/ArcadeDriveModifierContractRunner.csproj'
+      - 'tools/android/contracts/ArcadeDriveModifierContractRunner.cs'
+      - 'tools/android/tests/test_postp1_apply_drive_modifiers_contract.py'
+      - '.github/workflows/postp1-apply-drive-modifiers-contract.yml'
+  push:
+    branches:
+      - main
+      - agent/p1-remediation-convergence
+    paths:
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeDriveModifier.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeDriveModifier.cs.meta'
+      - 'unity_game/Assets/Afareet/Scripts/Vehicle/ArcadeCarController.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/RaceDirector.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpRaceRuntimeProjectionExtensions.cs'
+      - 'unity_game/Assets/Afareet/Scripts/Race/PowerUpVehicleEffectProjection.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Vehicle/ArcadeDriveModifierTests.cs'
+      - 'unity_game/Assets/Afareet/Tests/EditMode/Vehicle/ArcadeDriveModifierTests.cs.meta'
+      - 'tools/android/contracts/ArcadeDriveModifierCompile.csproj'
+      - 'tools/android/contracts/ArcadeDriveModifierContractRunner.csproj'
+      - 'tools/android/contracts/ArcadeDriveModifierContractRunner.cs'
+      - 'tools/android/tests/test_postp1_apply_drive_modifiers_contract.py'
+      - '.github/workflows/postp1-apply-drive-modifiers-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apply-drive-modifiers-contract:
+    name: Drive modifier compile + behavior contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Compile pure C# vehicle modifier contract
+        run: dotnet build tools/android/contracts/ArcadeDriveModifierCompile.csproj --configuration Release --nologo
+
+      - name: Run drive modifier behavior contract
+        run: dotnet run --project tools/android/contracts/ArcadeDriveModifierContractRunner.csproj --configuration Release --nologo
+
+      - name: Run live drive modifier source contracts
+        run: python3 tools/android/tests/test_postp1_apply_drive_modifiers_contract.py

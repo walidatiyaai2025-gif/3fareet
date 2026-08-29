@@ -13,15 +13,23 @@ coverage/
 .vscode/
 *.iml
 
+# UART-004 production Rival resources are intentionally tracked.
+# They must originate from external authored 3D sources and are required by
+# RivalProductionBuildGate; ignoring this tree would make accepted art impossible to commit.
+
 # Android generated/local
 android/.gradle/
 android/local.properties
 **/captures/
 
-# Unity generated builds / release signing
+# Unity generated builds / deterministic staged runtime art
 unity_game/Builds/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated/
 unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit/Generated/
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit/Generated.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated/
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing/Generated.meta
 
 # Local CI / QA evidence outputs (generated, never source-of-truth)
 /artifacts/
@@ -35,3 +43,23 @@ unity_game/Assets/Afareet/Resources/Art/Vehicles/HeroCar/Generated.meta
 # OS
 .DS_Store
 Thumbs.db
+
+# UART-006 convergence-only staged landmark runtime art
+unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated/
+unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks/Generated.meta
+
+# Python generated caches
+__pycache__/
+*.py[cod]
+
+# Unity Performance Testing package build-generated Resources
+unity_game/Assets/Resources.meta
+unity_game/Assets/Resources/PerformanceTestRunInfo.json
+unity_game/Assets/Resources/PerformanceTestRunInfo.json.meta
+unity_game/Assets/Resources/PerformanceTestRunSettings.json
+unity_game/Assets/Resources/PerformanceTestRunSettings.json.meta
+unity_game/Assets/Afareet/Resources/Art/Architecture.meta
+unity_game/Assets/Afareet/Resources/Art/Architecture/CairoLandmarks.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoStreetKit.meta
+unity_game/Assets/Afareet/Resources/Art/TracksEnvironments/CairoTrackDressing.meta

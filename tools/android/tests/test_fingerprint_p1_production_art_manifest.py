@@ -1,0 +1,246 @@
+import importlib.util
+import json
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+
+TOOLS_DIR = Path(__file__).resolve().parents[1]
+
+
+def _load(name: str, filename: str):
+    path = TOOLS_DIR / filename
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+FINGERPRINT = _load("fingerprint_p1_production_art_manifest", "fingerprint_p1_production_art_manifest.py")
+GATE = FINGERPRINT.gate
+
+
+def _git(repo: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
+class P1ProductionArtFingerprintTests(unittest.TestCase):
+    def _fixture(self, root: Path):
+        repo = root / "repo"
+        repo.mkdir()
+        evidence = root / "evidence"
+        evidence.mkdir()
+        apk_sha = "b" * 64
+
+        spec_payload = json.loads((TOOLS_DIR / "p1_production_art_spec.json").read_text(encoding="utf-8"))
+        required = spec_payload["requiredTasks"]
+        uart004_policy = spec_payload["taskArtifactPolicies"]["UART-004"]
+        assets = {}
+
+        for index, task_id in enumerate(required):
+            shot = evidence / f"{task_id.lower()}.png"
+            shot.write_bytes(f"evidence-{task_id}".encode())
+
+            if task_id == "UART-003":
+                source = repo / "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/AfareetKing_Production.obj"
+                runtime = repo / "unity_game/Assets/UART-003/runtime_0.prefab"
+                source.parent.mkdir(parents=True, exist_ok=True)
+                runtime.parent.mkdir(parents=True, exist_ok=True)
+                source.write_bytes(b"source-UART-003")
+                runtime.write_bytes(b"runtime-UART-003")
+                source_files = [{"path": source.relative_to(repo).as_posix()}]
+                runtime_assets = [{"path": runtime.relative_to(repo).as_posix()}]
+            elif task_id == "UART-004":
+                source_files = []
+                runtime_assets = []
+                for source_relative in uart004_policy["exactAuthored3DSourcePaths"]:
+                    source = repo / source_relative
+                    source.parent.mkdir(parents=True, exist_ok=True)
+                    source.write_bytes(f"source-{source.name}".encode())
+                    source_files.append({"path": source.relative_to(repo).as_posix()})
+                for runtime_relative in uart004_policy["requiredRuntimeAssetPaths"]:
+                    runtime = repo / runtime_relative
+                    runtime.parent.mkdir(parents=True, exist_ok=True)
+                    runtime.write_bytes(f"runtime-{runtime.name}".encode())
+                    runtime_assets.append({"path": runtime.relative_to(repo).as_posix()})
+            else:
+                source = repo / f"Assets/{task_id}/source/model_{index}.obj"
+                runtime = repo / f"unity_game/Assets/{task_id}/runtime_{index}.prefab"
+                source.parent.mkdir(parents=True, exist_ok=True)
+                runtime.parent.mkdir(parents=True, exist_ok=True)
+                source.write_bytes(f"source-{task_id}".encode())
+                runtime.write_bytes(f"runtime-{task_id}".encode())
+                source_files = [{"path": source.relative_to(repo).as_posix()}]
+                runtime_assets = [{"path": runtime.relative_to(repo).as_posix()}]
+
+            assets[task_id] = {
+                "reviewState": "ACCEPTED",
+                "quality": "production",
+                "authored3D": True,
+                "runtimeActive": True,
+                "proceduralFallbackActive": False,
+                "ownerAccepted": True,
+                "sourceFiles": source_files,
+                "runtimeAssets": runtime_assets,
+                "evidence": [{"kind": "screenshot", "path": shot.name}],
+            }
+
+        _git(repo, "init")
+        _git(repo, "config", "user.name", "AFAREET Test")
+        _git(repo, "config", "user.email", "afareet-test@example.invalid")
+        _git(repo, "add", "Assets", "unity_game")
+        _git(repo, "commit", "-m", "fingerprint fixture")
+        git_sha = _git(repo, "rev-parse", "HEAD").lower()
+
+        manifest = {
+            "schemaVersion": 2,
+            "visualGate": "UPER-009",
+            "verified": False,
+            "ownerAccepted": True,
+            "candidate": {"gitSha": git_sha, "apkSha256": apk_sha},
+            "fallbackState": {
+                "heroProcedural": False,
+                "rivalsProcedural": False,
+                "trackProcedural": False,
+                "cairoWorldProcedural": False,
+                "landmarksProcedural": False,
+            },
+            "assets": assets,
+        }
+        path = evidence / "p1-production-art-template.json"
+        path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        return repo, path, manifest, git_sha, apk_sha
+
+    def test_fingerprinted_manifest_is_deterministic_and_passes_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, original, git_sha, apk_sha = self._fixture(Path(directory))
+            first, first_count = FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+            second, second_count = FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+            self.assertEqual(first, second)
+            self.assertEqual(22, first_count)
+            self.assertEqual(first_count, second_count)
+            self.assertNotIn("sha256", original["assets"]["UART-003"]["sourceFiles"][0])
+
+            output = path.parent / "p1-production-art.json"
+            FINGERPRINT.write_fingerprinted_manifest(input_path=path, output_path=output, payload=first)
+            result = GATE.verify_art_manifest(
+                manifest_path=output,
+                repo_root=repo,
+                expected_git_sha=git_sha,
+                expected_apk_sha=apk_sha,
+            )
+            self.assertTrue(result["artifactFingerprintsVerified"])
+            self.assertEqual(22, result["artifactFingerprintCount"])
+            self.assertTrue(result["gitCandidateHeadVerified"])
+            self.assertEqual(16, result["gitTrackedArtifactCount"])
+            self.assertTrue(result["taskArtifactPolicyVerified"])
+
+    def test_tamper_after_fingerprinting_is_rejected_by_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, _original, git_sha, apk_sha = self._fixture(Path(directory))
+            payload, _count = FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+            output = path.parent / "p1-production-art.json"
+            FINGERPRINT.write_fingerprinted_manifest(input_path=path, output_path=output, payload=payload)
+
+            source_rel = payload["assets"]["UART-003"]["sourceFiles"][0]["path"]
+            (repo / source_rel).write_bytes(b"changed-after-fingerprint")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "SHA-256 mismatch"):
+                GATE.verify_art_manifest(
+                    manifest_path=output,
+                    repo_root=repo,
+                    expected_git_sha=git_sha,
+                    expected_apk_sha=apk_sha,
+                )
+
+    def test_missing_declared_artifact_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            runtime_rel = manifest["assets"]["UART-006"]["runtimeAssets"][0]["path"]
+            (repo / runtime_rel).unlink()
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "file is missing"):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_fingerprinter_refuses_verified_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            manifest["verified"] = True
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(FINGERPRINT.FingerprintManifestError, "self-assert VERIFIED"):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_fingerprinter_rejects_wrong_candidate_head(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            manifest["candidate"]["gitSha"] = "c" * 40
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "repository HEAD does not match"):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_fingerprinter_rejects_untracked_repo_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            extra = repo / "unity_game/Assets/Afareet/ArtSource/Vehicles/Hero/untracked.obj"
+            extra.write_bytes(b"untracked")
+            manifest["assets"]["UART-003"]["sourceFiles"] = [{"path": extra.relative_to(repo).as_posix()}]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(GATE.ProductionArtGateError, "is not tracked by candidate Git commit"):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_fingerprinter_rejects_uart003_rival_role_before_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            manifest["assets"]["UART-003"]["sourceFiles"] = [
+                dict(manifest["assets"]["UART-004"]["sourceFiles"][0])
+            ]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(
+                GATE.ProductionArtGateError,
+                "UART-003 authored 3D source uses forbidden role segment: rivals",
+            ):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_fingerprinter_rejects_incomplete_uart004_source_set_before_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, path, manifest, _git_sha, _apk_sha = self._fixture(Path(directory))
+            manifest["assets"]["UART-004"]["sourceFiles"] = manifest["assets"]["UART-004"]["sourceFiles"][:-1]
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(
+                GATE.ProductionArtGateError,
+                "UART-004 authored 3D source set must exactly match production policy",
+            ):
+                FINGERPRINT.fingerprint_manifest(manifest_path=path, repo_root=repo)
+
+    def test_output_must_stay_beside_input_and_never_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            _repo, path, manifest, _git_sha, _apk_sha = self._fixture(root)
+            with self.assertRaisesRegex(FINGERPRINT.FingerprintManifestError, "never overwrites the input"):
+                FINGERPRINT.write_fingerprinted_manifest(input_path=path, output_path=path, payload=manifest)
+
+            elsewhere = root / "other"
+            elsewhere.mkdir()
+            with self.assertRaisesRegex(FINGERPRINT.FingerprintManifestError, "must stay beside the input"):
+                FINGERPRINT.write_fingerprinted_manifest(
+                    input_path=path,
+                    output_path=elsewhere / "p1-production-art.json",
+                    payload=manifest,
+                )
+
+            existing = path.parent / "existing.json"
+            existing.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(FINGERPRINT.FingerprintManifestError, "refusing to overwrite"):
+                FINGERPRINT.write_fingerprinted_manifest(input_path=path, output_path=existing, payload=manifest)
+
+
+if __name__ == "__main__":
+    unittest.main()
