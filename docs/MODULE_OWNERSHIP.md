@@ -21,13 +21,13 @@
 
 ## Active work board
 
-| Task | Owner | Branch/PR | Locked paths/contracts | Since | Status |
-|---|---|---|---|---|---|
-| DOC-P1-STATUS / #269 | walidatiyaai2025-gif | `docs/DOC-P1-STATUS-reconcile` | `docs/PROJECT_STATUS.md`, `docs/tasks/06-UNITY-3D-MIGRATION.md`, `docs/MODULE_OWNERSHIP.md` | 2026-08-29 | IN PROGRESS |
+_No active scoped Module Locks are recorded after merge of DOC-P1-STATUS / PR #270._
 
 ### Reconciled legacy locks
 
 The previous active-board rows dated `2026-08-13` (`agent/unity-3d-prototype` / PR #49) were reviewed by the Team Lead during DOC-P1-STATUS reconciliation and are **retired as active locks**. Their historical work is already represented by the later Unity convergence line and fixed U-P1 operational ledger; retaining them as live locks would falsely block current ownership decisions.
+
+DOC-P1-STATUS / #269 was merged through PR #270 on 2026-08-29 and its temporary documentation lock is released.
 
 Current convergence coordination lives in Issue #90 and PR #144. A convergence branch is not a blanket lock on every `unity_game/` path: any new source change still requires its own Task ID, human Owner and scoped Module Lock before modification.
 
