@@ -23,9 +23,12 @@
 
 | Task | Owner | Branch/PR | Locked paths/contracts | Since | Status |
 |---|---|---|---|---|---|
+| DOC-P1-STATUS / #269 | walidatiyaai2025-gif | `docs/DOC-P1-STATUS-reconcile` | `docs/PROJECT_STATUS.md`, `docs/tasks/06-UNITY-3D-MIGRATION.md`, `docs/MODULE_OWNERSHIP.md` | 2026-08-29 | IN PROGRESS |
 | U3D-001→U3D-012 bootstrap batch | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | `unity_game/`, build identity, migration docs | 2026-08-13 | IN REVIEW |
-| U3D-006 + U3D-008 + UPER-004 + UPER-005 | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | Unity asmdefs, Vehicle/Camera config contracts, tests, Android toolchain and debug APK | 2026-08-13 | IN REVIEW |
+| U3D-006 + U3D-008 + UPER-004 + UPER-005 | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | Unity asmdefs, Vehicle/Camera config contracts, tests, Android toolchain and debug APK | 2026-08-13 | IN PROGRESS |
 | UVEH input stabilization + UART-002/AST-062 | Principal Mobile Game Architect | `agent/unity-3d-prototype` / PR #49 | `ArcadeCarController`, `PrototypeHud`, hero blockout/reference and Android verification | 2026-08-13 | IN PROGRESS |
+
+> `DOC-P1-STATUS` is documentation/governance-only and is not a 66th U-P1 task. The older 2026-08-13 lock rows are preserved in this lock-acquisition commit and will be reconciled against the live convergence/Issue #90 state within the same docs task.
 
 ## Lock procedure
 
