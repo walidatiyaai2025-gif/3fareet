@@ -2,34 +2,34 @@
 
 **Document:** AFA-ARCH-BE-001  
 **Decision:** APPROVED  
-**Date:** 2026-08-12  
-**Scope:** Backend foundation contract only; implementation remains gated behind P1 Playable Prototype.
+**Updated:** 2026-08-30  
+**Scope:** Backend foundation/security contract only; implementation remains gated behind the playable 3D prototype.
 
 ## Locked stack decision
 
-- Mobile/Game client: Flutter + Flame.
-- Backend application/API: Laravel.
-- Primary relational database: MySQL.
+- Canonical current 3D game client/runtime: **Unity**.
+- Legacy Flutter/Flame code may remain for historical/launcher/compatibility purposes, but it is not the authoritative new 3D gameplay runtime unless an explicit migration/legacy task says otherwise.
+- Backend application/API: **Laravel**.
+- Primary relational database: **MySQL**.
 - Client/server transport: HTTPS JSON REST API for normal game/account/economy operations.
 - Real-time multiplayer transport is a separate later concern under NET tasks and must not be implemented as direct database access.
 
 ## Mandatory security boundary
 
-The Flutter application **must never connect directly to MySQL** and must never contain database credentials.
+No game client — Unity, Flutter or any future client — may connect directly to MySQL or contain database credentials.
 
 Required data path:
 
-`Flutter / Flame Client → HTTPS API → Laravel → MySQL`
+`Game Client → HTTPS API → Laravel → MySQL`
 
 Laravel owns authentication, authorization, validation, rate limiting, business rules, persistence, audit logging and server-side anti-cheat/economy validation.
 
 ## Environment model
 
 Use isolated environments:
-
-- local development
-- staging
-- production
+- local development;
+- staging;
+- production.
 
 Each environment must have separate application secrets and separate MySQL credentials/databases. Secrets must be injected from environment/configuration and never committed to Git.
 
@@ -43,8 +43,6 @@ Each environment must have separate application secrets and separate MySQL crede
 - Authentication mechanism selected and documented during BCK-003; Laravel-native token/session facilities should be preferred unless multiplayer requirements justify another mechanism.
 
 ## Initial Laravel domain modules
-
-Planned modules map to the existing BCK task register:
 
 1. Auth / guest account / account linking.
 2. Player profile.
@@ -65,18 +63,17 @@ Planned modules map to the existing BCK task register:
 - Add indexes from measured access patterns, not speculation.
 - Backups and restore drills are mandatory before production launch.
 
-## P1 gate interaction
+## Playable-slice gate interaction
 
-This architecture decision is locked now so current gameplay code does not evolve toward direct database coupling. However, substantial Laravel/MySQL implementation remains deferred until the P1 playable prototype proves the driving loop, visual direction and Android release path.
+This backend decision is locked so current gameplay code does not evolve toward database coupling. Substantial Laravel/MySQL implementation remains deferred until the Unity playable 3D slice proves the driving loop, visual direction, Android build path and target-device performance.
 
-A small API client abstraction may be introduced in Flutter before P6 only when required to preserve clean boundaries; it must not block the playable prototype.
+A small API client abstraction may be introduced in the canonical game client before P6 only when required to preserve clean boundaries; it must not block the playable slice.
 
 ## Definition of Done for BCK-001
 
 BCK-001 is satisfied when:
-
-- Laravel is recorded as backend runtime/framework.
-- MySQL is recorded as primary database.
-- direct client-to-MySQL access is explicitly prohibited.
-- environment and API boundaries are documented.
+- Laravel is recorded as backend runtime/framework;
+- MySQL is recorded as primary database;
+- direct client-to-MySQL access is explicitly prohibited;
+- environment and API boundaries are documented;
 - Master Development Plan and Project Status reference this architecture decision.
