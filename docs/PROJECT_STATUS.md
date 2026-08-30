@@ -2,112 +2,119 @@
 
 **Document:** AFA-STATUS-001  
 **Purpose:** الصفحة التنفيذية السريعة لمعرفة وضع المشروع لحظة بلحظة  
-**Last updated:** 2026-08-12 18:49 (Asia/Kuwait)  
-**Overall status:** 🟡 **CAMERA + AI + UI CORE VERIFIED — PREMIUM VISUAL / REAL-DEVICE GATES STILL OPEN**
+**Last updated:** 2026-08-30 (Asia/Kuwait)  
+**Overall status:** 🟡 **UNITY 3D RUNTIME ACTIVE — PERCEPTUAL 3D / PREMIUM VISUAL / FULL ANDROID CLOSURE OPEN**
 
-> هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead لمعرفة الحالة الحالية. لا يجوز دمج PR يغيّر حالة Task أو Phase أو Blocker أو Asset أو Build/Release بدون تحديث هذه الصفحة في نفس الـPR.
+> هذه الصفحة هي أول صفحة يراجعها مالك المشروع وTeam Lead. لا يجوز دمج PR يغيّر Task/Phase/Blocker/Asset/Build/Release truth بدون تحديث هذه الصفحة في نفس PR.
 
 ## Executive snapshot
 
 | Area | Status | Current reality |
 |---|---|---|
-| Flutter / Flame foundation | 🟢 Verified | PRO-001 → PRO-016 Verified |
-| GAMEPLAY-050 | 🟢 Verified | VEH-001→016 + DRF-001→012 + RAC-001→016 Verified |
-| P1-NEXT-050 | 🟢 Verified | **50 tasks exactly:** CAM-001→011 + AI-001→018 + UIX-001→016 + PWR-001→005 |
-| Camera | 🟢 Verified core | follow/look-ahead/damping/drift/nitro/crash/air/FOV/shake/accessibility/bounds verified; CAM-012 device tuning remains TODO |
-| Offline AI | 🟢 Verified core | racing line + controls + behavior + three AI rivals + stuck/finish rules integrated into RaceSession |
-| UI / UX | 🟢 Verified core | Splash → Main Menu → Mode Select → Loading → Race plus HUD/Pause/Result/Error, SafeArea, RTL and text-scale clamp |
-| Power-ups | 🟢 Verified first slice | definitions, spawn/pickup, collection, one-slot inventory and Eye Shield verified |
-| Rap × Shaabi music | 🟡 Integrating | AST-061 audio integration from `main` is preserved; real-device listening validation still required |
-| Premium visual direction | 🔴 Open | VIS tasks require screenshot/device review and Team Lead approval; not claimed by this code batch |
-| Android build evidence | 🟢 CI verified | Debug APK + Release Skeleton APK + artifact upload passed on P1-NEXT-050 code head |
-| Android verified release APK | 🔴 None | CI artifacts are build evidence only; real-device smoke test still required |
-| Backend architecture | 🟢 Locked | `Flutter/Flame → HTTPS API → Laravel → MySQL`; direct Flutter→MySQL prohibited |
+| Worker governance | 🟡 PR pending | Root `AGENTS.md` + AI-first Unity 3D execution plan are being established to keep parallel Codex workers on one path |
+| Canonical new 3D runtime | 🟢 Unity active | Real-device diagnostics show Unity-side authored Cairo runtime systems active |
+| Legacy Flutter/Flame prototype | ⚪ Legacy / non-authoritative for new 3D core | Existing code/history may remain, but new vehicle/camera/world/traffic/rendering/VFX work should follow Unity unless explicitly tasked otherwise |
+| Authored Cairo route | 🟢 Runtime evidence | `cairo-night-vertical-slice-v1`, 24 control points, 72 runtime segments |
+| Authored road/curb | 🟢 Runtime evidence | `SM_Track_CairoRoad_A` + `SM_Track_CairoCurb_A` active |
+| Night lighting bootstrap | 🟢 Runtime evidence | `AFAREET_NIGHT_LIGHTING_NORMALIZED`, active `Moon Light` |
+| Building variation | 🟡 Functional but visually limited | Runtime shows 3 facades / 2 awnings / 1 sign; U3D density/variation expansion remains open |
+| Garage session | 🟢 Initialization evidence | `afareet_king` equipped; no legacy migration/invalid recovery in shown excerpt |
+| Chase-camera perceptual depth | 🔴 Open visual gate | Must be verified by raw gameplay screenshots/device evidence, not assumed from technical camera existence |
+| Vehicle grounding/mass | 🔴 Open visual gate | Wheel/suspension/body/contact-shadow acceptance still required |
+| Cairo foreground/midground/background density | 🔴 Open visual gate | Current goal is a convincing city around the road, not track-in-empty-space |
+| Traffic / parked scale cues | 🔴 Open visual gate | Required for depth/scale and later performance tuning |
+| Road/material depth | 🔴 Open visual gate | Curbs exist; flat-strip appearance still must be closed through height/material/decal pass |
+| Premium visual direction | 🔴 Open | Updated toward grounded Cairo-after-midnight premium 3D rather than excessive neon |
+| Android runtime evidence | 🟡 Partial real-device evidence | Initialization excerpt exists; complete player/camera/traffic/race/FPS/exceptions evidence still required |
+| Verified release APK | 🔴 Not established by current evidence | Do not promote a build without exact-SHA + real-device smoke + visual/performance evidence |
+| Backend architecture | 🟢 Locked boundary | `Game Client → HTTPS API → Laravel → MySQL`; direct client→MySQL prohibited |
 
-## Verified engineering batch — P1-NEXT-050
+## Current governing program
 
-**Owner:** Principal Mobile Game Architect  
-**Scope:** **50 tasks exactly**  
-**Status:** `VERIFIED`  
-**Verified code head:** `86a6ea2afb273cab14730e61a152676dc90ea24f`  
-**Flutter Prototype CI:** `31613691078` — SUCCESS  
-**Project Status Freshness Guard:** `31613691026` — SUCCESS  
-**Evidence:** [`work/P1-NEXT-050.md`](work/P1-NEXT-050.md)
+The controlling execution program is the **Unity AI-First 3D Closure**:
 
-### Exact count
-- CAM-001 → CAM-011 = 11
-- AI-001 → AI-018 = 18
-- UIX-001 → UIX-016 = 16
-- PWR-001 → PWR-005 = 5
-- **Total = 50**
+- [`../AGENTS.md`](../AGENTS.md)
+- [`AI_AUTONOMOUS_3D_EXECUTION_PLAN.md`](AI_AUTONOMOUS_3D_EXECUTION_PLAN.md)
+- [`tasks/06-UNITY-AI-3D-CLOSURE.md`](tasks/06-UNITY-AI-3D-CLOSURE.md)
 
-### Verification evidence
-Run `31613691078` completed Green and proved:
-- formatter check;
-- `flutter analyze` with zero issues;
-- complete tests including Camera, AI, UI-flow and Power-up coverage;
-- Android scaffold generation;
-- Android Debug APK build;
-- Android Release Skeleton APK build;
-- preview APK artifact upload.
+The owner should not be required to manually model, place Unity objects, wire routine references or operate Blender for production tasks that can be automated.
 
-The task-promotion commits after the verified code head are documentation-only. No tested application/gameplay code changed after that Green run.
+## Real-device diagnostic baseline — 2026-08-30
 
-## Architecture now locked
+Evidence is persisted in:
 
-- Camera feedback consumes deterministic fixed-step state and feeds Flame's viewfinder as an adapter.
-- Camera invalid values are sanitized and hard-bounded; accessibility can disable shake without changing simulation.
-- Offline AI uses seeded deterministic decisions, making race behavior reproducible for later replay, multiplayer debugging and authoritative reconciliation work.
-- Three AI rivals are now part of `RaceSession`; HUD position derives from actual race progress instead of a placeholder.
-- Front-end UI remains outside the gameplay kernel and keeps a persistent Game instance beneath menus, preserving audio and simulation lifecycle boundaries.
-- UI supports SafeArea, Arabic RTL and bounded accessibility text scaling.
-- First power-up rules are pure Dart and isolated from rendering/networking.
-- Backend path remains `Flutter/Flame → HTTPS API → Laravel → MySQL`; direct client database access is prohibited.
+[`qa/2026-08-30-unity-device-diagnostic-baseline.md`](qa/2026-08-30-unity-device-diagnostic-baseline.md)
 
-## P1 Playable Prototype Gate
+Known device/runtime facts:
+- HONOR ALI-NX1;
+- Android 15 / API 35;
+- Adreno 710;
+- 2652×1200;
+- authored Cairo route active;
+- authored road/curb active;
+- building variation active;
+- Moon Light normalized/active;
+- garage session initialization active.
 
-**Status:** 🟡 **GAMEPLAY + CAMERA + AI + UI CORE READY / FULL P1 NOT VERIFIED**
-
-Still required:
-- CAM-012 camera tuning on multiple devices;
-- VIS-001→VIS-014 implementation and screenshot/device Visual Gate;
-- VEH-017 real-device driving-feel verification;
-- RAC-017 integrated track-completion verification;
-- remaining P0 engine/drift/nitro audio validation;
-- real-device Android Release APK smoke test;
-- final verified APK in `Last verified APK released/`.
+This does **not** yet prove full race lifecycle, final camera quality, traffic, stable FPS or absence of later exceptions.
 
 ## Highest priorities next
 
-1. VIS implementation + screenshot review against `ART_DIRECTION.md`.
-2. CAM-012 + VEH-017 + RAC-017 real-device verification.
-3. Remaining P0 audio/SFX integration and listening validation.
-4. PWR-006→PWR-014 remaining race power-ups/effects.
-5. First real-device Verified Release APK.
+1. `U3D-GOV-001/002` — identify/reconcile canonical Unity branch/head and remove remaining architecture ambiguity.
+2. `U3D-CAM-*` + `U3D-VEH-*` — make the raw frame read as true third-person 3D and ground the vehicle.
+3. `U3D-ROAD-*` + `U3D-WLD-*` + `U3D-LGT-*` — dense Cairo depth, road height/material variation and lighting hierarchy.
+4. `U3D-TRF-*` — parked/ambient traffic for scale.
+5. `U3D-QA-003/004` — screenshot/device gates for G1/G2.
+6. `U3D-QA-006` — frame pacing / quality tiers on Adreno-710-class hardware.
+7. `U3D-REL-*` — exact-SHA Android candidate and real-device verified promotion.
 
 ## Active blockers / risks
 
 | ID | Severity | Blocker / Risk | Action |
 |---|---|---|---|
-| STS-B03 | 🔴 High | Premium VIS gate remains open | Implement and perform screenshot/device review |
-| STS-B04 | 🔴 High | No real-device Verified Release APK | Smoke-test a `main` release candidate on Android hardware |
-| STS-B10 | 🟡 Medium | Engine/drift/nitro gameplay SFX still incomplete | Generate/acquire and validate P0 SFX |
-| STS-B11 | 🟡 Medium | CAM-012/VEH-017/RAC-017 require device/integration evidence | Run device and integrated race verification |
+| STS-U3D-01 | 🔴 High | Repository history contains Flutter/Flame architecture while live 3D runtime evidence is Unity | Complete canonical-head reconciliation and keep docs/interfaces aligned |
+| STS-U3D-02 | 🔴 High | Technical 3D can still look flat/2D | Close camera + grounding + depth composition gates before broad feature expansion |
+| STS-U3D-03 | 🔴 High | No current screenshot evidence proving premium third-person 3D presentation | Capture raw HUD-off representative frames after U3D-CAM/VEH work |
+| STS-U3D-04 | 🔴 High | Cairo density/traffic/road-material depth not yet visually verified | Execute U3D-WLD/ROAD/LGT/TRF vertical-slice tasks |
+| STS-U3D-05 | 🟡 Medium | Current diagnostic excerpt ends before full player/camera/traffic/race/FPS closure | Extend `AFAREET_` runtime markers and collect longer real-device evidence |
+| STS-U3D-06 | 🟡 Medium | Parallel workers can create duplicate systems/conflicting interfaces | Enforce `AGENTS.md`, Task IDs, Module Locks and focused branches |
+
+## Current gates
+
+### G0 — Live-state reconciliation
+**Status:** 🟡 In progress / governance PR pending.
+
+### G1 — Camera + vehicle grounding
+**Status:** 🔴 Open.
+
+### G2 — Dense Cairo street slice
+**Status:** 🔴 Open.
+
+### G3 — Premium moving frame
+**Status:** 🔴 Open.
+
+### G4 — Integrated playable event loop
+**Status:** 🟡 Existing systems may contribute, but not re-verified against current canonical Unity head here.
+
+### G5 — Android performance / release evidence
+**Status:** 🔴 Open for current final closure.
 
 ## Last verified APK
 
-**Status:** 🔴 **NO VERIFIED RELEASE APK YET**  
-**Folder:** [`../Last verified APK released/`](../Last%20verified%20APK%20released/)  
+**Status:** Do not infer from old Flutter-era documentation.  
+A current Unity APK may only be promoted as verified after exact-SHA build metadata, real-device smoke, diagnostics, visual review and performance evidence are all attached.
 
 ## Source of truth links
 
+- [Repository Constitution](../AGENTS.md)
 - [Master Development Plan](MASTER_DEVELOPMENT_PLAN.md)
-- [Prototype Core Tasks](tasks/01-PROTOTYPE-CORE.md)
-- [Gameplay/UI/Offline Tasks](tasks/02-GAMEPLAY-UI-OFFLINE.md)
-- [P1-NEXT-050 Evidence](work/P1-NEXT-050.md)
-- [Backend Architecture](BACKEND_ARCHITECTURE.md)
+- [AI Autonomous 3D Execution Plan](AI_AUTONOMOUS_3D_EXECUTION_PLAN.md)
+- [Unity AI-First 3D Closure Tasks](tasks/06-UNITY-AI-3D-CLOSURE.md)
 - [Art Direction](ART_DIRECTION.md)
+- [Backend Architecture](BACKEND_ARCHITECTURE.md)
+- [Task Register](TASK_REGISTER.md)
 - [Missed Assets](MISSED_ASSETS.md)
+- [2026-08-30 Unity Device Diagnostic Baseline](qa/2026-08-30-unity-device-diagnostic-baseline.md)
 - [Last verified APK released](../Last%20verified%20APK%20released/)
 
 ---
